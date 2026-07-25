@@ -1,0 +1,314 @@
+[
+  {
+    "domain": 1,
+    "question": "An analyst subscribes to a feed that automatically shares machine-readable indicators between organizations in the financial sector. Which pairing of standards is specifically designed to structure and transport this kind of cyber threat intelligence?",
+    "options": [
+      "SNMP and NetFlow",
+      "STIX and TAXII",
+      "SAML and SCAP",
+      "OSINT and HUMINT"
+    ],
+    "correct": [1],
+    "explanation": "STIX defines the structured language for describing threat indicators, and TAXII is the transport protocol used to exchange STIX data between parties. SNMP and NetFlow are network monitoring standards, SAML and SCAP relate to authentication and configuration, and OSINT and HUMINT are intelligence collection sources, not sharing standards.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A threat intelligence report rates the reliability of a source and the credibility of the information separately, using a lettered scale for one and a numbered scale for the other. This grading approach is best described as which concept?",
+    "options": [
+      "Confidence level admiralty scoring",
+      "CVSS base metric scoring",
+      "Traffic Light Protocol (TLP)",
+      "Diamond Model pivoting"
+    ],
+    "correct": [0],
+    "explanation": "The admiralty (or NATO) system grades source reliability with letters and information credibility with numbers, producing a confidence level for the intelligence. CVSS scores vulnerability severity, TLP controls how far information may be shared, and the Diamond Model maps intrusion analysis, none of which grade source reliability this way.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "During threat hunting, an analyst begins with the statement, 'If an attacker has established persistence, we should see unexpected scheduled tasks on domain controllers.' What is this statement an example of?",
+    "options": [
+      "An indicator of compromise",
+      "A hunt hypothesis",
+      "A signature rule",
+      "A tabletop exercise"
+    ],
+    "correct": [1],
+    "explanation": "Threat hunting is a proactive, hypothesis-driven activity, and the analyst is forming a testable hypothesis to guide the search. An indicator of compromise is observed evidence, a signature rule is a detection pattern, and a tabletop exercise is a discussion-based incident drill.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which statement correctly distinguishes an indicator of attack (IOA) from an indicator of compromise (IOC)?",
+    "options": [
+      "An IOA focuses on the intent and behavior of an adversary in progress, while an IOC is forensic evidence that a compromise has already occurred",
+      "An IOA is always a file hash, while an IOC is always an IP address",
+      "An IOC is used only in threat intelligence, while an IOA is used only in vulnerability scanning",
+      "An IOA and an IOC are two names for the same artifact"
+    ],
+    "correct": [0],
+    "explanation": "IOAs describe the behaviors and intent of an attack as it unfolds, enabling earlier detection, while IOCs are the after-the-fact artifacts such as hashes, IPs, or registry keys left behind. The other options misstate the definitions or falsely equate the two terms.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An organization wants to limit the blast radius of a compromised workstation so that an attacker cannot freely move to servers holding regulated data. Which architectural control most directly addresses this goal?",
+    "options": [
+      "Full disk encryption",
+      "Network segmentation",
+      "Time synchronization with NTP",
+      "Single sign-on (SSO)"
+    ],
+    "correct": [1],
+    "explanation": "Segmentation divides the network into zones so that a breach in one segment cannot easily reach others, directly limiting lateral movement. Full disk encryption protects data at rest, NTP synchronizes clocks for accurate logging, and SSO centralizes authentication, none of which contain lateral movement by themselves.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A SOC analyst captures traffic and notices thousands of DNS TXT record queries to a single external domain, each containing long encoded subdomain strings. Which technique is this pattern most consistent with?",
+    "options": [
+      "ARP cache poisoning",
+      "DNS tunneling for command and control or exfiltration",
+      "A SYN flood denial of service",
+      "Cross-site scripting"
+    ],
+    "correct": [1],
+    "explanation": "Encoding data into DNS queries and responses lets an attacker smuggle command-and-control traffic or exfiltrate data through a protocol that firewalls rarely block, which the long encoded subdomains reveal. ARP poisoning is a layer 2 attack, a SYN flood is volumetric, and XSS targets web applications, none of which produce this DNS pattern.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "Which framework describes an intrusion as four linked features: adversary, capability, infrastructure, and victim?",
+    "options": [
+      "Lockheed Martin Cyber Kill Chain",
+      "MITRE ATT&CK",
+      "The Diamond Model of Intrusion Analysis",
+      "NIST Cybersecurity Framework"
+    ],
+    "correct": [2],
+    "explanation": "The Diamond Model links exactly those four core features and lets analysts pivot from one to another during analysis. The Cyber Kill Chain is a seven-stage sequence, ATT&CK is a matrix of tactics and techniques, and the NIST CSF organizes program functions, none of which use the adversary-capability-infrastructure-victim structure.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst wants to map an observed intrusion to a knowledge base of adversary tactics and techniques so detection gaps can be identified by technique ID. Which resource is purpose-built for this?",
+    "options": [
+      "MITRE ATT&CK",
+      "CVE",
+      "OWASP Top 10",
+      "CIS Benchmarks"
+    ],
+    "correct": [0],
+    "explanation": "MITRE ATT&CK is a curated matrix of real-world adversary tactics and techniques, each with an identifier, used to map behavior and find detection gaps. CVE catalogs individual vulnerabilities, the OWASP Top 10 lists web application risks, and CIS Benchmarks are hardening guides, none of which map adversary techniques.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A network engineer proposes moving several internal services to a design where each service runs in its own lightweight, isolated user-space instance that shares the host kernel. Which technology is being described?",
+    "options": [
+      "Type 1 bare-metal hypervisor virtual machines",
+      "Containerization",
+      "Serverless functions",
+      "A demilitarized zone (DMZ)"
+    ],
+    "correct": [1],
+    "explanation": "Containers package an application with its dependencies and run isolated in user space while sharing the host operating system kernel. A type 1 hypervisor runs full VMs with separate guest kernels, serverless abstracts the host entirely from the developer, and a DMZ is a network segment, not an isolation runtime.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which two of the following are legitimate log or data sources an analyst would use to investigate suspected malicious activity on the network? (Choose two.)",
+    "options": [
+      "Firewall and flow logs",
+      "The organization's payroll spreadsheet",
+      "DNS query logs",
+      "The building's HVAC maintenance schedule"
+    ],
+    "correct": [0, 2],
+    "explanation": "Firewall or flow logs reveal connection patterns and volumes, and DNS query logs expose lookups tied to command and control or exfiltration, both core to network investigation. A payroll spreadsheet and an HVAC schedule carry no security telemetry relevant to analyzing malicious network activity.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst opens a suspicious executable in an isolated environment that runs it, records API calls, file changes, and network callbacks without risking production systems. This type of analysis is best described as which of the following?",
+    "options": [
+      "Static analysis by disassembly only",
+      "Dynamic analysis in a sandbox",
+      "Fuzzing",
+      "Regression testing"
+    ],
+    "correct": [1],
+    "explanation": "Executing the sample in a controlled sandbox to observe its runtime behavior is dynamic analysis. Static analysis inspects code without running it, fuzzing feeds malformed input to find crashes, and regression testing verifies that software still works after changes, none of which match observing live malware behavior.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A host suddenly shows a spike in CPU usage, an unfamiliar process spawned from a Word document, and outbound connections to a rarely seen IP. Which category of indicator does the unfamiliar process spawned by the document represent?",
+    "options": [
+      "A network-based IOC",
+      "A host-based IOC",
+      "A physical security control",
+      "A compensating control"
+    ],
+    "correct": [1],
+    "explanation": "A process, its parentage, and CPU behavior are observed on the endpoint itself, making them host-based indicators of compromise. The outbound connection would be a network IOC, while physical and compensating controls are protective measures, not indicators.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Which command-line tool would an analyst most likely use for a lightweight, scriptable packet capture from a Linux server over SSH where no graphical interface is available?",
+    "options": [
+      "Wireshark",
+      "tcpdump",
+      "Nmap",
+      "Nessus"
+    ],
+    "correct": [1],
+    "explanation": "tcpdump is a command-line packet capture and analysis tool ideal for headless servers and scripting. Wireshark is primarily a graphical analyzer, Nmap is a port and service scanner, and Nessus is a vulnerability scanner, none of which are lightweight CLI capture tools.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A threat intelligence analyst classifies a group as motivated by ideology, willing to deface sites and leak documents to draw attention to a cause rather than for profit. Which threat actor type is this?",
+    "options": [
+      "Nation-state / advanced persistent threat",
+      "Organized cybercrime",
+      "Hacktivist",
+      "Insider threat"
+    ],
+    "correct": [2],
+    "explanation": "Hacktivists are driven by ideological or political motives and often use defacement and data leaks for publicity rather than financial gain. Nation-states pursue espionage or strategic goals, organized crime seeks profit, and an insider operates from within the organization.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst is asked to improve detection during threat hunting by feeding newly discovered adversary techniques back into the SIEM as new correlation rules. Which threat-hunting concept does this represent?",
+    "options": [
+      "Reducing the attack surface",
+      "Bundling critical assets",
+      "Integrated intelligence and improving detection capabilities",
+      "Assessing regulatory compliance"
+    ],
+    "correct": [2],
+    "explanation": "A core outcome of threat hunting is feeding what is learned back into detection tooling so future attacks are caught automatically, which is integrating intelligence to improve detection. Reducing the attack surface and bundling critical assets are separate hunt outcomes, and compliance assessment is not a hunting concept.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Users report that after visiting an internal web app, requests intended for the app server are being answered by an attacker's machine on the same LAN segment. Captured traffic shows the attacker's MAC address mapped to the gateway's IP. Which attack is occurring?",
+    "options": [
+      "DNS cache poisoning",
+      "ARP spoofing leading to a man-in-the-middle position",
+      "SQL injection",
+      "Password spraying"
+    ],
+    "correct": [1],
+    "explanation": "Mapping the attacker's MAC to the gateway IP on the local segment is classic ARP spoofing, letting the attacker intercept traffic as a man in the middle. DNS cache poisoning falsifies name resolution, SQL injection targets databases, and password spraying tries common passwords across accounts, none of which involve forged ARP mappings.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "An organization adopts an identity model where no user or device is trusted by default and every access request is authenticated, authorized, and continuously validated regardless of network location. Which model is this?",
+    "options": [
+      "Zero trust",
+      "Perimeter-based (castle-and-moat) security",
+      "Discretionary access control only",
+      "Air-gapped isolation"
+    ],
+    "correct": [0],
+    "explanation": "Zero trust removes implicit trust based on network position and validates every request continuously. Perimeter-based security trusts internal traffic once inside, discretionary access control is an authorization scheme rather than a trust model, and an air gap is a physical isolation technique.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "While reviewing web server logs, an analyst sees a request containing the string ' OR '1'='1 in a login parameter. Which attack does this most directly indicate?",
+    "options": [
+      "Cross-site request forgery",
+      "SQL injection",
+      "Directory traversal",
+      "Server-side request forgery"
+    ],
+    "correct": [1],
+    "explanation": "The classic tautology ' OR '1'='1 is injected to manipulate a backend SQL query and bypass authentication, a hallmark of SQL injection. CSRF forces a victim's browser to submit actions, directory traversal uses path sequences like ../, and SSRF makes the server issue attacker-chosen requests, none of which use this SQL tautology.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A security team wants to correlate events from firewalls, servers, and endpoints in one place, run queries across them, and generate alerts on suspicious patterns. Which tool category is designed for this?",
+    "options": [
+      "SIEM (Security Information and Event Management)",
+      "IPS signature update service",
+      "A password vault",
+      "A configuration management database used only for asset inventory"
+    ],
+    "correct": [0],
+    "explanation": "A SIEM aggregates and correlates log and event data from many sources, supporting search and alerting, which is exactly the stated need. An IPS enforces inline blocking, a password vault stores credentials, and a CMDB tracks assets, none of which provide cross-source event correlation and alerting.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst reviewing endpoint telemetry sees PowerShell launched with an encoded command that downloads and executes a payload directly in memory, leaving no file on disk. This behavior is best characterized as which of the following?",
+    "options": [
+      "A fileless / living-off-the-land technique",
+      "A logic bomb triggered by a date",
+      "A rainbow table attack",
+      "A watering-hole compromise"
+    ],
+    "correct": [0],
+    "explanation": "Using a built-in tool like PowerShell to run code in memory without writing to disk is a fileless, living-off-the-land technique that evades file-based detection. A logic bomb waits for a trigger, a rainbow table cracks hashes offline, and a watering hole compromises a site the target visits, none of which describe in-memory abuse of native tooling.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst needs to check the reputation of a suspicious IP address and domain seen in outbound traffic, using free public data sources rather than a paid feed. Which of the following is the most appropriate first step?",
+    "options": [
+      "Query open-source reputation and threat intelligence sources such as WHOIS and public blocklists",
+      "Immediately reimage every workstation in the company",
+      "Disable all logging to reduce noise",
+      "Email the suspicious domain owner asking if they are malicious"
+    ],
+    "correct": [0],
+    "explanation": "Checking WHOIS registration data and public reputation or blocklist sources is a fast, low-cost way to enrich an indicator before escalating. Mass reimaging is disproportionate without confirmation, disabling logging destroys evidence, and contacting the suspected attacker tips them off and yields no reliable answer.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A financial firm joins a sector-specific group where members share threat data and best practices under agreed handling rules. What is this type of organization called?",
+    "options": [
+      "An ISAC (Information Sharing and Analysis Center)",
+      "A CVE Numbering Authority",
+      "A bug bounty platform",
+      "A certificate authority"
+    ],
+    "correct": [0],
+    "explanation": "ISACs are sector-based bodies through which members share threat intelligence and defensive practices under trust agreements. A CVE Numbering Authority assigns vulnerability identifiers, a bug bounty platform brokers vulnerability reports for pay, and a certificate authority issues digital certificates, none of which are sector threat-sharing communities.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which two techniques help protect sensitive data so that even if a database is breached the raw values are not directly usable? (Choose two.)",
+    "options": [
+      "Tokenization",
+      "Encryption at rest",
+      "Leaving fields in plaintext for faster queries",
+      "Publishing the schema publicly"
+    ],
+    "correct": [0, 1],
+    "explanation": "Tokenization replaces sensitive values with non-sensitive substitutes stored separately, and encryption at rest renders stored data unreadable without the key, both limiting exposure after a breach. Storing plaintext for speed and publishing the schema do the opposite of protecting the data.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst maps an ongoing intrusion to a seven-stage sequence that runs from reconnaissance through weaponization, delivery, exploitation, installation, command and control, and finally actions on objectives. Which model is being used?",
+    "options": [
+      "The Diamond Model",
+      "The Lockheed Martin Cyber Kill Chain",
+      "The OODA loop",
+      "The STRIDE threat model"
+    ],
+    "correct": [1],
+    "explanation": "The Cyber Kill Chain describes an intrusion as those seven sequential stages, helping defenders disrupt an attack at each phase. The Diamond Model uses four features rather than stages, the OODA loop is a decision cycle, and STRIDE categorizes threat types during design, none of which use this seven-stage chain.",
+    "difficulty": "MEDIUM"
+  }
+]

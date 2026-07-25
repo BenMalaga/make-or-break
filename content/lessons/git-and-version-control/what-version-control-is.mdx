@@ -1,0 +1,251 @@
+---
+title: What Version Control Is
+module: git-and-version-control
+moduleTitle: Version Control with Git
+moduleOrder: 3
+moduleIcon: GitBranch
+order: 1
+summary: "The report_final_v2_ACTUAL.doc folder is version control done badly: here is the idea that replaces it."
+estimatedMinutes: 13
+prerequisites: ["errors-and-how-to-handle-them"]
+objectives:
+  - Name the three real problems version control solves for a working project
+  - Define a snapshot as a saved, labeled, returnable state of a whole project
+  - Explain what a commit and a repository are and how they relate
+  - Describe what Git is and what distributed means for the history it keeps
+tags:
+  - git
+  - version-control
+---
+
+By the end of the Python Deep Dive module the code was real. Files that held
+data between runs, error handling that caught a bad input instead of letting the
+program fall over, a script small enough to read and solid enough to hand to
+someone else. That is the moment a project stops being a toy and starts being
+something worth protecting. And the most common way people protect a project is
+a quiet disaster that everyone has lived through at least once.
+
+Open almost anyone's work folder and the disaster is right there:
+`report_final.doc`, then `report_final_v2.doc`, then `report_FINAL_actually.doc`,
+then `report_FINAL_use_this_one.doc`. Four files, all nearly the same, and no
+honest way to say what changed between any two of them or which one the finished
+work actually came from. That folder is version control, the practice of keeping
+track of how a project changes over time. It is version control done entirely by
+hand, and it is bad at the single job it has.
+
+## The problem, before the tool
+
+Three specific pains push people into that folder of duplicates, and naming them
+is the fastest way to see what a real tool has to fix.
+
+The first is recovery. A change that looked fine at 2pm turns out to have broken
+something by 4pm, and the working version is gone, painted over by every save
+since. Copying the whole folder before each risky edit is the manual fix, which
+is exactly why the duplicates breed. What a person actually wants is to step back
+to the last state that worked, without having planned for the fall in advance.
+
+The second is history. Six weeks later, a line of code or a paragraph looks
+wrong, and nobody can say when it changed, or why, or whether removing it will
+break something that depends on it. The file only ever shows its current state.
+It has no memory of the decisions that produced it. A copy named `_v2` records
+that a second version happened, and nothing about what the two is or why anyone
+made it.
+
+The third is collaboration. Two people open the same file, both edit it, and
+both save. Whoever saves second wins, and the first person's work is simply gone,
+with no warning and no trace. Emailing files back and forth and merging the
+changes by hand is the workaround, and it collapses the moment a project has more
+than a couple of moving pieces or more than a couple of people.
+
+These are not three separate wishes. They are one wish said three ways: a project
+should remember its own past, so a person can look at it, return to it, and
+combine it with someone else's work without loss. A tool that does that well is
+worth learning, and the idea underneath it is simpler than the folder of
+duplicates makes it look.
+
+<Quiz
+  id="vc-three-problems"
+  question="A developer copies the whole project folder and renames it backup_before_big_change every time they try something risky. Which problem is that habit a clumsy attempt to solve?"
+  answer={2}
+  options={[
+    "Knowing which teammate wrote a particular line last week.",
+    "Making the program run faster once it is finished.",
+    "Being able to return to a known working state if the change breaks something.",
+    "Reducing how much disk space the project takes up.",
+  ]}
+  explanation="Copying the folder before a risky edit is a manual recovery plan: it saves a state to fall back to. It does nothing for shared editing, it does not record why anything changed, and it uses more disk space, not less."
+/>
+
+## A snapshot is a saved point in time
+
+The core idea has a plain name: a snapshot. A snapshot is a saved, labeled state
+of the whole project at one moment, captured so completely that the project can
+be returned to exactly that state later.
+
+The word is doing real work, so it helps to take it literally. Think of a photo
+of a room. It captures everything at once, every object in its place, not just
+the one thing that moved since the last photo. A project snapshot is the same:
+it records every file in the project as it stood at that instant, together, as a
+single frozen picture. Line up a series of those pictures in order and the result
+is a flip-book of the project's entire life, from empty folder to finished work.
+
+Two properties make a snapshot more than a folder copy. It is labeled, meaning it
+carries a note in plain words about what this particular state is. And it is
+returnable, meaning a tool can rebuild the project exactly as it was at that
+snapshot without a person hunting through duplicates and guessing. The folder of
+`_final` files gestures at both properties and delivers neither. The names are
+labels that describe nothing, and returning to one means manually copying it back
+over everything, which is how good versions get destroyed by accident.
+
+Hold onto the word whole. A snapshot is not a record of one file or one edit. It
+is the state of the entire project at a point in time. That completeness is what
+lets a person jump back to any moment and find the project fully intact, not a
+single rescued file surrounded by mismatched neighbors.
+
+## A commit is a snapshot with a message
+
+A snapshot on its own is just a frozen state. The version of it that developers
+actually work with has a name and one crucial addition: a commit. A commit is a
+saved snapshot plus a short written message that says what changed and why.
+
+That message is the part the folder of duplicates never had, and it is where most
+of the long-term value lives. A commit message reads like a line in a project's
+diary: `fix crash when the input file is empty`, or `add password length check to
+signup`. Months later, that one sentence answers the question the bare file never
+could. It says not just that the project changed at this point, but what the
+change was for. A wall of good commit messages is a readable history of every
+decision, in order, each one tied to the exact snapshot it describes.
+
+A commit is deliberate, which is the detail people miss at first. It is not an
+autosave that fires on every keystroke, and it is not the same as saving a file
+in an editor. A person decides that the project has reached a state worth
+recording, groups up the changes that belong together, writes a message
+describing them, and only then makes the commit. The result is history built out
+of meaningful moments rather than a noisy log of every character typed. This is
+why one commit often covers several files at once: the unit is a complete change
+that makes sense as a whole, not a single edit.
+
+Once commits exist, so does the thing that holds them. A repository is the
+project folder together with the full history of every commit ever made to it.
+The word gets shortened to repo constantly, so it is worth pinning down now. The
+files a person sees and edits are the project's current state. The repository is
+that current state plus the entire flip-book behind it, the whole ordered chain
+of snapshots and their messages, stored quietly alongside the working files. Turn
+a plain folder into a repository and it gains a memory it did not have before.
+
+<Quiz
+  id="vc-commit-vs-save"
+  question="Which statement best captures the difference between saving a file in an editor and making a commit?"
+  answer={0}
+  options={[
+    "Saving updates the file's current state; a commit deliberately records a labeled snapshot of the project, with a message, that can be returned to later.",
+    "Saving and committing are two names for the exact same action.",
+    "A commit only stores the one file currently open, while saving stores the whole folder.",
+    "Committing happens automatically on every keystroke, while saving must be triggered by a person.",
+  ]}
+  explanation="A save overwrites the current file and keeps no history. A commit is a chosen, described snapshot of the whole project that stays in the history. A commit can cover many files, and it is deliberate rather than automatic, which is the opposite of the last two options."
+/>
+
+## Git is the tool that keeps the snapshots
+
+The idea of snapshots and commits is general, and several tools over the years
+have put it into practice. One has become close to universal: Git. Git is a
+version control tool, created in 2005, that records a project's history as a
+chain of commits and rebuilds any past state on request. Almost every software
+project a person is likely to touch, open source or inside a company, keeps its
+history in Git. Learning it is not picking a favorite. It is learning the thing
+the field already agreed on.
+
+Git works with any files that are mostly text, which is most of what code and
+writing are. It does not care whether the project is Python, a website, a set of
+research notes, or the hardware design files behind a circuit board. It watches a
+folder, records the snapshots a person asks it to record, and can show, at any
+time, what changed between any two of them and who made each change.
+
+The property that sets Git apart is one word: distributed. In an older style of
+version control, the entire history lived on one central server, and a person's
+own computer held only the latest copy of the files, borrowed from that server.
+Lose the server and you lose the past. Git works the other way. Every full copy of
+a repository carries the complete history, every commit from the first to the
+most recent, stored locally. Copying a Git repository to another computer, an act
+called cloning, hands over the whole flip-book, not just the current frame.
+
+That design has consequences worth seeing early. History is available with no
+network at all, because it already sits in the local copy, so a person on a plane
+can read six months of commits and make new ones. There is no single machine
+whose failure erases the record, because every clone is a full backup by nature.
+And sharing work becomes a matter of two repositories comparing their histories
+and reconciling the differences, rather than everyone reaching through one
+fragile central point. The tool that most people use to host and share those
+repositories online is GitHub, and it gets its own lesson later in this module.
+For now the split worth remembering is simple: Git is the version control tool
+itself, and it runs perfectly well on a single computer with nothing else
+attached.
+
+None of that requires memorizing commands today. The only one worth running now
+just confirms the tool is present and reports which version it is, which is the
+usual first step before any real work with it.
+
+<CommandCard
+  command="git --version"
+  title="terminal"
+  explain="Asks Git to print the version installed, which doubles as a quick check that Git is available at all."
+/>
+
+<ExpectedOutput label="checking the Git version">
+```
+git version 2.39.5
+```
+</ExpectedOutput>
+
+The exact number will differ from one computer to the next, and that is fine.
+Any version reported means Git is installed and ready. A different response, one
+that says the command was not found, means Git is not installed yet, and that is
+the one real snag worth naming before going further.
+
+<Callout type="warning" title="git --version failing is not a Git problem yet">
+If running `git --version` returns something like `command not found: git` or
+`'git' is not recognized`, Git simply is not installed on that computer yet.
+Nothing is broken and no history has been lost, because there is no history to
+lose until a repository exists. The fix is to install Git first, which the next
+lesson walks through before making a single commit. A missing tool and a broken
+project look nothing alike, and it is worth not confusing the two.
+</Callout>
+
+<Quiz
+  id="vc-distributed"
+  question="A team keeps its project in Git, and every developer has cloned the repository to their own computer. The one server they use for sharing suddenly dies for good. What happens to the project's history?"
+  answer={1}
+  options={[
+    "The entire history is lost, because Git stores it only on the central server.",
+    "The history survives, because every clone already holds the complete history locally.",
+    "Only the most recent commit survives on each developer's computer.",
+    "The history survives only if someone made folder copies as a backup.",
+  ]}
+  explanation="Distributed means every clone carries the full history, not just the latest files. Losing the shared server costs the team a convenient meeting point, but each developer's copy is a complete record, so nothing is gone. That is exactly the failure the older central-server model could not survive."
+/>
+
+<Exercise title="See the manual version, then check for the tool">
+Find a folder on a computer within reach that holds work done over time: a
+folder of documents, a school project, photos edited across several passes. Look
+for the hand-made version control already living there. Count the files whose
+names carry a version by hand, the `_v2`, the `_final`, the `_edited`, the dates
+stuck on the end. For any two of them, ask yourself a plain question: without
+opening both, can you say what changed between them and why? That gap is the one
+Git closes.
+
+Now, in a terminal, the plain text window where typed commands go, run
+`git --version`. If it prints a version number, Git is already installed and the
+next lesson can start immediately. If it says the command was not found, make a
+note of that: installing Git is the first step of the next lesson, and knowing
+now saves a surprise later. Either result is a useful thing to have learned
+before moving on.
+</Exercise>
+
+The idea is in place now: snapshots, commits, and a repository that remembers all
+of them, kept by a tool almost every developer already trusts. What is missing is
+the doing. The next lesson, your first repository, turns a plain folder into one
+Git is actually watching and walks through making that first commit, the moment a
+project's memory switches on.
+
+<Notes />

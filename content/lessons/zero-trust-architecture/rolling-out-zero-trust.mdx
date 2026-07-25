@@ -1,0 +1,60 @@
+---
+title: Rolling Out Zero Trust
+module: zero-trust-architecture
+moduleTitle: Zero Trust Architecture
+moduleOrder: 49
+moduleIcon: ShieldQuestion
+order: 5
+summary: The programs that fail try to replace everything at once. The ones that work pick one app, one pillar, and iterate.
+estimatedMinutes: 17
+objectives:
+  - Sequence a zero trust rollout so it delivers value early
+  - Avoid the rip-and-replace and the buy-a-platform traps
+  - Build a first-90-days plan anchored on inventory and identity
+tags:
+  - zero-trust
+  - implementation
+  - strategy
+  - roadmap
+---
+
+The zero trust projects that die share a shape. Someone declares that the entire network will be re-architected, a two-year program spins up, and eighteen months in there is a lot of spend, a lot of slideware, and nothing an attacker would actually notice. Zero trust is not a rip-and-replace. It is a series of small migrations, each of which leaves you measurably harder to move through.
+
+The second way it dies is a purchase order. A vendor sells a "zero trust platform," the box gets racked, and everyone treats the project as done. It is not a product, so buying one finishes nothing. The platform might be a useful enforcement point, but the policy, the inventory, and the discipline are the work, and none of that ships in a box.
+
+## Start with what you cannot see
+
+You cannot protect an asset you have not inventoried or a flow you have never observed. So the first move is not buying anything, it is discovery: enumerate your users, devices, applications, and the data flows between them. Every later policy is a statement about something on that list, and a policy written against a guessed dependency breaks production the day you enforce it.
+
+<CommandBlock
+  title="cheap discovery before you enforce anything"
+  commands={[
+    { cmd: "nmap -sn 10.0.0.0/24", comment: "what hosts are actually live on this segment, ground truth against the asset list" },
+    { cmd: "az ad app list --query '[].{name:displayName, id:appId}' -o table", comment: "every registered app that touches your identity provider" },
+    { cmd: "kubectl get networkpolicies -A", comment: "where segmentation already exists, and the large gaps where it does not" },
+  ]}
+/>
+
+## Sequence for early wins
+
+Order matters, because momentum comes from shipping something real in the first quarter. A sequence that holds up:
+
+- **Identity first.** Turn on phishing-resistant MFA broadly, kill legacy authentication protocols, and get conditional access enforcing on your most sensitive apps. This is the highest ratio of risk reduced to effort spent, and it touches the load-bearing pillar.
+- **One app behind a proxy.** Pick a single high-value internal application and put it behind an identity-aware proxy or a ZTNA gateway instead of the VPN. Now that app is verified per request, and you have a working pattern to copy.
+- **Device posture into the decision.** Feed compliance signals from your endpoint management into the access policy, so an unmanaged device fails the check.
+- **Segment the crown jewels.** Microsegment the few workloads that would end the company if breached, not all four hundred at once.
+
+Notice what this is not. It is not "boil the ocean." Each step delivers a control that stands on its own, and each one narrows what a foothold can reach. You run the old and new models side by side, migrating app by app, until the VPN-and-flat-LAN pattern has nothing important left behind it.
+
+Measure as you go, or you cannot tell progress from motion. Track hard numbers: percent of apps behind per-request access, percent of accounts on phishing-resistant MFA, count of workloads under default-deny. Those move in a direction. "We are doing zero trust now" does not.
+
+<Callout type="security" title="Rehearse the rollout in a lab first">
+Enforcing default-deny, flipping conditional access to block, or moving an app behind a proxy can lock out real users if the policy is wrong. Build the pattern in a lab you own, test who gets blocked and who gets through, and only then apply it to production systems you are authorized to change. Practicing enforcement against infrastructure you do not own or administer is out of bounds.
+</Callout>
+
+<Exercise
+  id="zt-90-day-plan"
+  prompt="Write a first-90-days zero trust plan for an organization still on a flat network with VPN access. Give it three phases with a concrete deliverable each, starting with inventory and identity, and for every phase name one metric that proves the phase actually moved risk. Keep it iterative, no rip-and-replace, and make each phase valuable on its own if the next one slipped."
+/>
+
+<Notes />

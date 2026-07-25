@@ -1,0 +1,288 @@
+[
+  {
+    "domain": 2,
+    "question": "You need to make /usr/local/bin/report run with the file owner's privileges and keep permissions rwxr-xr-x for everyone else. Which chmod octal mode sets this?",
+    "options": [
+      "2755",
+      "4755",
+      "1755",
+      "0755"
+    ],
+    "correct": [1],
+    "explanation": "The leading 4 sets the setuid bit, causing the program to execute with the file owner's privileges, and 755 supplies rwxr-xr-x. 2000 is setgid and 1000 is the sticky bit, so 2755 and 1755 are incorrect, and 0755 sets no special bit at all.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "The /tmp directory is set to mode 1777. What does the leading 1 (sticky bit) enforce on that directory?",
+    "options": [
+      "Files created in the directory inherit the directory's group",
+      "Only the file's owner, the directory's owner, or root can delete or rename a file in it",
+      "Every program in the directory runs as the directory owner",
+      "The directory contents are made read-only to all non-root users"
+    ],
+    "correct": [1],
+    "explanation": "On a directory the sticky bit restricts deletion and renaming so a user can only remove files they own, even though the directory is world-writable. Group inheritance is the setgid bit, and running as the owner is the setuid bit.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A shared project directory needs every new file created inside it to automatically belong to the 'devs' group so team members can collaborate. Which special permission bit accomplishes this?",
+    "options": [
+      "The sticky bit (chmod +t)",
+      "The setuid bit (chmod u+s)",
+      "The setgid bit (chmod g+s)",
+      "The immutable attribute (chattr +i)"
+    ],
+    "correct": [2],
+    "explanation": "The setgid bit on a directory forces newly created files and subdirectories to inherit the directory's group ownership rather than the creator's primary group. The sticky bit governs deletion, setuid affects execution identity, and chattr +i makes a file immutable.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A hardened server uses umask 027. When a user creates a new regular file, what permissions will it receive?",
+    "options": [
+      "rw-r--r-- (644)",
+      "rw-r----- (640)",
+      "rwxr-x--- (750)",
+      "rw------- (600)"
+    ],
+    "correct": [1],
+    "explanation": "New files start from a base of 666, and umask 027 masks off group write and all permissions for others, yielding 640 (rw-r-----). Directories would start from 777 and become 750, but the question asks about a regular file.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "You must grant the user 'maria' read and write access to /data/budget.csv without changing the file's owner, group, or other permissions. Which command does this?",
+    "options": [
+      "chmod u+rw maria /data/budget.csv",
+      "setfacl -m u:maria:rw /data/budget.csv",
+      "chown maria:rw /data/budget.csv",
+      "usermod -a -G maria /data/budget.csv"
+    ],
+    "correct": [1],
+    "explanation": "setfacl -m adds an access control list entry granting a specific user rights independent of the standard owner and group permissions. chmod and chown alter the classic ownership model, and usermod manages group membership, not file access.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "In the output of ls -l, a file shows permissions as -rw-r--r--+ with a trailing plus sign. What does the plus sign indicate?",
+    "options": [
+      "The file has an extended access control list (ACL) beyond the standard permissions",
+      "The file has the setuid bit enabled",
+      "The file is marked immutable",
+      "The file has an SELinux security context"
+    ],
+    "correct": [0],
+    "explanation": "A trailing plus sign in ls -l means one or more extended ACL entries exist, viewable with getfacl. SELinux contexts show with ls -Z (a trailing dot), setuid appears as an s in the permission bits, and immutability is shown by lsattr.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An administrator wants to protect /etc/resolv.conf so that not even root can modify or delete it until the protection is explicitly removed. Which command sets this?",
+    "options": [
+      "chmod 000 /etc/resolv.conf",
+      "chattr +i /etc/resolv.conf",
+      "chown root:root /etc/resolv.conf",
+      "setfacl -b /etc/resolv.conf"
+    ],
+    "correct": [1],
+    "explanation": "chattr +i sets the immutable attribute on a supported filesystem, blocking modification, deletion, renaming, and linking even by root until removed with chattr -i. chmod 000 still lets root write, chown only changes ownership, and setfacl -b removes ACLs.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Running getenforce on a RHEL system returns one of three states. Which set correctly lists the possible SELinux modes it can report?",
+    "options": [
+      "Active, Inactive, Failed",
+      "Enforcing, Permissive, Disabled",
+      "Strict, Targeted, MLS",
+      "On, Off, Learning"
+    ],
+    "correct": [1],
+    "explanation": "getenforce reports the current SELinux mode as Enforcing, Permissive, or Disabled. Strict, Targeted, and MLS are policy types, not modes, and the other options are not valid SELinux states.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "You run setenforce 0 to switch SELinux to permissive for troubleshooting, but after a reboot it returns to enforcing. Where must you change the setting to make permissive mode persist across reboots?",
+    "options": [
+      "/etc/selinux/config",
+      "/etc/sysconfig/selinux-runtime",
+      "/proc/sys/kernel/selinux",
+      "/etc/security/selinux.conf"
+    ],
+    "correct": [0],
+    "explanation": "setenforce only changes the runtime mode and does not survive a reboot. To persist the mode you edit the SELINUX= line in /etc/selinux/config, which is read at boot. Note that setenforce cannot move to or from Disabled; only the config file can.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "After moving a file into /var/www/html with mv, the web server gets permission denied even though standard permissions are correct, and SELinux is enforcing. Which command resets the file to the default SELinux context defined by policy?",
+    "options": [
+      "chcon -t httpd_sys_content_t index.html",
+      "restorecon -v /var/www/html/index.html",
+      "setsebool -P httpd_enable_homedirs on",
+      "semanage login -a index.html"
+    ],
+    "correct": [1],
+    "explanation": "mv preserves the source file's context, which often does not match the target directory, so restorecon relabels the file to the default context defined by the policy's file-context rules. chcon can set a context manually but is not policy-driven and is lost on a full relabel, and the other commands manage booleans and login mappings.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "You enable an SELinux boolean with setsebool httpd_can_network_connect on, but after a reboot it reverts. Which command makes the boolean change permanent?",
+    "options": [
+      "setsebool -P httpd_can_network_connect on",
+      "togglesebool httpd_can_network_connect",
+      "semodule -B httpd_can_network_connect",
+      "restorecon -R httpd_can_network_connect"
+    ],
+    "correct": [0],
+    "explanation": "Without the -P flag setsebool only changes the runtime value, which is lost on reboot. The -P (persistent) flag writes the boolean to the policy so it survives reboots. semodule manages policy modules and restorecon relabels files.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "SELinux is blocking a custom application and you want to build an allow-rule policy module from the recorded AVC denial messages. Which tool generates that module?",
+    "options": [
+      "aa-genprof",
+      "audit2allow",
+      "semanage fcontext",
+      "sealert -fix"
+    ],
+    "correct": [1],
+    "explanation": "audit2allow reads AVC denial entries from the audit log and generates the corresponding allow rules, and with -M it produces a loadable policy module. aa-genprof is an AppArmor tool, semanage fcontext manages file-context mappings, and sealert is a diagnostic viewer.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "On an Ubuntu server using AppArmor, a profile is set to complain mode. How does complain mode behave?",
+    "options": [
+      "It blocks all actions not explicitly allowed and logs each denial",
+      "It allows actions that violate the profile but logs each violation",
+      "It disables the profile entirely with no logging",
+      "It applies the profile only to the root user"
+    ],
+    "correct": [1],
+    "explanation": "Complain mode (also called learning mode) permits actions that would otherwise be blocked while logging every violation, which is useful for building or refining a profile. Enforce mode is what actually blocks disallowed actions, and disabling a profile stops both enforcement and logging.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A technician is deciding which mandatory access control system a given distribution ships with by default. Which pairing is correct?",
+    "options": [
+      "Red Hat Enterprise Linux and Fedora default to AppArmor",
+      "Ubuntu and SUSE default to AppArmor while RHEL and Fedora default to SELinux",
+      "Debian and Ubuntu default to SELinux",
+      "All major distributions default to the same system, TOMOYO"
+    ],
+    "correct": [1],
+    "explanation": "Ubuntu, Debian, and SUSE ship with AppArmor enabled by default, while Red Hat Enterprise Linux, CentOS, and Fedora use SELinux. TOMOYO exists but is not a default on the major distributions.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "On a firewalld host you run firewall-cmd --permanent --add-service=https, but the rule is not active. What additional step applies the permanent change to the running firewall?",
+    "options": [
+      "Run firewall-cmd --reload",
+      "Restart the entire host",
+      "Run firewall-cmd --panic-on",
+      "Run iptables-save"
+    ],
+    "correct": [0],
+    "explanation": "The --permanent flag writes the rule to the persistent configuration but does not change the running ruleset, so firewall-cmd --reload is needed to load it into the runtime. A reboot would also apply it but is unnecessary, --panic-on drops all traffic, and iptables-save is unrelated to firewalld.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "On an Ubuntu system using UFW, which command allows inbound SSH connections on the default port?",
+    "options": [
+      "ufw allow 22/tcp",
+      "ufw deny ssh",
+      "ufw disable 22",
+      "ufw route 22 accept"
+    ],
+    "correct": [0],
+    "explanation": "ufw allow 22/tcp opens inbound TCP port 22 for SSH; ufw allow ssh works too by matching the service name in /etc/services. ufw deny blocks traffic, ufw disable turns the firewall off, and ufw route is not a valid rule for this purpose.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "In an iptables rule such as iptables -A INPUT -p tcp --dport 23 -j DROP, what is the role of the -j DROP portion?",
+    "options": [
+      "It specifies the chain the rule is appended to",
+      "It sets the target action to silently discard matching packets",
+      "It defines the source port to match",
+      "It flushes the existing ruleset before adding the rule"
+    ],
+    "correct": [1],
+    "explanation": "The -j (jump) option sets the target, and DROP silently discards matching packets with no reply to the sender. -A INPUT chooses the chain, --dport sets the destination port, and flushing the ruleset is done with -F.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "You generated an SSH key pair with ssh-keygen. To enable key-based login to a remote server, where must the public key be placed on that server?",
+    "options": [
+      "In ~/.ssh/known_hosts on the server",
+      "In ~/.ssh/authorized_keys in the target user's home directory on the server",
+      "In /etc/ssh/ssh_host_rsa_key on the server",
+      "In ~/.ssh/id_rsa on the server"
+    ],
+    "correct": [1],
+    "explanation": "The client's public key must be appended to ~/.ssh/authorized_keys under the target account on the server, which ssh-copy-id automates. The private key (id_rsa) stays on the client, known_hosts stores server host keys, and ssh_host_rsa_key is the server's own host key.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "You are hardening /etc/ssh/sshd_config to reduce remote attack surface. Which two settings directly help? (Choose two.)",
+    "options": [
+      "PermitRootLogin no",
+      "PasswordAuthentication no",
+      "PermitEmptyPasswords yes",
+      "X11Forwarding yes"
+    ],
+    "correct": [0, 1],
+    "explanation": "PermitRootLogin no stops direct root logins, forcing use of an unprivileged account plus sudo, and PasswordAuthentication no requires key-based authentication, defeating password guessing. Permitting empty passwords and enabling X11 forwarding both increase risk rather than reduce it.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "You need to create a self-signed TLS certificate and its private key in a single openssl command for a test web server. Which command does this?",
+    "options": [
+      "openssl req -new -key server.key -out server.csr",
+      "openssl req -x509 -newkey rsa:2048 -keyout server.key -out server.crt -days 365 -nodes",
+      "openssl x509 -in server.crt -text -noout",
+      "openssl verify -CAfile ca.crt server.crt"
+    ],
+    "correct": [1],
+    "explanation": "The -x509 option tells openssl req to output a self-signed certificate instead of a certificate signing request, and -newkey creates the key pair at the same time. The first command produces a CSR to send to a CA, while the x509 and verify commands only inspect or validate existing certificates.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "On a RHEL 8 system you must lock user accounts after several consecutive failed login attempts. Which PAM module provides this account-lockout functionality?",
+    "options": [
+      "pam_pwquality",
+      "pam_faillock",
+      "pam_limits",
+      "pam_wheel"
+    ],
+    "correct": [1],
+    "explanation": "pam_faillock tracks failed authentication attempts and locks the account after a configured threshold; it replaced the older pam_tally2 in RHEL 8. pam_pwquality enforces password complexity, pam_limits sets resource limits, and pam_wheel restricts use of su.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An administrator needs to immediately lock a user account named 'contractor' so the account cannot authenticate with its password. Which two commands accomplish this? (Choose two.)",
+    "options": [
+      "passwd -l contractor",
+      "usermod -L contractor",
+      "chage -l contractor",
+      "userdel contractor"
+    ],
+    "correct": [0, 1],
+    "explanation": "passwd -l and usermod -L both lock the account by prefixing the password hash in /etc/shadow with an exclamation mark, disabling password authentication without removing the account. chage -l only lists aging information, and userdel deletes the account entirely rather than locking it.",
+    "difficulty": "MEDIUM"
+  }
+]

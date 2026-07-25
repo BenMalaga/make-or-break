@@ -1,0 +1,209 @@
+---
+title: Images and Dockerfiles
+module: docker-and-containers
+moduleTitle: Docker and Containers
+moduleOrder: 14
+moduleIcon: Container
+order: 2
+summary: "An image is a stack of read-only layers plus a config. A Dockerfile is the recipe that stacks them, and a registry is where they live."
+estimatedMinutes: 16
+prerequisites: ["what-containers-are"]
+objectives:
+  - Separate an image from a container and say what the writable layer is for
+  - Read a Dockerfile instruction by instruction and tell a build-time step from a run-time one
+  - Explain layer caching and order a Dockerfile so small changes rebuild in seconds
+  - Say what the build context is and why a stray file in it slows the build or leaks data
+  - Tell a tag from a digest and move an image through a registry with push and pull
+tags:
+  - docker
+  - images
+  - dockerfiles
+  - registries
+---
+
+"What Containers Actually Are" left a container as a normal Linux process dropped into a fresh mount namespace, its whole filesystem view populated from an image. The image did the populating and then got waved past as a black box. This lesson opens the box.
+
+Running `docker run python:3.12 python -c "print('hi')"` on a machine that has never pulled that image does two things in sequence. A few hundred megabytes download once. Then a process starts inside a filesystem that already contains Python, a package manager, and a whole Debian userland, none of which were installed on the host. That filesystem came out of the image. What an image is made of, how it gets built, and where it lives when it is not on the local machine is the entire subject here.
+
+## An image is layers stacked up
+
+An **image** is a read-only template for a container's filesystem plus a small block of metadata. Nothing runs in an image. It sits on disk waiting to be turned into a container. The metadata is a JSON config that records the defaults a container will start with: the command to run, environment variables, the working directory, which ports the software inside listens on, and the CPU architecture it was built for.
+
+The filesystem part is not one blob. It is a stack of **layers**, and each layer is a diff: the set of files that changed relative to the layer beneath it. A base layer might be an entire Debian userland. The layer above it adds the Python runtime. The next adds an application's dependencies. The next adds the application's own code. Merged top to bottom, they present to the process inside as one ordinary filesystem, with no seam showing where one layer ends and the next begins.
+
+Layers are read-only and content-addressed. Each one has a SHA256 digest computed from its contents, so two images that both build on `python:3.12-slim` point at the exact same base layers on disk, stored a single time. That deduplication is the whole economic argument for the layer model. Pull ten different Python services and the shared base downloads and stores once, not ten times.
+
+A **container** is what a running image becomes, and the difference is one thing. Docker adds a single thin writable layer on top of the read-only stack. Every file the process creates or changes lands in that writable layer. Reads fall through to the layers below. This is copy-on-write: changing a file that lives in a lower layer copies it up into the writable layer first and edits the copy, leaving the shared original untouched. Ten containers from one image share the identical read-only layers and each carry their own small writable layer. Delete a container and only its writable layer is discarded. The image is not touched, which is exactly why the next container from it starts in a clean, identical state.
+
+`docker history` prints an image's layers bottom to top and the instruction that produced each one.
+
+<CommandCard
+  command="docker history myapp:1.0"
+  title="linux"
+  explain="Lists every layer in the image with the build instruction that created it and the bytes it added. The IDs, sizes, and timestamps below are illustrative and differ on any real build."
+/>
+
+<ExpectedOutput label="docker history on a small Python image">
+```
+IMAGE          CREATED         CREATED BY                                      SIZE
+d4e5f6a7b8c9   3 minutes ago   CMD ["python" "app.py"]                         0B
+<missing>      3 minutes ago   COPY . . # buildkit                             4.6kB
+<missing>      3 minutes ago   RUN pip install -r requirements.txt # buildkit  61.8MB
+<missing>      3 minutes ago   COPY requirements.txt . # buildkit              38B
+<missing>      3 minutes ago   WORKDIR /app                                    0B
+<missing>      2 weeks ago     CMD ["python3"]                                 0B
+<missing>      2 weeks ago     /bin/sh -c apt-get install -y python3           44.2MB
+```
+</ExpectedOutput>
+
+The `<missing>` in the image-ID column is not an error. Intermediate layers do not get their own tags, so only the top layer carries the image's ID. The metadata-only steps, `CMD` and `WORKDIR`, weigh `0B`. The steps that wrote files, the `RUN` and the two `COPY`s, carry real bytes. Read from the bottom up and the build reads back like a recipe.
+
+<Quiz
+  id="images-layer-sharing"
+  question="Ten containers are started from the same 400 MB image, and none of them writes much to disk. Roughly how much space do the image layers consume?"
+  answer={1}
+  options={[
+    "About 4 GB, since each container needs its own full copy of the image.",
+    "About 400 MB, because the read-only layers are shared and each container adds only its own thin writable layer.",
+    "About 800 MB: one copy for the image and one for the running set of containers.",
+    "It depends on the base image's compression ratio at runtime.",
+  ]}
+  explanation="The image's layers are read-only and shared. A container adds nothing to them; it gets one thin writable layer for its own changes. Ten containers means one shared stack plus ten small writable layers, not ten full copies of 400 MB."
+/>
+
+## The Dockerfile is the recipe
+
+Images are not assembled by hand. They are built from a **Dockerfile**, a plain text file named `Dockerfile` with no extension, one instruction per line. `docker build` reads it top to bottom and produces the layer stack described above. The rule of thumb is one instruction, one layer.
+
+```dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["python", "app.py"]
+```
+
+`FROM` names the base image and pulls in its layers as the foundation. It is almost always the first instruction. `python:3.12-slim` is a stripped Debian with the Python runtime already installed, so the build does not start from an empty filesystem.
+
+`WORKDIR /app` sets the working directory for every instruction after it and for the container at runtime, creating the directory if it does not exist. `COPY requirements.txt .` copies one file from the build machine into the image at the current working directory. `RUN pip install -r requirements.txt` executes a command and freezes whatever it produced, the installed packages, into a new layer. `COPY . .` then copies the rest of the source in. `EXPOSE 8000` records that the software inside listens on port 8000. `CMD ["python", "app.py"]` sets the default command the container runs when it starts.
+
+The split that matters most is between instructions that run while the image is being built and instructions that only describe what a container will do later. `RUN` executes during `docker build`. Its output is baked into a layer, so the packages are already installed by the time anyone starts a container. `CMD` and `ENTRYPOINT` execute nothing at build time. They write a note into the image config that says "when a container starts from this image, run this." Confusing the two is the most common Dockerfile mistake: a `RUN python app.py` would try to start the app during the build, hang or fail, and never make it into a usable image.
+
+Two forms of `CMD` exist and the difference is not cosmetic. The exec form, the JSON array `["python", "app.py"]`, runs the program directly as the container's PID 1, so it receives signals like the stop request `docker stop` sends. The shell form, `CMD python app.py`, wraps the command in `/bin/sh -c`, which makes the shell PID 1 and leaves the real process as its child. Signals then hit the shell, which often ignores them, and the container takes the full ten-second timeout before it is killed. The exec form is the right default.
+
+A handful of other instructions round out the set. `ENV` bakes an environment variable into the image and the running container. `ADD` is like `COPY` but can also fetch a URL and auto-extract a tar archive, which is why `COPY` is preferred unless one of those extras is actually needed. `USER` sets which account later instructions and the container run as. `ARG` declares a variable available only during the build. One instruction is a frequent trap: `EXPOSE` documents a port, it does not open one. Nothing outside the container can reach that port until `docker run -p` publishes it. `EXPOSE` is a label for humans and tools, not a firewall rule.
+
+<Quiz
+  id="images-build-vs-run"
+  question="A Dockerfile ends with a RUN line that pip-installs the requirements and then a CMD line that starts the app with python. When does each of those two lines actually execute?"
+  answer={2}
+  options={[
+    "Both run when a container starts from the image.",
+    "Both run during docker build, one after the other.",
+    "RUN runs during docker build and is baked into a layer; CMD runs when a container starts from the image.",
+    "RUN runs when the container starts; CMD runs during docker build.",
+  ]}
+  explanation="RUN executes at build time and its result is frozen into an image layer, so the packages are already installed. CMD executes nothing at build time; it records the default command the container runs later, when docker run starts it. That build-time versus run-time split is the core Dockerfile mental model."
+/>
+
+## Building: context, cache, and order
+
+A build turns the Dockerfile into a tagged image.
+
+<CommandCard
+  command="docker build -t myapp:1.0 ."
+  title="linux"
+  explain="Builds the image described by the Dockerfile in the current directory. -t sets the name and tag. The trailing dot is the build context, the directory sent to the builder."
+/>
+
+The trailing dot is easy to skim past and it does real work. It is the **build context**: the directory tree the CLI packs up and hands to the builder before the build starts. Only files inside the context can be reached by a `COPY` or `ADD`. Nothing outside it exists as far as the build is concerned. A context bloated with a `.git` directory, a `node_modules` folder, or a stray `.env` full of secrets is slow to transfer and risks copying files nobody meant to ship. A `.dockerignore` file, same idea as `.gitignore`, keeps those paths out of the context entirely.
+
+The other force shaping a build is the **layer cache**. Docker reuses a cached layer whenever the instruction and its inputs are unchanged since the last build. The moment it hits the first instruction whose inputs did change, it rebuilds that layer and every layer below it, because a lower layer could depend on the changed one. For a `COPY`, the input is the contents of the files being copied. For a `RUN`, the input is only the literal command text. That last detail is a real gotcha: `RUN apt-get install nginx` stays cached even after a newer nginx is released upstream, because the command string never changed. Docker has no idea the world moved.
+
+Instruction order is where the cache turns into speed. Dependencies change rarely; application source changes constantly. Copying `requirements.txt` and installing before copying the source means that editing a source file invalidates only the final `COPY` and leaves the expensive install layer cached. Flip those two lines and every one-character code edit reinstalls every package. A rebuild shows the cache working:
+
+<ExpectedOutput label="a rebuild after changing only app.py">
+```
+[+] Building 0.6s (11/11) FINISHED
+ => [internal] load build definition from Dockerfile
+ => [internal] load metadata for docker.io/library/python:3.12-slim
+ => [1/5] FROM docker.io/library/python:3.12-slim
+ => [internal] load build context
+ => => transferring context: 1.83kB
+ => CACHED [2/5] WORKDIR /app
+ => CACHED [3/5] COPY requirements.txt .
+ => CACHED [4/5] RUN pip install -r requirements.txt
+ => [5/5] COPY . .
+ => exporting to image
+ => => naming to docker.io/library/myapp:1.0
+```
+</ExpectedOutput>
+
+Three steps say `CACHED` and cost nothing. Only `[5/5] COPY . .` and the export actually ran, which is why the whole build finished in well under a second instead of reinstalling packages. The step numbers and timing above come from one build and will differ elsewhere.
+
+<Quiz
+  id="images-cache-order"
+  question="A Dockerfile copies requirements.txt and installs dependencies, then copies the application source. A developer changes one line of source and rebuilds. Which layers get rebuilt?"
+  answer={1}
+  options={[
+    "Every layer, because any change invalidates the whole build.",
+    "Only the source COPY and anything after it; the cached dependency install is reused.",
+    "Only the base image layer.",
+    "None, because the image tag did not change.",
+  ]}
+  explanation="The cache invalidates from the first instruction whose inputs changed, downward. The source COPY changed, so it and everything below it rebuild, but the earlier dependency install is untouched and reused. Ordering the stable steps before the volatile ones is what keeps rebuilds in the seconds."
+/>
+
+## Tags and registries
+
+A built image needs a name to be found again, and the full form of that name has more parts than most people use. A complete reference looks like `registry/namespace/repository:tag`, and it can end in `@sha256:...` instead. A **tag** is a mutable human label, `1.0` or `latest`, that points at a specific image. Two tags can point at the same image, so `myapp:1.0` and `myapp:latest` are often the same bytes under two names. `latest` is not special. It is only the tag Docker assumes when none is given, and it carries no promise of being the newest build. A **digest**, the `@sha256:...` form, is the opposite: it is the immutable content hash of the image, and pinning it guarantees the exact same bytes every pull. Production configs that care about reproducibility pin digests, not `latest`.
+
+A **registry** is a server that stores and serves images. Docker Hub, at `docker.io`, is the default, which is why `docker pull nginx` quietly expands to `docker.io/library/nginx:latest`. The `library/` namespace holds Docker's official images. Other registries fill the same role: GitHub's `ghcr.io`, Amazon's ECR, Google's Artifact Registry. Pushing an image to one means tagging it with that registry's path first, then pushing.
+
+<CommandCard
+  command="docker push ghcr.io/example/myapp:1.0"
+  title="linux"
+  explain="Uploads the image to the named registry. Only layers the registry does not already have are transferred, so a small code change ships one small layer. Requires docker login first."
+/>
+
+Transfers move layer by layer, keyed on each layer's digest. Push an image whose base already sits on the registry and only the new layers upload; the shared base is skipped. Pull works the same in reverse, and its output shows the per-layer accounting.
+
+<ExpectedOutput label="docker pull nginx on a machine that has none of the layers">
+```
+Using default tag: latest
+latest: Pulling from library/nginx
+a2abf6c4d29d: Pull complete
+e0b8b25bb2f6: Pull complete
+911e5e9a5e42: Pull complete
+Digest: sha256:0d17b565c37bcbd895e9d92315a05c1c3c9a29f762b011a10c54a66cd53c9b31
+Status: Downloaded newer image for nginx:latest
+docker.io/library/nginx:latest
+```
+</ExpectedOutput>
+
+Each `Pull complete` line is one layer arriving. The `Digest` line is the image's immutable content hash, the value worth pinning. The digest above is illustrative; a real pull prints whatever the registry currently serves for that tag.
+
+<Callout type="security" title="A pulled image is a stranger's binary">
+An image from a public registry is code that will run on the local machine, often as root inside the container. Pull from official or verified publishers, pin a specific tag or a digest instead of `latest`, and only run images on systems the operator is authorized to use. One more sharp edge: `docker history` exposes the command behind every layer, so a secret that was COPYed in and deleted in a later instruction is still sitting in the lower layer for anyone who pulls the image. Deleting a file does not remove it from the layer that added it.
+</Callout>
+
+<Exercise title="Watch the cache do its job">
+On any machine with Docker installed, make a folder with two files. Put a single line, `print("build one")`, in `app.py`. Put this in a file named `Dockerfile`:
+
+```
+FROM python:3.12-slim
+WORKDIR /app
+COPY app.py .
+CMD ["python", "app.py"]
+```
+
+Run `docker build -t cachetest:1 .` and watch every step execute. Run the exact same build command again with no changes: every step now says `CACHED` and it finishes almost instantly.
+
+Now edit `app.py` to say `print("build two")` and build a third time. The `FROM` and `WORKDIR` stay cached, but the `COPY app.py .` and everything after it rebuild, because the file the COPY reads just changed. Finish with `docker history cachetest:1` and read the layers from the bottom up. That list is the Dockerfile, played back.
+</Exercise>
+
+One image running as one container is the simple case, and it stops being enough almost immediately. A real application is usually several containers at once: a web server, a database, a cache, each from its own image, each needing to start in the right order, find the others over a network, and share configuration. Wiring that by hand with long `docker run` lines is exactly where it falls apart. The next lesson, docker compose, replaces those lines with a single file that declares the whole set and brings it up together.
+
+<Notes />

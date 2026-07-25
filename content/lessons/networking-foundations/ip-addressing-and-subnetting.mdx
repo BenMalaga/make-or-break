@@ -1,0 +1,281 @@
+---
+title: IP Addressing and Subnetting
+module: networking-foundations
+moduleTitle: Networking Foundations
+moduleOrder: 1
+moduleIcon: Network
+order: 3
+summary: "What an IP address actually says, how the slash in 10.0.5.0/24 splits it, and why that split decides whether a packet goes straight to a neighbor or out through a router."
+estimatedMinutes: 16
+prerequisites:
+  - what-is-a-network
+  - the-osi-model
+objectives:
+  - Read an IPv4 address as the 32 bits it really is
+  - Split any address into its network and host portions using a CIDR prefix
+  - Compute the network address, broadcast address, and usable host range for a subnet
+  - Explain how a host decides between the local network and the default gateway
+  - Recognize private, loopback, and translated addresses in real output
+tags:
+  - networking
+  - subnetting
+---
+
+The OSI model lesson left a packet sitting at layer 3 with a header wrapped
+around it. That header holds two numbers, a source and a destination. Every
+routing decision on the internet gets made by reading those two numbers and
+nothing else. So they are worth reading properly.
+
+## An address is 32 bits in a costume
+
+An <Term id="ipv4">IPv4</Term> address is a 32-bit number. Nothing more. The
+dots are a convenience for humans, splitting those 32 bits into four groups of
+8, each written in decimal. That is why every group stops at 255: eight bits
+count from 0 to 255 and then run out.
+
+So `10.0.5.130` is really this:
+
+```
+   10  .    0   .    5   .   130
+00001010 00000000 00000101 10000010
+```
+
+Anyone who reads the decimal and skips the binary will be guessing at
+subnetting forever. Every rule below is a rule about bits.
+
+There is a newer version, <Term id="ipv6">IPv6</Term>, which uses 128 bits and
+writes them as hex groups like `2001:db8::1`. It exists because 32 bits only
+allow about 4.3 billion addresses and the world wanted more. The splitting rule
+is identical, just with more bits. IPv4 is what shows up on almost every
+internal network, so it drives the rest of this lesson.
+
+## The split: which part names the street, which names the house
+
+Those 32 bits are not one label. They are two, glued together.
+
+The leading bits name a <Term id="subnet">subnet</Term>, a slice of a larger
+network whose machines all share those same leading bits. The trailing bits
+number one machine inside that slice. Two hosts with matching network bits can
+reach each other directly. Two hosts with different network bits cannot, and
+need a router in between.
+
+Nothing in the address itself says where the split falls. `10.0.5.130` on its
+own is ambiguous. The split has to be told separately, and
+<Term id="cidr">CIDR notation</Term> is how it gets told: `10.0.5.130/26` means
+the first 26 bits are network, the last 6 are host.
+
+The same information also gets written as a subnet mask, which is just the
+prefix drawn as an address: 26 ones followed by 6 zeros is
+`11111111.11111111.11111111.11000000`, which reads back as `255.255.255.192`.
+Same fact, older costume. `/24` is `255.255.255.0`.
+
+<Callout type="info" title="Bigger prefix, smaller subnet">
+The prefix counts network bits, not hosts, so the numbers move in opposite
+directions. A `/26` leaves 6 host bits and holds 64 addresses. A `/24` leaves 8
+and holds 256. A `/16` leaves 16 and holds 65,536. Each step up the prefix
+halves the block.
+</Callout>
+
+## Working one out
+
+Take a host at `10.0.5.130/26`. The prefix is 26, so the first three octets (24
+bits) are entirely network, plus the top 2 bits of the last octet. Only the
+final 6 bits are free.
+
+```
+address    10.0.5.130   ->  ........ ........ ........ 10 000010
+prefix /26                  |<---- network ----->|<--->| host |
+network    10.0.5.128   ->  ........ ........ ........ 10 000000
+broadcast  10.0.5.191   ->  ........ ........ ........ 10 111111
+```
+
+Set all host bits to 0 and the result is the **network address**, `10.0.5.128`.
+It names the subnet itself and never belongs to a machine. Set all host bits to
+1 and the result is the **broadcast address**, `10.0.5.191`, which reaches every
+host in the subnet at once. Also not a machine.
+
+Everything between them is usable: `10.0.5.129` through `10.0.5.190`. That is
+62 addresses, which matches the formula `2^(32 - prefix) - 2`, or `2^6 - 2`.
+
+The shortcut worth memorizing is block size. A `/26` has 64 addresses, so the
+subnets start at `.0`, `.64`, `.128`, `.192`. Find which block contains the
+address and both ends fall out immediately. `130` lands in the `.128` block.
+Done, no binary needed once the habit sticks.
+
+<Quiz
+  id="cidr-broadcast"
+  question="A host sits at 172.16.40.200/27. What is the broadcast address of its subnet?"
+  answer={0}
+  options={["172.16.40.223", "172.16.40.255", "172.16.40.224", "172.16.40.207"]}
+  explanation="A /27 leaves 5 host bits, so blocks are 32 addresses wide and start at .0, .32, .64 ... .192, .224. The address .200 falls in the .192 block, which runs .192 to .223. The last address in the block is the broadcast: 172.16.40.223. The .255 answer is the reflex that assumes every subnet is a /24."
+/>
+
+## Why any of this decides anything
+
+Here is the part that makes subnetting worth the arithmetic rather than a
+trivia exercise.
+
+When a host has a packet to send, it does one calculation first. It applies its
+own mask to its own address, applies the same mask to the destination address,
+and compares. Match means the destination is a neighbor on the same
+local network. No match means it is somewhere else.
+
+Those two answers lead to completely different behavior:
+
+- **Same subnet.** The sender needs the destination's hardware address, since a
+  switch forwards on MAC addresses and knows nothing about IP. So the host
+  broadcasts an <Term id="arp">ARP</Term> request, which shouts to the whole
+  local network asking who owns that IP. The owner answers with its MAC address,
+  and the frame goes straight there.
+- **Different subnet.** ARP would be pointless, because the destination is not
+  on this network to answer. Instead the host addresses the frame to the MAC of
+  its default gateway and hands the packet over. The gateway is a router, and
+  routing it onward is now the router's problem.
+
+The destination IP never changes in either case. What changes is which MAC
+address goes on the frame. That is the whole reason both a layer 2 address and a
+layer 3 address exist at once, and it is what encapsulation from the previous
+lesson was building toward.
+
+A wrong mask breaks this quietly. A host configured `/24` that should be `/16`
+will decide half its real neighbors are remote and ship their traffic to the
+gateway. If the gateway routes it back, everything works but slowly. If it does
+not, some hosts are simply unreachable, and nothing logs an error.
+
+<Quiz
+  id="subnet-decision"
+  question="A host at 192.168.1.50/24 needs to send a packet to 192.168.2.10. What does it do?"
+  answer={1}
+  options={[
+    "Broadcasts an ARP request asking who owns 192.168.2.10",
+    "Sends the packet to its default gateway, with the gateway's MAC address on the frame",
+    "Rewrites the destination to 192.168.1.10 so the packet stays local",
+    "Drops the packet, since the destination is outside its own subnet"
+  ]}
+  explanation="Masking both addresses with /24 gives 192.168.1.0 and 192.168.2.0. They differ, so the destination is remote. ARP only reaches the local network, so nobody there could answer for 192.168.2.10. The host keeps the destination IP intact and addresses the frame to the gateway's MAC instead."
+/>
+
+## Reading it off a real machine
+
+On a Linux host, `ip addr` prints every interface with its address and prefix.
+
+<CommandCard
+  command="ip addr"
+  title="linux"
+  explain="Lists every network interface with its assigned addresses and CIDR prefixes."
+/>
+
+<ExpectedOutput label="Typical output on a Linux host">
+```
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP
+    link/ether 00:1a:2b:3c:4d:5e brd ff:ff:ff:ff:ff:ff
+    inet 10.0.5.130/26 brd 10.0.5.191 scope global dynamic eth0
+       valid_lft 84302sec preferred_lft 84302sec
+```
+</ExpectedOutput>
+
+Four things in that output are worth naming.
+
+`inet 10.0.5.130/26` is the address and its prefix, the exact pair the whole
+lesson has been working with. `brd 10.0.5.191` is the broadcast address the
+kernel already computed, and it agrees with the arithmetic above.
+
+The `lo` interface holds `127.0.0.1/8`, the <Term id="loopback">loopback</Term>
+address. It always means this same machine, and traffic to it never touches a
+wire. A service bound only to loopback is unreachable from every other host on
+earth, no matter what the firewall says.
+
+The word `dynamic` with a `valid_lft` countdown means the address was leased,
+not typed in. <Term id="dhcp">DHCP</Term> handed it over when the machine joined
+the network, along with the gateway and DNS server. That lease expires, which is
+why an address seen on a network today may belong to a different machine next
+week. Timestamps matter when reading logs.
+
+## Private addresses and the router that lies
+
+Three IPv4 ranges are reserved for private networks and are never routed on the
+public internet: `10.0.0.0/8`, `172.16.0.0/12`, and `192.168.0.0/16`. Seeing one
+of those means the address is internal to somebody's network.
+
+Millions of networks reuse those same ranges at once, which works only because
+of <Term id="nat">NAT</Term>. A router sitting at the edge rewrites the source
+address on outbound packets to its own single public address, remembers the
+swap, and reverses it on the replies. Everything inside shares one public
+identity.
+
+The consequence is asymmetry, and it is the reason NAT matters to security work.
+Connections started from inside get out fine. Connections started from outside
+have no entry in the router's table, so the router has no idea which internal
+machine they belong to and drops them. A home machine is unreachable from the
+internet by default, and that is a side effect of address conservation rather
+than a security feature anyone designed.
+
+<Quiz
+  id="loopback-bind"
+  question="A web application on a cloud server is bound to 127.0.0.1:8080, and the firewall permits inbound 8080. A remote client still cannot connect. Why?"
+  answer={1}
+  options={[
+    "The firewall rule was applied to the wrong interface",
+    "127.0.0.1 is the loopback address, so only processes on that same machine can reach the socket",
+    "Port 8080 sits outside the well-known range and is blocked by default",
+    "NAT rewrites the destination address and the packet is discarded"
+  ]}
+  explanation="Binding to loopback is a decision made by the application, and it happens before any firewall gets involved. Traffic to 127.0.0.1 never leaves the machine, so no remote packet can ever arrive at that socket. Opening the port changes nothing. The fix is to bind to 0.0.0.0 or to the interface address, which is also exactly how a service gets exposed by accident."
+/>
+
+## Where this goes wrong
+
+The `/24` reflex is the most common failure. Not every subnet is a `/24`, and
+assuming one turns `10.10.14.23/26` into a sweep of 254 addresses when only 62
+exist, or worse, misses the 190 hosts that a `/23` actually holds.
+
+Two prefixes break the minus-two rule and confuse people. A `/32` is a single
+address with no network or broadcast, used to mean exactly one host. A `/31`
+holds two addresses and zero waste, because RFC 3021 allows point-to-point links
+between routers to skip the network and broadcast entirely.
+
+<Callout type="security" title="One host is a hint, not the target">
+A single address handed over as a target carries its subnet with it. `10.10.14.23/24`
+says up to 254 machines may live alongside it, and host discovery across
+`10.10.14.0/24` is what turns one box into a map of the network. The prefix is
+the scope of the engagement.
+</Callout>
+
+## Try it live
+
+Dragging the prefix below moves the split. Each step of the prefix halves or
+doubles the usable host count, and the network and broadcast addresses slide to
+match.
+
+<Diagram type="subnet" />
+
+<Exercise
+  id="subnet-net"
+  prompt="A target sits at 10.0.5.130/26. What is the network address of its subnet?"
+  answer="10.0.5.128"
+  placeholder="e.g. 10.0.5.0"
+>
+A /26 has 64 addresses per block. The blocks start at .0, .64, .128, .192. Work
+out which block contains .130, then take the first address in it.
+</Exercise>
+
+<Exercise
+  id="subnet-hosts"
+  prompt="How many usable host addresses does a /23 subnet hold?"
+  answer="510"
+  placeholder="a number"
+>
+2^(32 - 23) = 512 total addresses. Subtract the network address and the
+broadcast address.
+</Exercise>
+
+An address and a prefix get a packet to the right machine. They say nothing
+about what happens once it lands, and a single host may run a web server, an SSH
+daemon, and a database at the same time. The next lesson, TCP, UDP, and Ports,
+covers the number that picks which one of them the packet was meant for.
+
+<Notes />

@@ -1,0 +1,218 @@
+---
+title: Turning Problems into Code
+module: math-and-logic
+moduleTitle: Math and Logic
+moduleOrder: 5
+moduleIcon: Sigma
+order: 1
+summary: "A loop, a condition, and a running total: how to translate a plain-English problem into code that runs, checks out, and earns trust."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Break a word problem into five parts: inputs, a loop, a condition, an accumulator, and an output"
+  - Use brute force as a legitimate first solution before reaching for anything clever
+  - Read a problem for its exact bounds and avoid off-by-one range mistakes
+  - Check a small case by hand, then trust the code on the large one
+tags:
+  - python
+  - problem-solving
+  - loops
+---
+
+Here is a problem stated in one plain sentence: add up every whole number below
+100 that divides evenly by 3 or by 5. No code, no hints, just the sentence.
+Anyone who finished Programming Foundations already owns the three tools that
+answer it: a loop to walk the numbers, an `if` statement to test each one, and a
+variable to hold the running total. The missing piece is not more syntax. The
+missing piece is turning that English sentence into those three tools. That
+translation is the whole job of this module, and this first lesson is the method
+for doing it every time.
+
+## Break the sentence into five parts
+
+Almost every counting or summing problem, once the fancy wording is stripped off,
+has the same five moving parts. Naming them turns a vague sentence into a
+checklist.
+
+The **inputs** are the numbers the problem hands over, or the range it describes.
+Here the input is "every whole number below 100." The **loop** is what visits
+those numbers one at a time. The **condition** is the test each number has to pass
+to count, here "divides evenly by 3 or by 5." The **accumulator** is a variable
+that holds the answer as it grows, a running total that starts empty and gets
+added to. The **output** is the single line at the end that reports the result.
+
+The word "accumulator" is worth pinning down, because it is the part beginners
+forget. An accumulator is just a variable set before the loop starts and updated
+on every pass through it. A total that begins at 0 and grows is an accumulator. A
+counter that begins at 0 and ticks up by one is an accumulator. The loop feeds it;
+the loop does not own it. That is why it has to be created *outside* the loop, on
+a line above it.
+
+Here are the five parts turned into code, one for one:
+
+```python
+total = 0                       # accumulator, created before the loop
+for n in range(1, 100):         # loop over the inputs, 1 through 99
+    if n % 3 == 0 or n % 5 == 0:  # the condition
+        total = total + n       # feed the accumulator
+print(total)                    # the output
+```
+
+Two pieces of syntax carry the logic. `range(1, 100)` produces the numbers 1, 2,
+3, and so on up to 99. The `%` operator gives the remainder left after division,
+so `n % 3` is 0 exactly when 3 divides `n` with nothing left over. The condition
+`n % 3 == 0 or n % 5 == 0` is therefore true for 3, 5, 6, 9, 10, and every other
+multiple of 3 or 5, and false for the rest. Running the program prints:
+
+```
+2318
+```
+
+Every one of the five parts is visible on its own line. When a summing problem
+refuses to come together, the fastest fix is to ask which of the five parts is
+missing or in the wrong place. A forgotten accumulator, a condition that tests the
+wrong thing, a loop with the wrong bounds: the bug is almost always one of the
+five.
+
+<Quiz
+  id="problems-into-code-accumulator"
+  question="In the program above, the line total = 0 sits before the loop. What happens if that line is deleted?"
+  answer={1}
+  options={[
+    "Nothing changes, because Python treats an unset total as 0 automatically.",
+    "The program raises an error, because total = total + n uses total before it has ever been given a value.",
+    "The loop runs but the output is always 0.",
+    "The condition stops matching any numbers.",
+  ]}
+  explanation="An accumulator has to exist before the loop can add to it. Without total = 0 first, the very first pass tries to read a total that was never created, and Python raises a NameError. The starting value belongs on a line above the loop."
+/>
+
+## Brute force first, clever later
+
+The program above does something a mathematician might frown at: it checks all 99
+numbers one by one. There is a faster route. The multiples of 3 below 100 add up
+to 1683, the multiples of 5 add up to 950, the multiples of 15 got counted twice
+so subtract 315, and the answer 2318 falls out with no loop at all. That shortcut
+is real, and it is also the wrong place to start.
+
+Trying every candidate is called brute force, and it is a legitimate first tool,
+not an admission of defeat. The loop that checks all 99 numbers is easy to write,
+easy to read, and hard to get subtly wrong. The clever arithmetic is faster to
+run but slower to write and much easier to botch, because it hides the logic
+inside a formula that has to be exactly right. For a problem this size, the
+computer checks 99 numbers before a person could finish typing the formula.
+Correct and slightly slow beats fast and wrong every time the code actually has to
+produce a number.
+
+The rule of thumb: write the brute-force version, confirm it gives the right
+answer, and only then ask whether it needs to be faster. Most of the time it does
+not. When a bound grows so large that brute force would take minutes or hours,
+that is the signal to get clever, and the working brute-force version becomes the
+thing the clever version gets checked against.
+
+Being brutally literal about the bounds is where brute force earns its keep. The
+sentence said "below 100," so the loop runs `range(1, 100)`, which stops at 99.
+The number 100 is never visited, which is correct, because 100 is not below 100.
+A later problem in this module asks for the primes below 100. The smallest prime
+is 2, so that loop will run from 2 to 99, written `range(2, 100)`. Reading "below
+100" as the numbers 2 through 99 is exactly the kind of close reading that
+separates a right answer from an answer that is off by one at each end.
+
+<Callout type="warning" title="range(a, b) stops before b">
+`range(1, 100)` yields 1 through 99, not 1 through 100. The first number is
+included and the last is left out. So "below 100" maps cleanly to
+`range(1, 100)`, while "from 1 up to and including 100" needs `range(1, 101)`.
+Getting this boundary wrong is the single most common way a summing loop returns a
+number that is close but not right.
+</Callout>
+
+<Quiz
+  id="problems-into-code-bounds"
+  question="A problem asks for a sum over the numbers below 100, meaning 1 through 99. Which range expression visits exactly those numbers?"
+  answer={0}
+  options={[
+    "range(1, 100)",
+    "range(1, 101)",
+    "range(0, 100)",
+    "range(2, 100)",
+  ]}
+  explanation="range(a, b) includes a and stops before b, so range(1, 100) produces 1 through 99. range(1, 101) would add 100, range(0, 100) would add 0, and range(2, 100) would skip 1. Only the first hits 1 through 99 exactly."
+/>
+
+## Check a small case, then trust the big one
+
+A program that prints 2318 looks authoritative. Printing a number is not the same
+as the number being correct, and a loop that is off by one at a boundary will
+print a wrong answer just as confidently as a right one. The habit that catches
+this costs about thirty seconds: run the same logic on a case small enough to add
+up by hand, and compare.
+
+Shrinking the bound from 100 to 10 gives a case a person can verify with a pen.
+The numbers below 10 that divide by 3 or 5 are 3, 5, 6, and 9. By hand, 3 + 5 + 6
++ 9 is 23. Now run the identical program with the smaller bound:
+
+```python
+total = 0
+for n in range(1, 10):
+    if n % 3 == 0 or n % 5 == 0:
+        total = total + n
+print(total)
+```
+
+```
+23
+```
+
+The code and the hand calculation agree. Nothing about the logic changed between
+this run and the full one, only the bound, so a program that gets 23 right on the
+small case is running the correct logic on the large one. That is the moment the
+answer 2318 becomes trustworthy. Print the answer, verify it against something
+checked by hand, then trust it. Skipping the middle step is how a wrong number
+gets copied into a challenge answer and marked incorrect.
+
+The small case also flushes out off-by-one traps that a large case hides. If the
+loop had wrongly used `range(0, 10)`, it would visit 0, and since 0 divides evenly
+by both 3 and 5, the condition would count it, adding 0 to the total. Harmless
+here, since adding zero changes nothing, but the same mistake at the top end
+(`range(1, 11)` for "below 10") would add 10 and print 33 instead of 23. A hand
+check of a five-item list catches that instantly. A hand check of a
+ninety-nine-item list is impossible, which is exactly why the small case is the
+one to check.
+
+<Quiz
+  id="problems-into-code-verify"
+  question="Running the same logic with range(1, 10) prints 23, and 3 + 5 + 6 + 9 = 23 by hand. Why does that make the full range(1, 100) answer trustworthy?"
+  answer={2}
+  options={[
+    "It proves the large answer is correct without needing to run it at all.",
+    "It makes the full program run faster.",
+    "The logic is identical between the two runs, so a correct small case shows the loop and condition are right before the large answer is trusted.",
+    "Python only reports off-by-one errors when the range is small.",
+  ]}
+  explanation="Only the bound changed between the two runs. The loop, the condition, and the accumulator are the same, so a small case that matches a hand calculation confirms the logic itself. That is what earns trust in the large answer, which is too big to check by hand."
+/>
+
+<Exercise title="Translate a sentence into a loop">
+Open the Build tab and start a fresh Python file. Write a program that adds up
+every even number below 50 and prints the total. Build it from the same five
+parts: a variable starting at 0, a loop over the right range, an `if` that tests
+`n % 2 == 0`, a line that adds `n` to the total, and a `print` at the end.
+
+Before you trust the number it prints, shrink the bound to below 10 and add the
+evens by hand: 2 + 4 + 6 + 8. If your program prints 20 for that small case, the
+logic is sound, so widen the bound back to 50 and trust the result. Watch the top
+boundary while you do it: below 50 means the loop stops at 49, so `range(2, 50)`
+is right and `range(2, 51)` would quietly add 50, a number the problem never asked
+for.
+</Exercise>
+
+Five parts, brute force first, exact bounds, and a hand-checked small case: that
+is a method that solves most of what this module throws at a beginner, and it is
+the method the coding challenges reward. The sum-of-primes challenge waiting in
+the Challenges tab is built from this exact shape: a bound, a loop, a test, an
+accumulator, and an output. The only part that is new is the test, deciding
+whether a single number is prime, and that test is precisely what the next lesson,
+divisibility and primes, builds out of the `%` operator that already decided
+"3 divides n" here.
+
+<Notes />

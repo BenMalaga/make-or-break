@@ -1,0 +1,317 @@
+---
+title: Functions and Reuse
+module: programming-foundations
+moduleTitle: Programming Foundations
+moduleOrder: 1
+moduleIcon: Code
+order: 5
+summary: "One block of code, named once and run anywhere: how functions turn repetition into a single reusable idea, and how the whole module fits into one small program."
+estimatedMinutes: 17
+prerequisites: ["what-code-is", "variables-and-data", "logic-and-decisions", "loops-and-repetition"]
+objectives:
+  - Define a function with def, giving it a name, parameters, and a body
+  - Pass values in through parameters and hand a value back with return
+  - Tell the difference between printing a result and returning one
+  - Explain why a named function cuts repetition and makes intent readable
+  - Assemble variables, conditionals, and loops into one small working program
+tags:
+  - programming
+  - python
+---
+
+Here is a stretch of code that says hello to three people:
+
+```python
+print("Hello, " + "Ada" + ". Welcome back.")
+print("Hello, " + "Grace" + ". Welcome back.")
+print("Hello, " + "Alan" + ". Welcome back.")
+```
+
+Three lines, almost identical. Only the name changes. If the greeting ever has
+to read "Good morning" instead of "Hello," all three lines change, and missing
+one leaves the program saying two different things at once. The loops lesson
+already showed one way to kill repetition: put the varying part in a list and
+walk it. Functions kill a different kind of repetition, the kind where the same
+*action* keeps showing up, and they do something a loop cannot. They give that
+action a name.
+
+## One definition, many runs
+
+Here are the three greetings rewritten so the action lives in exactly one place:
+
+```python
+def greet(name):
+    print("Hello, " + name + ". Welcome back.")
+
+greet("Ada")
+greet("Grace")
+greet("Alan")
+```
+
+<ExpectedOutput label="output">
+```
+Hello, Ada. Welcome back.
+Hello, Grace. Welcome back.
+Hello, Alan. Welcome back.
+```
+</ExpectedOutput>
+
+A function is a named block of code that does one job. Once it exists, it runs by
+name, as many times as needed, from anywhere in the program. Four parts of that
+first block are worth pulling apart.
+
+The word `def` is a keyword, a word Python reserves for itself, and it tells
+Python that a function is being defined on this line. Right after `def` comes the
+function's name, `greet`. Whoever writes the function picks the name, and a good
+one says what the function does.
+
+Inside the parentheses sits `name`. That is a parameter: a placeholder for a
+value the function expects to receive each time it runs. A function can take no
+parameters, one, or many. `greet` takes exactly one. The colon ends the line, and
+the indented line beneath it is the body, the code that runs when the function is
+called. Indentation is how Python marks where the body starts and stops, the same
+rule the loops and conditionals lessons leaned on. Everything indented under the
+`def` line belongs to the function.
+
+Nothing in that body runs when Python first reads the `def` line. Defining a
+function only teaches Python what `greet` means. The body sits idle until
+something calls it.
+
+The three lines at the bottom are those calls. Writing a function's name followed
+by parentheses is how a function gets called, meaning run. The value in the
+parentheses is the argument: the real value handed to the parameter for this one
+run. When `greet("Ada")` runs, Python sets `name` to `"Ada"`, runs the body,
+prints the greeting, and returns to where the call happened. Then `greet("Grace")`
+does it again with a different argument. One definition, three runs.
+
+Parameter and argument are two words for the two ends of one handoff. The
+parameter is the name in the `def` line. The argument is the actual value in the
+call. In `greet`, `name` is the parameter and `"Ada"` is the argument.
+
+<Quiz
+  id="func-define-vs-call"
+  question="A program defines a function with def but never writes the function's name followed by parentheses anywhere else. What happens to the code in the function's body?"
+  answer={1}
+  options={[
+    "The body runs once, immediately, when Python reaches the def line.",
+    "Nothing in the body runs, because a body only runs when the function is called by name.",
+    "Python runs the body only if the function has no parameters.",
+    "It causes an error, because every function must be run at least once.",
+  ]}
+  explanation="Defining a function only tells Python what the name means. The body stays idle until a call, written as the name plus parentheses, actually runs it. A function that is defined but never called does no work."
+/>
+
+## Handing a value back
+
+`greet` prints and leaves nothing behind. It does its job on screen and the
+program moves on. Many functions are more useful when they hand a result back to
+the code that called them, so that result can be stored, printed, or fed into the
+next step. That is what `return` does.
+
+```python
+def add(a, b):
+    return a + b
+
+result = add(4, 5)
+print(result)
+```
+
+<ExpectedOutput label="output">
+```
+9
+```
+</ExpectedOutput>
+
+`add` takes two parameters, `a` and `b`, and its body is a single `return`
+statement. When `add(4, 5)` runs, Python sets `a` to `4` and `b` to `5`, computes
+`a + b`, and `return` hands that value, `9`, back to the exact spot where the call
+was written. So `result = add(4, 5)` behaves as if it read `result = 9`. The
+variable `result` now holds the returned value, and the print function shows it.
+
+Printing and returning look similar and are not the same thing, and confusing them
+is the single most common beginner mistake with functions. The print function
+writes text to the screen for a person to read. `return` hands a value back to the
+program so more code can use it. Watch what happens when a function prints where
+it should return:
+
+```python
+def add_and_show(a, b):
+    print(a + b)
+
+total = add_and_show(4, 5)
+print(total)
+```
+
+<ExpectedOutput label="output">
+```
+9
+None
+```
+</ExpectedOutput>
+
+The `9` comes from inside the function, where print puts it on screen. But
+`add_and_show` never returns anything, and a function with no `return` hands back
+`None`, Python's word for "no value at all." So `total` holds `None`, and the
+second print shows exactly that. The number that flashed on screen was never
+captured. It cannot be added to, compared, or stored later, because it was only
+ever displayed, never handed back.
+
+<Callout type="warning" title="Print is for people, return is for code">
+A value that gets printed is gone the instant it hits the screen. A value that
+gets returned can be stored in a variable and used again. When a function needs
+to feed its result into more work, it has to return, not just print. Reaching for
+print here is what produces a mysterious `None` a few lines later.
+</Callout>
+
+<Quiz
+  id="func-return-vs-print"
+  question="A function prints a + b but has no return statement. A program stores its result in a variable and prints that variable on the next line. What shows for the variable?"
+  answer={2}
+  options={[
+    "9, because print and return end up doing the same thing.",
+    "The number, because Python saves whatever a function prints.",
+    "None, because a function with no return statement hands back None.",
+    "An error, because the result was never saved anywhere.",
+  ]}
+  explanation="Printing puts the number on screen but hands nothing back. With no return, the function returns None, so the variable holds None and printing it shows None. To capture a result, the function must return it."
+/>
+
+## Less to change, and easier to read
+
+The reason to bother with any of this comes down to two payoffs.
+
+The first is repetition. Logic written once inside a function exists in one place.
+Changing it means editing one spot, not hunting down every copy. The three
+greetings became one `greet`. A hundred greetings would still be one `greet`.
+
+The second is harder to see at first and matters more over time. A function puts a
+name on a piece of logic, and a good name turns a tangle of code into something
+that reads like a sentence.
+
+```python
+def is_passing(score):
+    return score >= 70
+
+scores = [88, 72, 95, 60]
+passed = 0
+for s in scores:
+    if is_passing(s):
+        passed = passed + 1
+
+print(passed, "of", len(scores), "passed")
+```
+
+<ExpectedOutput label="output">
+```
+3 of 4 passed
+```
+</ExpectedOutput>
+
+`is_passing` takes one score and returns a boolean, one of the True or False
+values from the conditionals lesson. The expression `score >= 70` is either True
+or False, and that is what gets handed back. The loop walks the list of scores,
+and the line `if is_passing(s)` reads almost like plain English: if this score is
+passing, count it. Compare that to writing `if s >= 70` directly in the loop. The
+bare comparison works, but it says how the check is done, not what it means.
+`is_passing` says what it means, and the how is tucked out of sight where it can
+change without touching anything around it.
+
+That tucking-away is the repetition payoff in miniature. If the passing cutoff
+moves from 70 to 75, only the one line inside `is_passing` changes. Every place
+that asks `is_passing(...)` picks up the new rule for free, whether there is one
+such place or fifty.
+
+<Quiz
+  id="func-single-source"
+  question="A program calls is_passing in several loops to decide which scores count. The passing cutoff has to change from 70 to 75. How many places need editing?"
+  answer={0}
+  options={[
+    "One: the return line inside is_passing, since every call reads its result.",
+    "Every place that compares a score to a number.",
+    "None, because Python updates comparisons automatically.",
+    "Two: the function and the first loop that uses it.",
+  ]}
+  explanation="The comparison lives in one place, inside is_passing. Changing that single line changes the rule everywhere the function is called. Naming the logic once is exactly what makes a one-line change enough."
+/>
+
+## One small program, all of it at once
+
+Everything this module covered fits into a single working program: a function that
+takes a list of numbers and prints a summary. It uses variables from the second
+lesson, a comparison and an `if` from the third, a `for` loop from the fourth, and
+the `def`, parameters, and call from this one.
+
+```python
+def summarize(numbers):
+    total = 0
+    highest = numbers[0]
+    for n in numbers:
+        total = total + n
+        if n > highest:
+            highest = n
+    average = total / len(numbers)
+    print("Count:", len(numbers))
+    print("Total:", total)
+    print("Average:", average)
+    print("Highest:", highest)
+
+summarize([88, 72, 95, 60])
+```
+
+<ExpectedOutput label="output">
+```
+Count: 4
+Total: 315
+Average: 78.75
+Highest: 95
+```
+</ExpectedOutput>
+
+Reading it top to bottom: `summarize` takes one parameter, `numbers`, which is a
+list. `total` starts at 0. `highest` starts as the first element of the list,
+written `numbers[0]`, since element positions count from zero. The `for` loop
+visits each number `n` in turn, adding it to the running `total` and, whenever `n`
+is larger than the current `highest`, replacing `highest` with it. After the loop
+ends, `average` is the total divided by `len(numbers)`, the count of items in the
+list. The four print lines report the results. The single call at the bottom feeds
+in a list of four scores, and the program prints its summary.
+
+Saving that code in a file and running it is how a program actually runs. Python
+reads the file from top to bottom.
+
+<CommandCard
+  command="python3 summary.py"
+  title="terminal"
+  explain="Runs the saved program. Python reads the file top to bottom, learns what summarize means, reaches the call, runs the body once, and prints the four lines."
+/>
+
+Because the logic lives in a function, summarizing a second list is one more line.
+Adding `summarize([100, 100])` below the first call prints a summary of that list
+too, with no code copied and nothing to keep in sync. The function is the
+reusable unit, and reuse is the whole point of writing one.
+
+<Exercise title="Write and reuse your own function">
+Save a file called `summary.py` with the `summarize` function above, then run it
+with `python3 summary.py` and confirm the four lines print.
+
+Now extend it. Write a second function called `count_passing` that takes a list of
+numbers and returns how many of them are 70 or higher, reusing the `is_passing`
+idea inside it. Call your function on `[88, 72, 95, 60]`, store the result in a
+variable, and print a sentence like "3 of 4 passed."
+
+If `count_passing` prints the count instead of returning it, storing its result in
+a variable and printing that variable will show `None`. That is the
+print-versus-return trap from earlier, and catching it in your own code is the
+fastest way to make the difference stick.
+</Exercise>
+
+Five lessons in, the toolkit is small and complete: printing, variables and
+types, decisions, loops, and now functions. Every real program is built from these
+same pieces, stacked and combined. The rest of the Make track is about stacking
+them into things that do work in the world: full applications spread across many
+files, programs that send a question to an AI model and act on the answer it
+returns, and code that runs on physical hardware to read a sensor or drive a
+motor. All of it is these five ideas, scaled up. The next module starts that
+climb.
+
+<Notes />

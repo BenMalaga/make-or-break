@@ -1,0 +1,112 @@
+---
+title: Cracking with Hashcat
+module: password-attacks
+moduleTitle: Password Attacks
+moduleOrder: 9
+moduleIcon: KeySquare
+order: 3
+summary: Identify a hash, pick the right mode, and let the GPU do the guessing.
+estimatedMinutes: 20
+objectives:
+  - Identify an unknown hash type before attacking it
+  - Choose the correct hashcat mode and attack type
+  - Run dictionary, rule, and mask attacks with GPU acceleration
+tags:
+  - passwords
+  - hashcat
+  - cracking
+---
+
+Hashcat is the workhorse of offline cracking. It runs on your GPU, which can test
+billions of candidates per second against fast hashes. But raw speed is useless if
+you attack the wrong hash type with the wrong strategy, so identification comes
+first.
+
+## Identify the hash
+
+Every hash has a shape. A 32-character hex string is likely MD5 or NTLM. A
+`$6$` prefix is SHA-512 crypt. A `$2b$` prefix is bcrypt. Do not guess by eye
+alone. Tools narrow it down for you.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "hashid '$6$xR7q2s1P$k9f...'", comment: "suggest algorithms from the hash shape" },
+    { cmd: "hashcat --help | grep -i ntlm", comment: "find the mode number for a hash type" },
+  ]}
+/>
+
+Hashcat refers to each hash type by a numeric **mode** (`-m`). A few you will use
+constantly:
+
+- `0` = MD5
+- `1000` = NTLM
+- `1800` = sha512crypt (`$6$`, Linux shadow)
+- `3200` = bcrypt (`$2b$`)
+
+## Attack types
+
+The `-a` flag selects the attack strategy:
+
+- `-a 0` dictionary: try each word in a wordlist.
+- `-a 3` mask: brute force a defined character pattern.
+
+A dictionary attack with rules is your default opener. A mask attack is for when
+you know the password's structure.
+
+<CommandCard
+  command="hashcat -m 1000 -a 0 hashes.txt rockyou.txt -r best64.rule"
+  explain="Crack NTLM hashes using rockyou as the base list, expanded by the best64 rule set. The -m picks the hash type, -a 0 selects dictionary mode."
+/>
+
+## Masks: brute force with a brain
+
+If you know a password is exactly eight characters, ends in four digits, or starts
+with a capital, a mask encodes that structure so you never waste guesses. Each
+placeholder stands for a character set:
+
+- `?l` lowercase letter
+- `?u` uppercase letter
+- `?d` digit
+- `?s` symbol
+
+<CommandCard
+  command="hashcat -m 0 -a 3 hashes.txt '?u?l?l?l?l?d?d?d?d'"
+  explain="Try every password of the form Capital plus four lowercase plus four digits, like Acme2024. A targeted mask finishes in minutes where blind brute force would take years."
+/>
+
+## Reading results
+
+Cracked passwords land in a **potfile** and print next to their hash. Rerun with
+`--show` to display everything already cracked without re-attacking.
+
+<ExpectedOutput label="hashcat output">
+1000f2e...a91b:Summer2024!
+Session..........: hashcat
+Status...........: Cracked
+</ExpectedOutput>
+
+<Callout type="security" title="Why the hunter cares">
+Wrong mode means zero cracks even when the password is trivial, so hashcat can
+look broken when the real fault is a one-digit `-m` mistake. Confirm the hash type
+with hashid before you burn hours. And remember: cracking is offline, so target
+lockout policies never slow you down here.
+</Callout>
+
+<Quiz
+  id="hashcat-mode"
+  question="You captured NTLM hashes from a Windows host. Which hashcat mode do you use?"
+  answer={2}
+  options={["0", "1800", "1000", "3200"]}
+  explanation="Mode 1000 is NTLM. 0 is MD5, 1800 is sha512crypt, and 3200 is bcrypt."
+/>
+
+<Exercise
+  id="mask-build"
+  prompt="Write the hashcat mask for a password that is exactly six digits, like a PIN."
+  answer="?d?d?d?d?d?d"
+>
+Each ?d is one digit. Six of them covers every value from 000000 to 999999.
+</Exercise>
+
+<Notes />

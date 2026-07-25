@@ -1,0 +1,82 @@
+---
+title: Securing DNS
+module: dns-and-network-services-security
+moduleTitle: DNS and Network Services Security
+moduleOrder: 51
+moduleIcon: Waypoints
+order: 3
+summary: Sign the answers, encrypt the queries, and watch the traffic you cannot stop.
+estimatedMinutes: 18
+objectives:
+  - Explain what DNSSEC proves and what it deliberately does not
+  - Choose between DoH and DoT and know the operational trade-off
+  - Use sinkholing and query logging to blunt and detect DNS abuse
+tags:
+  - dnssec
+  - doh
+  - dot
+  - defense
+---
+
+The attacks in the last lesson all exploit the same two gaps: you cannot tell if a DNS answer is authentic, and you cannot tell if it was tampered with in transit. Three families of defense close those gaps from different angles. None of them does everything, and pretending one does is how people build a false sense of safety.
+
+## DNSSEC signs the answers
+
+DNSSEC adds cryptographic signatures to DNS records. The zone owner signs each record set with a private key, publishes the public key in the zone, and a validating resolver checks the signature before trusting the answer. A chain of trust runs from the root down through the TLD to the zone, so a resolver can verify the whole path.
+
+What that buys you is **integrity and authenticity**. A poisoned or forged record fails signature validation and gets thrown out. Kaminsky-style poisoning simply stops working against a validating resolver on a signed zone.
+
+Be precise about what DNSSEC does not do. It does not encrypt anything. Every query and answer is still plaintext on the wire, so anyone watching sees exactly what you looked up. DNSSEC proves the answer is real; it does not keep it private.
+
+<CommandCard command="dig example.com +dnssec" title="analyst@workstation" explain="Look for the RRSIG records and the 'ad' (authenticated data) flag in the header. The ad flag means a validating resolver checked the signatures and they held." />
+
+## DoH and DoT encrypt the queries
+
+Encryption is the other half, and it is a separate mechanism. **DoT**, DNS over TLS, wraps DNS in a TLS tunnel on port 853. **DoH**, DNS over HTTPS, tunnels it inside ordinary HTTPS on port 443. Both hide your queries from anyone sniffing the local network.
+
+The difference is operational, not cryptographic. DoT rides its own port, so a network admin can see DNS-shaped traffic and manage it. DoH hides inside the same 443 as all your web traffic, which is great for user privacy against a hostile network and a genuine headache for a defender trying to enforce DNS policy or spot tunneling. Neither one authenticates the record the way DNSSEC does; they protect the channel, not the contents' truth.
+
+<Callout type="security" title="Encryption cuts both ways">
+DoH is a privacy win for users and a monitoring gap for defenders. Malware increasingly uses DoH to hide its C2 lookups inside normal HTTPS, right past the DNS logging a SOC relies on. When you deploy encrypted DNS on a network you defend, pin clients to a resolver you run or trust, so you keep the logs instead of blinding yourself.
+</Callout>
+
+## Sinkholing and monitoring
+
+Signing and encryption are prevention. You still need to see what is happening and be able to break a connection when it goes wrong.
+
+**Sinkholing** answers a known-bad domain with an address you control, usually a dead-end or a monitoring host. A device asking for a malware C2 domain gets your sinkhole instead of the real server, so the callback fails and you get an alert with the source IP. Response Policy Zones (RPZ) on BIND, or a Pi-hole in a small setup, both do this by overriding answers for a blocklist.
+
+Logging is the piece people skip and regret. Query logs are the single richest record of what every host on a network is trying to reach.
+
+<CommandBlock
+  title="analyst@soc: turn queries into signal"
+  commands={[
+    { cmd: "grep 'query:' named.log | awk '{print $NF}' | sort | uniq -c | sort -rn", comment: "top queried names; new high-count domains are worth a look" },
+    { cmd: "awk '{print length($6), $6}' queries.log | sort -rn | head", comment: "longest query names float tunneling candidates to the top" },
+  ]}
+/>
+
+Baseline what your network normally resolves. Then a domain registered yesterday, or a burst of long random subdomains, stands out against the noise instead of hiding in it.
+
+<Quiz
+  id="dnssec-vs-doh"
+  question="A client uses a validating resolver on a DNSSEC-signed zone, over plain UDP. What protection does it have, and what does it lack?"
+  answer={1}
+  options={[
+    "Queries are encrypted, but answers can be forged",
+    "Answers are authenticated and tamper-evident, but the queries are still visible on the wire",
+    "Both encryption and authentication",
+    "Neither; DNSSEC does nothing without DoH",
+  ]}
+  explanation="DNSSEC signs records, so forgery and poisoning fail validation, but it does not encrypt. Plain UDP means an on-path observer still sees every name queried. Privacy needs DoT or DoH."
+/>
+
+<Exercise
+  id="sinkhole-value"
+  prompt="You sinkhole a known malware C2 domain to an internal monitoring host. Beyond blocking the callback, what does that give your response team?"
+  answer="A log of exactly which internal IPs tried to reach the C2 domain, which surfaces the infected hosts for containment."
+>
+The failed connection is only half the value. Think about who you learn is compromised the moment they ask.
+</Exercise>
+
+<Notes />

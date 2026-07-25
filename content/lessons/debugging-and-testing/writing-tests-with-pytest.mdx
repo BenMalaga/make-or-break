@@ -1,0 +1,230 @@
+---
+title: Writing Tests With pytest
+module: debugging-and-testing
+moduleTitle: Debugging and Testing
+moduleOrder: 5
+moduleIcon: Bug
+order: 4
+summary: "Hand-run assert checks work for one function; pytest runs a whole suite and tells you exactly which case broke."
+estimatedMinutes: 15
+prerequisites: ["what-a-test-is"]
+objectives:
+  - Name test files and functions so pytest discovers them automatically
+  - Run a whole test suite with the pytest command and read its report
+  - Explain how pytest shows both compared values on a failing assert
+  - Run a single file or a single test by name while iterating
+tags:
+  - testing
+  - pytest
+---
+
+The last lesson, what a test is, built tests out of raw `assert` lines in a file. That works for a
+function or two. Then a real project shows up with fifty functions, and a file of bare asserts has a
+problem: the first failing `assert` raises an error and stops the whole file, so every check after it
+never runs. One broken thing hides the state of everything else. Worse, a bare `AssertionError`
+names the line but not the values, so a failing check says a comparison was false without saying what
+the two sides actually were.
+
+pytest solves both. pytest is the most widely used testing tool in the Python world, a program that
+finds tests, runs all of them even when some fail, and reports each result with the detail needed to
+fix it. The tests are still plain functions with plain `assert`. pytest is the runner wrapped around
+them.
+
+## The naming convention pytest relies on
+
+pytest finds tests by name, following a convention rather than any registration. Files whose names
+start with `test_` or end with `_test.py` are test files. Inside them, functions whose names start
+with `test_` are tests. That is the whole rule, and it is why nothing has to be imported or listed:
+pytest walks the project, opens the files that match, and runs the functions that match.
+
+A test file for the `add` function from the last lesson looks like this, saved as `test_add.py` next
+to the code it checks.
+
+```python
+from add import add
+
+def test_add_positive_numbers():
+    assert add(2, 3) == 5
+
+def test_add_with_zero():
+    assert add(7, 0) == 7
+
+def test_add_negatives():
+    assert add(-4, -6) == -10
+```
+
+Three tests, three cases, each a small function that arranges an input, calls the code, and asserts
+the result, the same three beats from the last lesson. No `if __name__` block, no manual list of what
+to run. The names carry all the information pytest needs. That convention-over-configuration idea is
+worth noticing, because it repeats everywhere in real tools: rather than make a person register each
+test in some central list that drifts out of date, pytest agrees on a naming rule and finds the tests
+itself. Follow the rule and things just work. Break it, name a file `checks.py` or a function
+`verify`, and pytest silently runs nothing, which is its own small lesson in why the convention is
+worth following exactly.
+
+<Quiz
+  id="pytest-discovery"
+  question="A file named checks.py contains a function called verify_add() with an assert inside. pytest runs and reports &quot;no tests ran.&quot; Why?"
+  answer={0}
+  options={[
+    "Neither the file name nor the function name matches the test_ convention, so pytest never discovers them.",
+    "assert does not work inside functions.",
+    "pytest only runs one test per project.",
+    "The file needs to import pytest at the top to be found.",
+  ]}
+  explanation="pytest finds tests by name: files starting with test_ (or ending _test.py) and functions starting with test_. A file called checks.py with a function verify_add matches neither, so pytest walks right past it and finds nothing to run."
+/>
+
+## Running the suite
+
+pytest installs with `pip install pytest`, the standard way Python adds a tool. Once it is present,
+running the whole suite is one word: `pytest`. It searches the current project for test files, runs
+every test function it finds, and prints a summary.
+
+<CommandCard command="pytest" title="terminal" explain="Finds every test_*.py file and every test_ function in the project, runs them all, and reports pass or fail for each." />
+
+<ExpectedOutput label="all three tests passing">
+```
+collected 3 items
+
+test_add.py ...                                                  [100%]
+
+3 passed in 0.01s
+```
+</ExpectedOutput>
+
+Each dot after `test_add.py` is one passing test. Three dots, three passes, and the summary confirms
+`3 passed`. The value shows up when one breaks. Change `add` to subtract, run `pytest` again, and it
+does not stop at the first failure. It runs all three, reports the two that still pass, and for the
+one that fails it shows the assert and, the key feature, the two values it compared.
+
+<ExpectedOutput label="one test failing">
+```
+collected 3 items
+
+test_add.py .F.                                                  [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_add_with_zero ________________________________
+
+    def test_add_with_zero():
+>       assert add(7, 0) == 7
+E       assert 7 == 7
+
+test_add.py:5: AssertionError
+```
+</ExpectedOutput>
+
+The `.F.` shows the shape at a glance: pass, fail, pass. Below it, pytest names the failing test,
+reprints the exact assert, and on the `E` line shows what the comparison actually evaluated. That
+last part is the reason to use pytest over bare asserts. A raw `AssertionError` says only that a
+condition was false. pytest rewrites the assert so it shows both sides, turning "something is wrong
+here" into "this returned this, but the test expected that," which is most of the way to the fix.
+
+<Quiz
+  id="pytest-assert-rewrite"
+  question="What does pytest add to a failing assert that a plain Python AssertionError does not?"
+  answer={2}
+  options={[
+    "It automatically fixes the bug that caused the failure.",
+    "It hides the other tests so only the failure is visible.",
+    "It shows the actual values on each side of the comparison, so the report says what the code returned versus what was expected.",
+    "It converts the assert into a print statement.",
+  ]}
+  explanation="A bare AssertionError names the line but not the values. pytest rewrites the assert to display both sides of the comparison, so the failure report shows the real result next to the expected one, which points straight at the problem."
+/>
+
+## Running less than everything
+
+A full suite is the right thing to run before sharing code, but while chasing one bug, running every
+test on every save is noise. pytest narrows down. Passing a file name runs only that file:
+`pytest test_add.py`. The `-k` flag runs only tests whose names match a substring:
+`pytest -k zero` runs `test_add_with_zero` and skips the rest. And `-q` (quiet) trims the report to
+the essentials when the full detail is not needed. The loop while fixing one thing becomes: run the
+one failing test with `-k`, change the code, run it again, and only run the whole suite once it
+passes, to confirm nothing else broke on the way.
+
+Two more flags earn their keep. Running `pytest -x` stops at the very first failure instead of
+running the rest, which is what a person wants when one break is enough to know the work is not done
+yet. And `pytest -v`, verbose, prints one line per test with its full name and result instead of a
+row of dots, so a passing run reads as a list of the behaviors that are guaranteed rather than an
+anonymous streak of green. Neither changes what the tests do; they change how much the report says.
+Early on, `-v` is worth making a habit, because seeing the test names scroll past is a quiet reminder
+of exactly what the suite does and does not cover.
+
+## Tests that read like sentences
+
+There is a habit that separates a test suite people trust from one they ignore, and it costs
+nothing: naming. A test function is one of the few places where a long, plain-English name is a
+virtue rather than a smell. `test_add_with_zero` reads as a claim about behavior, so when pytest
+reports it as failing, the report is half an explanation already. Compare that to `test_1` or
+`test_add_again`, which say nothing, so a failure means opening the file to learn what was even being
+checked. The name is the first line of the failure message, written in advance.
+
+The other habit is scope. A single test should pin down a single behavior. A test that packs ten
+asserts into one function has a hidden cost: pytest runs a test until the first failing assert, then
+stops that function, so the nine checks after a break never run and their state stays unknown. Split
+those into ten small tests and a single break tells the whole truth, one red result among nine green
+ones, pointing at exactly the behavior that moved. Small, well-named tests turn a failure from a
+puzzle into a signpost.
+
+Independence matters for the same reason. Each test should set up what it needs and lean on nothing
+another test did first. A test that only passes because some earlier test happened to run and leave
+data behind is a flaky test, one that passes or fails depending on order, and a flaky test is worse
+than no test because it teaches people to ignore red. When every test stands on its own, pytest is
+free to run them in any order, or just the one under suspicion, and the answer is always the same.
+
+Speed is the quiet requirement under all of it. A suite that takes a few seconds gets run on every
+save, and a suite that takes ten minutes gets run once before bed, if at all. Tests only guard the
+code that they are actually run against, so the whole point collapses if they are too slow to run
+often. Keeping the common tests fast is not a nicety. It is what keeps the safety net in use, because
+a test that is skipped is a test that guards nothing.
+
+A last habit ties the module together: when a bug does slip through and reach a person, the fix is
+two steps, not one. Reproduce the bug in a failing test first, watch it go red, then fix the code and
+watch it go green. Writing the test before the fix proves two things at once, that the test actually
+catches this bug, and that the change actually resolves it. Skip the failing-first step and it is
+easy to write a test that passes for the wrong reason and never would have caught the thing it was
+meant to. Red first, then green, is how a bug turns into a permanent guard instead of a one-time
+patch.
+
+<Quiz
+  id="pytest-one-behavior"
+  question="Why is it better to write ten small test functions than one big test function with ten asserts?"
+  answer={0}
+  options={[
+    "pytest stops a test at its first failing assert, so a big test hides every check after a break; small tests each report independently and point at the exact behavior that moved.",
+    "pytest cannot run a function with more than one assert.",
+    "Ten functions run ten times faster than one.",
+    "A single function is not allowed to import the code it tests.",
+  ]}
+  explanation="A failing assert halts its own test function, so later asserts in the same function never run. Splitting behaviors into separate small tests means one break shows as one red result among the greens, naming exactly what changed, instead of masking everything downstream."
+/>
+
+<Callout type="warning" title="A green suite only covers what it tests">
+Seeing `12 passed` is satisfying, and it is easy to read as "the code is correct." It is not. It
+means the twelve cases that were written all pass. A function can sail through every test and still
+break on an input nobody thought to check. Passing tests are a floor under the code, proof that known
+cases work, not a ceiling that proves there are no bugs left. Which cases to write is where the real
+skill is.
+</Callout>
+
+<Exercise title="Turn hand checks into a suite">
+Take the function and the hand-written assert lines from the last lesson. Move the function into its
+own file, and put the asserts into a second file named `test_yourfunction.py`, each wrapped in a
+function whose name starts with `test_`, importing the function at the top. Install pytest with
+`pip install pytest` if it is not already present, then run `pytest` from the project folder.
+
+Watch the dots. Now break the function on purpose and run `pytest` again: notice it runs every test,
+not just the first, and that the failure report shows both the value the code returned and the value
+the test expected. Fix the function, run once more, and confirm the suite goes green. Then try
+`pytest -k` with part of one test's name and see it run only that one.
+</Exercise>
+
+pytest handles the mechanics: it finds the tests, runs them all, and pinpoints the failures with the
+values that caused them. What it cannot do is decide which tests are worth writing, and that decision
+is where bugs actually get caught or missed. The next lesson, edge cases and thinking like a tester,
+is about the harder half: not how to write a test, but how to find the inputs most likely to break
+the code before a user does.
+
+<Notes />

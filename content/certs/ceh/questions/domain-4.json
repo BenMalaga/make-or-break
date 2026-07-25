@@ -1,0 +1,288 @@
+[
+  {
+    "domain": 4,
+    "question": "An attacker on a switched LAN wants to sniff traffic destined for other hosts. Which attack overwhelms the switch's forwarding table so it fails open and floods frames out every port?",
+    "options": [
+      "DHCP starvation",
+      "MAC flooding (CAM table overflow)",
+      "ARP poisoning",
+      "STP root-bridge takeover"
+    ],
+    "correct": [1],
+    "explanation": "MAC flooding sends a stream of frames with random source MAC addresses to fill the switch's CAM (content-addressable memory) table. When the table is full, many switches fail open and broadcast frames out all ports, letting the attacker sniff. The classic tool is macof from the dsniff suite.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Which NIC setting lets a wired network card capture all frames on its segment rather than only frames addressed to its own MAC?",
+    "options": [
+      "Monitor mode",
+      "Half-duplex mode",
+      "Promiscuous mode",
+      "Managed mode"
+    ],
+    "correct": [2],
+    "explanation": "Promiscuous mode disables the NIC's hardware MAC filtering so every frame is passed up the stack for capture. Monitor mode is the 802.11 wireless equivalent, which captures raw radio frames without associating to an access point.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Which statement best explains how ARP poisoning places an attacker in a man-in-the-middle position?",
+    "options": [
+      "The attacker sends unsolicited (gratuitous) ARP replies mapping the gateway's IP to the attacker's MAC, corrupting victims' ARP caches",
+      "The attacker forges DNS responses to point the victim at a fake gateway",
+      "The attacker overflows the switch CAM table so all ports receive the gateway's traffic",
+      "The attacker exhausts the DHCP pool so the victim requests a new gateway"
+    ],
+    "correct": [0],
+    "explanation": "ARP has no authentication, so hosts accept unsolicited ARP replies and update their caches. By binding the default gateway's IP to the attacker's MAC (and the victim's IP to the attacker's MAC on the gateway), traffic is routed through the attacker.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A managed switch is configured to compare each ARP packet against its DHCP snooping binding table and drop packets with mismatched IP-to-MAC pairings. Which feature is this?",
+    "options": [
+      "Port security",
+      "Dynamic ARP Inspection (DAI)",
+      "BPDU Guard",
+      "802.1X port authentication"
+    ],
+    "correct": [1],
+    "explanation": "Dynamic ARP Inspection uses the DHCP snooping binding table (IP, MAC, port, VLAN) to validate ARP packets on untrusted ports and drop spoofed ones. Port security only limits the number of MACs per port and does not inspect ARP contents.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "How does a DHCP starvation attack work?",
+    "options": [
+      "It broadcasts many DHCP DISCOVER messages with spoofed source MAC addresses to exhaust the server's address pool",
+      "It sends a superior BPDU to become the root bridge",
+      "It answers ARP requests with the DHCP server's MAC",
+      "It replies to broadcast pings with the victim's spoofed source"
+    ],
+    "correct": [0],
+    "explanation": "DHCP starvation floods the server with lease requests using forged source MAC addresses (via tools like Yersinia or dhcpstarv) until the scope is depleted. It is often a setup for a rogue DHCP server. DHCP snooping and port security mitigate it.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An off-path attacker wants to inject data into an established TCP session between two hosts. Which values must the attacker correctly predict for the injected segment to be accepted?",
+    "options": [
+      "The TCP source port only",
+      "The next expected sequence and acknowledgment numbers",
+      "The TTL of the return packets",
+      "The initial sequence number of a future connection"
+    ],
+    "correct": [1],
+    "explanation": "For a segment to be accepted it must carry sequence and acknowledgment numbers that fall within the receiver's current window. An off-path attacker cannot see these and must guess them, which randomized initial sequence numbers make difficult. An on-path (sniffing) attacker reads them directly.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "Which evasion technique splits an attack payload across IP fragments so a signature-based IDS that reassembles differently than the target host fails to match it?",
+    "options": [
+      "Unicode URL encoding",
+      "IP fragmentation with overlapping fragments",
+      "Slowloris connection holding",
+      "DNS tunneling"
+    ],
+    "correct": [1],
+    "explanation": "If the IDS and the target host resolve overlapping fragments differently (first-wins vs last-wins reassembly policy), the malicious payload the IDS reconstructs differs from what the host executes, so the signature never fires. Tools include fragroute and Nmap's -f option.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A SYN flood denial-of-service attack succeeds primarily because it:",
+    "options": [
+      "Sends many SYN packets with spoofed sources and never completes the handshake, exhausting the half-open connection backlog",
+      "Sends oversized ICMP packets that crash the target's TCP/IP stack",
+      "Requests every address in the DHCP scope until the pool is empty",
+      "Replies to a broadcast ping with the victim's spoofed source"
+    ],
+    "correct": [0],
+    "explanation": "Each SYN puts the server into the SYN-RECEIVED state, allocating memory in the backlog queue while it waits for an ACK that never arrives. Once the backlog fills, legitimate connections are refused. SYN cookies mitigate this by not allocating state until the handshake completes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which of the following are reflection-and-amplification DDoS vectors? (Choose two.)",
+    "options": [
+      "A DNS ANY query sent to open resolvers with the victim's IP spoofed as the source",
+      "An NTP monlist request sent with the victim's IP spoofed as the source",
+      "A TCP SYN flood aimed directly at the victim's web server",
+      "A Ping of Death oversized ICMP packet"
+    ],
+    "correct": [0, 1],
+    "explanation": "Amplification attacks spoof the victim's IP as the source and send small queries to servers that return much larger responses (DNS ANY, NTP monlist, memcached, SSDP), so the victim is flooded by the replies. A direct SYN flood is not reflection-based, and Ping of Death is a malformed-packet crash, not amplification.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "In an SSL stripping attack, what does the man-in-the-middle attacker actually do?",
+    "options": [
+      "Cracks the server's private key to decrypt TLS traffic in real time",
+      "Downgrades the victim's connection to plaintext HTTP while maintaining HTTPS to the server",
+      "Forges a self-signed certificate the browser silently trusts",
+      "Injects a malicious CA into the victim's trust store"
+    ],
+    "correct": [1],
+    "explanation": "sslstrip rewrites HTTPS links to HTTP and serves the victim plaintext while speaking HTTPS to the real server, so the victim never sees a certificate warning or padlock. HSTS, especially with preloading, defeats it by forcing the browser to use HTTPS.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which tool is purpose-built to flood a switch with random source MAC addresses to overflow its CAM table?",
+    "options": [
+      "hping3",
+      "ettercap",
+      "macof",
+      "Cain and Abel"
+    ],
+    "correct": [2],
+    "explanation": "macof, part of the dsniff suite, generates frames with random source MACs specifically to overflow a switch's CAM table and force fail-open flooding. ettercap and Cain are primarily ARP-poisoning and MITM tools; hping3 is a packet crafter.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "You want Wireshark to capture only TCP port 80 traffic to or from host 10.0.0.5. Which is a valid CAPTURE filter (as opposed to a display filter)?",
+    "options": [
+      "tcp.port == 80 && ip.addr == 10.0.0.5",
+      "tcp port 80 and host 10.0.0.5",
+      "http and ip == 10.0.0.5",
+      "port:80 host:10.0.0.5"
+    ],
+    "correct": [1],
+    "explanation": "Capture filters use Berkeley Packet Filter (BPF) syntax with keywords like host, port, and, and or, applied before packets are stored. Display filters use Wireshark's own syntax (tcp.port == 80 && ip.addr ==). Confusing the two syntaxes is a common mistake.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which firewall-evasion technique hides prohibited traffic inside a protocol the firewall permits so the packets pass inspection?",
+    "options": [
+      "ACK scanning",
+      "Protocol tunneling, such as encapsulating shell traffic inside DNS or ICMP",
+      "Loose source routing",
+      "Tiny-packet fragmentation"
+    ],
+    "correct": [1],
+    "explanation": "Tunneling wraps blocked traffic inside an allowed protocol (DNS with iodine, ICMP with ptunnel, or HTTP), so a stateful filter that permits that protocol lets the payload through. ACK scanning only maps firewall rules and carries no payload.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "What is the key difference between signature-based and anomaly-based intrusion detection?",
+    "options": [
+      "Signature-based flags deviations from a learned baseline, while anomaly-based matches known attack patterns",
+      "Signature-based matches known patterns and misses novel attacks, while anomaly-based flags deviations from a baseline and can catch zero-days but produces more false positives",
+      "Both approaches can only detect previously known attacks",
+      "Anomaly-based detection produces fewer false positives than signature-based detection"
+    ],
+    "correct": [1],
+    "explanation": "Signature (misuse) detection is accurate for known attacks but blind to new ones because it needs a matching rule. Anomaly detection builds a model of normal behavior and alerts on deviations, letting it catch unknown attacks at the cost of a higher false-positive rate.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which description matches a DNS cache poisoning attack?",
+    "options": [
+      "Injecting forged DNS responses so a resolver caches an attacker-controlled IP for a domain",
+      "Flooding a DNS server with queries until it stops responding",
+      "Registering a look-alike domain name to trick users",
+      "Editing the local hosts file on the victim's machine"
+    ],
+    "correct": [0],
+    "explanation": "If the attacker can guess or race the query's transaction ID and source port and return a spoofed answer before the legitimate server, the resolver caches the false record and serves it to all clients. Source-port randomization and DNSSEC mitigate it.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "How does a classic Smurf attack amplify traffic against a victim?",
+    "options": [
+      "It sends ICMP echo requests with the victim's IP spoofed as source to a network's broadcast address",
+      "It sends UDP packets to random high ports on the victim",
+      "It opens many half-open TCP connections to the victim",
+      "It sends the victim forged ARP replies for the gateway"
+    ],
+    "correct": [0],
+    "explanation": "Every host on the segment replies to the spoofed victim address, multiplying the attacker's traffic. Disabling directed broadcasts (no ip directed-broadcast) mitigates it. Fraggle is the UDP-based equivalent using echo/chargen.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "After ARP poisoning a LAN, an on-path attacker can hijack a live TCP session without brute-forcing sequence numbers. Why?",
+    "options": [
+      "Because sniffing the redirected traffic reveals the current sequence and acknowledgment numbers directly",
+      "Because ARP poisoning resets both endpoints' sequence numbers to zero",
+      "Because TCP disables sequence checking on a local segment",
+      "Because the attacker has forced a TLS downgrade"
+    ],
+    "correct": [0],
+    "explanation": "An on-path attacker sees every segment, so the live SEQ and ACK values are observed rather than guessed. The main complication is the ACK storm between the now-desynchronized legitimate endpoints, which the attacker suppresses by dropping or silencing their packets.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "After DHCP starvation, an attacker brings up a rogue DHCP server. Which single option would it manipulate to become the victim's man-in-the-middle?",
+    "options": [
+      "The lease time option",
+      "The default gateway (router) option",
+      "The domain name option",
+      "The NTP server option"
+    ],
+    "correct": [1],
+    "explanation": "By handing out its own address as the default gateway (and usually as the DNS server), the rogue server causes the victim to route all off-subnet traffic through the attacker. DHCP snooping with trusted ports blocks unauthorized DHCP offers.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which Nmap option splits probe packets into tiny IP fragments to help evade simple packet filters and IDS signatures?",
+    "options": [
+      "-sV",
+      "-f",
+      "-Pn",
+      "-O"
+    ],
+    "correct": [1],
+    "explanation": "The -f flag fragments probes into small IP fragments (8 bytes of data each), and --mtu sets a custom fragment size, so non-reassembling filters may miss the pattern. -sV is version detection, -Pn skips host discovery, and -O is OS detection.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which two controls are effective mitigations against ARP poisoning on an enterprise LAN? (Choose two.)",
+    "options": [
+      "Dynamic ARP Inspection backed by DHCP snooping",
+      "Static ARP entries for critical hosts",
+      "Enabling promiscuous mode on the default gateway",
+      "Increasing the switch CAM table size"
+    ],
+    "correct": [0, 1],
+    "explanation": "DAI validates ARP against the DHCP snooping binding table, and static ARP entries cannot be overwritten by spoofed replies. Promiscuous mode only aids sniffing, and CAM table size addresses MAC flooding, not ARP spoofing.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "In a Spanning Tree Protocol manipulation attack, how does an attacker reroute LAN traffic through their own device?",
+    "options": [
+      "By sending crafted BPDUs advertising a superior (lower) bridge priority to win the root-bridge election",
+      "By flooding the switch with random source MAC addresses",
+      "By sending gratuitous ARP replies for the gateway",
+      "By spoofing DHCP offers with itself as the gateway"
+    ],
+    "correct": [0],
+    "explanation": "By advertising a lower bridge ID, the attacker's device wins the root-bridge election and the topology converges so traffic passes through it, enabling sniffing or MITM. BPDU Guard and Root Guard mitigate this; Yersinia automates STP attacks.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "Which activity is an example of passive sniffing?",
+    "options": [
+      "Injecting ARP replies to redirect traffic on a switched network",
+      "Capturing traffic on a hub, a SPAN/mirror port, or a wireless monitor interface without injecting any packets",
+      "Overflowing the CAM table to force the switch to flood frames",
+      "Sending superior BPDUs to become the root bridge"
+    ],
+    "correct": [1],
+    "explanation": "Passive sniffing only listens on a shared or mirrored medium and injects nothing, which makes it very hard to detect. Active sniffing techniques such as ARP poisoning, MAC flooding, and STP attacks inject packets to redirect traffic on a switched network.",
+    "difficulty": "EASY"
+  }
+]

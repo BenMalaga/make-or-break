@@ -1,0 +1,48 @@
+---
+title: The 1000th Prime
+summary: Find the thousandth prime number, then submit it.
+track: make
+category: math
+difficulty: EASY
+tags: [primes, number-theory, loops]
+answer: 7919
+answerType: number
+starterLang: python
+starter: |
+  # Goal: find the 1000th prime number and print it.
+  # A number is prime if no integer from 2 up to its square root divides it.
+
+  def is_prime(n):
+      if n < 2:
+          return False
+      i = 2
+      while i * i <= n:
+          if n % i == 0:
+              return False
+          i += 1
+      return True
+
+  count = 0
+  n = 1
+  # ... keep going until count reaches 1000, then print n
+
+  print("replace me")
+hints:
+  - The first prime is 2, not 1. Start counting there.
+  - Test each number with is_prime and stop the moment your count hits 1000.
+  - You do not need a fast sieve. A plain loop finds the 1000th prime instantly.
+---
+
+The prime numbers start 2, 3, 5, 7, 11, 13, and never stop. They thin out as they
+grow, but they always keep coming.
+
+Your job is simple to state: find the **1000th** prime number. Counting from the
+first prime (2), keep listing primes until you reach the thousandth one, and that
+value is the answer.
+
+Writing the check by hand is the point. A number is prime when nothing between 2
+and its square root divides it evenly. Loop upward, test each candidate, and keep
+a running count of how many primes you have seen. When the count reaches 1000, the
+current number is your answer.
+
+Run your code in the editor, read the number it prints, and submit it.

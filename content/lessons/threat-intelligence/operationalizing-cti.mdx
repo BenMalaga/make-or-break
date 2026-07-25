@@ -1,0 +1,62 @@
+---
+title: Putting CTI to Work
+module: threat-intelligence
+moduleTitle: Cyber Threat Intelligence
+moduleOrder: 36
+moduleIcon: Radar
+order: 5
+summary: Twelve feeds and a burning SOC is not an intel program. It is a firehose you pointed at your own analysts.
+estimatedMinutes: 18
+objectives:
+  - Filter feeds down to what is relevant to your actual environment
+  - Convert intelligence into detections, blocklists, and hunts
+  - Measure whether an intel source ever caught anything
+tags:
+  - threat-intelligence
+  - cti
+  - detection
+  - feeds
+  - operations
+---
+
+A team buys twelve threat feeds, pipes every indicator straight into the SIEM as an alert, and by week two the SOC is drowning in low-confidence matches on stale IPs. Alert fatigue sets in, analysts start ignoring the intel channel, and a real hit slips past in the noise. The feeds did not fail. The team confused ingestion with operationalization. Having intelligence and using intelligence are different jobs, and the second one is where most programs fall down.
+
+Operationalizing CTI means turning a report or a feed into a change in how your defenses behave. If nothing in your SIEM, EDR, firewall, or runbook changed because of an intel product, the product did nothing.
+
+## Relevance is the first filter, and it is ruthless
+
+You cannot act on everything, so stop trying. Score every feed and report against your own environment before it touches a tool. A campaign targeting industrial control systems is noise to a pure SaaS shop. A macOS backdoor is noise to an all-Windows fleet. The right question is never "is this a real threat," it is "is this a real threat to us."
+
+Two cheap filters do most of the work: does this actor or malware target our sector, and does the indicator overlap our asset ranges and technology stack. Everything that fails both goes to an archive you can search later, not into an alert.
+
+## Convert intel into something a defense consumes
+
+Different intelligence becomes different artifacts. Tactical IOCs become blocklists and SIEM watchlists, ideally with an expiry date so a six-month-old IP does not haunt you forever. Behavioral intel becomes Sigma rules for your SIEM, YARA rules for files, or an EDR detection tied to the technique. Operational intel becomes a threat hunt. Strategic intel becomes a slide that moves budget.
+
+<CommandBlock
+  title="turning a behavioral report into a live detection"
+  commands={[
+    { cmd: "# report: actor persists via a scheduled task that runs a base64 PowerShell payload", comment: "the TTP, in plain language" },
+    { cmd: "sigma convert -t esql --without-pipeline actor_persist.yml", comment: "compile the Sigma rule into your SIEM's query language" },
+    { cmd: "# stage it as low-severity, tune the false positives, THEN promote it", comment: "never push a raw rule straight to blocking" },
+  ]}
+/>
+
+## Do not auto-block on faith
+
+The lazy pattern is wiring a feed straight into your firewall's deny list. Resist it. Feeds contain false positives, and feeds get poisoned. Block an indicator that turns out to be a CDN edge node or a shared hosting IP and you have handed yourself a self-inflicted outage. High-confidence, well-scoped indicators can auto-enforce. Everything else gets staged in detect mode and a human reviews the hits before you turn it into a block.
+
+## Measure, then kill what does not earn its slot
+
+The metric that matters is not how many indicators a feed carries, it is how many true detections it produced in your environment. Tag every alert and block with its source. After a quarter, pull the numbers. A feed that generated 40,000 indicators and zero confirmed hits is a cost with no return, and canceling it makes your program better, not worse. The best CTI programs run fewer sources, tuned harder, than the ones still measuring success by feed count.
+
+<Callout type="security" title="Blocklists are an availability control too">
+Enforcing intelligence changes traffic, and a bad entry can deny service to your own users. Test blocklist and detection changes in a staging or detect-only mode first, keep enforcement scoped to systems you administer, and never wire an unvalidated third-party feed to an automatic block on production. Treat a poisoned or careless indicator as a self-inflicted denial-of-service risk, because that is exactly what it becomes.
+</Callout>
+
+<Exercise
+  id="cti-triage-feeds"
+  prompt="You inherit a program with four feeds: (1) a paid feed of 50,000 IPs, zero confirmed hits last quarter; (2) your sector's ISAC sharing group, 3 confirmed hits; (3) abuse.ch URLhaus, 8 confirmed hits; (4) a generic 'global malware' feed auto-blocking on your edge firewall with no review. Decide what to keep, cut, tune, or move to detect-only, and give a one-line reason for each."
+/>
+
+<Notes />

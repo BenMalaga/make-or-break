@@ -1,0 +1,77 @@
+---
+title: Recognizing Bad Crypto
+module: cryptographic-attacks
+moduleTitle: Cryptographic Attacks
+moduleOrder: 41
+moduleIcon: Unlock
+order: 5
+summary: The tells that a system's crypto is broken before you write a single payload.
+estimatedMinutes: 18
+objectives:
+  - Spot ECB mode from repeating ciphertext blocks
+  - Catch reused nonces and static IVs in captured traffic
+  - Grep a codebase for hardcoded keys and weak randomness
+tags:
+  - crypto
+  - ecb
+  - nonce-reuse
+  - code-review
+---
+
+Most bad crypto announces itself if you know the tells. You do not need to break anything to know a system is broken; you need to recognize the pattern and then decide whether it is worth exploiting. This lesson is a field guide to the four signatures that show up again and again.
+
+## ECB: identical blocks leak
+
+Electronic Codebook mode encrypts every 16-byte block independently with no chaining. Same plaintext block in, same ciphertext block out, every time. That determinism is the flaw. Structured data with repetition, like a bitmap or a JSON blob with repeated fields, keeps its pattern right through the encryption.
+
+The famous demo is the ECB penguin: encrypt a PNG of Tux in ECB and you can still see the penguin, because the flat color regions produce repeating ciphertext blocks. On real data, the tell is repeating 16-byte chunks inside a single ciphertext.
+
+<CommandBlock
+  title="attacker@lab, hunt for repeated blocks"
+  commands={[
+    { cmd: "echo -n CIPHERHEX | fold -w32 | sort | uniq -d", comment: "32 hex chars is one 16-byte block; duplicates mean ECB" },
+    { cmd: "python3 -c \"import sys;b=bytes.fromhex(open('c.hex').read());print(len(set(b[i:i+16] for i in range(0,len(b),16)))<len(b)//16)\"", comment: "True if any block repeats" },
+  ]}
+/>
+
+If two blocks match inside one message, the mode is almost certainly ECB, and structure is leaking. That is a finding on its own.
+
+## Reused nonces and static IVs
+
+Stream ciphers and modes like CTR and GCM depend on a nonce that is never reused under the same key. Reuse it and the security collapses. XOR two ciphertexts encrypted with the same keystream and the key cancels out, leaving you the XOR of the two plaintexts, which is often enough to recover both.
+
+In CBC, a static or predictable IV is a smaller but real leak: identical messages produce identical ciphertext, which lets you detect repeats and, in some flows, mount chosen-plaintext tricks. When you capture traffic, watch the IV or nonce field across messages. If it never changes, or it counts up predictably from zero, write it down.
+
+Nonce reuse in AES-GCM is worse than most people expect. Beyond leaking plaintext relationships, it can expose the authentication key and let an attacker forge valid tags. A repeated GCM nonce is not a warning, it is a full break.
+
+## Hardcoded keys and weak randomness
+
+This is where source access pays off. Grep for the obvious.
+
+<CommandBlock
+  title="attacker@lab, grep the source"
+  commands={[
+    { cmd: "grep -rniE 'secret|api[_-]?key|password|private_key' . --include=*.py", comment: "committed secrets hide in plain sight" },
+    { cmd: "grep -rnE 'Math.random|new Random\\(|rand\\(\\)|mt_rand' .", comment: "non-crypto RNG used where a CSPRNG belongs" },
+    { cmd: "git log -p -S 'AES' -- '*.js' | grep -i key", comment: "a key removed in a later commit still lives in history" },
+  ]}
+/>
+
+A key in the repo is a key in the attacker's hands, and deleting it in a later commit does nothing because Git keeps the history. `Math.random()` seeding a token or an IV means the value is predictable. Both are common, both are high severity, and both take one grep to find.
+
+<Callout type="security" title="Recognizing is not a license to exploit">
+Fingerprinting weak crypto is passive and safe. Actually decrypting traffic, forging tokens, or pulling secrets from a repository crosses into active exploitation and needs explicit written authorization for that system. Do the recognition freely on your own code and lab targets; save exploitation for scoped engagements.
+</Callout>
+
+Build the reflex to run this pass early. Before you plan any deep attack, check the mode, check the nonces, and grep the source. Half the time the crypto is already broken in a way that makes the hard attack unnecessary.
+
+<Exercise
+  id="ecb-tell"
+  prompt="You see two identical 16-byte blocks inside one ciphertext. What encryption mode does that point to, and why?"
+  answer="ECB"
+  placeholder="the mode name"
+>
+ECB encrypts each block independently, so identical plaintext blocks always produce identical ciphertext blocks. Any repeat inside one message is the signature of ECB, and it means structure is leaking through the encryption.
+</Exercise>
+
+<Notes />

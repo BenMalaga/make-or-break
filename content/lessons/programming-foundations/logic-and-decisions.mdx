@@ -1,0 +1,347 @@
+---
+title: Logic and Decisions
+module: programming-foundations
+moduleTitle: Programming Foundations
+moduleOrder: 1
+moduleIcon: Code
+order: 3
+summary: "A stored value does nothing until a program branches on it: comparisons, if / elif / else, and the boolean logic that ties them together."
+estimatedMinutes: 16
+prerequisites: ["what-code-is", "variables-and-data"]
+objectives:
+  - Read a comparison as a question that returns True or False, and tell == apart from =
+  - Write an if / elif / else chain that runs exactly one branch
+  - Explain how Python decides which lines belong to a block using indentation
+  - Combine conditions with and, or, and not, and predict the result before running the code
+tags:
+  - programming
+  - python
+---
+
+The last lesson parked a number in a variable and printed it back. A value that
+only ever gets printed is a note stuck to a fridge. Useful, but inert. A program
+starts to feel like it is doing something the moment it acts differently
+depending on what that value turns out to be: warm or cold, empty or full,
+allowed or refused.
+
+That is what this lesson adds. Python gets a way to ask a question about a value,
+get back a plain yes or no, and take one path or another based on the answer.
+Every login screen, every price that changes at checkout, every game that
+announces a loss is built out of the three pieces below and nothing fancier.
+
+## Comparisons ask a question and hand back True or False
+
+A comparison is Python checking how two values relate. It is written with a
+comparison operator sitting between them, and the result is always one of the two
+boolean values from the last lesson: `True` or `False`. Nothing in between.
+
+There are six of these operators. `==` asks whether two values are equal. `!=`
+asks whether they are not equal. `<` and `>` ask less-than and greater-than, and
+`<=` and `>=` add "or equal to" onto each. Python evaluates the comparison and
+replaces it with the answer.
+
+```python
+temperature = 72
+print(temperature > 65)
+print(temperature == 100)
+print(temperature != 100)
+```
+
+<CommandCard
+  command="python3 checks.py"
+  title="terminal"
+  explain="Runs the saved file top to bottom. Each print writes one line, so three prints make three lines of output."
+/>
+
+<ExpectedOutput label="python3 checks.py">
+```
+True
+False
+True
+```
+</ExpectedOutput>
+
+Read the three results back against the code. The stored temperature is 72. Is 72
+greater than 65? Yes, so the first line is `True`. Is 72 equal to 100? No, so the
+second is `False`. Is 72 not equal to 100? Correct, they differ, so the third is
+`True`. The comparison is not the number 72 or the number 100 anymore. Python has
+boiled each one down to a single boolean.
+
+Now the trap that catches nearly everyone in their first week. A single `=` and a
+double `==` are different tools. One `=` is assignment: it puts a value into a
+variable, an instruction that changes something. Two `==` is a question: it looks
+at two values and reports whether they match, changing nothing. Writing `if
+temperature = 100` where `if temperature == 100` was meant is one of the most
+common beginner errors there is, and Python rejects it outright rather than
+guessing.
+
+Comparisons work on strings too, not only numbers. `==` on two strings checks
+whether they are the exact same text, character for character, and it pays
+attention to capital letters.
+
+```python
+name = "ada"
+print(name == "ada")
+print(name == "Ada")
+```
+
+<ExpectedOutput label="python3 name.py">
+```
+True
+False
+```
+</ExpectedOutput>
+
+The lowercase `"ada"` matches the stored value exactly, so the first line is
+`True`. The capitalized `"Ada"` differs by one letter, so Python calls it a
+mismatch. To Python, `"ada"` and `"Ada"` are as different as `"cat"` and `"dog"`.
+That case sensitivity trips up password checks and name lookups constantly, so it
+is worth burning in early.
+
+<Quiz
+  id="prog-logic-assign-vs-compare"
+  question="A program runs count = 5 on one line, then runs count == 5 on the very next line. What does the second line do?"
+  answer={1}
+  options={[
+    "Sets count to 5 a second time, the same as the first line.",
+    "Checks whether count equals 5 and produces the boolean True.",
+    "Causes an error, because count was already given a value.",
+    "Prints the number 5 to the screen.",
+  ]}
+  explanation="One = assigns a value into a variable. Two == asks a question and hands back True or False. The second line works out to True, though on its own it does nothing with that answer. It takes an if statement, next, to act on it."
+/>
+
+## if, else, and the block that runs only sometimes
+
+A comparison that no one acts on is wasted breath. The `if` statement is what acts
+on it. It takes a condition, which is any expression that comes out to `True` or
+`False`, and runs a chunk of code only when that condition is `True`.
+
+```python
+temperature = 72
+if temperature > 80:
+    print("It's hot out.")
+print("Done checking.")
+```
+
+<ExpectedOutput label="python3 weather.py">
+```
+Done checking.
+```
+</ExpectedOutput>
+
+Two things in that output deserve attention, and one of them is the missing line.
+Python checks the condition `temperature > 80`. The stored value is 72, and 72 is
+not greater than 80, so the condition is `False`. The indented print is skipped
+entirely. The line `Done checking.` still runs, because it is not part of the
+`if`. That gap is the whole point of a decision: some code runs, some does not,
+and the condition decides which.
+
+Look at the shape of the `if` statement itself. It ends with a colon. The line
+under it is pushed in from the left margin by four spaces. That indentation is not
+decoration in Python, the way it is in most other languages. It is how Python
+knows which lines belong to the `if` and which do not. The indented lines form a
+block, meaning a group of statements that run together as a unit. When the
+condition is `True`, the whole block runs. When it is `False`, the whole block is
+skipped. The first line that returns to the old margin, like `print("Done
+checking.")`, is back outside the `if` and runs no matter what.
+
+<Callout type="warning" title="Indentation is a rule, not a style choice">
+Python counts the spaces. Four spaces is the near-universal convention, and it
+must be consistent inside one block. Indent one line with spaces and the next with
+a tab and Python raises an `IndentationError` and refuses to run the file at all.
+Most code editors insert four spaces when the Tab key is pressed, which quietly
+sidesteps the problem, but the rule underneath is real: the layout of the code is
+part of the code.
+</Callout>
+
+Often a program needs a plan B for when the condition is `False`. That is `else`.
+It attaches to an `if` and holds the block that runs when the `if` condition did
+not hold.
+
+```python
+temperature = 55
+if temperature > 80:
+    print("Hot")
+else:
+    print("Not hot")
+```
+
+<ExpectedOutput label="python3 weather.py">
+```
+Not hot
+```
+</ExpectedOutput>
+
+Exactly one of those two blocks runs, never both and never neither. The condition
+`55 > 80` is `False`, so Python skips the `if` block and takes the `else` block
+instead. An `else` has no condition of its own. It is the catch-all for
+everything the `if` did not catch.
+
+Two branches are not always enough. For a spread of cases, `elif`, short for
+"else if", stacks extra conditions between the first `if` and the final `else`.
+
+```python
+temperature = 72
+if temperature > 80:
+    print("Hot")
+elif temperature > 60:
+    print("Comfortable")
+else:
+    print("Cold")
+```
+
+<ExpectedOutput label="python3 weather.py">
+```
+Comfortable
+```
+</ExpectedOutput>
+
+Here is the rule that makes this predictable, and it matters more than it looks.
+Python checks the conditions from top to bottom and stops at the first one that is
+`True`. It runs that block and skips the entire rest of the chain. The value 72 is
+not greater than 80, so Python moves on. It is greater than 60, so the
+`Comfortable` block runs, and the `else` never gets a look. First match wins. That
+is why order matters: put a wide condition too early and it swallows cases that a
+later, narrower one was meant to catch.
+
+<Quiz
+  id="prog-logic-first-match"
+  question="Python reaches an if / elif / elif / else chain, and the first two conditions both happen to be True. How many of the blocks run?"
+  answer={1}
+  options={[
+    "Both true blocks run, one after the other.",
+    "Only the first true block runs; Python skips the rest of the chain.",
+    "All four blocks run, and the last one overwrites the others.",
+    "None of them run unless the else condition is also true.",
+  ]}
+  explanation="Python evaluates the conditions top to bottom and takes the first one that is True, then skips every remaining branch in that chain, the trailing else included. That first-match rule is exactly why the order of the conditions changes the outcome."
+/>
+
+## Combining conditions with and, or, not
+
+Real decisions rarely hinge on one fact. A door opens when a person is old enough
+and holds a ticket. A form is valid when a field is not empty. Python builds these
+out of three words that join or flip boolean values: `and`, `or`, and `not`.
+
+`and` is `True` only when the values on both sides are `True`. `or` is `True` when
+at least one side is `True`. `not` takes a single boolean and flips it: `not True`
+is `False`, and `not False` is `True`.
+
+```python
+print(True and False)
+print(True or False)
+print(not True)
+```
+
+<ExpectedOutput label="python3 logic.py">
+```
+False
+True
+False
+```
+</ExpectedOutput>
+
+`True and False` is `False` because `and` demands both sides, and one side fell
+short. `True or False` is `True` because `or` is satisfied by a single `True`.
+`not True` flips to `False`. These three words are the entire toolkit for gluing
+conditions together, and every complicated check is just these combined.
+
+Here they are inside a real decision. This program admits a person only when two
+separate facts both hold.
+
+```python
+age = 20
+has_ticket = True
+if age >= 18 and has_ticket:
+    print("Admitted")
+else:
+    print("Turned away")
+```
+
+<ExpectedOutput label="python3 door.py">
+```
+Admitted
+```
+</ExpectedOutput>
+
+Python works the condition out one piece at a time. `age >= 18` is `20 >= 18`,
+which is `True`. `has_ticket` is already `True`. `True and True` is `True`, so the
+whole condition is `True` and the `if` block runs. Change either fact, drop the
+age to 16 or set `has_ticket` to `False`, and `and` turns the whole thing `False`,
+sending Python to the `else` block. That is the value of `and`: one weak link
+breaks the chain.
+
+<Quiz
+  id="prog-logic-and-truth"
+  question="A door opens only when the condition age >= 18 and has_ticket is True. age is 25 and has_ticket is False. Does the door open?"
+  answer={1}
+  options={[
+    "Yes, because age is well over 18.",
+    "No. and needs both sides to be True, and has_ticket is False.",
+    "Yes, because at least one of the two conditions is True.",
+    "No, because and only works when both sides are False.",
+  ]}
+  explanation="and produces True only when both sides are True. A single False side makes the whole expression False, regardless of the other side. The operator that is happy with just one True side is or, not and."
+/>
+
+## A worked example that branches on a value
+
+Pull the pieces together into something a real program would do: turn a numeric
+score into a letter grade. The value being tested, `score`, is a plain variable
+of the kind the previous lesson set up. Everything else is comparisons, an
+if / elif / else chain, and assignment.
+
+```python
+score = 84
+if score >= 90:
+    grade = "A"
+elif score >= 80:
+    grade = "B"
+elif score >= 70:
+    grade = "C"
+else:
+    grade = "F"
+print(grade)
+```
+
+<CommandCard
+  command="python3 grade.py"
+  title="terminal"
+  explain="Runs the file. Python walks the chain, sets the grade variable in exactly one branch, then prints it."
+/>
+
+<ExpectedOutput label="python3 grade.py">
+```
+B
+```
+</ExpectedOutput>
+
+Follow Python through it. The score is 84. Is 84 at least 90? No, skip. Is 84 at
+least 80? Yes, so `grade` gets the string `"B"` and the rest of the chain is
+abandoned. The `print` on the last line, sitting back at the left margin outside
+the whole structure, runs regardless and shows the result. Notice that the chain
+does the right thing without ever checking an upper bound. Because first match
+wins, reaching the `>= 80` branch already means the `>= 90` branch was `False`, so
+the score is known to be under 90. The ordering does the work an extra comparison
+would otherwise have to.
+
+<Exercise title="Predict, then run">
+Copy the grade program into a file called `grade.py`. Before running it, change
+the first line to `score = 90` and write down, on paper, which letter you expect.
+Then run `python3 grade.py` and check whether the output matches your prediction.
+
+The interesting part is the boundary. `>= 90` includes 90 exactly, so a score of
+90 should land on `"A"`. Now change it to `score = 89` and predict again. One
+point moves the result to a different branch, and seeing that flip is the fastest
+way to feel how `>=` and first-match ordering actually behave.
+</Exercise>
+
+A chain like the grade example makes one decision and moves on. That is enough for
+a single value, but programs usually have a pile of values to run the same check
+against: every score in a class, every row in a file, every guess in a game.
+Writing the same `if` chain out by hand once per item does not scale past a
+handful. The next lesson, on loops and repetition, is how one block of code runs
+over many values without being copied even once.
+
+<Notes />

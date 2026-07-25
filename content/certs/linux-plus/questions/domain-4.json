@@ -1,0 +1,301 @@
+[
+  {
+    "domain": 4,
+    "question": "An administrator runs uptime on a server with 4 CPU cores and sees a load average of 8.15, 7.90, 6.50. What is the most accurate interpretation?",
+    "options": [
+      "The system is idle because the numbers are well below 100",
+      "The run queue has been sustained at roughly twice the number of cores, indicating CPU oversubscription",
+      "Exactly 8 users are currently logged in to the system",
+      "The values represent free memory in gigabytes over 1, 5, and 15 minutes"
+    ],
+    "correct": [1],
+    "explanation": "Load average is the average number of processes running or waiting to run over 1, 5, and 15 minutes. With 4 cores, a load of about 8 means roughly twice as many runnable processes as cores, so the CPU is oversubscribed and tasks are queueing. The numbers are not percentages, user counts, or memory.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A process shows a state of D in the output of ps aux and cannot be terminated even with kill -9. What does the D state indicate?",
+    "options": [
+      "The process is a defunct zombie waiting to be reaped",
+      "The process is in uninterruptible sleep, typically blocked on I/O",
+      "The process has been debugged and paused by a tracer",
+      "The process is running at the highest possible priority"
+    ],
+    "correct": [1],
+    "explanation": "The D state is uninterruptible sleep, almost always caused by waiting on a blocking I/O operation such as a slow or hung disk or NFS mount. Because the process is inside a kernel call that does not accept signals, even SIGKILL cannot remove it until the I/O completes or the underlying resource recovers.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "On a virtual machine, top consistently reports a high %st value in the CPU line while application response is sluggish. What is the %st metric measuring?",
+    "options": [
+      "The percentage of CPU time spent servicing hardware interrupts",
+      "The percentage of time the vCPU was ready to run but the hypervisor gave the physical CPU to another guest",
+      "The percentage of CPU time spent in system (kernel) calls",
+      "The percentage of memory stolen by the out-of-memory killer"
+    ],
+    "correct": [1],
+    "explanation": "Steal time (%st) is the time a virtual CPU wanted to run but had to wait because the hypervisor scheduled the physical CPU for a different guest. Persistently high steal usually means the host is overcommitted or a noisy neighbor is consuming CPU, and the fix is on the hypervisor side, not inside the guest.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A user complains an application cannot allocate memory, but free -h shows most of RAM listed under buff/cache. Which column should the administrator check to judge how much memory is truly reclaimable for new processes?",
+    "options": [
+      "shared",
+      "available",
+      "used",
+      "total"
+    ],
+    "correct": [1],
+    "explanation": "The available column estimates how much memory can be given to new applications without swapping, and it already accounts for reclaimable page cache. Memory held in buff/cache is not lost; the kernel frees it on demand, so a large buff/cache with a healthy available value is normal, not a shortage.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A critical process was terminated unexpectedly and the administrator suspects the kernel out-of-memory (OOM) killer. Where should they look for confirmation?",
+    "options": [
+      "In /etc/fstab for a missing swap entry",
+      "In the kernel ring buffer via dmesg or journalctl -k, looking for an Out of memory: Killed process message",
+      "In /proc/cpuinfo for the process exit code",
+      "In the crontab of the affected user"
+    ],
+    "correct": [1],
+    "explanation": "When the OOM killer acts, the kernel logs an Out of memory: Killed process entry to the kernel ring buffer, visible with dmesg, journalctl -k, or in /var/log/messages. That record names the victim process and the memory conditions, which is the definitive evidence that OOM, not the application itself, caused the kill.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Running vmstat 1 during a slowdown shows the si and so columns consistently reporting large non-zero values. What condition does this indicate?",
+    "options": [
+      "The network is saturated with inbound and outbound traffic",
+      "The system is actively swapping pages in and out of disk, a sign of memory pressure",
+      "The CPU is spending most of its time in interrupt handling",
+      "The disk inodes are nearly exhausted"
+    ],
+    "correct": [1],
+    "explanation": "In vmstat, si is memory swapped in from disk and so is memory swapped out to disk. Sustained non-zero values mean the kernel is thrashing between RAM and swap because physical memory is exhausted, which severely degrades performance. Brief spikes are normal, but continuous activity signals a real memory shortage.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "Users report Cannot create file: No space left on device, yet df -h shows the filesystem is only 60% full. What is the most likely cause and the command to confirm it?",
+    "options": [
+      "A quota limit; confirm with quota -v",
+      "Inode exhaustion; confirm with df -i",
+      "A read-only mount; confirm with mount | grep ro",
+      "A corrupted superblock; confirm with dumpe2fs"
+    ],
+    "correct": [1],
+    "explanation": "A filesystem can run out of inodes long before it runs out of blocks when it holds a huge number of very small files. df -i shows inode usage, and an IUse% of 100 while block usage is low confirms inode exhaustion. The remedy is to delete or archive unneeded small files or recreate the filesystem with more inodes.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "An ext4 logical volume is full. After running lvextend to add space to the underlying logical volume, the filesystem still reports the old size. Which command makes the ext4 filesystem use the new space?",
+    "options": [
+      "xfs_growfs /mountpoint",
+      "resize2fs /dev/vg/lv",
+      "mkfs.ext4 /dev/vg/lv",
+      "fsck -f /dev/vg/lv"
+    ],
+    "correct": [1],
+    "explanation": "Growing the logical volume only enlarges the block device; the ext2/3/4 filesystem must then be expanded with resize2fs to occupy it. xfs_growfs is for XFS, mkfs would destroy existing data, and fsck only checks consistency. Note that lvextend -r can call resize2fs automatically in one step.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A mounted XFS filesystem needs to be enlarged after its logical volume was extended. Which statement is correct?",
+    "options": [
+      "Use resize2fs on the mount point; XFS can also be shrunk this way",
+      "Use xfs_growfs on the mount point; XFS cannot be shrunk, only grown",
+      "XFS must be unmounted before it can be grown with xfs_repair",
+      "XFS grows automatically and needs no additional command"
+    ],
+    "correct": [1],
+    "explanation": "XFS is grown with xfs_growfs, which operates on the mounted filesystem's mount point, not the device. A key limitation is that XFS cannot be shrunk at all, only expanded. resize2fs works on ext filesystems, and xfs_repair is a consistency checker, not a resizer.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "An administrator needs to run a full consistency check and repair on an ext4 filesystem that shows errors. What is the safest precondition before running fsck?",
+    "options": [
+      "The filesystem should be mounted read-write so repairs can be applied live",
+      "The filesystem should be unmounted (or mounted read-only), never checked while mounted read-write",
+      "The system should be in graphical target with all services running",
+      "Swap must be disabled with swapoff first"
+    ],
+    "correct": [1],
+    "explanation": "Running fsck on a filesystem that is mounted read-write can corrupt it, because the checker and the kernel would both modify the same on-disk structures. The correct practice is to unmount it first, or check it from rescue mode or via /etc/fstab pass numbers at boot. The root filesystem is typically checked at boot for this reason.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A server intermittently logs read errors for /dev/sda. Which tool queries the drive's built-in health and error attributes to assess whether the disk is failing?",
+    "options": [
+      "smartctl from the smartmontools package",
+      "ethtool",
+      "lsof",
+      "vmstat"
+    ],
+    "correct": [0],
+    "explanation": "smartctl reads a drive's SMART data, including reallocated sector counts, pending sectors, and an overall health assessment, making it the standard tool for predicting or confirming disk failure. ethtool queries network interfaces, lsof lists open files, and vmstat reports memory and CPU, none of which read drive health telemetry.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "During a performance investigation, top shows a high %wa (I/O wait) value. Which tool best identifies which disk devices are saturated and how long requests are queuing?",
+    "options": [
+      "iostat -x from the sysstat package",
+      "nslookup",
+      "free -m",
+      "uptime"
+    ],
+    "correct": [0],
+    "explanation": "High I/O wait means the CPU is idle while waiting on storage. iostat -x reports per-device utilization, average wait time (await), and queue depth, pinpointing the saturated disk. free reports memory, uptime reports load, and nslookup resolves names, so none of them expose per-device I/O metrics.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A host can ping 8.8.8.8 successfully but cannot ping google.com, returning a name resolution error. Which file should be checked first?",
+    "options": [
+      "/etc/hosts.allow",
+      "/etc/resolv.conf",
+      "/etc/sysctl.conf",
+      "/etc/crontab"
+    ],
+    "correct": [1],
+    "explanation": "Reaching an IP but failing on a hostname is the classic signature of a DNS problem, since routing and connectivity are clearly working. /etc/resolv.conf holds the nameserver entries the resolver uses, so a missing or wrong nameserver there is the first thing to verify, along with tools like dig or host to test resolution directly.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A daemon fails to start and its log shows bind: Address already in use. Which command best identifies the process already holding the TCP port?",
+    "options": [
+      "ss -tlnp",
+      "df -h",
+      "chmod -R 777 /",
+      "dmesg -c"
+    ],
+    "correct": [0],
+    "explanation": "The error means another process is already listening on that port. ss -tlnp lists listening TCP sockets along with the owning process and PID, letting the administrator find and stop the conflicting service. df reports disk usage, dmesg clears the kernel buffer, and the chmod option is both irrelevant and dangerous.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "After a network change, a host can reach devices on its own subnet but cannot reach any remote networks or the internet. Which two commands would help confirm whether a default gateway is configured? (Choose two.)",
+    "options": [
+      "ip route show",
+      "route -n",
+      "chronyc sources",
+      "lsblk"
+    ],
+    "correct": [0, 1],
+    "explanation": "Reaching the local subnet but nothing beyond it points to a missing or wrong default gateway. Both ip route show and the legacy route -n display the routing table, where a default (0.0.0.0/0) entry names the gateway. chronyc queries time servers and lsblk lists block devices, neither of which shows routing.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An administrator wants to view only the log messages produced by the sshd service since the most recent boot. Which command does this?",
+    "options": [
+      "journalctl -u sshd -b",
+      "cat /var/log/sshd",
+      "tail -f /etc/ssh/sshd_config",
+      "systemctl cat sshd"
+    ],
+    "correct": [0],
+    "explanation": "journalctl -u sshd filters the systemd journal to the sshd unit, and -b limits output to the current boot. There is no /var/log/sshd file by default, sshd_config is the configuration not a log, and systemctl cat only displays the unit file contents rather than runtime log entries.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "After adding a new disk entry to /etc/fstab with a typo in the UUID, the server reboots and drops to an emergency shell instead of reaching the login prompt. What is the correct recovery approach?",
+    "options": [
+      "Reinstall the operating system to regenerate /etc/fstab",
+      "Log in at the emergency shell, remount the root filesystem read-write, and correct or comment out the bad fstab line",
+      "Run mkfs on the new disk to clear the error",
+      "Delete /etc/fstab entirely so nothing mounts at boot"
+    ],
+    "correct": [1],
+    "explanation": "systemd cannot satisfy a mount unit generated from a bad fstab entry, so it fails the local-fs target and drops to emergency mode. The fix is to authenticate at the emergency shell, remount root read-write with mount -o remount,rw /, and correct or comment the offending line. Adding nofail to non-critical mounts prevents this in the future.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A service shows as failed. After running systemctl status myapp, which command gives the most detailed log output, including explanatory hints, for diagnosing why it failed?",
+    "options": [
+      "journalctl -xeu myapp",
+      "ls -l /etc/systemd/system",
+      "systemctl list-unit-files",
+      "ps -ef | grep myapp"
+    ],
+    "correct": [0],
+    "explanation": "journalctl -xeu myapp shows the journal entries for the myapp unit (-u), jumps to the end (-e), and adds explanatory catalog text (-x), which is the fastest way to read the actual failure messages. The other commands list files or processes but do not surface the unit's error output.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A web server on a system with SELinux in enforcing mode returns permission errors when accessing content in a non-default directory, even though standard file permissions are correct. Which approach best diagnoses whether SELinux is the cause?",
+    "options": [
+      "Run chmod 777 on the directory and leave it that way",
+      "Temporarily run setenforce 0 to test, and review /var/log/audit/audit.log for AVC denial messages",
+      "Disable the firewall with systemctl stop firewalld",
+      "Reboot the server into single-user mode"
+    ],
+    "correct": [1],
+    "explanation": "SELinux denials are logged as AVC entries in /var/log/audit/audit.log. Temporarily switching to permissive with setenforce 0 confirms whether SELinux is the blocker, and the audit log shows exactly what context was denied. The proper long-term fix is to relabel the files with the correct context using semanage fcontext and restorecon, not to loosen permissions or disable security.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "An administrator edits /etc/default/grub on a RHEL-based system to change the default kernel boot parameters. Which command regenerates the bootloader configuration so the changes take effect?",
+    "options": [
+      "grub2-mkconfig -o /boot/grub2/grub.cfg",
+      "systemctl daemon-reload",
+      "modprobe grub",
+      "dracut --force"
+    ],
+    "correct": [0],
+    "explanation": "On RHEL-based systems, /etc/default/grub is a source file; grub2-mkconfig -o /boot/grub2/grub.cfg regenerates the actual grub.cfg the bootloader reads. daemon-reload applies to systemd units, modprobe loads kernel modules, and dracut rebuilds the initramfs, none of which regenerate the GRUB configuration.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "The root password has been lost on a systemd-based server. Which boot-time technique allows resetting it?",
+    "options": [
+      "Boot normally and run passwd as any standard user",
+      "Interrupt GRUB, append rd.break (or init=/bin/bash) to the kernel line, remount the root filesystem read-write, and run passwd",
+      "Delete /etc/shadow from a live USB so the password becomes blank",
+      "Reinstall GRUB with grub2-install"
+    ],
+    "correct": [1],
+    "explanation": "Editing the kernel command line in GRUB to add rd.break drops into the initramfs, where the administrator remounts /sysroot read-write, chroots in, and runs passwd to set a new root password. On SELinux systems a relabel (touch /.autorelabel) is then needed. A normal user cannot change root's password, and deleting /etc/shadow would break authentication.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "An administrator modifies the ExecStart line in a custom systemd unit file, but systemctl restart appears to run the old command. Which two actions ensure the new definition is loaded and applied? (Choose two.)",
+    "options": [
+      "systemctl daemon-reload",
+      "systemctl restart the-service",
+      "reboot the system so cron re-reads the file",
+      "rm the unit file and recreate the service with chkconfig"
+    ],
+    "correct": [0, 1],
+    "explanation": "systemd caches unit files in memory, so after editing one you must run systemctl daemon-reload to reparse the definitions, then systemctl restart to apply the new ExecStart. A reboot works but is unnecessary and cron is unrelated, while chkconfig manages legacy SysV init scripts, not systemd units.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An application repeatedly crashes with the error Too many open files. Which command inspects and, where permitted, raises the per-process open file descriptor limit for the current shell?",
+    "options": [
+      "ulimit -n",
+      "sysctl -w kernel.pid_max",
+      "nice -n 10",
+      "renice -n -5"
+    ],
+    "correct": [0],
+    "explanation": "The Too many open files error means the process hit its file descriptor limit. ulimit -n shows and can raise the soft limit for open files in the current shell, and persistent changes go in /etc/security/limits.conf or a systemd unit's LimitNOFILE. The pid_max sysctl governs process IDs, and nice/renice adjust scheduling priority, not descriptor limits.",
+    "difficulty": "MEDIUM"
+  }
+]

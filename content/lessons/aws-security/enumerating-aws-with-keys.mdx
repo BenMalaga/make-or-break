@@ -1,0 +1,91 @@
+---
+title: Enumerating AWS With Keys
+module: aws-security
+moduleTitle: AWS Security
+moduleOrder: 30
+moduleIcon: CloudCog
+order: 4
+summary: A key starting with AKIA falls out of a Git repo. Now what?
+estimatedMinutes: 22
+objectives:
+  - Turn a raw access key into a full picture of what it can do
+  - Enumerate identity, permissions, and reachable resources without tripping obvious alarms
+  - Drive Pacu to automate the whole discovery phase
+tags:
+  - aws
+  - enumeration
+  - pacu
+  - credentials
+  - post-exploitation
+---
+
+You found a key. It starts with `AKIA`, it has a 40-character secret next to it, and it was sitting in a committed `.env` file or a public S3 object or a leaked laptop backup. That string is a long-term access key for an IAM user, and until someone rotates it, it is that user. The whole game now is figuring out who the user is and everything they can reach, before you do anything loud.
+
+Load it into a named profile so you never contaminate your own credentials, then confirm it works.
+
+<CommandBlock
+  title="load the key and identify it"
+  commands={[
+    { cmd: "aws configure --profile loot", comment: "paste the AKIA key and the secret; region us-east-1, no output format needed" },
+    { cmd: "aws sts get-caller-identity --profile loot", comment: "who is this? account ID and user ARN come back here" },
+  ]}
+/>
+
+If get-caller-identity returns an ARN, the key is live. If it returns `InvalidClientTokenId`, the key is disabled or fake and you can stop. Keys that begin with `ASIA` instead of `AKIA` are temporary session credentials and need a session token alongside them, plus they expire, so grab what you can fast.
+
+## Map the permissions without asking directly
+
+The obvious move is to call `iam:GetUser` and `iam:ListAttachedUserPolicies` and read your own permissions. The problem is that a locked-down user often cannot read its own policy, and those calls generate clean CloudTrail events that a defender can alarm on. The quieter approach is to enumerate by trial: try API calls and record which ones return data versus AccessDenied.
+
+<CommandCard command="python3 enumerate-iam.py --access-key AKIA... --secret-key ... --region us-east-1" explain="Rhino's enumerate-iam brute-forces read-only and list calls across services, logging which succeed. It builds a permission map from the outside without needing iam:GetUserPolicy." />
+
+Start with cheap, high-value reads that tell you where the treasure is. Secrets Manager and SSM Parameter Store hold passwords and tokens. RDS describes the databases. EC2 describes the fleet. Each of these is one command per region.
+
+<CommandBlock
+  title="the first reads worth making"
+  commands={[
+    { cmd: "aws secretsmanager list-secrets --profile loot --region us-east-1", comment: "names of stored secrets; get-secret-value reads them" },
+    { cmd: "aws ssm describe-parameters --profile loot --region us-east-1", comment: "config and secrets stashed in Parameter Store" },
+    { cmd: "aws s3 ls --profile loot", comment: "every bucket this identity can see, across all regions at once" },
+    { cmd: "aws ec2 describe-instances --profile loot --region us-east-1", comment: "instances, their roles, and their private IPs" },
+  ]}
+/>
+
+`aws s3 ls` with no bucket name lists every bucket the account owns, which is often the single most productive first command. If it returns a list, you have account-wide S3 visibility.
+
+## Let Pacu do the sweeping
+
+Doing this by hand across every service and every region is the wrong use of your time past the first few commands. Pacu is Rhino's AWS exploitation framework, built exactly for this phase. It imports your keys, runs enumeration modules, stores results in a database, and flags privilege escalation paths.
+
+<CommandBlock
+  title="Pacu enumeration flow"
+  commands={[
+    { cmd: "pacu", comment: "starts the framework and a named session" },
+    { cmd: "set_keys", comment: "paste the AKIA key and secret into the session" },
+    { cmd: "run iam__enum_permissions", comment: "figures out what the key can do" },
+    { cmd: "run iam__privesc_scan", comment: "checks your permissions against every known privesc path" },
+  ]}
+/>
+
+`iam__privesc_scan` is the payoff module. It takes the permission map and tells you if any of the escalation paths from the IAM lesson, like CreateAccessKey or PassRole, are open to you. That turns "I have some user's key" into "I have a path to admin" in one command.
+
+<Callout type="security" title="Authorized targets only">
+Enumerating an account from a found key is unauthorized access unless that account is in your engagement scope or is your own. A found or leaked key does not grant permission to use it. Every call you make lands in CloudTrail with your source IP. Practice on CloudGoat, which hands you deliberately leaked keys to chase, not on keys you stumble across in the wild.
+</Callout>
+
+Keep the touch light early. GuardDuty scores anomalous enumeration, and a burst of AccessDenied errors from a new IP is a textbook detection. Read before you write, stay in the regions where you already found resources, and do not fire every module at once on a real engagement.
+
+<Quiz
+  id="enum-akia-vs-asia"
+  question="You recover a key beginning with ASIA and try to use it, getting an error about a missing token. What does the prefix tell you?"
+  answer={0}
+  options={[
+    "It is a temporary STS credential that also needs a session token and will expire soon",
+    "It is a root account key that cannot be used from the CLI",
+    "It is a fake key and you should discard it",
+    "It is an S3-only key with no other permissions",
+  ]}
+  explanation="ASIA marks temporary credentials from STS. They require the accompanying session token to work and expire on a short clock, usually one to twelve hours, so you use them before they die. AKIA keys are long-term and need only the secret."
+/>
+
+<Notes />

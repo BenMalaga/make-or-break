@@ -1,0 +1,19 @@
+{
+  "slug": "network-plus",
+  "code": "N10-009",
+  "name": "CompTIA Network+",
+  "vendor": "CompTIA",
+  "description": "Validates the core knowledge to design, configure, manage, and troubleshoot wired and wireless networks. The networking backbone every security professional needs.",
+  "passScore": 72,
+  "examMinutes": 90,
+  "questionCount": 90,
+  "icon": "Network",
+  "order": 2,
+  "domains": [
+    { "number": 1, "name": "Networking Concepts", "weight": 23 },
+    { "number": 2, "name": "Network Implementation", "weight": 20 },
+    { "number": 3, "name": "Network Operations", "weight": 19 },
+    { "number": 4, "name": "Network Security", "weight": 14 },
+    { "number": 5, "name": "Network Troubleshooting", "weight": 24 }
+  ]
+}

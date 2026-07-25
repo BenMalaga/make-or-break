@@ -1,0 +1,78 @@
+---
+title: Building a Timeline
+module: digital-forensics
+moduleTitle: Digital Forensics
+moduleOrder: 22
+moduleIcon: FileSearch
+order: 5
+summary: Merge every artifact onto one clock and the attack tells itself in order.
+estimatedMinutes: 17
+objectives:
+  - Combine disk, memory, and log artifacts into a single ordered timeline
+  - Build a super timeline with the plaso toolset
+  - Reason about timestamp pitfalls like time zones and stomping
+tags:
+  - forensics
+  - timeline
+  - correlation
+---
+
+You have recovered files, a memory dump, and a pcap. Each one is a pile of facts with no story. The story is the order things happened in, and you get it by putting every timestamped artifact onto one clock and reading top to bottom. That merged view is a timeline, and it is where isolated findings become "the attacker landed here, escalated there, and left with this".
+
+## One clock, every source
+
+A single event leaves marks in a dozen places. A malicious binary running touches its file access time on disk, writes a prefetch entry, appears in the memory dump's process list, opens a socket that shows in the pcap, and drops a line in a log. Alone, each is a hint. Lined up on the same clock, they corroborate each other and pin the event to a second.
+
+The artifacts you feed a timeline: file system MAC times, Windows Event Logs, `$MFT` and registry hives, browser history, `bash_history`, prefetch, and the timestamps you already pulled from memory and network captures. The more independent sources agree on a moment, the harder that moment is to dispute.
+
+## Build a super timeline with plaso
+
+Correlating this by hand does not scale. **Plaso** (the `log2timeline` project) parses dozens of artifact types out of a disk image and emits one unified, sorted timeline, often called a super timeline. You run two tools: `log2timeline.py` to extract, then `psort.py` to filter and format.
+
+<CommandBlock
+  title="analyst@workstation"
+  commands={[
+    { cmd: "log2timeline.py --storage-file case.plaso evidence.img", comment: "parse every artifact into one storage file" },
+    { cmd: "psort.py -o l2tcsv -w timeline.csv case.plaso", comment: "sort and export to CSV you can open anywhere" },
+    { cmd: "psort.py -w slice.csv case.plaso 'date > \"2026-07-14 08:00:00\" AND date < \"2026-07-14 10:00:00\"'", comment: "narrow to the two-hour window that matters" },
+  ]}
+/>
+
+The first run produces thousands of events, which is unreadable. The skill is narrowing. Find your pivot (the moment the alert fired, the first bad connection in the pcap) and slice a tight window around it. Everything the attacker did clusters near that pivot, so a two-hour slice usually holds the whole intrusion.
+
+## Timestamps lie, so cross-check them
+
+A timeline is only as trustworthy as its clocks, and clocks are messy. Three traps catch people constantly.
+
+Time zones first. File systems record different times in different zones: NTFS stores UTC, FAT stores local time. Mix them without normalizing and events land minutes or hours out of order. Always convert everything to UTC before you reason about sequence.
+
+Second, clock skew. The suspect machine, the firewall that made the pcap, and your workstation may each be a few seconds off. Note the offset for every source so a five-second gap does not read as a real delay.
+
+Third, timestomping. Attackers deliberately alter MAC times to hide, and tools like the Metasploit `timestomp` command make it trivial. The tell is that the `$STANDARD_INFORMATION` timestamps get faked but the `$FILE_NAME` timestamps in the MFT usually do not. When the two disagree for a file, someone was covering tracks, and that disagreement is itself evidence.
+
+<Callout type="security" title="Timeline only evidence you were authorized to collect">
+A timeline is only as clean as its sources. Build it from images, dumps, and captures you acquired under proper authorization and chain of custody. Correlating data you had no right to collect does not become acceptable because you merged it into a tidy CSV, and it will not survive challenge.
+</Callout>
+
+<Quiz
+  id="timestomp-tell"
+  question="A file's timestamps look normal in Windows Explorer, but the MFT shows its $STANDARD_INFORMATION and $FILE_NAME times disagree sharply. What does that suggest?"
+  answer={2}
+  options={[
+    "A routine antivirus scan touched the file",
+    "The disk image was acquired incorrectly",
+    "Timestomping: someone altered the visible timestamps to hide activity",
+    "The file system is corrupt and the times are meaningless",
+  ]}
+  explanation="Timestomping tools typically rewrite the $STANDARD_INFORMATION times but not the $FILE_NAME times in the MFT. When those two diverge for a file, it points to deliberate timestamp manipulation."
+/>
+
+<Exercise
+  id="utc-normalize"
+  prompt="Before comparing the order of events pulled from an NTFS disk, a FAT USB stick, and a firewall log, what single normalization step do you apply to all timestamps?"
+  answer="Convert every timestamp to UTC."
+>
+NTFS stores UTC, FAT stores local time, and the firewall uses its own configured zone. Converting everything to UTC first puts all events on one clock so their order is real, not an artifact of mixed time zones.
+</Exercise>
+
+<Notes />

@@ -1,0 +1,95 @@
+---
+title: Security Code Review
+module: secure-coding
+moduleTitle: Secure Coding
+moduleOrder: 38
+moduleIcon: ShieldCheck
+order: 5
+summary: Stop reading top to bottom. Hunt sinks and trace backward.
+estimatedMinutes: 20
+objectives:
+  - Review code by starting at dangerous sinks, not line one
+  - Grep for the patterns behind the common vulnerability classes
+  - Catch the authorization bugs that no pattern search will find
+tags:
+  - code-review
+  - secure-coding
+  - static-analysis
+  - grep
+---
+
+Nobody reads a 200,000-line codebase top to bottom looking for bugs, and you should not try. Security review is targeted hunting. You start at the places where code does something dangerous, then trace backward to ask whether attacker input can reach them. Sinks first, sources second.
+
+The payoff is that dangerous sinks are a short, greppable list. You can find most of a codebase's injection surface in an afternoon with ripgrep and a mental checklist, long before you open a heavier tool.
+
+## Grep the sinks
+
+Each vulnerability class has a fingerprint in source. Learn the fingerprints and you can pull every candidate out of a repo in seconds. These are the ones worth memorizing.
+
+<CommandBlock
+  title="hunt sinks in a repo you are authorized to review"
+  commands={[
+    { cmd: "rg -n 'os\\.system|subprocess.*shell=True|\\beval\\(' ", comment: "command injection and eval sinks" },
+    { cmd: "rg -n 'pickle\\.loads|yaml\\.load\\(|readObject' ", comment: "unsafe deserialization" },
+    { cmd: "rg -n 'dangerouslySetInnerHTML|innerHTML|\\|safe' ", comment: "XSS output sinks" },
+    { cmd: "rg -n 'execute\\(.*(\\+|%|f\"|format)' ", comment: "SQL built by string concatenation" },
+  ]}
+/>
+
+A hit is a candidate, not a verdict. For each one, follow the argument back to its origin. If the dangerous value traces to a request parameter, a header, or an uploaded file, you have a real finding. If it traces to a hardcoded constant, note it and move on. The trace is the review; the grep just gives you a worklist.
+
+## Crypto and randomness tells
+
+A second batch of patterns points at weak cryptography, which fails quietly instead of throwing errors. `md5` or `sha1` used on a password means unsalted, crackable hashes. `Math.random()` or `random.random()` generating a token, a session id, or a password reset value means predictable secrets, because those generators are not cryptographic. Hardcoded IVs and keys are their own class of finding.
+
+<CommandCard
+  command="rg -n 'md5|sha1|Math.random|random\\.random|DES|ECB'"
+  explain="Surface weak hashing, non-cryptographic randomness, and broken cipher modes. Each hit needs context: md5 on a cache key is fine, md5 on a password is a finding, and Math.random for a reset token is exploitable."
+/>
+
+## The bug grep cannot find
+
+Here is what separates a real reviewer from a linter. The most damaging bugs are often missing authorization checks, and no pattern search will surface them, because the vulnerability is the absence of code, not its presence.
+
+Walk every endpoint that reads or writes an object by id and ask one question: is there a check that this user is allowed to touch this object? An endpoint like `GET /api/invoices/4102` that returns the invoice without confirming it belongs to the caller is an insecure direct object reference, and changing 4102 to 4103 reads someone else's data. Grep will never flag it. Only reading the handler and reasoning about who should be allowed will.
+
+The same reasoning covers privilege checks, tenant isolation in multi-tenant apps, and state transitions like "can this user actually cancel this order." These are logic bugs. Tools miss almost all of them.
+
+## Where the tools help
+
+Static analyzers earn their place once you have done the manual pass. Semgrep runs pattern rules with data-flow awareness, so it can confirm that a request parameter actually reaches a sink rather than just co-occurring in a file. CodeQL treats the codebase as a database you query for source-to-sink paths. Both cut down the grep noise. Neither replaces the authorization reasoning above, so run them as a floor, not a ceiling.
+
+<CommandBlock
+  title="run a data-flow scanner on code you own"
+  commands={[
+    { cmd: "semgrep --config=auto .", comment: "run the community rule packs across the repo" },
+    { cmd: "semgrep --config=p/security-audit .", comment: "focus on the security-audit ruleset" },
+  ]}
+/>
+
+<Callout type="security" title="Review code you are cleared to review">
+Reading source for vulnerabilities is defensive work when the code is yours or you have written authorization to assess it. Pulling a company's repository you have no permission to see, or reviewing a target's code to build an exploit against their production systems, crosses into unauthorized activity. Same grep, different legal footing. Keep the authorization in writing before you start.
+</Callout>
+
+<Quiz
+  id="review-idor"
+  question="An endpoint returns /api/orders/{id} and works for any numeric id you pass, including other users' orders. Why will a grep-based scan usually miss this?"
+  answer={1}
+  options={[
+    "The bug is in a compiled dependency, not your source",
+    "The vulnerability is a missing authorization check, so there is no pattern to match",
+    "Grep cannot read numbers",
+    "The endpoint uses HTTPS, which hides the flaw",
+  ]}
+  explanation="This is an insecure direct object reference. The flaw is the absence of an ownership check, and pattern search finds code that exists, not code that should exist. Only reading the handler and reasoning about authorization catches it."
+/>
+
+<Exercise
+  id="review-order"
+  prompt="In one word, what do you trace a dangerous sink back toward to decide whether it is actually exploitable?"
+  answer="source"
+>
+You start at the sink and follow the data the other direction, toward where untrusted input first enters.
+</Exercise>
+
+<Notes />

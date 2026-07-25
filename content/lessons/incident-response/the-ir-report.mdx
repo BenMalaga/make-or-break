@@ -1,0 +1,104 @@
+---
+title: Writing the Incident Report
+module: incident-response
+moduleTitle: Incident Response
+moduleOrder: 23
+moduleIcon: Siren
+order: 5
+summary: The document that survives the incident and stops the next one.
+estimatedMinutes: 16
+objectives:
+  - Structure a report around timeline, impact, root cause, and recommendations
+  - Build a defensible timeline from your collected artifacts
+  - Drive root cause with the five-whys instead of stopping at the symptom
+tags:
+  - incident-response
+  - reporting
+  - root-cause
+---
+
+The response is over, the box is rebuilt, everyone wants to go home. The report
+is the only part of the whole incident that outlives it. It is what the next
+responder reads, what leadership uses to fund the fix, and what legal reaches for
+if this turns into a lawsuit or a breach notification. A sloppy report wastes the
+entire response.
+
+Write it for two readers at once. Executives need the impact and the ask in the
+first half page. Engineers need the technical detail to actually close the gap.
+Lead with a short executive summary, then go deep, so each reader finds their
+altitude without fighting the other's.
+
+## The four sections that carry the report
+
+**Timeline** is the spine. Every confirmed event with a UTC timestamp, in order,
+from the attacker's first action to your last recovery step. This is where all
+those timestamped log lines and case-note entries pay off. If you kept the case
+log honestly during the response, the timeline is mostly assembly, not writing.
+
+**Impact** states what was actually affected in plain terms: which systems, which
+accounts, how many records, whether data left the building, and the dwell time
+from first compromise to detection. Say what you confirmed and, separately, what
+you could not rule out. Never inflate and never soften.
+
+**Root cause** is the one honest sentence about how this happened. Not the
+malware name, the underlying failure: an unpatched internet-facing service, a
+user who entered credentials on a phishing page, a missing MFA control. The
+symptom is the ransomware. The root cause is what let it run.
+
+**Recommendations** are specific, assigned, and dated. Not "improve security."
+Instead: "enforce MFA on the VPN by 2026-08-15, owner IT infrastructure." Each
+one should trace directly back to something in the timeline or root cause, and
+each one feeds the preparation phase of the next lifecycle.
+
+## Build the timeline from artifacts, not memory
+
+If you ran a full forensic collection, tools stitch your disk and log artifacts
+into one sorted super-timeline so you are not hand-copying timestamps. Plaso is
+the standard.
+
+<CommandBlock
+  title="analyst@ir-jumpbox"
+  commands={[
+    { cmd: "log2timeline.py --storage-file INC-0042.plaso /mnt/evidence/disk.img", comment: "parse every timestamp source on the image into one store" },
+    { cmd: "psort.py -o l2tcsv -w INC-0042-timeline.csv INC-0042.plaso", comment: "export a sorted CSV you can filter and quote in the report" },
+    { cmd: "grep -i 'powershell\\|4688\\|4624' INC-0042-timeline.csv | sort -t, -k1", comment: "pull just the events that tell the intrusion story" },
+  ]}
+/>
+
+Even without full forensics, keep the format the same: one line per event,
+`UTC timestamp, source, host, actor, action`. A timeline anyone can sort and
+audit beats a paragraph of prose describing roughly what happened.
+
+## Drive root cause past the first answer
+
+The five-whys keeps you from stopping at the symptom. Ransomware ran. Why? A user
+opened a macro. Why did the macro run? Macros were not blocked. Why was the
+attacker on the network at all? A phished credential with no MFA. Why did that
+credential reach a server? Flat network, no segmentation. Four whys in, you have
+three real fixes instead of one useless "user clicked a bad link."
+
+Watch the tone while you write. The report documents system and process
+failures, not people to blame. "The account had no second factor" is actionable.
+"The user was careless" ends the investigation and teaches nobody anything.
+
+<Callout type="tip" title="If it is not in the timeline, do not claim it">
+Every statement in the impact and root-cause sections should trace to a specific
+artifact: a log line, an event ID, a captured file hash. When someone challenges
+a claim six months later, you point at the evidence, not your recollection. Claims
+without artifacts are the fastest way to lose a report's credibility.
+</Callout>
+
+<Callout type="security" title="Handle the report like evidence">
+An incident report names real victims, real systems, and often real attacker
+infrastructure. Share it only with people authorized to see it, store it with the
+case evidence under the same access controls, and follow your legal team's lead on
+retention and breach-notification obligations. The report is sensitive material,
+treat it that way.
+</Callout>
+
+<Exercise
+  id="ir-report-rootcause"
+  prompt="An attacker brute-forced an exposed RDP server (no MFA, no lockout policy), logged in as a local admin, created a new account, and deployed ransomware across a flat network. Write the one-sentence root cause, then list three specific, assignable recommendations that each trace back to a failure in that chain."
+/>
+
+<Notes />

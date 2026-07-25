@@ -1,0 +1,278 @@
+---
+title: TCP, UDP, and Ports
+module: networking-foundations
+moduleTitle: Networking Foundations
+moduleOrder: 1
+moduleIcon: Network
+order: 4
+summary: "An IP address finds the machine. A port finds the program. This is how one host keeps a hundred conversations straight, and why a scanner can hear which ones are open."
+estimatedMinutes: 16
+prerequisites: ["what-is-a-network", "the-osi-model", "ip-addressing-and-subnetting"]
+objectives:
+  - Explain what a port is and how a port and an IP address combine into a socket
+  - Choose correctly between TCP and UDP and say what each trades away
+  - Walk the TCP three-way handshake message by message and read what each reply proves
+  - Tell the difference between a closed port and a filtered one, and why a firewall causes it
+  - Read the output of a listening-socket check and spot a service exposed to the whole network
+tags:
+  - networking
+  - tcp
+  - ports
+---
+
+The last lesson stopped one step short of a working conversation. Subnetting and
+<Term id="cidr">CIDR</Term> explain how a <Term id="packet">packet</Term> finds the
+right machine, and an <Term id="ip-address">IP address</Term> like `10.10.14.23` is
+enough to get it there. Then it arrives, and the machine has a problem.
+
+That machine isn't running one program. It's running a web server, a remote login
+service, maybe a database, maybe a print service somebody installed in 2019 and
+forgot. The packet is sitting on the doormat with nothing on it that says which of
+them should open it. The IP address answered "which machine". Nothing has answered
+"which program".
+
+## Ports are the second half of the address
+
+A <Term id="port">port</Term> is a 16-bit number, 0 to 65535, carried in the header
+of every TCP and UDP packet. There are two of them in each packet: a source port
+and a destination port. The destination port is the label that says which program
+on the receiving <Term id="host">host</Term> gets this data.
+
+Pair an IP address with a port and the result is a <Term id="socket">socket</Term>:
+`10.10.14.23:22`. One endpoint of one conversation. A connection is always two
+sockets talking, and the four values that make them up, source IP, source port,
+destination IP, destination port, are what the operating system uses to tell one
+conversation apart from every other one it is handling at that moment.
+
+That last part catches people. A busy web server holds ten thousand connections on
+port 443 at once. It manages that because each remote <Term id="client">client</Term>
+arrives from a different source IP and source port, so no two of those ten thousand
+socket pairs are identical. The port on the <Term id="server">server</Term> side is
+fixed and famous. The port on the client side is a throwaway number the kernel picks
+at random when the connection opens. On Linux it comes from the range in
+`/proc/sys/net/ipv4/ip_local_port_range`, which defaults to 32768 through 60999.
+
+The full 0 to 65535 range is split three ways by convention:
+
+- **0 to 1023**, the <Term id="well-known-ports">well-known ports</Term>, reserved
+  for common services so a client knows where to look without asking. On Unix and
+  Linux, binding to one of these requires <Term id="root">root</Term> or a specific
+  granted capability. That's a real security control: an unprivileged user cannot
+  quietly stand up a fake web server on port 80.
+- **1024 to 49151**, registered ports, claimed by particular applications through
+  IANA. MySQL on 3306, for example.
+- **49152 to 65535**, dynamic ports, meant for the throwaway client side.
+
+The handful worth memorizing cold:
+
+| Port | Protocol | Service |
+|---|---|---|
+| 21 | TCP | FTP |
+| 22 | TCP | <Term id="ssh">SSH</Term> |
+| 25 | TCP | SMTP (mail transfer) |
+| 53 | TCP and UDP | <Term id="dns">DNS</Term> |
+| 67, 68 | UDP | <Term id="dhcp">DHCP</Term> |
+| 80 | TCP | HTTP |
+| 443 | TCP | HTTPS |
+| 445 | TCP | SMB (Windows file sharing) |
+| 3306 | TCP | MySQL |
+| 3389 | TCP | RDP (Windows remote desktop) |
+
+<Callout type="warning" title="Convention, not law">
+Nothing in the network enforces this table. Port 80 is HTTP because everybody agreed
+it is, not because a packet arriving there gets checked. A web server can listen on
+8080 or 31337 and work fine, and plenty of malware picks 443 precisely because the
+number looks innocent in a log. Treating the port number as proof of the service is
+how an assessment goes wrong early. Ask the service what it is instead of assuming.
+</Callout>
+
+<Quiz
+  id="ports-sockets"
+  question="A machine has two IP addresses, 10.0.0.5 and 10.0.0.6. Can two separate web servers on that one machine both listen on port 443?"
+  answer={1}
+  options={[
+    "No, a port number can only be claimed once per machine",
+    "Yes, because a listening socket is an IP address plus a port, so 10.0.0.5:443 and 10.0.0.6:443 are two different sockets",
+    "Yes, but only if one of them uses UDP instead of TCP",
+    "No, unless both processes run as root",
+  ]}
+  explanation="A port is not claimed on its own, a socket is. The address and the port together make the endpoint, so two different addresses give two different sockets even with the same port number. This is exactly how one server hosts several sites with separate certificates."
+/>
+
+## TCP and UDP make opposite bets
+
+Both are transport-layer <Term id="protocol">protocols</Term>, layer 4 in the OSI
+map from lesson 2, and both carry port numbers. That's about where the similarity
+ends.
+
+<Term id="tcp">TCP</Term> sets up a connection before it sends anything, numbers
+every byte, waits for acknowledgements, re-sends whatever went missing, and hands
+the data to the application in the order it was sent. If a packet is lost, TCP
+notices and fixes it. The application never finds out.
+
+<Term id="udp">UDP</Term> does none of that. It puts a source port, a destination
+port, a length, and a checksum on the data and throws it at the network. No setup,
+no acknowledgement, no ordering, no retry. If it arrives, good. If it doesn't,
+nobody mentions it.
+
+| | TCP | UDP |
+|---|---|---|
+| Setup | Handshake first | None, just send |
+| Delivery | Ordered, acknowledged, retransmitted | Best effort |
+| Header size | 20 bytes minimum | 8 bytes, fixed |
+| Cost | Latency and bookkeeping | Silent data loss |
+| Fits | HTTP, SSH, mail, databases | DNS, DHCP, voice, video, game state |
+
+UDP isn't the lazy option. It's the right call whenever a late packet is worse than
+a missing one. On a voice call, a re-sent chunk of audio from 400 milliseconds ago
+is garbage, so the codec would rather paper over the gap and keep moving. DNS uses
+UDP because a lookup is one small question and one small answer, and setting up a
+connection to ask it would double the round trips for nothing.
+
+Here's the detail that trips up beginners: TCP port 53 and UDP port 53 are different
+doors. The two protocols keep entirely separate port spaces. A host can have UDP 53
+wide open and TCP 53 shut, which is common, because DNS answers over UDP and falls
+back to TCP for large responses and zone transfers. "Port 53 is open" is not a
+complete sentence. The protocol is part of the fact.
+
+## The three-way handshake
+
+Before a single byte of TCP data moves, the two sides run a
+<Term id="three-way-handshake">three-way handshake</Term>.
+
+1. The client sends a <Term id="syn">SYN</Term>, a packet with the SYN flag set and
+   a randomly chosen starting sequence number. It means "I want to talk, and I'll
+   number my bytes starting here."
+2. The server replies SYN-ACK: it acknowledges the client's number and sends its
+   own starting number. That reply is the proof that something is alive and willing.
+3. The client sends ACK, acknowledging the server's number. The connection is open.
+
+Three messages, and both sides now know the other can hear them and know where each
+other's byte counting begins. Cheap, and it's the foundation of everything TCP
+promises afterward.
+
+The interesting part is what happens when the handshake fails, because a scanner
+learns more from failure than success:
+
+- **A SYN-ACK comes back.** Something is listening. The port is open.
+- **An RST comes back.** RST is the reset flag, TCP's way of saying "no". The host
+  is up and its network stack answered, but no program has claimed that port. The
+  port is closed.
+- **Nothing comes back at all.** Somebody dropped the probe on the floor without a
+  reply. The port is filtered, and that is a different animal entirely.
+
+<Term id="port-scanning">Port scanning</Term> is built directly on top of that
+behavior. The classic SYN scan, `nmap -sS`, sends step 1, reads the reply, and then
+never sends step 3. A SYN-ACK already proved the port is open, so the scanner fires
+an RST to tear the half-open connection down and moves on. It is faster than
+completing the handshake and it historically kept the connection out of the
+application's own logs, since the application never saw a finished connection.
+Modern logging catches it anyway, so treat "stealth scan" as a name, not a promise.
+
+<Callout type="info" title="Why UDP scanning is miserable">
+UDP has no handshake, so there's no reply that proves "open". A closed UDP port
+usually answers with an ICMP port-unreachable message, and an open one often says
+nothing at all unless the probe happens to be a valid request that service
+understands. Silence therefore means either open or filtered, and the scanner cannot
+tell which. Linux also rate-limits those ICMP errors, so the scanner has to wait,
+retry, and wait again. A full UDP scan of one host can run for hours. On a first
+pass, scan TCP and come back for UDP once there is a reason to.
+</Callout>
+
+<Quiz
+  id="handshake-replies"
+  question="A scanner sends a SYN to TCP port 8080 on a host and gets an RST back. What has it learned?"
+  answer={2}
+  options={[
+    "The port is open and a service answered the probe",
+    "A firewall silently dropped the probe on the way in",
+    "The host's network stack is reachable, but no program is listening on that port",
+    "The port is open but the service requires authentication first",
+  ]}
+  explanation="An RST is an answer. Getting one proves packets reach the host and come back, so the host is alive and reachable, and its stack is saying no program has claimed 8080. That is the definition of a closed port. A firewall drop would have produced no reply at all."
+/>
+
+## Listening sockets, seen from the inside
+
+Every port state a scan reports starts as a real socket on a real machine. A program
+that has claimed a port and is waiting for connections is
+<Term id="listening">listening</Term>. Most of them are
+<Term id="daemon">daemons</Term>: background programs that exist to answer requests,
+with names that often end in `d`, like `sshd`.
+
+On a Linux host, `ss` lists them.
+
+<CommandCard command="ss -tulpn" title="On a Linux host" explain="-t TCP, -u UDP, -l listening only, -p show the owning process, -n print raw numbers instead of guessing service names. The standard 'what is open on this machine' check." />
+
+<ExpectedOutput label="Trimmed output from a Debian host">
+```
+Netid State  Recv-Q Send-Q  Local Address:Port  Peer Address:Port Process
+udp   UNCONN 0      0             0.0.0.0:68         0.0.0.0:*    users:(("dhclient",pid=498,fd=6))
+tcp   LISTEN 0      128           0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=712,fd=3))
+tcp   LISTEN 0      244         127.0.0.1:5432       0.0.0.0:*    users:(("postgres",pid=901,fd=5))
+```
+</ExpectedOutput>
+
+Read the Local Address column first, because it carries the whole story. `0.0.0.0`
+is not an address, it's a wildcard meaning "every address this machine has". So
+`sshd` on `0.0.0.0:22` accepts connections from anywhere that can route to this box.
+`postgres` on `127.0.0.1:5432` is bound to <Term id="loopback">loopback</Term>, which
+means only programs on this same machine can reach it. Same command, same output,
+two completely different exposure levels. That one column decides whether a database
+is a target or a non-event.
+
+`ss` reports what the machine believes about itself. A scanner reports what the
+network is willing to reveal. Those two answers disagree constantly, and the reason
+is usually a <Term id="firewall">firewall</Term>: software or equipment that checks
+traffic against rules and allows or blocks it. A firewall sitting in front of that
+host can drop packets aimed at 5432 before they ever reach the stack, so nothing
+replies at all.
+
+That silence is what "filtered" means. Closed is an answer, a small polite no.
+Filtered is no answer, and it's ambiguous by design, because the scanner cannot
+distinguish a dropped probe from a dead host from a service behind a rule. Some
+firewalls do send back an RST or an ICMP administratively-prohibited message instead
+of dropping, which leaks the fact that a filter exists. Silence leaks less. That's
+why most drop.
+
+<Callout type="security" title="Open is not the same as vulnerable">
+An open port means a program answered. It says nothing about whether that program is
+old, misconfigured, or exploitable. A fully patched SSH server on port 22 is open and
+boring. The scan is the beginning of the question, not the answer, and skipping
+straight from "port 22 is open" to "SSH is the way in" wastes hours on the wrong door.
+</Callout>
+
+<Quiz
+  id="filtered-vs-closed"
+  question="A scan labels a port filtered instead of closed. What did the scanner actually observe?"
+  answer={2}
+  options={[
+    "An RST arrived, which proves nothing is listening on that port",
+    "A SYN-ACK arrived, but the handshake could not be completed",
+    "Nothing came back at all, so it cannot tell whether a service is there",
+    "The service replied with an error message instead of data",
+  ]}
+  explanation="Filtered is the absence of evidence. A closed port answers with an RST, and that answer is informative. A filtered port produces silence, so the scanner cannot separate 'a firewall dropped this' from 'a service is there but shielded'. Ambiguity is exactly what the filter is buying."
+/>
+
+<Exercise title="Find what your own machine is telling the network">
+Run `ss -tulpn` on any Linux host you control, or `netstat -ano` on Windows, or
+`lsof -iTCP -sTCP:LISTEN -n -P` on macOS. Then go down the list and answer two
+questions for every line.
+
+First: which of these are bound to `0.0.0.0` or `::` rather than `127.0.0.1`? Those
+are the ones the rest of the network can reach.
+
+Second, and this is the one that matters: can you name the program on every line and
+say why it is running? Anything you cannot explain is either a service you forgot
+about or something you did not install. Both are worth ten minutes.
+</Exercise>
+
+Ports, the handshake, and the three states are the whole grammar of the next thing.
+The Reconnaissance modules start by pointing a scanner at a target and reading what
+comes back, and every flag in <Term id="nmap">nmap</Term> is a different way of
+manipulating the exchange described above: which flags to set, what to do with the
+reply, how hard to push before a filter notices. The tool is easy. Knowing what the
+replies actually prove is the part that separates a finding from a guess.
+
+<Notes />

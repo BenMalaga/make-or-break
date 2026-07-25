@@ -1,0 +1,87 @@
+---
+title: Android App Internals
+module: mobile-security
+moduleTitle: Mobile Application Security
+moduleOrder: 39
+moduleIcon: Smartphone
+order: 2
+summary: An APK is a zip file with your whole attack surface inside it.
+estimatedMinutes: 22
+objectives:
+  - Unpack an APK and read the manifest for exported components
+  - Name the four component types and why exported ones matter
+  - Find where an app stores its data on disk and pull it
+tags:
+  - android
+  - apk
+  - manifest
+  - sandbox
+---
+
+Rename `app.apk` to `app.zip`, unzip it, and you are already inside. An APK is a ZIP archive, nothing more, and the first thing worth internalizing is that everything the app is made of ships in that one file: the compiled code, the resources, the native libraries, and the manifest that declares what the app can do.
+
+The pieces you care about:
+
+- **AndroidManifest.xml** the app's declaration of components, permissions, and entry points. This is the map of the attack surface.
+- **classes.dex** the compiled Dalvik bytecode. One or more `.dex` files hold all the Java/Kotlin logic.
+- **resources.arsc and res/** compiled resources and layouts.
+- **lib/** native `.so` libraries per CPU architecture.
+- **assets/** raw bundled files, sometimes including config, models, or embedded secrets.
+- **META-INF/** the signature that proves who built it.
+
+The manifest ships in a binary XML format, so `cat` gives you garbage. Decode it with `apktool`, then read code with `jadx`, which turns the DEX back into readable Java.
+
+<CommandBlock
+  title="unpack and decompile"
+  commands={[
+    { cmd: "apktool d app.apk -o app_decoded", comment: "decodes binary XML into a readable AndroidManifest.xml plus smali" },
+    { cmd: "jadx -d app_src app.apk", comment: "decompiles DEX to Java source you can grep through" },
+    { cmd: "unzip -o app.apk -d app_raw", comment: "raw file view, good for pulling assets/ and lib/ untouched" },
+  ]}
+/>
+
+## The four components, and the word "exported"
+
+Android apps are built from four component types, and any one of them can be an entry point if it is exposed to other apps.
+
+- **Activities** the screens.
+- **Services** background workers.
+- **Broadcast Receivers** handlers that wake up on events like boot or SMS.
+- **Content Providers** structured data interfaces, usually backed by SQLite.
+
+The attribute that decides whether an outside app (or `adb`) can poke a component is `android:exported`. An exported Activity can be launched by anyone. An exported Content Provider can be queried by anyone, and a badly written one hands over the app's private database to any app on the phone. Grep the manifest for `exported="true"` and for `intent-filter` blocks (which imply exported on older targets), and pay special attention to deep-link schemes, because those are attacker-controlled input paths straight into the app.
+
+<ExpectedOutput label="a risky exported provider in the manifest">
+&lt;provider android:name=".DataProvider" android:authorities="com.target.app.data" android:exported="true" /&gt;
+</ExpectedOutput>
+
+While you are in the manifest, flag two more settings. `android:debuggable="true"` in a production build lets you attach a debugger and `run-as` into the app's data without root. `android:allowBackup="true"` lets you extract the app's private files over ADB with `adb backup`, no root needed.
+
+## Where the data lives
+
+Every app runs under its own Linux UID, and its private files sit in `/data/data/<package>/`, readable only by that UID. That directory is the whole point of the sandbox, and it is exactly what you want to see.
+
+- **shared_prefs/** XML key-value files, the number one home of tokens and flags stored in plaintext.
+- **databases/** SQLite files, often unencrypted.
+- **files/ and cache/** whatever the app wrote directly.
+
+On a rooted device or emulator you `adb shell` and `cd` straight in. On a debuggable build you do not even need root: `adb shell run-as <package>` drops you into the sandbox as the app. Pull the whole tree and read it.
+
+<CommandCard command="adb shell run-as com.target.app cat shared_prefs/prefs.xml" explain="On a debuggable build, run-as executes as the app's UID so you can read its private storage without rooting the device. This is the fastest way to catch a plaintext auth token." />
+
+Historically apps also dumped data onto external storage (`/sdcard/`), which was world-readable and a reliable leak. Scoped storage tightened that, but old apps and sloppy new ones still write sensitive files where any other app can read them.
+
+<Callout type="security" title="Own the device and the app">
+Pulling an APK apart, rooting an emulator, and reading `/data/data` are all fine on hardware you own with an app you are cleared to test. Extracting another person's app data off their phone, or reversing a paid app to redistribute it, is a different act with real legal weight. Keep it to your own builds and the OWASP MAS test apps.
+</Callout>
+
+<Exercise
+  id="android-exported-grep"
+  prompt="After apktool decodes the manifest, what attribute value do you grep for to list components that other apps can invoke directly?"
+  answer="exported=\"true\""
+  placeholder="attribute=value"
+>
+Components reachable from outside the app are the ones declared with this attribute. An exported Content Provider or Activity with no permission guard is a direct path into the app.
+</Exercise>
+
+<Notes />

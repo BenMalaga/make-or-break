@@ -1,0 +1,213 @@
+[
+  {
+    "domain": 4,
+    "question": "An IAM user's attached identity policy allows s3:* on a bucket, but a permissions boundary attached to the same user allows only s3:GetObject and s3:ListBucket. Which actions can the user actually perform on that bucket?",
+    "options": [
+      "The full s3:* set, because an identity policy always takes precedence over a permissions boundary",
+      "Only s3:GetObject and s3:ListBucket, the intersection of the identity policy and the permissions boundary",
+      "Nothing, because the identity policy and the permissions boundary conflict and cancel each other out",
+      "The full s3:* set, because permissions boundaries apply only to roles and not to users"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "A permissions boundary sets the maximum permissions an identity can have, so the effective permissions are the intersection of the identity policy and the boundary. An action must be allowed by both to be permitted, so only s3:GetObject and s3:ListBucket succeed. Permissions boundaries apply to both IAM users and roles.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A role in Account A must read objects from an S3 bucket in Account B. The bucket policy in Account B grants s3:GetObject to the role's ARN, but the calls still fail with AccessDenied. What is required to make cross-account access work?",
+    "options": [
+      "Only the bucket policy in Account B needs to allow the action; the identity policy in Account A is irrelevant for S3",
+      "Both the role's identity policy in Account A and the bucket policy in Account B must allow s3:GetObject",
+      "Account B must create an IAM user that mirrors the role from Account A",
+      "A VPC endpoint policy must be attached in Account A before cross-account S3 access is permitted"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "For cross-account access, the request must be allowed by both the identity-based policy in the calling account and the resource-based policy in the resource-owning account. The bucket policy grant alone is not enough if the role's own policy does not also allow s3:GetObject. Adding the action to the role's identity policy in Account A resolves the denial.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A user has an identity policy that allows ec2:TerminateInstances, but a Service Control Policy applied to the account contains an explicit Deny for ec2:TerminateInstances. What is the result when the user tries to terminate an instance?",
+    "options": [
+      "Allowed, because identity policies override Service Control Policies",
+      "Denied, because an explicit deny always overrides any allow during policy evaluation",
+      "Allowed, as long as the user has authenticated with MFA",
+      "Allowed, but the action is recorded as a compliance violation"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "In IAM policy evaluation, an explicit Deny in any applicable policy always overrides an Allow, and Service Control Policies set the permission ceiling for accounts in an organization. Because the SCP explicitly denies ec2:TerminateInstances, the action fails regardless of the identity policy. Explicit deny is the highest-priority outcome in the evaluation logic.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A third-party monitoring SaaS vendor needs to assume an IAM role in your account to read metrics. To defend against the confused deputy problem, what should the role's trust policy enforce?",
+    "options": [
+      "An IP allow list of the vendor's servers using the aws:SourceIp condition",
+      "A unique external ID that the vendor provides, enforced with the sts:ExternalId condition key",
+      "Mandatory MFA on each of the vendor's IAM users",
+      "A permissions boundary attached to the vendor's own role"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "The confused deputy risk is that the vendor could be tricked into using its access on behalf of the wrong customer. Requiring a unique external ID with the sts:ExternalId condition in the trust policy ties each assume-role call to a specific customer and blocks that attack. IP allow lists and MFA do not address the confused deputy scenario.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "You want application developers to create IAM roles for their own workloads while preventing them from granting those roles more privileges than they themselves hold. What is the most effective approach?",
+    "options": [
+      "Grant developers full IAM administrator access and review their actions later in CloudTrail",
+      "Grant iam:CreateRole and iam:AttachRolePolicy but use the iam:PermissionsBoundary condition to require every role they create to attach a defined permissions boundary",
+      "Attach a Service Control Policy that denies iam:CreateRole to all principals in the account",
+      "Place developers in an IAM group that has a resource-based policy limiting role creation"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Delegated role creation is made safe by requiring that any new role attach a permissions boundary. The iam:PermissionsBoundary condition key lets you deny iam:CreateRole and iam:AttachRolePolicy unless the specified boundary is present, capping what the created roles can ever do. This prevents privilege escalation without blocking developers from self-service.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A company runs a SAML 2.0 identity provider and wants employees to receive temporary AWS credentials mapped to IAM roles instead of maintaining IAM users. Which setup accomplishes this?",
+    "options": [
+      "Create an IAM user per employee and rotate long-term access keys on a schedule",
+      "Register an IAM SAML identity provider and have the IdP obtain credentials through sts:AssumeRoleWithSAML",
+      "Use sts:GetSessionToken with each employee's corporate password",
+      "Embed long-term access keys inside the SAML assertion returned by the IdP"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "SAML-based federation registers the corporate IdP as an IAM SAML identity provider, and the browser posts the SAML assertion to call sts:AssumeRoleWithSAML. STS returns temporary credentials for the IAM role whose trust policy trusts that SAML provider. No IAM users or long-term keys are needed for the federated employees.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Pods in an Amazon EKS cluster need narrowly scoped AWS permissions that differ per workload, without sharing the broad EC2 node instance role. What is the recommended approach?",
+    "options": [
+      "Store IAM access keys in a Kubernetes Secret and mount it into every pod",
+      "Grant the EC2 worker node instance role the union of all permissions any pod could need",
+      "Use IAM Roles for Service Accounts (IRSA) with the cluster's IAM OIDC provider so each pod assumes a scoped role via web identity federation",
+      "Run every pod as root so it can read the node's instance metadata credentials"
+    ],
+    "correct": [
+      2
+    ],
+    "explanation": "IAM Roles for Service Accounts associates an IAM OIDC identity provider with the EKS cluster and maps a Kubernetes service account to a dedicated IAM role. Pods then receive temporary credentials through sts:AssumeRoleWithWebIdentity, giving each workload least-privilege access without sharing the node role. Storing static keys or over-permissioning the node role violates least privilege.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "Which AWS service continuously identifies IAM roles, S3 buckets, KMS keys, and other resources whose policies grant access to a principal outside your account or organization?",
+    "options": [
+      "AWS Config",
+      "IAM Access Analyzer",
+      "Amazon Inspector",
+      "AWS Trusted Advisor"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "IAM Access Analyzer uses automated reasoning to evaluate resource policies and generates external access findings when a resource can be accessed by a principal outside your defined zone of trust. AWS Config tracks configuration compliance, Inspector scans for software vulnerabilities, and Trusted Advisor gives general best-practice checks. Only Access Analyzer performs this cross-account policy analysis across resource types.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A security engineer must trim an over-permissioned IAM role toward least privilege and needs to know which services the role has actually called and when. Which IAM feature provides this information?",
+    "options": [
+      "Amazon CloudWatch metrics for the role",
+      "IAM Access Advisor service last accessed data",
+      "AWS Cost Explorer usage reports",
+      "VPC Flow Logs for the role's sessions"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Access Advisor exposes service last accessed data, showing which services an identity is allowed to use and when they were last accessed. Services never used are strong candidates for removal when tightening a policy to least privilege. CloudWatch, Cost Explorer, and VPC Flow Logs do not report per-service IAM usage history.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An AWS service such as Amazon SNS or CloudTrail uses one of your resources on behalf of another account. Which two condition keys should you use in the resource or trust policy to prevent the cross-service confused deputy problem? (Choose two.)",
+    "options": [
+      "aws:SourceArn",
+      "aws:SourceAccount",
+      "aws:PrincipalOrgID",
+      "aws:userid"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explanation": "For service-to-service access, aws:SourceArn restricts which specific resource may cause the service to act, and aws:SourceAccount restricts which account owns that calling resource. Using them together closes the cross-service confused deputy gap. aws:PrincipalOrgID scopes to an organization and aws:userid identifies a calling principal, neither of which targets the service source.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "You want an S3 bucket policy to allow access only to principals that belong to your AWS Organization, without hard-coding and maintaining a list of every member account ID. Which condition is the cleanest way to do this?",
+    "options": [
+      "A condition matching aws:PrincipalOrgID to your organization ID",
+      "A condition matching aws:SourceVpc to each account's VPC",
+      "A condition using aws:PrincipalAccount that lists every account explicitly",
+      "A condition matching aws:userid for each individual user"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "The aws:PrincipalOrgID condition key restricts access to any principal in the specified AWS Organization, so accounts added or removed from the org are handled automatically. Listing every account ID or user ID is brittle and does not scale. aws:SourceVpc controls network origin, not organization membership.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A policy must permit sensitive S3 delete operations only when the caller has authenticated with multi-factor authentication. Which condition enforces this in the IAM policy?",
+    "options": [
+      "A condition on aws:MultiFactorAuthPresent being true, commonly written with BoolIfExists, so the action is allowed only when MFA is present",
+      "A StringEquals condition matching aws:MFA to the value enabled",
+      "Attaching a permissions boundary that mentions MFA in its name",
+      "Setting the account password policy to require MFA at sign-in"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "The aws:MultiFactorAuthPresent condition key is true when the requesting credentials were obtained with MFA, and it is the correct control for gating sensitive actions. It is typically written with BoolIfExists so long-term credentials without the key are handled predictably. A password policy governs sign-in but does not evaluate MFA at the per-request authorization layer.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An application running on an EC2 instance must call AWS APIs securely without any long-term credentials embedded in the instance. What is the recommended practice?",
+    "options": [
+      "Hard-code an IAM user's access key and secret in the application configuration file",
+      "Attach an IAM role to the instance through an instance profile so the SDK retrieves temporary credentials from the instance metadata service",
+      "Store the root account access keys in Systems Manager and read them at boot",
+      "Place access keys in a public S3 bucket the application downloads at startup"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Attaching an IAM role via an instance profile lets the SDK automatically fetch and rotate temporary credentials from the Instance Metadata Service, so no static keys ever live on the instance. This is the least-privilege, credential-free pattern for EC2 workloads. Hard-coding keys or using root credentials violates AWS security best practices.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A company wants centralized workforce sign-in to dozens of AWS accounts in its organization, mapping users from an external identity provider to reusable sets of permissions that issue temporary credentials. Which service and construct fit best?",
+    "options": [
+      "Create identical IAM users with matching access keys in every account",
+      "Use AWS IAM Identity Center, the successor to AWS SSO, with permission sets assigned to groups across accounts",
+      "Create a separate Amazon Cognito user pool for each AWS account",
+      "Share a single root user credential across the whole organization"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "AWS IAM Identity Center centralizes workforce access across an organization, connecting to an external IdP and using permission sets that map groups to roles in each account. Users receive temporary credentials rather than long-term keys, and access is managed from one place. IAM users per account or shared root credentials are unmanageable and insecure, and Cognito targets application end users, not workforce access.",
+    "difficulty": "MEDIUM"
+  }
+]

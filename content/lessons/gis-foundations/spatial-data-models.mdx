@@ -1,0 +1,136 @@
+---
+title: "Vector and Raster: Two Ways to Store the World"
+module: gis-foundations
+moduleTitle: GIS Foundations
+moduleOrder: 1
+moduleIcon: Compass
+order: 2
+summary: "Every geometry in a GIS is built one of two ways, as exact shapes made of coordinates or as a grid of measured cells, and the choice decides what questions the data can answer."
+estimatedMinutes: 14
+prerequisites: ["what-is-gis"]
+objectives:
+  - Explain the difference between the vector and raster data models and why a GIS needs both
+  - Describe how points, lines, and polygons are built from coordinates and which real features fit each shape
+  - Explain what resolution means for a raster grid and how cell size limits the detail a raster can hold
+  - Choose the right model for a given feature or phenomenon and explain why many real workflows use both
+tags:
+  - gis
+  - vector
+  - raster
+---
+
+The previous lesson split every GIS record into geometry and attributes. What it did not say is that geometry itself comes in two competing designs, and picking the wrong one for a given feature costs an analyst real time and real disk space. A county boundary and a satellite photo of that same county are both geometry, but nothing about how they are built is the same.
+
+The first design draws a shape with exact coordinates: a dot, a connected line, a closed outline. This is the **vector** model. The second design lays a grid over an area and stores one measurement per square: an elevation, a temperature, a shade of green. This is the **raster** model. Neither one is the correct choice in general. Each is the correct choice for a specific kind of thing, and most real GIS projects end up using both side by side.
+
+## Vector: shapes built from coordinates
+
+A vector feature is built from one of three geometry types, and all three are just coordinates connected in different ways.
+
+A **point** is a single coordinate pair, such as a longitude and a latitude. A fire hydrant, a cell tower, a single tree in a survey: each is one location with nothing else needed to describe its shape. A **line**, formally called a LineString, is an ordered list of points connected edge to edge. A road, a hiking trail, a stream: each has a start, a path, and an end, and the order of the points matters because it defines which way the line runs. A **polygon** is a closed ring of points where the last point connects back to the first, enclosing an area. A parcel, a lake, a county: each has an inside and an outside, and a polygon is exactly the shape that can answer "is this point inside or outside."
+
+Here is what a single point looks like as GeoJSON, a common text format for vector data:
+
+```json
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [-74.172, 40.735]
+  },
+  "properties": {
+    "asset_id": "HYD-0412",
+    "install_year": 2018
+  }
+}
+```
+
+The `coordinates` array is longitude first, then latitude, which trips up almost everyone the first time. GeoJSON always uses this lon, lat order and always assumes the coordinates are in EPSG:4326, the reference system built on ordinary longitude and latitude on a globe. A future lesson covers reference systems properly. For now, the point to hold onto is that a vector coordinate is just two or three numbers, and the geometry type decides how those numbers get connected into a point, a line, or a polygon.
+
+The edges a vector shape draws are exact. A parcel boundary is a precise line, and a point either falls on the inside of that line or it does not. There is no in-between reading, no partial answer. That exactness is what makes vector data the right fit for anything with a real, countable identity: a specific road, a specific well, a specific building footprint. These are things a person could point to and count, and a vector feature represents each one as its own record with its own attributes.
+
+<Quiz
+  id="vector-raster-hydrant"
+  question="A city wants to store the exact location of every fire hydrant so a dispatcher can pull up one hydrant's inspection history. Which data model fits this best?"
+  answer={0}
+  options={[
+    "Vector, because each hydrant is a discrete, countable thing with an exact location and its own attributes.",
+    "Raster, because a grid can hold more detail than a single coordinate pair.",
+    "Neither model can store a single location, only lines and areas.",
+    "Raster, because every hydrant would need its own separate grid.",
+  ]}
+  explanation="A hydrant is a discrete, identifiable object with one exact location and a record of attributes attached to it, which is exactly what a vector point is built for. A raster grid stores continuous measurements over an area, not the identity of a specific countable object, so it is the wrong tool here even though a grid can be very fine."
+/>
+
+## Raster: a grid of measured cells
+
+A raster is a completely different construction. Instead of coordinates tracing a shape, a raster lays an even grid of cells, often called pixels, over a region, and every cell holds one value. A digital elevation model, usually shortened to DEM, is a grid where each cell holds a height above sea level. A single band of a satellite image is a grid where each cell holds a brightness reading for one wavelength of light. A temperature surface from a weather model is a grid where each cell holds a modeled temperature. There is no edge to trace and nothing being counted. There is only a value, sampled at a regular interval, everywhere across the area.
+
+That regular interval is the raster's **resolution**, meaning the size of one cell on the ground. A Landsat satellite image commonly ships at 30 meter resolution, so one cell covers a 30 by 30 meter square and holds a single averaged value for that whole square. A Sentinel-2 image improves on that at 10 meters for some bands. A lidar-derived elevation model can reach 1 meter or finer. Coarser resolution means each cell blends together everything inside it, so a 30 meter cell straddling a small stream and its bank reports one blended value, not the stream's exact edge. Finer resolution keeps more of that detail apart, at the cost of far more cells to store and process for the same area.
+
+```python
+import rasterio
+
+with rasterio.open("elevation_30m.tif") as dem:
+    print(dem.width, dem.height)
+    print(dem.res)
+    print(dem.crs)
+```
+
+<ExpectedOutput label="a 30 meter DEM tile, its cell size, and its reference system">
+```
+1200 1200
+(30.0, 30.0)
+EPSG:32618
+```
+</ExpectedOutput>
+
+That `dem.res` value of 30.0 meters is the resolution, printed straight from the file's own header. The reference system here is EPSG:32618, a UTM (Universal Transverse Mercator) zone, which is the usual choice for elevation and imagery work because UTM coordinates are in meters on flat ground, making distance and area math simple. EPSG:4326 measures in degrees of longitude and latitude, which do not correspond to a fixed distance and make raw meter-based calculations wrong without extra conversion. EPSG:3857, called Web Mercator, is the projection behind most web maps and tile services, chosen for how tiles render on a screen rather than for measuring accurately on the ground.
+
+<Callout type="info" title="Finer resolution is not automatically better">
+A common early mistake is treating small pixels as strictly superior. A 1 meter DEM of an entire state is enormous, slow to load, and slow to process, and most of that detail goes unused if the actual question only needs slope at the neighborhood scale. Resolution should match the question. Regional elevation trends are fine at 30 meters. A drainage study along one property line needs something much finer. Matching resolution to the task, rather than always grabbing the finest data available, is one of the first judgment calls a working analyst learns to make.
+</Callout>
+
+<Quiz
+  id="vector-raster-resolution"
+  question="A raster elevation model has 10 meter resolution. What does that number actually describe?"
+  answer={2}
+  options={[
+    "The total number of cells in the raster file.",
+    "The number of colors the raster can display on a map.",
+    "The size of one cell on the ground, so each value represents an average over a 10 by 10 meter square.",
+    "The maximum elevation value the raster is able to store.",
+  ]}
+  explanation="Resolution describes the ground size of a single cell. A 10 meter resolution grid stores one value per 10 by 10 meter square, and any variation smaller than that square gets blended into a single number. It says nothing about cell count, color range, or the range of values a cell can hold."
+/>
+
+## Why the choice changes file size and analysis cost
+
+The two models scale in opposite ways, and that difference shows up the moment a project gets real data into a folder.
+
+A vector file's size depends on how many features and vertices it holds, not on how much area it covers. A single winding mountain road crossing an entire state might be one LineString with a few thousand vertices, a file measured in kilobytes. A raster's size depends on extent and resolution, regardless of what is actually there. A satellite image of open ocean with nothing in it costs exactly as much storage as the same size image of a dense city, because the grid still has to hold one value for every cell whether that cell is interesting or empty.
+
+That same split carries into analysis. Vector operations, like checking which parcels fall inside a flood zone polygon, scale with the number of features and how complex their shapes are. Ten thousand simple parcel rectangles check quickly; ten thousand polygons with jagged, thousand-point coastlines take longer even though the feature count did not change. Raster operations scale with cell count, which is extent divided by resolution squared. Doubling a raster's resolution, going from 30 meters down to 15, does not double the workload. It roughly quadruples it, since twice as many cells are needed in each direction.
+
+This is why an analyst reaches for GeoPackage or PostGIS to hold vector layers of parcels and roads, and reaches for GeoTIFF files read through a library like rasterio to hold a DEM or a satellite scene. The formats and the tools split along the same line as the data itself.
+
+## Picking a model, and why most projects need both
+
+The rule of thumb is close to what has already come up in each example. A feature with a discrete identity, something that could be pointed at, counted, and given its own attributes, fits vector: parcels, roads, wells, buildings, administrative boundaries. A phenomenon that varies continuously across space, with no natural edge to draw, fits raster: elevation, temperature, rainfall, and the reflectance values that make up satellite and Landsat or Sentinel imagery.
+
+Real projects rarely stay on one side of that line. A floodplain study is the clearest example. Elevation is continuous, so the analyst starts with a raster DEM and computes which cells sit below the flood height threshold. That raster result then gets converted into a vector polygon, the flood boundary, so it can be intersected with the vector layer of parcel boundaries to answer the discrete question a planner actually needs: which specific parcels are inside the flood zone. Wildfire risk modeling runs the same pattern in reverse order sometimes, combining a raster fuel-and-slope surface with vector layers of roads and structures to score risk near real, countable buildings. Neither model replaces the other. Each covers the half of the problem it was built for, and converting between them, burning a vector shape into a raster mask or tracing a raster boundary into a vector outline, is a routine step rather than an exception.
+
+<Quiz
+  id="vector-raster-choose"
+  question="An analyst is building a dataset of every county boundary in a state for a project that needs to compute each county's exact area and check which cities fall inside which county. Which model should hold the county boundaries?"
+  answer={1}
+  options={[
+    "Raster, because a grid is simpler to build than a set of exact boundaries.",
+    "Vector, because county boundaries are discrete, exact-edged shapes and the project needs exact inside or outside answers.",
+    "Raster, because counties cover a continuous surface with no real edges.",
+    "Neither model fits, since boundaries need a third kind of GIS data not covered here.",
+  ]}
+  explanation="County boundaries are discrete, countable shapes with an exact edge, and the project needs a precise inside or outside test plus an exact area calculation, all of which is what a vector polygon is built to do. Counties are not a continuous phenomenon like elevation or temperature, so raster is the wrong fit here, and no third geometry type is needed."
+/>
+
+Knowing which model a piece of data uses is the difference between reaching for the right tool immediately and fighting the wrong one for an afternoon. The next lesson tackles the piece both models depend on and this lesson deliberately set aside: coordinate reference systems, the rules that decide what a raw pair of numbers actually means on the surface of a round Earth, and the reason EPSG:4326, EPSG:3857, and a UTM zone are not interchangeable even though they can all describe the same point.

@@ -1,0 +1,58 @@
+---
+title: The Technical Interview
+module: breaking-into-security
+moduleTitle: Breaking Into Security
+moduleOrder: 45
+moduleIcon: Compass
+order: 4
+summary: They are testing how you think, not what you memorized.
+estimatedMinutes: 15
+objectives:
+  - Recognize the three question types you will actually face
+  - Think out loud so a reasoned wrong turn beats a silent right answer
+  - Handle a gap in your knowledge without bluffing yourself out of the job
+tags:
+  - careers
+  - interviews
+  - soc-analyst
+  - communication
+---
+
+The interviewer asks what happens when you type a URL and press enter. They already know the answer cold. What they are watching is where you start, DNS or the browser cache or the TCP handshake, how deep you can go before you hit a wall, and how you behave once you get there. The technical interview measures thinking, not trivia.
+
+You will mostly face three kinds of question. Fundamentals-with-depth start broad and drill down: "walk me through loading a webpage," "explain the TCP handshake," "how does DNS resolve a name." They keep pushing until you stop, because the whole point is to find the edge of what you know. Hitting that edge is expected, not a failure.
+
+Scenario questions want your process. "A user says their machine is slow and there is a weird process running, what do you do," or "this alert just fired, walk me through your next moves." There is no single right answer. They are buying the order you check things in and whether you jump to conclusions.
+
+Then there are plain trivia checks. Know the common ports without hesitating: 22, 80, 443, 445, 3389. Fumbling those reads badly for a reason, because they are the ones you touch daily.
+
+## Narrate everything
+
+Silence is the worst answer in the room. "First I would confirm whether this process is expected on this host, so I would look at its parent process and its network connections" tells the interviewer far more than blurting a tool name. A reasoned wrong turn that you catch yourself on beats a correct answer with no visible reasoning, because on the job they are hiring your process, not your recall.
+
+Slow down and think in front of them on purpose. Restate the question, name your assumptions, then move. If you go quiet to think, say "give me a second to think through this" so the pause reads as deliberate rather than blank.
+
+## When you do not know
+
+Say so, then show how you would find out. "I have not used Volatility, but I know it is for memory forensics, so I would start with the docs and the pslist plugin to see running processes" is a strong answer. Bluffing dies fast: they ask one follow-up, you fold, and now they doubt everything else you said. Nobody expects a junior to know everything. They are checking whether you will quietly guess in production or raise your hand and say you need to verify.
+
+Turn the interview around at the end. Ask what the on-call rotation looks like, how the team handles alert fatigue, what the path from SOC to DFIR is. Sharp questions signal you have thought about the actual job, and they help you spot a burnout factory before you sign.
+
+<Callout type="security" title="Never sell unauthorized access as experience">
+It is tempting to spice up a story with something you did to a system you did not own. Do not. The people interviewing you for a security role are exactly the ones who know that is a crime, and "I poked at my old employer's portal" is a reason to reject you, not hire you. Talk about labs, CTFs, and authorized engagements only. And if they ask you to demonstrate a technique, use the lab they provide or your own, never their production systems or a live third party.
+</Callout>
+
+<Quiz
+  id="interview-handling-gaps"
+  question="Mid-interview, you get a scenario question that names a tool you have never touched. Best move?"
+  answer={2}
+  options={[
+    "Guess confidently and hope there is no follow-up",
+    "Stay quiet until the interviewer moves on",
+    "Say what you do not know, then reason through how you would approach it",
+    "Change the subject to something you know well",
+  ]}
+  explanation="Admitting the gap and then showing your approach demonstrates exactly the judgment they are hiring for. Bluffing collapses on the first follow-up and poisons the rest of the interview, and going silent tells them nothing about how you think."
+/>
+
+<Notes />

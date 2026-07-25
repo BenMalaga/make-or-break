@@ -1,0 +1,281 @@
+---
+title: Your First Repository
+module: git-and-version-control
+moduleTitle: Version Control with Git
+moduleOrder: 3
+moduleIcon: GitBranch
+order: 2
+summary: "The last lesson called a commit a labeled snapshot. Here are the four commands that actually make one."
+estimatedMinutes: 15
+prerequisites: ["what-version-control-is"]
+objectives:
+  - Turn a plain folder into a Git repository with git init and explain what .git holds
+  - Trace a change through the working directory, the staging area, and the committed history
+  - Record a first commit using git add and git commit and read the result
+  - Use git status and git log to see what Git thinks is happening at any moment
+tags:
+  - git
+  - commits
+---
+
+The last lesson ended on an idea and no keyboard: a commit is a saved, labeled
+snapshot of a whole project, and a repository is the thing that remembers every
+commit in order. That is the picture. This lesson is the switch that turns it on.
+By the end, a folder that Git ignored will have a first commit inside it, and the
+whole loop will have run through real commands with real output.
+
+Start with the folder itself. Picture a small project, a single file called
+`app.py` with a dozen lines in it, sitting in a directory named `todo`. Right
+now Git has no idea this folder exists. It is not tracking anything, it has no
+history, and nothing here is protected. A folder becomes a project Git watches
+only when someone tells it to start watching, and that instruction is one
+command.
+
+## git init turns a folder into a repository
+
+The command `git init` turns a plain directory into a Git repository, meaning a
+folder whose entire change history Git now records. Running it inside the `todo`
+folder prints one line and looks like almost nothing happened.
+
+<CommandCard command="git init" title="terminal" explain="Creates a new, empty Git repository in the current folder so Git begins tracking it." />
+<ExpectedOutput label="running git init in the todo folder">
+```
+Initialized empty Git repository in /home/dana/todo/.git/
+```
+</ExpectedOutput>
+
+That last piece of the path, `.git/`, is the whole trick. `git init` creates a
+hidden subfolder called `.git` inside the project, and that subfolder is the
+repository. Every commit, every saved snapshot, every scrap of history lives
+inside `.git`. The dot at the front of the name is a convention on Linux and
+macOS for hiding a file from an ordinary directory listing, which is why the
+folder can sit right there and stay out of the way. Delete `.git` and the
+project reverts to a plain folder with no memory. Keep it, and the memory keeps
+building.
+
+One point trips people up early, so name it now. `git init` does not save the
+files that are already sitting in the folder. It creates the machinery that can
+save them, and nothing more. Right after `git init` the repository is empty, even
+though `app.py` is right there on disk. The word "empty" in that output line is
+literal: zero commits so far. Getting the first snapshot in takes more commands,
+and understanding those commands takes one mental model first.
+
+<Quiz
+  id="repo-what-git-init-does"
+  question="Someone runs git init inside a folder that already contains three finished Python files, then immediately checks the history and finds nothing saved. Why?"
+  answer={2}
+  options={[
+    "git init deleted the three files and they need to be recreated.",
+    "git init only works on empty folders, so it silently failed.",
+    "git init creates the .git repository but does not commit existing files; the first snapshot still has to be made by hand.",
+    "The files were saved, but git hides them until the folder is renamed.",
+  ]}
+  explanation="git init sets up the empty .git repository and starts tracking the folder, but it records no snapshot on its own. The existing files are untouched on disk and simply not committed yet. It works fine on non-empty folders, and it never deletes or hides anything."
+/>
+
+## The three places a change can be
+
+Here is the model that makes every later Git command stop feeling random. At any
+moment, a change to a file can be in one of three places, and Git treats those
+three places as genuinely separate.
+
+The first place is the working directory: the files exactly as they sit on disk
+right now, whatever a text editor last saved. Edit a line in `app.py` and that
+edit lives in the working directory immediately. Git sees it there but has not
+been told to do anything with it yet.
+
+The second place is the staging area, also called the index: a holding zone for
+the changes that will go into the next commit. Nothing reaches a commit without
+passing through staging first. A change in the working directory is a draft; a
+change in staging is a draft that has been marked "yes, this one goes in the next
+snapshot." The two states look identical in the file itself. The difference is
+entirely about whether Git has been told the change is ready.
+
+The third place is the repository, the committed history inside `.git`: the
+snapshots that have already been recorded and named. Once a change is committed,
+it is part of the permanent record, and returning to it later is always possible.
+A change moves through these three places in one direction most of the time.
+Working directory, then staging, then history.
+
+Trace one edit through all three to make it concrete. Change a line in `app.py`
+and save: that new line now lives in the working directory, and only there. Tell
+Git the change is ready and it copies into staging, waiting alongside anything
+else staged for the next snapshot. Record the snapshot and the change crosses
+into history, where it stays for good. Nothing skips a step. A change cannot land
+in history without sitting in staging first, which is why the sequence of
+commands later always runs in the same order. The value of holding this picture
+is that every later command stops being a spell to memorize and becomes a move
+between two named places.
+
+The obvious question is why staging exists at all. It looks like a pointless
+middle step, one extra move between editing a file and saving a snapshot. The
+reason is control. Real work is messy: in one sitting a person might fix a bug in
+`app.py` and also jot some half-finished notes in `README.md`. Those are two
+different pieces of work that deserve two different snapshots with two different
+labels. Staging is what makes that possible. It lets a commit be assembled
+deliberately, from some changes and not others, instead of forcing every edit
+made since the last commit into one lump. Stage only the bug fix, commit it with
+a clear message, then stage the notes and commit those separately. The history
+that comes out reads like a sentence instead of a pile.
+
+<Quiz
+  id="repo-why-staging"
+  question="In one work session a developer fixes a login bug in auth.py and also starts rough notes in TODO.txt that are not finished. They want the bug fix recorded as its own clean snapshot without the unfinished notes. How does the staging area make that possible?"
+  answer={0}
+  options={[
+    "They stage only auth.py and commit it, leaving the unfinished TODO.txt changes in the working directory for a later commit.",
+    "They must commit both files together, because a commit always captures every changed file.",
+    "They delete TODO.txt first, commit auth.py, then rewrite the notes from memory.",
+    "Staging automatically decides which file is finished and commits only that one.",
+  ]}
+  explanation="Staging lets a commit be built from a chosen subset of changes. Staging just auth.py and committing captures the bug fix alone, while the TODO.txt edits stay in the working directory untouched. A commit does not have to include every changed file, nothing needs deleting, and Git never guesses which work is finished."
+/>
+
+## Assembling a commit: status, add, commit, log
+
+Four commands run the whole loop. The first one reads the room. `git status`
+reports which files Git sees, and crucially, which of the three places each change
+is sitting in right now.
+
+<CommandCard command="git status" title="terminal" explain="Shows the current state: which files are untracked, which are staged, and which are changed but not staged." />
+<ExpectedOutput label="git status right after git init, with app.py present">
+```
+On branch main
+
+No commits yet
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	app.py
+
+nothing added to commit but untracked files present (use "git add" to track)
+```
+</ExpectedOutput>
+
+Read that output slowly, because Git is telling the truth about the three-place
+model. "No commits yet" means the history is empty. `app.py` is listed under
+"Untracked files," meaning it exists in the working directory but Git is not yet
+recording it. The hint in the parentheses even names the next command. Git spends
+a lot of effort suggesting what to do next, and reading those hints saves a lot
+of memorization.
+
+The second command moves a change into staging. `git add <file>` takes a named
+file from the working directory and stages it for the next commit.
+
+<CommandCard command="git add app.py" title="terminal" explain="Moves app.py into the staging area so it will be included in the next commit." />
+
+Nothing prints when `git add` succeeds, which throws people the first time.
+Silence is success. Running `git status` again confirms the move: `app.py` has
+jumped from "Untracked files" to a new section called "Changes to be committed,"
+which is `git status` describing the staging area in plain words.
+
+<ExpectedOutput label="git status after git add app.py">
+```
+On branch main
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+	new file:   app.py
+```
+</ExpectedOutput>
+
+The third command records the snapshot. `git commit -m "message"` takes
+everything currently in staging and writes it into history as one commit, with
+the text after `-m` as its label. The `-m` flag is short for message, and the
+message is not optional decoration. It is the human-readable name that makes the
+history worth having.
+
+<CommandCard command={'git commit -m "Add app skeleton"'} title="terminal" explain="Records all staged changes as one new commit in the history, labeled with the message." />
+<ExpectedOutput label="git commit output">
+```
+[main (root-commit) a1b2c3d] Add app skeleton
+ 1 file changed, 12 insertions(+)
+ create mode 100644 app.py
+```
+</ExpectedOutput>
+
+That output packs in the whole result. `main` is the branch this commit landed
+on. `root-commit` appears only for the very first commit in a repository, the one
+with no parent before it. The string `a1b2c3d` is the short commit hash, an
+abbreviated form of a long unique identifier Git computes for every commit. That
+seven-character stub is how a specific snapshot gets referred to later. "1 file
+changed, 12 insertions(+)" is a plain count of what went in. The snapshot now
+exists, and the project has a memory for the first time.
+
+The message is the part worth caring about, because it is what a person reads six
+weeks later when the log is long and the code is unfamiliar. A good message says
+what the commit does in a short, plain line: "Add app skeleton" or "Fix crash on
+empty input" reads well at a glance. A vague one like "stuff" or "changes" is
+technically legal and useless the moment more than a handful of commits pile up.
+Write the message for the future reader who has forgotten everything, because
+that reader is usually the same person who wrote it.
+
+The fourth command lets that memory be read back. `git log --oneline` lists the
+history, newest commit first, one commit per line.
+
+<CommandCard command="git log --oneline" title="terminal" explain="Prints the commit history compactly: one line per commit, short hash then message." />
+<ExpectedOutput label="git log --oneline after the first commit">
+```
+a1b2c3d (HEAD -> main) Add app skeleton
+```
+</ExpectedOutput>
+
+One commit, so one line. The short hash on the left matches the one the commit
+printed. `HEAD -> main` marks where the project currently sits, and `HEAD` is
+simply Git's word for the commit that is checked out right now, the one the
+working directory was built from. Make a second commit and a second line appears
+above this one, then a third above that. The log grows into the exact thing the
+last lesson promised: a returnable record of how the project changed, with a
+label on every step.
+
+<Callout type="warning" title="git add stages a copy, not a live link">
+Staging captures a file as it was at the moment of git add, not as it will be
+later. Stage app.py, then edit app.py again before committing, and the commit
+records the earlier staged version, while the newest edits sit back in the
+working directory unstaged. git status will show app.py in both sections at once,
+staged and modified, which is confusing until this clicks. If a last-second edit
+belongs in the commit, run git add on the file one more time before git commit to
+restage the newer version.
+</Callout>
+
+<Quiz
+  id="repo-reading-log"
+  question="git log --oneline prints the line a1b2c3d (HEAD -> main) Add app skeleton. What is a1b2c3d?"
+  answer={3}
+  options={[
+    "The number of lines in the committed file.",
+    "The name of the branch the commit lives on.",
+    "A timestamp showing when the commit was made.",
+    "A short unique identifier for that specific commit, used to refer back to it.",
+  ]}
+  explanation="a1b2c3d is the abbreviated commit hash, a unique id for that one snapshot, and it is how a specific commit gets named later. The branch here is main, the line count and the timestamp are separate pieces of information, and HEAD -> main marks the current position rather than identifying the commit."
+/>
+
+<Exercise title="Make a repository and a real first commit">
+On a computer with Git installed, make a new folder called practice-repo and move
+into it. Create one small text file inside, for example a file named notes.txt
+with a single line of text. Now run these four commands in order and read what
+each one prints:
+
+1. Run `git init` and notice the .git folder it mentions.
+2. Run `git status` and find notes.txt listed as untracked.
+3. Run `git add notes.txt`, then run `git status` again and watch notes.txt move
+   into "Changes to be committed."
+4. Run `git commit -m "Add notes"`, then run `git log --oneline` and confirm one
+   commit line appears with a short hash and your message.
+
+If the log shows your commit, you just built a project's memory from an empty
+folder. Add a second line to notes.txt and run the add, commit, and log commands
+again to watch a second line join the history above the first.
+</Exercise>
+
+One repository with a straight line of commits is the base case, and it holds up
+right until two ideas need to happen at once. A risky rewrite while the working
+version stays safe. Two features in flight that should not touch each other yet.
+The next lesson, branching and merging, splits the history into parallel lines so
+a change can be built and tested without disturbing the known-good version, then
+brings the good result back into the main line.
+
+<Notes />

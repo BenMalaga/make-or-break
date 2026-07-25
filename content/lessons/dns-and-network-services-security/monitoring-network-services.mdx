@@ -1,0 +1,93 @@
+---
+title: Monitoring Network Services
+module: dns-and-network-services-security
+moduleTitle: DNS and Network Services Security
+moduleOrder: 51
+moduleIcon: Waypoints
+order: 5
+summary: You cannot flag abnormal until you have written down what normal looks like.
+estimatedMinutes: 17
+objectives:
+  - Build a baseline of normal DNS, DHCP, and NTP behavior
+  - Turn service logs into detections for tunneling and rogue servers
+  - Prioritize alerts so the real signal is not buried in noise
+tags:
+  - monitoring
+  - detection
+  - logging
+  - baseline
+---
+
+Every attack in this module hides inside traffic that looks, at a glance, completely ordinary. A tunneling client makes DNS queries. A rogue DHCP server sends DHCP offers. A time-shift attack uses NTP. None of it is malformed. The only way you catch it is by knowing your network's normal well enough that the abnormal has nowhere to blend in.
+
+That is the whole job here: define normal on purpose, then let the machine tell you when reality diverges from it.
+
+## Baseline before you alert
+
+A baseline is a written record of what boring looks like. Skip it and you are just staring at logs guessing which line is bad. Build it deliberately, over days that include a weekend so you capture the quiet periods too.
+
+For DNS, capture the shape of query behavior: how many queries per host per hour, the count of unique domains a normal workstation hits, typical name lengths, and which resolvers clients actually use. A finance laptop resolving forty domains an hour is fine. The same laptop suddenly firing two thousand unique long subdomains under one parent domain is not.
+
+For DHCP, the baseline is short and powerful: there is exactly one authorized DHCP server, and its MAC and IP are known. Any DHCPOFFER from a different source is an event, full stop.
+
+For NTP, record which time sources every host should use and what their steady-state offset looks like. Once you know the normal drift, a client whose offset lurches by minutes stands out immediately.
+
+## From logs to detections
+
+Baselines are useless if nothing checks against them. Wire the checks into whatever you have, whether that is a SIEM or a nightly script on the raw logs.
+
+<CommandBlock
+  title="analyst@soc: three cheap detections on raw logs"
+  commands={[
+    { cmd: "awk '{print $6}' dns_queries.log | awk '{c[$1]++} END{for(d in c) if(c[d]>500) print c[d],d}'", comment: "flag any single domain queried over 500 times: tunneling candidate" },
+    { cmd: "grep DHCPOFFER dhcp.log | awk '{print $NF}' | sort -u", comment: "every source that offered a lease; more than your one server is a rogue" },
+    { cmd: "chronyc sources | awk '$1!=\"^*\" && NR>2'", comment: "any host not synced to the expected primary source" },
+  ]}
+/>
+
+Notice these are subtraction, not magic. Each one takes a log you already collect and compares it to a fact you already wrote down. The DNS one counts volume per domain. The DHCP one lists who dares to answer. The NTP one names anyone syncing to the wrong clock.
+
+<Callout type="security" title="Monitor the networks you are responsible for">
+Passive collection on your own or your employer's network is standard defensive work. Capturing traffic on a network you do not own or administer is a different thing entirely and often illegal, even with good intentions. Keep sensors on infrastructure you are authorized to watch, and be careful with the captures themselves, because DNS query logs alone can reveal a lot about the people behind the machines.
+</Callout>
+
+## Rank the alerts or drown
+
+The failure mode of monitoring is not too few alerts. It is too many, all weighted the same, until the analyst stops reading them. Triage by how strongly the signal maps to a real attack.
+
+A rogue DHCP offer is high fidelity: there should be one server, so a second one is almost never benign. Long high-entropy DNS names at volume are high fidelity too, since real software rarely generates them. A single slightly-long domain name, on its own, is weak signal and belongs in a report you skim, not a page that wakes someone up.
+
+<ExpectedOutput label="A tiered rule set beats a flat one">
+```
+HIGH   unauthorized DHCPOFFER source            -> page on-call
+HIGH   >500 unique subdomains, one parent, 1h   -> page on-call
+MED    NTP offset jump > 60s on a client        -> ticket
+MED    new resolver seen in resolv.conf         -> ticket
+LOW    single long DNS name, isolated           -> weekly digest
+```
+</ExpectedOutput>
+
+Tune the thresholds to your baseline, not to a number you read somewhere. Five hundred queries might be background noise on one network and a screaming alarm on another. The point of the baseline was to know which.
+
+<Quiz
+  id="monitoring-baseline-first"
+  question="Why is a documented baseline the prerequisite for detecting DNS tunneling, rather than just watching for it directly?"
+  answer={3}
+  options={[
+    "Tunneling traffic is malformed and easy to spot without one",
+    "Baselines encrypt the logs so attackers cannot read them",
+    "A baseline blocks the tunneling automatically",
+    "Tunneling queries are well-formed, so you can only flag them as abnormal against a known-normal volume and shape",
+  ]}
+  explanation="Tunneled DNS is valid DNS. Nothing about a single query is wrong. You detect it by comparing volume, uniqueness, and name length against what you have recorded as normal, which is exactly what a baseline gives you."
+/>
+
+<Exercise
+  id="monitoring-rogue-dhcp-fidelity"
+  prompt="Explain in one sentence why a second DHCPOFFER source deserves a higher-priority alert than a single unusually long DNS query."
+  answer="An authorized network has exactly one DHCP server, so a second offer source is almost certainly malicious, while one long DNS name is often benign and needs corroboration before it means anything."
+>
+Think about the false-positive rate of each signal. Which one is wrong on its own more often?
+</Exercise>
+
+<Notes />

@@ -1,0 +1,236 @@
+[
+  {
+    "domain": 4,
+    "question": "A security engineer wants to start using Microsoft Sentinel to collect and analyze security data across the tenant. What must exist before Microsoft Sentinel can be enabled?",
+    "options": [
+      "A Log Analytics workspace",
+      "An Azure Storage account with a blob container",
+      "An Azure Key Vault in the same region",
+      "An Azure Firewall with threat intelligence enabled"
+    ],
+    "correct": [0],
+    "explanation": "Microsoft Sentinel is enabled on top of a Log Analytics workspace, which stores the ingested log data that Sentinel queries. A storage account, Key Vault, or Azure Firewall are unrelated prerequisites and are not required to turn Sentinel on.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "In Microsoft Defender for Cloud, an engineer notices a percentage value that rises as security recommendations are remediated. Which feature does this value represent?",
+    "options": [
+      "Secure score",
+      "Just-in-time access score",
+      "Data sensitivity rating",
+      "Network exposure index"
+    ],
+    "correct": [0],
+    "explanation": "Secure score in Defender for Cloud summarizes the security posture of an environment and increases as recommendations are remediated. The other options are not real Defender for Cloud posture metrics.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A SOC needs an analytics rule in Microsoft Sentinel that evaluates a query and generates an alert with the shortest possible delay, running roughly every minute against incoming data. Which analytics rule type should be used?",
+    "options": [
+      "Near-real-time (NRT) rule",
+      "Fusion rule",
+      "Scheduled rule with a 24-hour lookback",
+      "Microsoft security rule"
+    ],
+    "correct": [0],
+    "explanation": "Near-real-time (NRT) rules run about once per minute to minimize detection delay. Fusion correlates multistage attacks with machine learning, scheduled rules run on defined intervals with lookback windows, and Microsoft security rules just create incidents from other Microsoft alerts.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An analyst wants incoming Microsoft Sentinel incidents to be automatically assigned to a specific owner and have their severity changed, without building any Logic App workflow. Which Sentinel capability does this most directly?",
+    "options": [
+      "An automation rule",
+      "A playbook",
+      "A hunting query",
+      "A workbook"
+    ],
+    "correct": [0],
+    "explanation": "Automation rules apply lightweight actions such as assigning owners, changing severity, and tagging incidents without any code. Playbooks are Logic App workflows, hunting queries proactively search data, and workbooks visualize data, so none of those match a no-code incident action.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An Azure Policy definition must automatically deploy a diagnostic setting whenever a resource is created without one. Which policy effect is required, and what else must the assignment include?",
+    "options": [
+      "DeployIfNotExists, plus a managed identity for remediation",
+      "Deny, plus a resource lock",
+      "Audit, plus a Log Analytics workspace",
+      "Append, plus a role assignment for the user"
+    ],
+    "correct": [0],
+    "explanation": "DeployIfNotExists deploys a related resource when a target is non-compliant, and the assignment needs a managed identity with the correct permissions to perform the remediation. Deny blocks creation, Audit only reports, and Append adds fields but none of them deploy resources.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A security team wants Microsoft Sentinel to automatically correlate multiple lower-fidelity alerts from different products into a single high-confidence incident that represents a multistage attack, using built-in machine learning. Which capability provides this?",
+    "options": [
+      "Fusion analytics rules",
+      "Scheduled analytics rules",
+      "Watchlists",
+      "Data collection rules"
+    ],
+    "correct": [0],
+    "explanation": "Fusion is the built-in machine learning correlation engine that combines low-fidelity signals across products into multistage attack incidents. Scheduled rules run fixed queries, watchlists are reference data, and data collection rules govern ingestion, so none of those perform ML-based correlation.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "To reduce exposure of RDP and SSH management ports on Azure VMs, an engineer wants the ports closed by default and opened only for an approved user, source IP, and limited time window on request. Which Defender for Cloud feature provides this?",
+    "options": [
+      "Just-in-time VM access",
+      "Adaptive network hardening",
+      "Azure Bastion",
+      "Network security group flow logs"
+    ],
+    "correct": [0],
+    "explanation": "Just-in-time (JIT) VM access keeps management ports closed and grants time-limited, scoped access on approval. Adaptive network hardening recommends NSG rules, Bastion provides browser-based connectivity, and flow logs record traffic, so none of those provide on-demand port opening.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "When Microsoft Defender for Servers is enabled, endpoint detection and response capabilities are provided through integration with which Microsoft product?",
+    "options": [
+      "Microsoft Defender for Endpoint",
+      "Microsoft Defender for Identity",
+      "Microsoft Purview",
+      "Microsoft Intune"
+    ],
+    "correct": [0],
+    "explanation": "Defender for Servers integrates Microsoft Defender for Endpoint to deliver EDR on protected machines. Defender for Identity focuses on on-premises identity signals, Purview handles data governance, and Intune manages devices, so none of them supply the server EDR.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A team needs Microsoft Entra ID sign-in and audit logs to appear in Microsoft Sentinel for detection and hunting. What is the correct way to bring this data in?",
+    "options": [
+      "Enable the Microsoft Entra ID data connector in Sentinel",
+      "Configure a private endpoint on the workspace",
+      "Deploy the Azure Monitor Agent to a domain controller",
+      "Create a scheduled analytics rule against SigninLogs"
+    ],
+    "correct": [0],
+    "explanation": "The Microsoft Entra ID data connector streams sign-in and audit logs into the Sentinel workspace. Private endpoints control network access, the Azure Monitor Agent collects data from machines rather than cloud identity logs, and an analytics rule cannot query data that has not been ingested.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which two of the following are valid Microsoft Sentinel analytics rule types? (Choose two.)",
+    "options": [
+      "Scheduled query rule",
+      "Near-real-time (NRT) rule",
+      "Just-in-time access rule",
+      "Adaptive application control rule"
+    ],
+    "correct": [0, 1],
+    "explanation": "Scheduled and near-real-time (NRT) rules are both Microsoft Sentinel analytics rule types. Just-in-time access and adaptive application controls are Microsoft Defender for Cloud features, not Sentinel analytics rules.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An engineer wants Microsoft Defender for Cloud to automatically trigger a Logic App that posts to a ticketing system every time a specific security alert is generated. Which Defender for Cloud feature configures this?",
+    "options": [
+      "Workflow automation",
+      "Continuous export to Event Hub",
+      "Regulatory compliance assignment",
+      "Adaptive application controls"
+    ],
+    "correct": [0],
+    "explanation": "Workflow automation in Defender for Cloud runs a Logic App in response to alerts or recommendations, which is ideal for ticketing integration. Continuous export streams data to Event Hub or Log Analytics, compliance assignments track standards, and adaptive application controls allow-list processes, so none of those trigger the Logic App on an alert.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Microsoft Sentinel playbooks used for automated response are built on which underlying Azure service?",
+    "options": [
+      "Azure Logic Apps",
+      "Azure Functions",
+      "Azure Automation runbooks",
+      "Azure Batch"
+    ],
+    "correct": [0],
+    "explanation": "Sentinel playbooks are Azure Logic Apps workflows that can be triggered by alerts, incidents, or automation rules. Azure Functions, Automation runbooks, and Batch are separate compute and automation services that Sentinel playbooks are not built on.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "An analyst is writing hunting queries and analytics rules directly against the data in a Microsoft Sentinel workspace. Which query language is used?",
+    "options": [
+      "Kusto Query Language (KQL)",
+      "Transact-SQL (T-SQL)",
+      "PromQL",
+      "GraphQL"
+    ],
+    "correct": [0],
+    "explanation": "Microsoft Sentinel and Log Analytics use Kusto Query Language (KQL) for hunting, analytics rules, and workbooks. T-SQL targets SQL databases, PromQL is for Prometheus metrics, and GraphQL is an API query language, none of which query Sentinel data.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A SOC wants to enrich Microsoft Sentinel detections by importing a list of VIP user accounts and high-value asset names that analytics rules and queries can reference. Which Sentinel feature is designed for this?",
+    "options": [
+      "Watchlists",
+      "Bookmarks",
+      "Workbooks",
+      "Threat intelligence indicators"
+    ],
+    "correct": [0],
+    "explanation": "Watchlists let you import custom reference lists, such as VIP users or asset inventories, that queries and rules can join against. Bookmarks save hunting findings, workbooks visualize data, and threat intelligence indicators track IOCs, so none of those serve as general-purpose reference lists.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "By default, which built-in policy initiative does Microsoft Defender for Cloud assign to a subscription to assess its security posture and drive the secure score?",
+    "options": [
+      "Microsoft cloud security benchmark",
+      "NIST SP 800-53 Rev. 5",
+      "PCI DSS v4",
+      "CIS Microsoft Azure Foundations Benchmark"
+    ],
+    "correct": [0],
+    "explanation": "The Microsoft cloud security benchmark (MCSB) is the default initiative Defender for Cloud assigns, and its assessments feed the secure score. NIST, PCI DSS, and CIS are additional regulatory standards you can add to the compliance dashboard but are not assigned by default.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A recurring benign security alert in Microsoft Defender for Cloud is generating noise from a known trusted process on specific resources. Which capability lets the team stop these expected alerts from appearing without disabling the underlying detection everywhere?",
+    "options": [
+      "An alert suppression rule",
+      "A resource lock",
+      "A deny Azure Policy assignment",
+      "A network security group rule"
+    ],
+    "correct": [0],
+    "explanation": "Alert suppression rules in Defender for Cloud dismiss specific expected alerts based on defined criteria while leaving detection active for other cases. Resource locks prevent changes, deny policies block deployments, and NSG rules filter traffic, so none of those suppress alerts.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An organization wants Microsoft Defender for Cloud to protect resources that are not native Azure resources. Which two onboarding paths make non-Azure resources visible to Defender for Cloud? (Choose two.)",
+    "options": [
+      "On-premises and other-cloud servers connected through Azure Arc",
+      "AWS accounts connected through a Defender for Cloud cloud connector",
+      "Azure Blob containers replicated to a storage account",
+      "Microsoft 365 mailboxes synchronized through Exchange Online"
+    ],
+    "correct": [0, 1],
+    "explanation": "Azure Arc brings on-premises and other-cloud servers under Defender for Cloud, and native cloud connectors onboard AWS (and GCP) accounts. Replicating blob containers and synchronizing mailboxes are not Defender for Cloud onboarding methods for non-Azure resources.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A compliance team must keep Microsoft Sentinel logs for several years at lower cost but only needs to run occasional investigations against the older data. Which Log Analytics capability best fits this requirement?",
+    "options": [
+      "Move data to the archive tier and query it with search jobs",
+      "Increase interactive retention to the maximum on every table",
+      "Export all tables continuously to a second workspace",
+      "Convert every table to the Basic logs plan"
+    ],
+    "correct": [0],
+    "explanation": "The archive tier stores data long-term at reduced cost, and search jobs or restore let you investigate archived data when needed. Maximizing interactive retention is far more expensive, exporting to a second workspace does not lower cost, and Basic logs limits query and rule capabilities rather than providing cheap long-term retention.",
+    "difficulty": "HARD"
+  }
+]

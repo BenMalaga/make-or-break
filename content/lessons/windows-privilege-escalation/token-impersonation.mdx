@@ -1,0 +1,85 @@
+---
+title: Token Impersonation
+module: windows-privilege-escalation
+moduleTitle: Windows Privilege Escalation
+moduleOrder: 19
+moduleIcon: ChevronsUp
+order: 3
+summary: SeImpersonatePrivilege on a service account is a near-free SYSTEM. The potato attacks turn it into one.
+estimatedMinutes: 18
+objectives:
+  - Recognize when SeImpersonatePrivilege makes a potato attack viable
+  - Explain how the potato family coerces a SYSTEM token
+  - Run an appropriate potato to get a SYSTEM shell
+tags:
+  - windows
+  - privilege-escalation
+  - tokens
+  - impersonation
+---
+
+If `whoami /priv` shows `SeImpersonatePrivilege` set to Enabled, you're most of the way to SYSTEM already. This privilege lets your process impersonate the security context of any token it can get its hands on. The potato attacks exist to hand you a SYSTEM token to impersonate, and they work reliably on the exact accounts you tend to land as: IIS application pools, MSSQL service accounts, and most non-interactive service identities.
+
+Windows attaches an access token to every process. The token carries your SID, your groups, and your privileges. Impersonation means a thread temporarily runs under a different token than the process that owns it, a normal Windows feature that servers use to act on behalf of a client. `SeImpersonatePrivilege` is what makes it legal for your code. The trick is getting a SYSTEM-owned token in front of you to grab.
+
+## How the potatoes work
+
+The potato family coerces a privileged Windows component into authenticating to a listener you control, then steals the token from that authentication. The mechanism has shifted over the years as Microsoft patched pieces, but the shape is the same: force SYSTEM to talk to you, capture its token, impersonate it, spawn a process.
+
+Which potato you reach for depends on the box:
+
+- **PrintSpoofer** abuses the Print Spooler over a named pipe. Fast and clean when the spooler is running, which on older Server builds it usually is.
+- **RoguePotato** uses a fake OXID resolver over RPC. Reach for it when the spooler is disabled.
+- **GodPotato** and **JuicyPotatoNG** cover newer Server 2019 and 2022 builds where the older ones stopped landing.
+
+Don't memorize the internals on day one. Know that they all need `SeImpersonatePrivilege`, and that you pick by OS version and which services are alive.
+
+## Getting the shell
+
+PrintSpoofer is the one I try first when the privilege is there. It's a single binary and it drops you straight into a SYSTEM shell.
+
+<CommandCard command="PrintSpoofer64.exe -i -c cmd" explain="-i gives you an interactive SYSTEM shell in the current window. -c runs one command instead, handy from a limited non-interactive shell." />
+
+<ExpectedOutput label="What success looks like">
+```
+[+] Found privilege: SeImpersonatePrivilege
+[+] Named pipe listening...
+[+] CreateProcessAsUser() OK
+C:\Windows\system32> whoami
+nt authority\system
+```
+</ExpectedOutput>
+
+If the spooler is off, GodPotato is the current workhorse and covers the widest range of modern builds.
+
+<CommandCard command="GodPotato-NET4.exe -cmd \"cmd /c whoami\"" explain="Confirms SYSTEM in one shot. Swap the inner command for a reverse shell one-liner once you have proof it fires." />
+
+Rather than pop calc, prove the win with `whoami`, then run a reverse shell payload as the inner command so you get a stable SYSTEM session instead of a one-off.
+
+<Callout type="security" title="Authorized targets only">
+A potato attack takes you to nt authority\system, full control of the host. Only run it against machines you own or are explicitly authorized to test. This is the highest-impact action in the module, so be certain of your scope before you fire it.
+</Callout>
+
+<Callout type="tip" title="No SeImpersonate, no potato">
+If the privilege is not Enabled, none of these will work, and you're wasting time uploading binaries. Confirm whoami /priv shows it first. When it's there, this is almost always faster than the service or credential routes.
+</Callout>
+
+<Quiz
+  id="potato-prereq"
+  question="Which privilege must be present and enabled for the potato attacks to work?"
+  answer={2}
+  options={[
+    "SeDebugPrivilege",
+    "SeBackupPrivilege",
+    "SeImpersonatePrivilege",
+    "SeShutdownPrivilege",
+  ]}
+  explanation="The potato family relies on impersonating a coerced SYSTEM token, which requires SeImpersonatePrivilege (or SeAssignPrimaryTokenPrivilege). Without it, there is nothing to impersonate."
+/>
+
+<Exercise
+  id="potato-run"
+  prompt="On an authorized lab box where whoami /priv shows SeImpersonatePrivilege enabled, run PrintSpoofer with -c to execute whoami as SYSTEM. If the spooler is disabled, note the error and switch to GodPotato. Record which one landed and the OS build it ran on."
+/>
+
+<Notes />

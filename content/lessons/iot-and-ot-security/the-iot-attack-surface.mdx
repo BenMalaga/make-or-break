@@ -1,0 +1,64 @@
+---
+title: The IoT Attack Surface
+module: iot-and-ot-security
+moduleTitle: IoT and OT Security
+moduleOrder: 40
+moduleIcon: Factory
+order: 1
+summary: A smart plug is not one target. It is five stacked on top of each other, and the good bugs hide in the seams.
+estimatedMinutes: 18
+objectives:
+  - Map an IoT product into its device, firmware, app, cloud, and radio surfaces
+  - Pick the right recon tool for each surface
+  - Explain why the interesting bugs live where two surfaces meet
+tags:
+  - iot
+  - attack-surface
+  - recon
+  - hardware
+---
+
+Pull apart a $20 IP camera and you are not looking at one target. You are looking at five, and they trust each other in ways nobody audited. The chip on the board. The firmware running on that chip. The phone app that drives it. The cloud service it dials home to. And the radio link tying the pieces together. Test one, skip the rest, and you walk right past the bug that owns the whole product line.
+
+The reason a camera falls when a laptop would not is that trust. The app assumes the cloud validated the request. The cloud assumes the device only sends what the app allowed. The device assumes nobody is soldering wires to its board. Every one of those assumptions is a place to push.
+
+## The five surfaces
+
+Draw this map before you touch a single tool. It keeps you honest about what you have and have not looked at.
+
+The **device** is the physical board. UART and JTAG headers, an exposed serial console, a SPI flash chip you can clip onto and read, test pads the factory used and never removed. Physical access here often skips every other control at once.
+
+The **firmware** is the code sitting on that flash: the kernel, the root filesystem, the web server, the startup scripts, and whatever secrets got baked in at build time. Getting a copy of it is the next lesson.
+
+The **app** is the mobile or web client. An APK or IPA decompiles cleanly and routinely leaks hardcoded API keys, backend URLs, and weak or absent certificate pinning. The app tells you where the cloud lives and how it authenticates.
+
+The **cloud** is the backend the fleet talks to: a REST API, an MQTT broker, the account and device-pairing model. This is where one IDOR on a device ID turns into every camera on the platform, because the whole fleet answers to the same service.
+
+The **radio** is the wireless link: Wi-Fi, BLE, Zigbee, Z-Wave, or sub-GHz at 433 and 915 MHz. Sniff it with a cheap BLE dongle or an SDR and you read pairing traffic and commands that the vendor assumed nobody could see.
+
+## Where to start looking
+
+Get the device on your bench network and fingerprint it like any other host. Open ports on an embedded target tell you a lot fast: 23 is telnet, 554 is RTSP video, 1883 is MQTT, 80 and 8080 are the config web UI.
+
+<CommandCard command="nmap -sV -p- --min-rate 1000 192.168.1.50" title="attacker@kali" explain="Full TCP sweep with service detection against the device on your lab LAN. Embedded stacks are fragile, so start gentle and watch for the device rebooting or dropping off the network." />
+
+The seams matter more than any single surface. A hardcoded key you pull from the app opens the cloud API. A cloud API with no per-device authorization lets you replay a command the radio taught you. Chain two surfaces and you get impact that neither one has alone.
+
+<Callout type="security" title="Own the device, or get it in writing">
+Everything in this module assumes the hardware is yours or you hold signed authorization to test it. Reading a flash chip, sniffing a radio link, or hammering a cloud API tied to someone else's device crosses into unauthorized access and interception law fast. Buy the unit, test your own, or work inside a scoped engagement. There is no casual version of this.
+</Callout>
+
+<Quiz
+  id="iot-surface-fleet-takeover"
+  question="You find one API endpoint that returns any camera's stream if you change the device ID in the request. Which surface is broken, and why is the impact large?"
+  answer={2}
+  options={[
+    "The radio surface, because BLE pairing is unencrypted",
+    "The device surface, because the UART console has no password",
+    "The cloud surface, because the whole fleet answers to one backend with no per-device authorization",
+    "The firmware surface, because the root password is hardcoded",
+  ]}
+  explanation="A missing authorization check on a shared cloud backend scales from one device to the entire fleet, since every unit trusts the same service. That is why cloud IDOR on device IDs is one of the highest-impact IoT bugs."
+/>
+
+<Notes />

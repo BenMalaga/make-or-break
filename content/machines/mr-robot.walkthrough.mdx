@@ -1,0 +1,94 @@
+---
+title: Mr Robot 1 walkthrough
+---
+
+## Host discovery
+
+From your attacker box on the same lab network:
+
+```
+sudo netdiscover -r 192.168.56.0/24
+# or
+sudo nmap -sn 192.168.56.0/24
+```
+
+Compare the results against hosts you already know (your attacker box, the
+gateway). The unfamiliar address is your target. Export it for convenience:
+
+```
+export IP=192.168.56.X
+```
+
+## Enumeration
+
+Scan all ports, then fingerprint what is open:
+
+```
+nmap -p- --min-rate 2000 -oN allports.txt $IP
+nmap -sVC -p <open,ports> -oN services.txt $IP
+```
+
+This box is web first. Before you brute force anything, read the obvious files:
+
+```
+curl http://$IP/robots.txt
+whatweb http://$IP
+```
+
+robots.txt is the whole opening move. It names the first key and a second file
+worth downloading. Grab both. Then fingerprint the site until you know which
+content management system is running it, and find its login page.
+
+## Foothold (user)
+
+The file named in robots.txt is a large wordlist. That is your lead.
+
+1. The CMS login tells you, through its error messages, whether a username is
+   valid. Use that behavior to confirm a real account.
+2. Feed the wordlist against that one account until the login succeeds. Wordlists
+   this size take a while, so let it run.
+3. A valid login gives you access to the CMS internals, and from there to code
+   execution. Use that to land a reverse shell as the web account.
+
+You now have a shell, but the second key sits in another user's home directory
+and you cannot read it yet. Look at what that account left behind. There is a
+stored password hash next to the key. Crack it offline, switch to that user, and
+read the key:
+
+```
+find / -name "key-2*" 2>/dev/null
+cat /home/<user>/key-2-of-3.txt
+```
+
+Proof token: `MOB{robots_txt_was_the_start}`.
+
+## Privilege escalation (root)
+
+As the second user, run the standard privesc checklist:
+
+```
+id; uname -a
+sudo -l
+find / -perm -4000 -type f 2>/dev/null
+```
+
+The SUID list is where this one falls. One of the SUID binaries is an old tool
+that ships an interactive mode with a well known shell escape. Trigger that
+escape to drop into a root shell, then read the last key:
+
+```
+cat /root/key-3-of-3.txt
+```
+
+Proof token: `MOB{suid_was_the_last_key}`.
+
+## Lessons learned
+
+- Read robots.txt and the boring files first. This box hands you the opening for
+  free and most people skip it.
+- Login error messages that differ for valid and invalid users are a real bug.
+  They turn a blind brute force into a targeted one.
+- Never store a crackable password hash next to the thing it protects. Offline
+  cracking is patient and cheap.
+- A SUID binary that can spawn a shell is game over. Strip SUID from anything that
+  does not strictly need it.

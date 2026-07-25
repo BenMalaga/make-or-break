@@ -1,0 +1,288 @@
+[
+  {
+    "domain": 2,
+    "question": "What is the primary purpose of a Business Continuity Plan (BCP)?",
+    "options": [
+      "To keep critical business functions operating during and after a disruption",
+      "To prosecute the attackers who caused an outage",
+      "To restore only the IT infrastructure after a disaster",
+      "To permanently eliminate all risk of downtime"
+    ],
+    "correct": [0],
+    "explanation": "A BCP focuses on sustaining essential business operations while an organization recovers from a significant disruption. Prosecution is a legal matter, restoring only IT is the narrower job of the Disaster Recovery Plan, and no plan can eliminate all downtime risk.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A Business Impact Analysis produced a Recovery Time Objective (RTO) of 4 hours for the order system. What does this value represent?",
+    "options": [
+      "The maximum amount of data, measured in time, the organization can afford to lose",
+      "The target time within which the system must be restored after a disruption",
+      "The total time the system can be down before the business fails entirely",
+      "The time required to build an entirely new data center"
+    ],
+    "correct": [1],
+    "explanation": "RTO is the target elapsed time to bring a system or process back online after a disruption. The data-loss figure is the RPO, the total tolerable outage is the MTD, and data center rebuild time is not what RTO measures.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An organization sets a Recovery Point Objective (RPO) of 1 hour for its database. Which statement best describes this decision?",
+    "options": [
+      "Backups or replication must limit potential data loss to about 1 hour",
+      "The database must be fully restored within 1 hour",
+      "Staff have 1 hour to declare a disaster after an outage",
+      "The database can be offline for no more than 1 hour total"
+    ],
+    "correct": [0],
+    "explanation": "RPO defines the maximum acceptable amount of data loss expressed in time, which drives how often backups or replication must run. Restoring within a set time is the RTO, and the total tolerable outage is the MTD, not the RPO.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "How does a Disaster Recovery Plan (DRP) differ from a Business Continuity Plan (BCP)?",
+    "options": [
+      "The DRP focuses on restoring IT systems and technology, while the BCP addresses sustaining the whole business",
+      "The DRP applies only to natural disasters, while the BCP applies only to cyberattacks",
+      "The BCP is a technical subset of the DRP",
+      "They are two names for the same document"
+    ],
+    "correct": [0],
+    "explanation": "The DRP is the technology-focused piece that restores IT systems, and it operates within the broader BCP that keeps the overall business running. The DRP is not limited to natural disasters, and the BCP is the wider plan, not a subset of the DRP.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "What is the primary output of a Business Impact Analysis (BIA)?",
+    "options": [
+      "A list of the software licenses the organization owes for",
+      "Identification of critical functions and the impact of their disruption over time",
+      "A signed contract with a cloud backup provider",
+      "The organizational chart of the incident response team"
+    ],
+    "correct": [1],
+    "explanation": "A BIA identifies the organization's critical processes and quantifies the impact of losing them over time, which feeds values like RTO and RPO. License lists, vendor contracts, and team org charts are separate artifacts, not the purpose of a BIA.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An organization needs a recovery facility that can take over operations within minutes to a few hours of a disaster. Which option best fits?",
+    "options": [
+      "Cold site",
+      "Warm site",
+      "Hot site",
+      "A leased space with no equipment installed"
+    ],
+    "correct": [2],
+    "explanation": "A hot site is fully equipped and kept current, so it can assume operations almost immediately, which is why it is the most expensive option. A warm site needs data and configuration first, and a cold site or empty leased space provides only facilities and takes days to weeks.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which recovery site is the least expensive but takes the longest to become operational because it provides only space, power, and cooling?",
+    "options": [
+      "Hot site",
+      "Warm site",
+      "Cold site",
+      "Reciprocal site"
+    ],
+    "correct": [2],
+    "explanation": "A cold site supplies only the physical facility, so hardware, data, and connectivity must be brought in and configured before it works, making it cheapest but slowest. Hot and warm sites already contain equipment, and a reciprocal agreement relies on another organization's site rather than describing this facility type.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "During the response to a fire in a data center, what should always be the first priority?",
+    "options": [
+      "Preserving the human life and safety of personnel",
+      "Restoring the production database",
+      "Preserving forensic evidence for later analysis",
+      "Notifying the news media"
+    ],
+    "correct": [0],
+    "explanation": "Protecting human life and safety takes precedence over every other objective in any disaster or incident. Restoring systems, preserving evidence, and communications all come after people are safe.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "In incident response terminology, which statement correctly distinguishes an event from an incident?",
+    "options": [
+      "An event is always malicious, while an incident is always accidental",
+      "An event is any observable occurrence in a system or network, while an incident actually or potentially jeopardizes confidentiality, integrity, or availability",
+      "An incident is always less serious than an event",
+      "Events involve people, while incidents involve only systems"
+    ],
+    "correct": [1],
+    "explanation": "An event is simply any observable occurrence, and it becomes an incident when it threatens or violates the confidentiality, integrity, or availability of information or systems. Events are not inherently malicious, incidents are more serious than ordinary events, and the distinction has nothing to do with people versus systems.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "According to the common incident response lifecycle, which sequence of phases is correct?",
+    "options": [
+      "Detection and Analysis; Preparation; Post-Incident Activity; Containment",
+      "Preparation; Detection and Analysis; Containment, Eradication and Recovery; Post-Incident Activity",
+      "Containment; Preparation; Recovery; Detection",
+      "Preparation; Containment; Detection; Eradication"
+    ],
+    "correct": [1],
+    "explanation": "The recognized lifecycle runs Preparation, then Detection and Analysis, then Containment, Eradication and Recovery, and finally Post-Incident Activity. The other orderings place phases out of sequence, such as detecting before preparing or containing before detecting.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Maximum Tolerable Downtime (MTD) for a process is composed of which two elements?",
+    "options": [
+      "RPO plus RTO",
+      "Recovery Time Objective (RTO) plus Work Recovery Time (WRT)",
+      "RPO plus Work Recovery Time (WRT)",
+      "Mean Time Between Failures plus Mean Time To Repair"
+    ],
+    "correct": [1],
+    "explanation": "MTD equals the RTO (time to restore the system) plus the WRT (time to configure, test, and verify before the process is usable again). RPO measures tolerable data loss, and MTBF and MTTR are reliability metrics rather than components of MTD.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Which term specifically describes the loss of control or unauthorized disclosure of personally identifiable information (PII)?",
+    "options": [
+      "Event",
+      "Breach",
+      "Vulnerability",
+      "Exploit"
+    ],
+    "correct": [1],
+    "explanation": "A breach is the loss of control, compromise, or unauthorized disclosure or acquisition of protected data such as PII. An event is any observable occurrence, a vulnerability is a weakness, and an exploit is the technique used against a vulnerability.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An organization performs a full backup on Sunday and incremental backups each weeknight. If a failure occurs Thursday morning, what is needed to fully restore the data?",
+    "options": [
+      "Only Wednesday's incremental backup",
+      "Sunday's full backup only",
+      "Sunday's full backup plus every incremental from Monday through Wednesday",
+      "Sunday's full backup plus Wednesday's differential"
+    ],
+    "correct": [2],
+    "explanation": "An incremental backup captures only what changed since the previous backup, so restoration requires the last full backup plus every incremental made since then, in order. A single incremental or the full backup alone would miss changes, and no differential was taken in this scheme.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Compared with incremental backups, differential backups generally have which characteristic?",
+    "options": [
+      "Faster to create each night but slower to restore",
+      "Slower to create as the week goes on but faster to restore",
+      "They reset the archive bit after each run",
+      "They never require a preceding full backup"
+    ],
+    "correct": [1],
+    "explanation": "A differential backup copies everything changed since the last full backup, so each nightly job grows larger, but recovery needs only the full backup plus one differential, making restore faster. Incrementals are the ones that stay small and reset the archive bit, and both types still depend on a full backup.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "What is the main role of a Computer Security Incident Response Team (CSIRT)?",
+    "options": [
+      "To design the corporate network architecture",
+      "To receive, review, and respond to reports of security incidents and suspicious activity",
+      "To conduct the annual financial audit",
+      "To approve and provision user access requests"
+    ],
+    "correct": [1],
+    "explanation": "A CSIRT is the group responsible for receiving, triaging, and responding to security incidents. Network design, financial auditing, and access provisioning are handled by other teams and are outside the CSIRT's core mission.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An analyst isolates an infected laptop from the network to stop malware from spreading. Which incident response phase does this action belong to?",
+    "options": [
+      "Preparation",
+      "Detection and Analysis",
+      "Containment, Eradication, and Recovery",
+      "Post-Incident Activity"
+    ],
+    "correct": [2],
+    "explanation": "Isolating an affected system to limit damage is a containment action, part of the Containment, Eradication, and Recovery phase. Preparation happens before an incident, Detection and Analysis identifies it, and Post-Incident Activity is the lessons-learned review afterward.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "After an incident is resolved, the team meets to document what happened and how to prevent recurrence. This lessons-learned review is part of which phase?",
+    "options": [
+      "Preparation",
+      "Detection and Analysis",
+      "Containment, Eradication, and Recovery",
+      "Post-Incident Activity"
+    ],
+    "correct": [3],
+    "explanation": "Reviewing the incident and capturing improvements is the Post-Incident Activity phase, the final step of the lifecycle. Its findings feed back into Preparation, but the review itself is not part of Preparation, Detection, or Containment.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which term describes a previously unknown vulnerability for which no patch or fix yet exists?",
+    "options": [
+      "Zero-day",
+      "Exploit",
+      "Intrusion",
+      "Event"
+    ],
+    "correct": [0],
+    "explanation": "A zero-day is a vulnerability that is not yet publicly known or patched, giving defenders zero days to prepare. An exploit is the method used against a flaw, an intrusion is unauthorized access, and an event is any observable occurrence.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Which two of the following values are typically determined by a Business Impact Analysis? (Choose two.)",
+    "options": [
+      "Recovery Time Objective (RTO)",
+      "Recovery Point Objective (RPO)",
+      "The color scheme of the corporate website",
+      "The number of the company's social media followers"
+    ],
+    "correct": [0, 1],
+    "explanation": "The BIA identifies critical functions and derives recovery targets, including the RTO and RPO for those functions. A website color scheme and social media follower counts are marketing details unrelated to continuity planning.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A power surge destroys the primary server room. Which plan is most directly used to restore the affected IT systems?",
+    "options": [
+      "The Business Impact Analysis",
+      "The Disaster Recovery Plan",
+      "The acceptable use policy",
+      "The public relations communications plan"
+    ],
+    "correct": [1],
+    "explanation": "The Disaster Recovery Plan provides the specific procedures for restoring IT systems and technology after a disaster. The BIA is an analysis that informs planning, the acceptable use policy governs user behavior, and a communications plan handles messaging, not system restoration.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Why should business continuity and disaster recovery plans be tested and exercised regularly?",
+    "options": [
+      "Testing is legally required to register a domain name",
+      "To verify the plans actually work and to train staff before a real disaster occurs",
+      "To increase the maximum tolerable downtime of critical systems",
+      "Because testing removes the need to maintain backups"
+    ],
+    "correct": [1],
+    "explanation": "Regular exercises confirm that procedures work as written and give staff practice so they can respond effectively during a real event. Testing has nothing to do with domain registration, does not raise the MTD, and never replaces the need for reliable backups.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Which pairing correctly matches an incident response term to its definition?",
+    "options": [
+      "Vulnerability: a weakness that could be exploited by a threat",
+      "Threat: a guaranteed loss event that has already occurred",
+      "Exploit: an inherent weakness in a system or process",
+      "Intrusion: the complete absence of any security controls"
+    ],
+    "correct": [0],
+    "explanation": "A vulnerability is a weakness that a threat could take advantage of. A threat is a potential cause of harm rather than a guaranteed loss, an exploit is the technique used against a vulnerability rather than the weakness itself, and an intrusion is unauthorized access, not the absence of controls.",
+    "difficulty": "MEDIUM"
+  }
+]

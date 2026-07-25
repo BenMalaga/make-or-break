@@ -1,0 +1,318 @@
+---
+title: Errors and How to Handle Them
+module: python-deep-dive
+moduleTitle: Python Deep Dive
+moduleOrder: 2
+moduleIcon: FileCode
+order: 5
+summary: "A missing file or bad input does not have to crash a program: catch the exception, read the traceback, and keep it running."
+estimatedMinutes: 15
+prerequisites: [reading-and-writing-files]
+objectives:
+  - Explain what an exception is and why Python raises one instead of guessing
+  - Read a traceback and find the line that names the error type and message
+  - Catch a specific exception with try and except so a program responds instead of crashing
+  - Raise an error on invalid input and judge when catching one is the wrong move
+tags:
+  - python
+  - errors
+---
+
+The last lesson ended on a small crash. Calling `open` on a file that was not
+there stopped the program cold and printed `FileNotFoundError`, and that was
+that. No file read, no lines counted, nothing after that point ran. The program
+did not limp along with an empty result or a made-up filename. It quit.
+
+That crash was not a bug in Python. It was Python doing its job. A file that does
+not exist cannot be opened, and rather than guess at what was meant, Python
+raised its hand and refused to continue. This lesson is about that raised hand:
+what it is, how to read the message it prints, and how to catch exactly that
+`FileNotFoundError` so a program can respond instead of falling over. Real
+programs meet missing files, blank inputs, and numbers that will not parse every
+single day. The difference between a tool people trust and one they avoid is
+whether it keeps its footing when that happens.
+
+## An exception is Python refusing to guess
+
+An exception is Python's signal that an instruction could not be carried out. Not
+that the syntax was wrong, the code was spelled fine, but that the thing the code
+asked for turned out to be impossible in the moment. Open a file that is not
+there. Turn the word "twelve" into an integer. Look up a key that a dictionary
+does not have. Each of these is a request Python cannot honor, so it raises an
+exception and stops the normal top-to-bottom flow right there.
+
+The word raise is the real Python term, and it fits. Something goes wrong deep in
+an instruction, and that instruction throws the problem upward, out of itself,
+looking for someone to deal with it. If nobody does, the exception travels all
+the way up and out of the program, and the program dies printing a report of what
+happened. That death is loud on purpose. A crash that announces itself is far
+kinder than a program that silently keeps going with garbage.
+
+This is worth sitting with, because the instinct of a new programmer is to treat
+every error as a personal failing. It is not. An exception is information. Python
+found a specific instruction it could not run and told the exact truth about it.
+The skill being learned here is not how to avoid all errors, which is impossible,
+but how to read what Python is saying and decide, on purpose, what should happen
+next.
+
+<Quiz
+  id="err-what-is-exception"
+  question="A program runs int(text) where text is the word forty spelled out in letters, with no try or except around it. What does Python do at that line?"
+  answer={1}
+  options={[
+    "It substitutes 0, since the letters cannot become a number, and keeps running.",
+    "It stops at that line and raises a ValueError, because it cannot carry out the instruction and will not invent a value.",
+    "It rounds to the nearest number it can find inside the text.",
+    "It prints a quiet warning and finishes the rest of the program as normal.",
+  ]}
+  explanation="An exception is Python's signal that an instruction could not be carried out. int cannot turn non-numeric letters into a number, so it raises a ValueError and stops. Nothing after that line runs unless the exception is caught. Python never quietly guesses a replacement value."
+/>
+
+## The last line of a traceback is the one that matters
+
+When an exception goes uncaught, Python prints a traceback: a report of where the
+failure happened and the chain of calls that led to it. Tracebacks look like a
+wall of text, and the reflex is to skim past them. That reflex is backwards. The
+traceback is the single most useful thing on the screen, and almost all of the
+answer lives on one line.
+
+Read a traceback from the bottom up. The very last line names the error type and
+gives a message. Everything above it is the trail Python followed to reach the
+break. Take a small program that adds up a list of counts, where one of the
+values is not a number. Saving it as `total.py` and running it produces this.
+
+<CommandCard command="python3 total.py" title="terminal" explain="Runs total.py, which tries to add a list of counts where one value is the word twelve instead of a number." />
+
+<ExpectedOutput label="running total.py">
+```
+Traceback (most recent call last):
+  File "/home/receipts/total.py", line 10, in <module>
+    print(total_from(["3", "5", "twelve"]))
+          ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/receipts/total.py", line 7, in total_from
+    total += load_count(v)
+             ~~~~~~~~~~^^^
+  File "/home/receipts/total.py", line 2, in load_count
+    return int(text)
+ValueError: invalid literal for int() with base 10: 'twelve'
+```
+</ExpectedOutput>
+
+The bottom line says everything: `ValueError: invalid literal for int() with base
+10: 'twelve'`. That is the type, `ValueError`, and the message, which even quotes
+the exact bad value, `'twelve'`. The three `File` blocks above are the path Python
+took: it started at line 10, stepped into `total_from` at line 7, stepped again
+into `load_count` at line 2, and that is where `int` gave up. The directory part
+of the path depends on where the file lives, and the little `~~~^^^` marks under
+the code point at the exact spot that failed. Read the bottom line first, then
+walk up only as far as needed.
+
+Four exception types show up constantly, and knowing them on sight saves real
+time. `FileNotFoundError` means a file path did not exist, the crash from the last
+lesson. `ValueError` means the value had the wrong content, like `int("twelve")`.
+`KeyError` means a dictionary lookup asked for a key that is not there, so
+`prices["banana"]` on a dictionary without `"banana"` raises `KeyError: 'banana'`.
+`TypeError` means the types did not fit, like `"3" + 5`, which fails with `can
+only concatenate str (not "int") to str` because Python will not add text to a
+number. The type name is a category. The message is the specifics.
+
+<Quiz
+  id="err-read-traceback"
+  question="A traceback prints three File blocks and its final line reads KeyError: 'banana'. Which part tells you what actually went wrong?"
+  answer={2}
+  options={[
+    "The first File block, because Python always reads a program from the top.",
+    "The middle File block, where the program spent the most time.",
+    "The last line, KeyError: 'banana', which names the error type and the exact missing key.",
+    "None of them; a traceback only shows that something failed, never what.",
+  ]}
+  explanation="A traceback lists the chain of calls from the outermost point down to the failure, then names the error on the very last line. The File blocks above are the route Python took to get there. The final line is the type and message, and here it even quotes the key that was missing."
+/>
+
+## try and except: respond instead of crash
+
+Knowing why a program crashed is half the job. The other half is deciding that
+some failures should not crash it at all. Python's tool for that is the
+`try`/`except` block. Code that might fail goes in the `try` part. The plan for
+when it does fail goes in the `except` part. If the `try` code runs cleanly, the
+`except` part is skipped entirely. If it raises an exception, Python jumps
+straight to the matching `except` and runs that instead of dying.
+
+Here is the crash from the top of the lesson, handled. The program tries to open a
+notes file, and if that file is not there, it starts with empty text rather than
+quitting.
+
+```python
+try:
+    with open("notes.txt") as f:
+        text = f.read()
+except FileNotFoundError:
+    text = ""
+    print("No notes file yet, starting empty.")
+print("Loaded", len(text), "characters.")
+```
+
+<ExpectedOutput label="running it with no notes.txt present">
+```
+No notes file yet, starting empty.
+Loaded 0 characters.
+```
+</ExpectedOutput>
+
+The program did not crash. `open` raised `FileNotFoundError`, Python jumped to the
+`except FileNotFoundError` line, set `text` to an empty string, printed a note, and
+kept going. The final line ran normally. That is the whole point: the program met
+the exact situation from last lesson and stayed on its feet. And notice the last
+line is outside the `try`/`except`. Once the failure is handled, ordinary flow
+resumes.
+
+The same shape catches bad input. Converting text to a number with `int` raises
+`ValueError` when the text is not a number, so wrapping it says what to do when
+that happens.
+
+```python
+raw = "twelve"
+try:
+    age = int(raw)
+    print("Next year:", age + 1)
+except ValueError:
+    print("That was not a whole number. Try again.")
+```
+
+<ExpectedOutput label="running it with raw set to twelve">
+```
+That was not a whole number. Try again.
+```
+</ExpectedOutput>
+
+The `int(raw)` line raised `ValueError`, so the `print` right after it never ran,
+and Python went to the `except`. If `raw` had been `"41"`, the `try` block would
+have finished and printed `Next year: 42`, and the `except` would have been
+skipped. One block, two outcomes, and neither one is a crash.
+
+## Catch the exact error, or raise one on purpose
+
+The `except` above named a specific type, and that was a deliberate choice. Python
+allows a bare `except:` that catches every exception of every kind. Reach for the
+named form almost always. `except ValueError` catches the one failure that was
+actually expected and lets every other kind fly on past to be dealt with
+elsewhere. A bare `except` catches all of them, including bugs that have nothing
+to do with the situation being handled.
+
+When two different failures deserve the same response, name both in a tuple:
+`except (ValueError, TypeError):` catches either one and skips everything else. And
+two `except` lines can sit under a single `try`, each handling a different type its
+own way, so a missing file gets one response and bad input gets another. The rule
+holds either way: name what has a real answer, and let the rest raise. A handler
+that catches only what it understands is a handler that can be trusted.
+
+Sometimes cleanup has to happen no matter what, whether the `try` succeeded or
+failed. That is what `finally` is for. A `finally` block runs at the end of the
+`try`/`except` in every case, which makes it the right place to close a file or
+release something the program grabbed. It runs on success, it runs on a caught
+exception, and it even runs on an exception that is not caught, right before the
+program exits.
+
+There is also the other direction. A program can raise an exception on purpose
+with the `raise` keyword, and this is how good code rejects bad input early
+instead of letting it rot into a confusing failure later. A function that sets a
+volume has no business accepting 150 on a 0-to-100 scale, so it should say so out
+loud.
+
+```python
+def set_volume(level):
+    if level < 0 or level > 100:
+        raise ValueError(f"volume must be 0 to 100, got {level}")
+    print("volume set to", level)
+
+set_volume(150)
+```
+
+<ExpectedOutput label="running it">
+```
+Traceback (most recent call last):
+  File "/home/receipts/volume.py", line 6, in <module>
+    set_volume(150)
+    ~~~~~~~~~~^^^^^
+  File "/home/receipts/volume.py", line 3, in set_volume
+    raise ValueError(f"volume must be 0 to 100, got {level}")
+ValueError: volume must be 0 to 100, got 150
+```
+</ExpectedOutput>
+
+That traceback is the good kind. It fails at the exact moment the bad value
+arrived, and the message names the rule that was broken and the value that broke
+it. A function that instead quietly clamped 150 down to 100 would hide the caller's
+mistake, and the bug would surface somewhere far away and much harder to trace.
+Raising early is a gift to whoever debugs this next.
+
+<Quiz
+  id="err-specific-except"
+  question="Why catch except ValueError instead of a bare except that catches everything?"
+  answer={1}
+  options={[
+    "A bare except runs faster, because Python skips checking the exception type.",
+    "A bare except also swallows unrelated bugs like a misspelled variable name, hiding a real problem while pretending it was handled.",
+    "except ValueError is the only form Python allows, so a bare except is a syntax error.",
+    "There is no real difference; both forms catch exactly the same set of failures.",
+  ]}
+  explanation="Naming the exception catches only the failure that was expected. A bare except also catches a NameError from a typo, a keyboard interrupt, and more, so a genuine bug gets silently treated as the handled case. Specific except keeps the handler honest and lets unrelated failures surface."
+/>
+
+## When catching is the wrong move
+
+The strongest thing to know about `try`/`except` is when not to use it. Catching an
+exception is a promise: it says this failure has a sensible response, and the
+program can carry on. If there is no sensible response, catching the exception
+only hides the truth and lets the program stumble forward broken. A missing config
+file the program cannot run without is not something to swallow. Let it crash. The
+loud traceback is the useful outcome, because it points straight at the real
+problem.
+
+Picture a script that connects to a database, and the password in the config is
+wrong. Wrapping that connection in `try`/`except` and printing "could not connect,
+continuing anyway" is worse than useless. There is no continuing anyway. Every step
+after it depends on that connection, so the program limps forward raising a fresh
+exception at every turn, and the original cause is buried under the noise. The
+honest move is to let the first failure stop the program where it happened. A crash
+at the real cause beats ten crashes downstream that all point back to it.
+
+The trap that catches beginners is the empty handler. Writing `except:` with
+nothing but `pass` inside makes every error vanish without a word. It feels tidy.
+It is a landmine. Six months later a real bug, a typo in a variable name, a
+network that never answered, gets silently eaten by that handler, and the program
+behaves strangely with no clue on the screen about why. Catch the specific thing
+that has a real answer, and let everything else raise.
+
+<Callout type="warning" title="A bare except swallows a real bug">
+Wrapping code in `try:` followed by a bare `except: pass` does not just catch the
+failure that was expected. It also catches a `NameError` from a misspelled
+variable, a `KeyboardInterrupt` when someone tries to stop the program, and any
+other exception. A real bug then disappears silently and gets blamed on the wrong
+thing for hours. Catch the exact type that has a real response, `except
+FileNotFoundError` or `except ValueError`, and let the rest surface loudly.
+</Callout>
+
+<Exercise title="Turn a crash into a graceful message">
+Write a short program that reads a line of text called `raw` (set it to something
+that is not a number, like `"lots"`), then tries to run `count = int(raw)` and
+print `count * 2`.
+
+Run it once with no protection and read the traceback out loud. Find the last
+line and name the exception type it reports. It should be `ValueError`.
+
+Now wrap the `int(raw)` and the print in a `try` block, and add `except
+ValueError:` that prints `Please enter a whole number.` instead. Run it again and
+confirm no traceback appears, only your message. Then change `raw` to `"7"` and
+run it a third time, and watch the `try` block succeed and print `14` while the
+`except` is skipped. If a stray `except:` with no type sneaks in, put the type
+back; catching the exact error is the habit worth keeping.
+</Exercise>
+
+The programs in this module are now worth keeping. They read files, handle bad
+input, and stay standing when something goes wrong, which means they are the kind
+of thing it hurts to lose to a bad edit or a deleted folder. The next module,
+Version Control with Git, starts with what version control is: a way to save
+working versions of code so a mistake is a step back, not a disaster.
+
+<Notes />

@@ -1,0 +1,71 @@
+---
+title: Working a Shift
+module: soc-analyst-fundamentals
+moduleTitle: SOC Analyst Fundamentals
+moduleOrder: 24
+moduleIcon: Headset
+order: 4
+summary: Queues, SLA clocks, and a handoff at the end. How a real eight hours in the SOC actually runs.
+estimatedMinutes: 15
+objectives:
+  - Structure a shift around the queue and the SLA clock
+  - Prioritize alerts by severity so the important ones do not age out
+  - Manage alert fatigue so you are still sharp at hour seven
+tags:
+  - soc
+  - operations
+  - sla
+  - workflow
+---
+
+You badge in, pull up the SIEM dashboard, and the first thing you check is not the newest alert. It is the oldest unresolved one, because that is the alert closest to breaching its SLA and getting your team a red mark. A shift is a clock-management job as much as a security job, and the analysts who thrive treat it that way.
+
+The rhythm is a loop. Take the next alert, triage it, close it or escalate it, log the outcome, repeat. Do that a few hundred times and the shift is over. The trick is doing it without the queue winning and without your brain turning to mush by hour six.
+
+## The SLA clock is always running
+
+An SLA is the promise your SOC made about how fast alerts get handled, and it is usually tied to severity. A common breakdown looks like this.
+
+Critical alerts get a response inside 15 minutes, because a confirmed ransomware detonation cannot sit for an hour. High severity gets maybe 30 to 60 minutes. Medium gets a few hours. Low might get a full shift or roll to the next day. Those exact numbers vary by shop, but the shape holds: the worse it could be, the faster you must touch it.
+
+This is why you never just work top to bottom by timestamp. A critical alert that landed two minutes ago jumps ahead of a low that has been sitting for an hour. Sort by severity first, then by age within each band. Let a critical breach its SLA because you were clearing lows and that is the incident review nobody wants to be in.
+
+<CommandBlock
+  title="a Splunk-style triage view for your queue"
+  commands={[
+    { cmd: "index=notable status=new | sort -severity, _time", comment: "highest severity first, then oldest within each band" },
+    { cmd: "index=notable status=new | stats count by severity", comment: "how bad is the backlog, right now" },
+    { cmd: "index=notable earliest=-15m severity=critical", comment: "anything critical about to breach its 15-minute clock" },
+  ]}
+/>
+
+## Work the queue without drowning
+
+Some shifts the queue floods: a noisy new detection, a mass phishing wave, a scanner hammering the perimeter. When that happens, do not panic-click. Look for the pattern. Fifty alerts that are all the same phishing sender are one investigation and a bulk close, not fifty separate ones. Grouping related alerts is how you clear volume without cutting corners.
+
+If the flood is a broken or too-sensitive detection dumping garbage, flag it for tuning instead of hand-closing the same false positive all night. A rule that fires 200 times a shift with zero true positives is not helping anyone. It is training the whole team to ignore that alert, which is exactly how a real one slips past.
+
+## Alert fatigue is a real threat
+
+Staring at a queue of mostly-noise for eight hours dulls you, and a dull analyst misses the one that counts. This is not a character flaw, it is how attention works, and good analysts manage it on purpose.
+
+Take real breaks away from the screen. Rotate between triage and a deeper task if your SOC allows it, because variety keeps you sharp. And be honest with yourself near the end of a long shift: if you are rubber-stamping alerts closed without really reading them, slow down or flag it. The cost of one missed critical dwarfs the cost of admitting you are fried.
+
+<Callout type="security" title="Do not close what you did not actually check">
+Under queue pressure it is tempting to mass-close alerts as false positive to make the number go down. Only close what you genuinely triaged, and only take containment actions on systems you are authorized to touch. A queue cleared by rubber-stamping is worse than a full queue, because now the miss is hidden and someone trusts the number.
+</Callout>
+
+<Quiz
+  id="shift-prioritization"
+  question="Your queue has a low-severity alert that has been open for 55 minutes and a critical alert that arrived 3 minutes ago. Which do you work first, and why?"
+  answer={1}
+  options={[
+    "The low, because it is older and closer to breaching its SLA",
+    "The critical, because its SLA window is far shorter and the impact is far higher",
+    "Whichever is at the top of the list by timestamp",
+    "Neither, escalate both to Tier 2 immediately",
+  ]}
+  explanation="Prioritize by severity first, then age within a band. A critical alert typically has a 15-minute SLA and severe impact, so it jumps ahead of an aging low that still has hours on its clock."
+/>
+
+<Notes />

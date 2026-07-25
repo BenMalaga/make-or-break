@@ -1,0 +1,71 @@
+---
+title: Padding Oracle Attacks
+module: cryptographic-attacks
+moduleTitle: Cryptographic Attacks
+moduleOrder: 41
+moduleIcon: Unlock
+order: 4
+summary: One error message that says "bad padding" hands you the plaintext.
+estimatedMinutes: 22
+objectives:
+  - Explain how a padding error becomes a decryption oracle
+  - Walk the logic of recovering one byte at a time
+  - Run a padding oracle attack against a lab target
+tags:
+  - crypto
+  - padding-oracle
+  - cbc
+  - aes
+---
+
+An app decrypts your ciphertext and responds one of two ways: a clean error if the padding is wrong, or a different error if the padding is right but the contents are garbage. Those two responses are all you need to decrypt the entire message without the key. That is a padding oracle, and it is one of the most elegant attacks in applied crypto because it turns a tiny information leak into total plaintext recovery.
+
+## The setup: CBC and PKCS7
+
+Block ciphers like AES work on fixed 16-byte blocks. Real messages are rarely an exact multiple of 16, so the last block gets padded. PKCS7 padding fills the remaining space with bytes whose value equals the number of padding bytes: one missing byte becomes `01`, three missing bytes become `03 03 03`, and so on. On decryption the code checks that padding is valid and rejects the message if it is not.
+
+In CBC mode, each ciphertext block is XORed with the previous block before the cipher runs, then XORed again on the way out. The practical consequence you need: flip a bit in one ciphertext block and you flip the exact same bit in the next block's decrypted output. You control the input to the XOR, which means you control the plaintext math even though you cannot decrypt directly.
+
+## The oracle
+
+The vulnerability appears when the app tells you whether padding was valid. That distinction is the oracle. It answers one question over and over: "did this ciphertext decrypt to something with valid padding?" Yes or no.
+
+Here is the trick. Take a target block and prepend a block of bytes you control. Tweak the last byte of your controlled block until the app says padding is valid. When it does, the last byte of the target block's decryption XORed with your byte equals `01`, because that is the only single-byte padding that validates. You just learned that intermediate value with simple algebra, and from it, the actual plaintext byte.
+
+Then move to the second-to-last byte. Set the last byte so it decrypts to `02`, brute-force the second byte until you get `02 02`, and repeat. Byte by byte, block by block, the whole message falls out. You never touched the key.
+
+<CommandBlock
+  title="attacker@lab, automating the byte walk"
+  commands={[
+    { cmd: "padbuster http://lab.local/decrypt CIPHERTEXT 16 -encoding 0", comment: "classic tool, 16-byte blocks, hex encoding" },
+    { cmd: "python3 poracle.py --url http://lab.local/api --block 16", comment: "a scripted oracle loop for a custom endpoint" },
+  ]}
+/>
+
+<ExpectedOutput label="padbuster recovering a block">
+[+] Success: Byte 16 == 0x01 (request 42)
+[+] Decrypted block: 7b22726f6c65223a2261646d696e22
+</ExpectedOutput>
+
+Doing this by hand is how you actually understand it, so on your first lab target, script the loop yourself before you fall back to `padbuster`. Sending a couple hundred requests to peel one block teaches the mechanism in a way the automated tool hides.
+
+<Callout type="security" title="Oracles live on real payment and session systems">
+Padding oracles have hit real targets, including the original POODLE and Vaudenay-style bugs in payment and session code. Run this only against a lab you control, a PentesterLab CBC exercise, or an in-scope engagement target. Hammering a production decrypt endpoint with thousands of malformed requests is both an attack and, on many systems, a denial-of-service risk. Get it in writing first.
+</Callout>
+
+The defense is the same lesson as the rest of this module: authenticate the ciphertext. Encrypt-then-MAC, or an AEAD mode like AES-GCM, means the app rejects tampered input before it ever checks padding, so there is no oracle to query. The padding check still happens, but the attacker never gets to see its result.
+
+<Quiz
+  id="padding-oracle-signal"
+  question="What single piece of information does the attacker actually need from the server?"
+  answer={1}
+  options={[
+    "The AES key used for the session",
+    "Whether a submitted ciphertext decrypts to valid padding or not",
+    "The full plaintext of one prior message",
+    "The server's private RSA key",
+  ]}
+  explanation="The oracle is just a yes/no on padding validity. That single bit, queried repeatedly with crafted ciphertext, is enough to recover every plaintext byte without ever learning the key."
+/>
+
+<Notes />

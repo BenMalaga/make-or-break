@@ -1,0 +1,71 @@
+---
+title: iOS App Internals
+module: mobile-security
+moduleTitle: Mobile Application Security
+moduleOrder: 39
+moduleIcon: Smartphone
+order: 3
+summary: IPAs, the app sandbox, the Keychain, and the protections you have to work around.
+estimatedMinutes: 22
+objectives:
+  - Unpack an IPA and understand why the App Store binary is encrypted
+  - Locate an app's sandbox container and its data stores
+  - Explain what the Keychain protects and how developers still misuse it
+tags:
+  - ios
+  - ipa
+  - keychain
+  - sandbox
+---
+
+An IPA has the same trick as an APK: it is a ZIP. Unzip it and you get a `Payload/` folder with the `.app` bundle inside, which holds the Mach-O executable, an `Info.plist`, the code signature under `_CodeSignature/`, and the provisioning profile at `embedded.mobileprovision`. The provisioning profile tells you whether this is a development, enterprise, or App Store build, which matters more than it sounds.
+
+Here is the catch that trips up people coming from Android. An App Store binary is encrypted with Apple's FairPlay DRM, so the Mach-O on disk is ciphertext. Run `strings` on it and you get noise. To read the code you decrypt it from memory on a device where it is running, using `frida-ios-dump` or a similar tool on a jailbroken device. Development and enterprise builds are usually not FairPlay-encrypted, so those you can pull straight into Hopper or Ghidra. Knowing which build you have saves you an hour of confusion.
+
+<CommandBlock
+  title="unpack and inspect"
+  commands={[
+    { cmd: "unzip app.ipa -d app_extracted", comment: "Payload/AppName.app is the bundle you want" },
+    { cmd: "otool -l app_extracted/Payload/AppName.app/AppName | grep -A4 LC_ENCRYPTION_INFO", comment: "cryptid 1 means the binary is FairPlay-encrypted" },
+    { cmd: "plutil -p app_extracted/Payload/AppName.app/Info.plist", comment: "human-readable Info.plist: URL schemes, ATS settings, permissions" },
+  ]}
+/>
+
+## The sandbox and where data lives
+
+Every iOS app runs in its own sandbox, and its writable data sits in a container at `/var/mobile/Containers/Data/Application/<UUID>/`. The UUID changes per install, so you find it by package identifier. Inside, three directories carry almost everything:
+
+- **Documents/** user data, and the first place to check for unprotected files.
+- **Library/** app support data, including `Preferences/` where `NSUserDefaults` writes a plaintext plist, and `Caches/` which survives longer than developers assume.
+- **tmp/** scratch space.
+
+The bundle itself lives under a separate `Bundle/Application/<UUID>/` path and is read-only at runtime. That split, data container versus app bundle, is worth keeping straight because your secrets hunt is in the data container while your code is in the bundle.
+
+<CommandCard command="objection -g AppName explore" explain="Objection hooks the running app with Frida and gives you 'env' to print the sandbox paths, then 'ios plist cat' and 'ios nsuserdefaults get' to read stored data without hunting through the filesystem by hand." />
+
+## The Keychain, and why it is not a magic vault
+
+The Keychain is iOS's encrypted store for small secrets: passwords, tokens, keys. It is hardware-backed on modern devices through the Secure Enclave, and it is the right place to put credentials. So far so good.
+
+The misuse is in the accessibility attribute. Each Keychain item carries a class that decides when it can be read. `kSecAttrAccessibleWhenUnlocked` means the item is available only while the device is unlocked, which is what you usually want. `kSecAttrAccessibleAlways` (deprecated for good reason) leaves the secret readable even when locked. Worse, some developers skip the Keychain entirely and drop the auth token into `NSUserDefaults`, which is a plaintext plist any Keychain-dumping tool reads instantly on a jailbroken device. Finding a token in `Library/Preferences/` instead of the Keychain is a finding you will write up often.
+
+<Callout type="security" title="Jailbroken test hardware only">
+The techniques here assume a device you own, jailbroken for testing, running an app you are authorized to assess. Dumping the Keychain or decrypting a binary from memory on someone else's phone is unauthorized access. Apple's own protections exist to stop exactly that, so keep this to your test device, the OWASP iGoat app, or the OWASP MAS test apps.
+</Callout>
+
+Two platform protections are worth naming because they shape what you can and cannot do. iOS files can be encrypted with Data Protection classes tied to the passcode, so a file marked complete-protection is unreadable while the device is locked even with filesystem access. And App Transport Security (ATS) blocks plaintext HTTP by default, which pushes the interesting network findings toward apps that added an ATS exception to allow it.
+
+<Quiz
+  id="ios-binary-encryption"
+  question="You unzip an App Store IPA, run strings on the main binary, and see almost nothing readable. Why?"
+  answer={1}
+  options={[
+    "The binary is corrupted and needs re-downloading",
+    "App Store binaries are FairPlay-encrypted, so you must decrypt from memory on a device",
+    "iOS binaries never contain readable strings",
+    "You need to run strings as root",
+  ]}
+  explanation="App Store distribution wraps the Mach-O in FairPlay DRM. The on-disk code is ciphertext, so you decrypt it from a running process on a jailbroken device with a tool like frida-ios-dump before static analysis works."
+/>
+
+<Notes />

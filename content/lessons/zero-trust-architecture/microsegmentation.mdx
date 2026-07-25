@@ -1,0 +1,66 @@
+---
+title: Microsegmentation
+module: zero-trust-architecture
+moduleTitle: Zero Trust Architecture
+moduleOrder: 49
+moduleIcon: ShieldQuestion
+order: 3
+summary: On a flat network, one compromised host reaches every other host. Microsegmentation shrinks the blast radius to a single workload.
+estimatedMinutes: 18
+objectives:
+  - Explain blast radius and why east-west traffic is the real risk
+  - Compare host-based, network-based, and identity-based segmentation
+  - Write a default-deny policy that permits only the flows a workload needs
+tags:
+  - zero-trust
+  - microsegmentation
+  - network
+  - kubernetes
+---
+
+An attacker phishes one workstation in accounting. On a flat network, that box can open a connection to the domain controller, the build server, the database, and four hundred other endpoints, because everything on the LAN trusts everything else. The initial foothold was one machine. The blast radius is the whole company.
+
+Microsegmentation attacks that directly. Instead of a handful of broad VLANs, you write access policy around individual workloads, so each host or service can only talk to the specific things it legitimately needs. Compromise one workload and the attacker is boxed into that workload. The lateral hop that turns a single infection into a domain-wide incident just stops being available.
+
+The traffic this controls is east-west: server to server, workload to workload, inside the environment. Perimeter firewalls obsess over north-south, the traffic crossing the edge, and largely ignore east-west because it was assumed friendly. That assumption is exactly the lateral movement highway attackers ride, and it is what microsegmentation closes.
+
+## Three ways to enforce it
+
+You have three broad approaches, and the right one depends on where your workloads live.
+
+- **Host-based**: an agent on each host enforces policy locally through the OS firewall, iptables or nftables on Linux, WFP on Windows. Illumio and the cloud-native agents work this way. It follows the workload wherever it runs, which matters in a fleet that autoscales.
+- **Network-based**: switches, hypervisor firewalls, or security groups enforce between segments. VMware NSX and cloud provider security groups live here. Strong when your topology is stable, awkward when workloads move.
+- **Identity-based**: services authenticate each other with mutual TLS and a cryptographic identity, so the policy is "service A may call service B," not "IP X may reach IP Y." A service mesh with SPIFFE identities does this, and it survives IP churn cleanly because the identity, not the address, is the subject of the rule.
+
+Do not religiously pick one. A real environment mixes them: security groups at the cloud edge, host agents on the VMs, mTLS between the microservices.
+
+## Default deny, then open exactly what you need
+
+The only segmentation that works starts from deny-all and adds the flows you can justify. Start from allow and enumerate the bad, and you will miss something every time. Here is the pattern in Kubernetes, where a NetworkPolicy is how you segment pods.
+
+<CommandBlock
+  title="segment a namespace, default deny then allow one flow"
+  commands={[
+    { cmd: "kubectl label namespace payments zerotrust=enforced", comment: "mark the namespace you are locking down" },
+    { cmd: "kubectl apply -f default-deny.yaml", comment: "a NetworkPolicy selecting all pods with empty ingress and egress: nothing in, nothing out" },
+    { cmd: "kubectl apply -f allow-api-to-db.yaml", comment: "one rule: the api pod may reach the db pod on 5432, and only that" },
+    { cmd: "kubectl exec deploy/web -n payments -- nc -zv db 5432", comment: "verify an unauthorized pod is now blocked from the database" },
+  ]}
+/>
+
+<ExpectedOutput label="the verification you want">
+The api pod connects to db:5432. The web pod times out reaching db:5432. That gap is the blast radius you just removed: a compromised web pod can no longer touch the database.
+</ExpectedOutput>
+
+Before you write a single rule, map the flows. You cannot segment traffic you have not observed, and a default-deny rule dropped onto a service whose real dependencies you guessed at will page you at 2am. Run the environment in a log-only or observation mode first, watch what actually talks to what, then convert those observed flows into explicit allows and deny the rest.
+
+<Callout type="security" title="Map and test only what you are authorized to touch">
+Flow mapping, port probing between hosts, and confirming a deny rule holds are all active testing. Do it inside your own lab or on infrastructure you have explicit written authorization to assess. Scanning east-west traffic on a network you do not own, even to "check the segmentation," is unauthorized access. Build a two-namespace cluster locally and practice there.
+</Callout>
+
+<Exercise
+  id="zt-microseg-policy"
+  prompt="You have three tiers: web, api, and db. The only legitimate flows are web to api on 8080 and api to db on 5432. Write out, in plain language or NetworkPolicy YAML, a default-deny posture plus exactly the allow rules needed. Then state which single lateral movement each denied direction prevents if one tier is compromised."
+/>
+
+<Notes />

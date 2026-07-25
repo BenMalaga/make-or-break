@@ -1,0 +1,282 @@
+---
+title: Subdomain and Content Enumeration
+module: recon-and-scanning
+moduleTitle: Recon and Scanning
+moduleOrder: 3
+moduleIcon: ScanSearch
+order: 5
+summary: "One domain hides dozens of names nobody linked. Find them through DNS brute force, certificate logs, and the Host header."
+estimatedMinutes: 16
+prerequisites: ["recon-methodology", "host-discovery", "port-scanning-deep-dive", "service-and-version-detection"]
+objectives:
+  - Recap how DNS turns a subdomain into an IP address and why each resolving name is a new host
+  - Brute force subdomains against a domain with a wordlist and the right resolver
+  - Pull subdomains passively from certificate transparency logs and OSINT tools without touching the target
+  - Surface virtual hosts that never appear in DNS by fuzzing the Host header
+tags:
+  - recon
+  - enumeration
+  - dns
+---
+
+Service and version detection turned each open port into a named product:
+`Apache httpd 2.4.49` on one host, `OpenSSH 8.2p1` on another. Every lesson in
+this module so far has drilled downward. Live hosts, then open ports, then the
+exact software behind each one. Subdomain enumeration runs the other direction.
+It grows the list of hosts worth drilling into.
+
+Hand a tester one domain, `target.com`, and the real job is proving that name is
+not one machine. It is a staging site, an old admin panel, an internal API, a
+mail gateway, and twenty other things, each answering to its own name, most of
+them linked from nowhere. A single web <Term id="server">server</Term> almost
+never serves a single site. Enumeration is how the rest surface.
+
+## A name is not a machine
+
+Networking Foundations introduced <Term id="dns">DNS</Term>, the system that
+turns a name like `target.com` into an <Term id="ip-address">IP address</Term> a
+machine can route to. A subdomain is a name that sits under a parent domain.
+`dev.target.com`, `admin.target.com`, and `api.target.com` all live under
+`target.com`, and each is a separate DNS record that can point at a completely
+different <Term id="host">host</Term>.
+
+Nothing forces an organization to advertise those records. They exist because
+some machine needs to be reachable by name, but no public index lists them.
+`target.com` might have two hundred subdomains while the homepage links to four.
+The other hundred and ninety six are where the interesting things sit: the
+staging box nobody hardened, the forgotten admin panel, the API someone exposed
+by accident.
+
+The lookup behind all of this is the same one a browser makes. Ask a DNS
+resolver, the server that answers name lookups, for `dev.target.com` and it
+either returns an address or says the name does not exist. That single yes-or-no
+is the entire mechanism behind subdomain brute forcing.
+
+<CommandCard command="dig +short dev.target.com" explain="Asks a DNS resolver for the address record of one name. An address comes back if the name resolves, nothing if it does not." />
+
+<ExpectedOutput label="dig returns an address, so the name is real (illustrative)">
+```
+10.10.14.23
+```
+</ExpectedOutput>
+
+## Brute forcing subdomains
+
+Brute forcing subdomains means taking a list of likely names, `dev`, `mail`,
+`vpn`, `staging`, `git`, and asking DNS about each one under the target domain,
+keeping the names that resolve. This is <Term id="enumeration">enumeration</Term>
+at its most literal: read a list, query each entry, record the hits.
+
+The list is called a wordlist, a plain text file with one candidate per line.
+Its quality decides the results. SecLists, a public collection installed at
+`/usr/share/seclists` on most testing distributions, ships lists tuned for
+exactly this.
+
+<CommandCard command="gobuster dns -d target.com -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt" explain="dns mode resolves each candidate under -d target.com against DNS. -w points at the wordlist. Names that resolve print as Found." />
+
+<ExpectedOutput label="gobuster dns output (illustrative)">
+```
+Found: www.target.com
+Found: mail.target.com
+Found: dev.target.com
+Found: vpn.target.com
+Found: staging.target.com
+```
+</ExpectedOutput>
+
+This makes real DNS queries, so it is active recon against the target's DNS even
+though it never touches the web server. It is fast, and it only ever finds names
+someone already put in the wordlist. A subdomain named after an internal project
+codename will not be in a generic list, which is the built-in ceiling of brute
+forcing and the reason the passive sources below exist.
+
+<Callout type="warning" title="The wordlist is the whole game">
+A list that is too small walks straight past the subdomain that mattered. A list
+that is too large runs for an hour and hammers the resolver.
+`subdomains-top1million-5000` is a sane default: the five thousand most common
+names, ordered by how often they actually turn up. Reach for a bigger list only
+after the small one comes up short.
+</Callout>
+
+<Quiz
+  id="subdomain-new-host"
+  question="A subdomain brute forcer reports that staging.target.com resolves to an address. Why does that single result matter for the engagement?"
+  answer={1}
+  options={[
+    "It proves the main site at target.com is vulnerable",
+    "It is a new host in scope, with its own ports and services to scan",
+    "It replaces target.com as the primary target",
+    "It means the target's DNS is misconfigured",
+  ]}
+  explanation="A resolving subdomain is another live host. It feeds straight back into host discovery, port scanning, and version detection. Each name found widens the attack surface by one machine."
+/>
+
+## Certificate transparency: the log nobody had to request
+
+Brute forcing only finds names it already guessed. Certificate transparency
+finds names nobody guessed, and it does it without sending one packet to the
+target.
+
+Every time a site gets an HTTPS certificate, the credential that lets a browser
+trust it, the certificate authority that issued it writes an entry into a
+public, append-only log. This is certificate transparency, a system browsers
+rely on to catch mis-issued certificates. The side effect for a tester is large:
+a certificate names the exact hostnames it covers, and those logs are
+searchable. If `admin.target.com` ever received a certificate, its name is
+sitting in a public log whether or not it appears anywhere else.
+
+`crt.sh` is the usual front end. It answers over HTTP and returns JSON, so a
+one-liner pulls every logged name under a domain.
+
+<CommandCard command={`curl -s "https://crt.sh/?q=%25.target.com&output=json" | jq -r '.[].name_value' | sort -u`} explain="%25 is the URL-encoded % wildcard, so crt.sh returns every logged name ending in target.com. jq pulls the name_value field and sort -u drops duplicates." />
+
+<ExpectedOutput label="crt.sh names (illustrative)">
+```
+*.target.com
+admin.target.com
+dev.target.com
+mail.target.com
+vpn.staging.target.com
+```
+</ExpectedOutput>
+
+This is passive: the query goes to `crt.sh`, a third party, not to the target,
+and the target's own logs never record it. The limit is that a log only knows
+about names that were issued a certificate, so a service running plain HTTP with
+no certificate stays invisible here. Brute forcing and certificate logs cover
+each other's blind spots, which is why real recon runs both.
+
+## Passive sources and the tools that read them
+
+Certificate logs are one passive source. There are many: search engine indexes,
+DNS aggregators that archive records over time, public code repositories that
+leak an internal hostname in a config file. Querying each by hand would burn a
+morning, so tools pull from dozens of sources at once and hand back one merged
+list.
+
+`subfinder` is the common choice. It queries a wide set of passive sources and
+prints every subdomain it finds, no packets to the target.
+
+<CommandCard command="subfinder -d target.com -all -silent" explain="-d sets the domain, -all enables every configured passive source, -silent prints just the names with no banner." />
+
+OWASP Amass does the same job with a deeper source list and can also resolve
+names actively. In passive mode it stays quiet.
+
+<CommandCard command="amass enum -passive -d target.com" explain="enum is the enumeration subcommand, -passive skips any direct query to the target, -d sets the domain." />
+
+A passive tool proves a name existed at some point. It does not prove the name
+still resolves today. The habit that ties it together: gather names from every
+source, then resolve the merged list in one pass to see which are alive now.
+
+<CommandCard command="subfinder -d target.com -silent | dnsx -silent -a -resp" explain="subfinder emits candidate names and dnsx resolves each one. -a asks for address records and -resp prints the address next to any name that still resolves." />
+
+<ExpectedOutput label="dnsx resolving the merged list (illustrative)">
+```
+dev.target.com [10.10.14.23]
+mail.target.com [10.10.14.51]
+api.target.com [10.10.14.23]
+```
+</ExpectedOutput>
+
+Two of those names point at the same address. That is normal, and it is the next
+idea.
+
+<Quiz
+  id="ct-passive-why"
+  question="Certificate transparency can reveal a subdomain that brute forcing never guessed, without sending a packet to the target. What makes that possible?"
+  answer={2}
+  options={[
+    "Brute forcing only ever checks port 443",
+    "The logs contain the target's private keys",
+    "A certificate authority records every certificate it issues in a public log, so a name that got a certificate appears there whether or not a brute forcer would guess it",
+    "DNS does not store subdomain records at all",
+  ]}
+  explanation="Certificate transparency logs are public records the certificate authorities fill in, not the target. A hostname that ever received a certificate shows up in the log, and reading that third-party log touches nothing on the target."
+/>
+
+## Virtual hosts: names DNS never had
+
+`dev.target.com` and `api.target.com` both resolving to `10.10.14.23` is common
+and worth understanding. One IP address routinely serves many sites. When a
+request arrives, the web server reads the `Host` header, the line in every HTTP
+request that names which site the <Term id="client">client</Term> wants, and
+serves the matching content.
+
+That opens a gap. A virtual host can exist on the server with no DNS record at
+all. If `internal.target.com` is configured on the box but was never published
+in DNS, brute forcing and certificate logs both miss it, because there is no
+record anywhere to find. The only way to reach it is to send the server the
+right `Host` header directly and watch how the response changes.
+
+Fuzzing the Host header does that. Point a tool at the IP, drop a candidate name
+into the `Host` line on each request, and compare responses. A name the server
+does not recognize gets the default site: the same page at the same size every
+time. A real virtual host answers differently.
+
+<CommandCard command="ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -u http://10.10.14.23 -H 'Host: FUZZ.target.com' -fs 4242" explain="ffuf substitutes each wordlist entry for FUZZ in the Host header. -fs 4242 filters out responses of the default page's byte size, leaving only differently sized responses: the real virtual hosts." />
+
+<Callout type="tip" title="Filtering is what makes fuzzing usable">
+The default page comes back for every name that does not exist, always the same
+size. Filter that size out with `-fs` and only the odd responses survive. The
+same idea drives `-fc` to filter by status code and `-fw` to filter by word
+count. Measure the default response first, filter it, then read what is left.
+</Callout>
+
+<Quiz
+  id="vhost-filter"
+  question="A Host-header fuzz against one IP returns the same response size for every candidate name, matching the default site. What surfaces the real virtual hosts?"
+  answer={0}
+  options={[
+    "Filter out that response size with -fs, leaving only the differently sized responses",
+    "Switch to a UDP scan of the host",
+    "Conclude the host has no virtual hosts",
+    "Raise the request rate until the response sizes change",
+  ]}
+  explanation="A name that is not a real virtual host gets the default page, the same size every time. Filtering that size with -fs removes the noise and leaves the responses that differ, which are the hidden virtual hosts."
+/>
+
+## Every name found is a host to scan
+
+Each name these methods turn up feeds straight back to the top of this module. A
+resolving subdomain is another address to run host discovery against, another
+target for the <Term id="port-scanning">port scanning</Term> and
+<Term id="nmap">nmap</Term> version detection covered earlier. One URL in scope
+becomes an inventory of thirty, and each entry earns its own `nmap -sV` pass.
+
+The same brute-force logic reaches inside a single site. Plenty of a web
+server's content is linked from nowhere: an `/admin` panel, a `/backup`
+directory, a `.git` folder left in the web root. Pointing a wordlist at the URL
+path instead of at DNS knocks on each one.
+
+<CommandCard command="gobuster dir -u http://dev.target.com -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt" explain="dir mode requests each wordlist entry as a path under -u and reports the status code the server returns for it." />
+
+The status code is the whole tell. `200` is a live resource, `301` or `302` a
+redirect worth following, `403` a resource that exists but is blocked, which is
+itself a strong lead. `404` is the miss, and the tool discards it.
+
+<Callout type="security" title="Stay in scope as the surface grows">
+Enumeration multiplies the target list fast, and a discovered subdomain can
+resolve to infrastructure the engagement never covered: a shared host, a cloud
+provider, a third-party service. A tester confirms every name belongs to the
+target before sending it a single active packet. The subdomain nobody authorized
+is the one that ends the engagement.
+</Callout>
+
+<Exercise
+  id="ct-passive"
+  prompt="You want every subdomain a certificate was ever issued for under target.com, without sending one packet to the target. Name the public log service you would query."
+  answer="crt.sh"
+>
+Certificate authorities write every certificate they issue into a public,
+searchable log. The common web front end for that log is a short name ending
+in .sh.
+</Exercise>
+
+That inventory is the raw material for everything after this module. The Web
+module takes each site these methods exposed and works its inputs one by one.
+The Exploitation module takes a named service on a discovered host and turns a
+<Term id="vulnerability">vulnerability</Term> into a working
+<Term id="exploit">exploit</Term>. Recon breaks nothing on its own. It just
+makes sure that when the breaking starts, nothing in scope was left off the map.
+
+<Notes />

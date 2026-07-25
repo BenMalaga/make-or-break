@@ -1,0 +1,47 @@
+---
+title: Factorial Digit Sum
+summary: Compute 100 factorial, then sum its decimal digits and submit the total.
+track: make
+category: code
+difficulty: MEDIUM
+tags: [bignum, factorial, digits]
+answer: 648
+answerType: number
+starterLang: python
+starter: |
+  # Goal: compute 100! (100 factorial), then add up all of its decimal digits.
+  # Python integers are arbitrary precision, so 100! fits exactly with no overflow.
+
+  import math
+
+  n = math.factorial(100)   # the full exact value of 100!
+  digit_sum = 0             # replace this with the sum of the digits of n
+  print(digit_sum)
+hints:
+  - Python integers have no size limit, so math.factorial(100) is exact. No floating point.
+  - Turn the number into a string, then iterate its characters and add int(ch) each time.
+  - Do not round or use float; 100! has 158 digits and they all matter.
+---
+
+## Factorial Digit Sum
+
+The factorial of a number `n`, written `n!`, is the product of every integer
+from 1 up to `n`. For example, `5! = 5 * 4 * 3 * 2 * 1 = 120`.
+
+Factorials grow fast. `100!` is a 158-digit whole number, far beyond what a
+64-bit integer or a float can hold. Python handles this for you: its built-in
+integers are arbitrary precision, so `100!` is stored exactly.
+
+Your task:
+
+1. Compute `100!` exactly.
+2. Sum all of its decimal digits. For instance, if the number were `120`, the
+   digit sum would be `1 + 2 + 0 = 3`.
+
+Run your code, read the total, and submit that single number.
+
+Watch out for one trap: do not convert the factorial to a float anywhere. A
+float cannot represent a 158-digit integer exactly, and you would sum the digits
+of an approximation. Keep everything as an integer or a string.
+
+Compute the digit sum of `100!` and submit it.

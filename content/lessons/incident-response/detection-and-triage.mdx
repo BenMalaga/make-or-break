@@ -1,0 +1,105 @@
+---
+title: Detection and Triage
+module: incident-response
+moduleTitle: Incident Response
+moduleOrder: 23
+moduleIcon: Siren
+order: 2
+summary: Most alerts are noise. Triage is deciding which one is the fire.
+estimatedMinutes: 16
+objectives:
+  - Separate an event from an incident and a true positive from noise
+  - Ask the four triage questions that scope an incident fast
+  - Pull quick host artifacts to confirm or kill an alert
+tags:
+  - incident-response
+  - triage
+  - detection
+---
+
+Your SIEM throws 4,000 alerts a shift. If you chase all of them with equal
+energy, the one that matters gets the same three minutes as a user mistyping a
+password. Triage is the skill of spending your attention where the damage is,
+and it is the phase where good responders separate from button-clickers.
+
+Start with the distinction that saves you every time. An **event** is any
+observed thing: a login, a file write, a blocked connection. An **incident** is
+an event, or a chain of them, that actually harms confidentiality, integrity, or
+availability. One failed login is an event. Two hundred failed logins followed
+by one success from the same IP is an incident. Your job in triage is to decide,
+quickly, which bucket the alert belongs in.
+
+## Is it even real
+
+Half of triage is killing false positives so the real ones get room to breathe.
+Before you escalate anything, ask whether the alert fired on expected behavior:
+the vuln scanner that runs every Tuesday, the admin who legitimately uses
+`psexec`, the backup job that reads every file at 3am. Context turns a scary
+alert into a shrug.
+
+The other half is confirming a true positive with cheap evidence. You do not
+need a full forensic image to decide something is worth waking people up for. A
+few commands on the host usually settle it.
+
+<CommandBlock
+  title="analyst@suspect-host"
+  commands={[
+    { cmd: "ss -tunp | grep ESTAB", comment: "what is this box actually talking to right now" },
+    { cmd: "ps aux --sort=-%cpu | head -15", comment: "top processes, look for the one you cannot explain" },
+    { cmd: "grep -a 'Accepted' /var/log/auth.log | tail -20", comment: "recent successful logins, who and from where" },
+  ]}
+/>
+
+If `ss` shows an established connection to that beaconing IP from the alert, and
+`ps` shows an odd process owning it, you are done deliberating. That is an
+incident. Log the finding with a timestamp and move to scoping.
+
+## The four triage questions
+
+Once an alert survives the reality check, scope it before you contain anything.
+Answer these in order and write each answer into the case timeline:
+
+- **What is affected?** One host, one account, or a whole subnet. Scope drives
+  every decision after this.
+- **How bad, and how fast is it spreading?** A single infected workstation is a
+  different night than domain admin credentials in the attacker's hands.
+- **What is the entry point?** Phishing, an exposed service, a stolen key. You
+  need this before eradication or you fix nothing.
+- **Is data leaving?** Active exfiltration changes the priority order and usually
+  changes who you have to notify.
+
+You will not have perfect answers in the first ten minutes. Get the confident
+ones nailed and flag the rest as unknown, because a wrong assumption written down
+as fact is worse than an honest gap.
+
+## Rank it so the right thing gets your hours
+
+Assign a severity and let it drive the response, not the volume of the alert or
+who is shouting. A rough scale that works: **critical** is domain-wide
+compromise, ransomware in progress, or confirmed data theft. **High** is a
+single confirmed compromise with lateral-movement potential. **Medium** is
+contained malware on one endpoint. **Low** is a policy violation with no attacker
+in the loop. Severity decides who gets paged and what you are allowed to break
+to contain it.
+
+<Callout type="tip" title="Write the timeline as you go, not after">
+Every command you run and every answer you find gets one timestamped line in the
+case log the moment it happens. Reconstructing what you did four hours later from
+memory always loses detail, and the missing detail is usually the one the report
+needs.
+</Callout>
+
+<Callout type="security" title="Confirm with read-only steps first">
+During triage, prefer commands that observe rather than change: listing
+connections, reading logs, inspecting processes. Kill a process or block an IP
+too early and you can destroy the evidence that tells you how far the attacker
+got. Only take disruptive action on systems you are authorized to touch, and
+only once you understand what you are about to lose.
+</Callout>
+
+<Exercise
+  id="triage-alert"
+  prompt="Your EDR alerts that powershell.exe on a finance workstation spawned from winword.exe and opened a connection to 185.220.101.4. List, in order, the four triage questions you would answer and one command or log source you would check for each."
+/>
+
+<Notes />

@@ -1,0 +1,242 @@
+---
+title: "IPv6 and the Modern Internet"
+module: "networking-deep-dive"
+moduleTitle: "Networking Deep Dive"
+moduleOrder: 2
+moduleIcon: "Waypoints"
+order: 4
+summary: "IPv4 ran out of addresses years ago; IPv6 is the actual fix, and NAT was only ever the patch."
+estimatedMinutes: 15
+prerequisites: ["nat-and-private-networks"]
+objectives:
+  - Explain why the IPv4 address pool ran out and what 128-bit addressing changes
+  - Read and shorten an IPv6 address using the zero-compression rules
+  - Interpret IPv6 prefix notation and explain why a single /64 dwarfs the entire IPv4 space
+  - Describe how public addressability shifts security work from NAT onto the firewall
+tags:
+  - ipv6
+  - networking
+---
+
+The last lesson ended with NAT quietly translating a private address like 192.168.1.42 into a
+single public address so a whole household could share one IPv4 slot on the internet. That trick
+works, and it is why home networks still function today, but it was always a patch. NAT does not
+create new addresses. It hides a shortage by letting many devices take turns behind one. The actual
+fix for the shortage has existed since the late 1990s and is finally the address family that decides
+whether a modern network engineer can read the internet's addressing plan or not: IPv6.
+
+## Why IPv4 ran out
+
+IPv4 addresses are 32 bits long, which sounds abstract until it becomes a number: 2 to the 32nd
+power, or about 4.3 billion possible addresses. That felt limitless in 1981 when the protocol was
+standardized. Nobody designing it pictured billions of phones, laptops, security cameras, and light
+bulbs each wanting their own address. By the early 2010s the arithmetic caught up with the
+optimism. IANA, the body that hands out large address blocks to regional registries, allocated its
+last free /8 blocks in February 2011. The regional registries burned through their reserves over
+the following years, APNIC in Asia-Pacific first, then RIPE NCC in Europe, then ARIN in North
+America around 2015. The pool was not almost gone. It was gone, years ago, and it has stayed gone
+since.
+
+NAT is the reason the internet did not visibly break when that happened. Because NAT lets one
+public IPv4 address stand in for an entire private network, ISPs and carriers could keep connecting
+new customers without a fresh public address for every device. Carrier-grade NAT pushed the trick
+even further, sharing one public address across thousands of subscribers at once. It worked well
+enough that most people never noticed the pool was empty. But every layer of NAT is a workaround
+sitting on top of a protocol that fundamentally does not have enough room, and workarounds
+accumulate cost: extra translation state to track, broken end-to-end connectivity for some
+protocols, and complexity that somebody has to operate forever.
+
+IPv6 does not patch the shortage. It removes it. An IPv6 address is 128 bits long instead of 32,
+and the jump from 32 bits to 128 is not a modest upgrade, it is a change in kind. The address space
+is 2 to the 128th power, which works out to roughly 340 undecillion addresses, a number so far past
+everyday intuition that comparisons to grains of sand or stars in the galaxy still undersell it.
+The practical consequence matters more than the number itself: there is no longer any reason to
+ration addresses. Every phone, every sensor, every container in a data center, every interface on
+every router can hold a real, globally routable address, permanently, without anyone worrying about
+running low. That is the actual fix NAT was always standing in for.
+
+<Quiz
+  id="ipv4-exhaustion"
+  question="Why did the world start deploying NAT at massive scale even though it was never meant to be a permanent architecture?"
+  answer={2}
+  options={[
+    "NAT was faster than routing addresses directly, so ISPs adopted it for speed.",
+    "IPv6 had not been invented yet when the shortage began.",
+    "The 32-bit IPv4 address space, about 4.3 billion addresses, was exhausted at the central allocation level years ago, and NAT let many devices share the shrinking supply of public addresses.",
+    "NAT was required by law in most countries once broadband became common.",
+  ]}
+  explanation="IPv6 existed well before exhaustion hit (it was standardized in the late 1990s); the real driver was that IPv4's fixed 32-bit space ran out and NAT was the fastest way to keep connecting new devices without new public addresses."
+/>
+
+## Reading an IPv6 address
+
+An IPv6 address is written as eight groups of four hexadecimal digits, separated by colons. A full
+example, straight from the documentation range reserved for exactly this purpose, looks like this:
+
+```text
+2001:0db8:85a3:0000:0000:8a2e:0370:7334
+```
+
+That range, 2001:db8::/32, is set aside by the same body that manages address allocation
+specifically so writers and engineers have real addresses to put in examples without pointing at
+someone's actual network. It behaves exactly like a routable address in every way except that it is
+never assigned to real infrastructure, which makes it the right choice for a lesson like this one
+and for any documentation, lab, or diagram.
+
+Written out in full, that address is long and repetitive, and nobody types 32 hex digits by hand if
+they can avoid it. IPv6 defines two shortening rules that every engineer uses in practice. The
+first: leading zeros within a single group can be dropped, so 0db8 becomes db8, and 0370 becomes
+370. The second: exactly one consecutive run of all-zero groups can be replaced with a double colon,
+::, but only once per address, because if it appeared twice there would be no way to tell how many
+zero groups belong to each run. Applying both rules to the address above:
+
+```text
+Full:       2001:0db8:85a3:0000:0000:8a2e:0370:7334
+Shortened:  2001:db8:85a3::8a2e:370:7334
+```
+
+Read that shortened form left to right and it decompresses the same way every time: 2001, db8, 85a3,
+then the double colon expands to however many all-zero groups are needed to bring the total back to
+eight groups, then 8a2e, 370, 7334. An address like ::1, the IPv6 loopback equivalent of IPv4's
+127.0.0.1, takes the compression to its extreme: seven leading zero groups collapse to nothing,
+leaving just the double colon and a single 1. Once the two rules click, reading IPv6 stops feeling
+like decoding and starts feeling like reading IPv4 with more digits.
+
+Addresses come with a prefix length, written the same way IPv4 CIDR notation works, a slash followed
+by the number of bits that make up the fixed network portion. IPv6 standardizes on /64 as the normal
+subnet size for a local network segment, meaning the first 64 bits identify the network and the
+remaining 64 bits identify the specific host on it. That split is worth sitting with for a second: 64
+bits of host space per subnet is 2 to the 64th power, about 18.4 quintillion addresses, in one single
+/64. The entire IPv4 internet, every address that ever existed, is about 4.3 billion. One ordinary
+home network's IPv6 subnet holds over four billion times more addresses than IPv4 ever had in total.
+That is not a typo in the design, it is deliberate. IPv6 subnetting was built to never need careful
+rationing again, so instead of squeezing hosts into the smallest subnet that fits, engineers hand out
+/64s freely and let features like address auto-configuration use the extra room for things such as
+embedding a device's hardware identifier or randomizing part of the address for privacy.
+
+<Quiz
+  id="ipv6-shortening"
+  question="An address is written 2001:0db8:0000:0000:0000:0000:1428:57ab. What is the correctly shortened form?"
+  answer={1}
+  options={[
+    "2001:db8::1428:57ab::",
+    "2001:db8::1428:57ab",
+    "2001:0db8::1428:57ab:0000",
+    "2001:db8:0:0:1428:57ab::",
+  ]}
+  explanation="Drop the leading zero in db8, then collapse the single run of four consecutive all-zero groups to one double colon. A double colon can only appear once in an address, which rules out the first option, and the third and fourth options either keep a leading zero or place the compression in the wrong spot."
+/>
+
+## What changes when addresses stop being scarce
+
+NAT exists because IPv4 addresses are scarce. Take away the scarcity and the reason for NAT mostly
+disappears. With IPv6, a home network, a phone, a smart thermostat, and a laptop can each hold a
+real, globally routable address instead of a private one translated at the edge. That restores what
+network engineers call end-to-end addressing: a packet can travel from one device straight to
+another using their real addresses the whole way, with no translation step rewriting headers in the
+middle. End-to-end addressing was actually the original design of the internet. NAT broke it as a
+side effect of solving the address shortage, and protocols that assume two endpoints can reach each
+other directly, peer-to-peer applications, some VoIP setups, certain gaming and video call
+architectures, had to grow workarounds like STUN and TURN servers just to punch through NAT. IPv6
+lets that complexity fall away for networks that fully adopt it.
+
+But direct addressability is a trade, not a free upgrade. Under IPv4-plus-NAT, a device sitting
+behind a home router is, by accident of the translation process, hard to reach from outside unless
+something explicitly forwards a port to it. That accidental protection is not real security, NAT was
+never designed as a firewall, but it acted like a rough one in practice. Under IPv6, every device
+can have a real public address, which means every device is theoretically reachable from anywhere on
+the internet unless something is explicitly stopping incoming traffic. That something has to be a
+real, purpose-built firewall doing real access control, examining incoming connections and dropping
+what should not arrive, rather than relying on address translation as an incidental gatekeeper. This
+is the single biggest mental adjustment for anyone used to thinking of NAT as a security feature: in
+an IPv6 world, the firewall is doing the job people used to credit to NAT, and it needs to be
+configured on purpose rather than assumed.
+
+<Callout type="warning" title="Public addressability is not the same as being protected">
+Giving a device a real, routable IPv6 address means it can be reached directly from anywhere on the
+internet if nothing stops the traffic first. NAT used to make that hard by accident. On an IPv6
+network, a stateful firewall has to do that job on purpose, filtering unsolicited inbound
+connections the same way a good firewall does on the IPv4 side. Skipping that step and assuming
+"IPv6 devices are hidden like they used to be behind NAT" is a real and common misconfiguration, not
+a theoretical one.
+</Callout>
+
+## Living in both worlds at once
+
+None of this happened overnight, and it still is not finished. IPv6 was standardized in 1998, more
+than a decade before IPv4 exhaustion actually hit, and adoption has been a long, uneven climb rather
+than a cutover. Google has published measured IPv6 adoption statistics from its own traffic for
+years, and the trend line is a steady upward crawl, crossing roughly 40 percent of requests globally
+by the mid-2020s, higher in some countries and mobile carriers, lower in others, never a clean
+switch. Major cloud providers, mobile carriers, and content networks all run IPv6 today, often as
+the primary path, but plenty of infrastructure, older equipment, some enterprise networks, entire
+regions with slower upgrade cycles, still leans on IPv4.
+
+The practical answer to that mixed reality is dual-stack: a network, a server, or a device runs IPv4
+and IPv6 at the same time, on the same interface, and picks whichever one actually completes a
+connection. A server can listen on both an IPv4 address like 203.0.113.10 and an IPv6 address like
+2001:db8:85a3::10 simultaneously, answering requests on either. A client trying to reach that server
+typically attempts both and uses whichever connects first and cleanly, a behavior standardized as
+Happy Eyeballs specifically so users are not stuck waiting on a slow or broken path when a working
+one exists on the other protocol. This is why fluency in both address families is not optional for
+anyone doing real network work now. Reading a router's configuration, troubleshooting why a service
+is unreachable, or writing infrastructure automation all mean handling IPv4 and IPv6 as two protocols
+running side by side on the same equipment, not picking one and ignoring the other.
+
+That dual-stack reality also explains why routing has not simplified even as addressing has. IPv6
+still needs routes advertised and exchanged between networks, and the protocol doing that job at
+internet scale is the same one that has run IPv4 routing for decades: BGP, the Border Gateway
+Protocol. BGP carries both IPv4 and IPv6 route announcements today, often over the same sessions
+between routers, deciding how traffic in either address family actually crosses from one network to
+another to reach its destination. Every large network engineers deal with, from a cloud provider's
+backbone to an enterprise's connection to its ISP, runs BGP as the thing actually keeping the
+internet's routing table coherent across both protocols at once.
+
+<Quiz
+  id="dual-stack-reality"
+  question="A company's internal network runs both IPv4 and IPv6 side by side, and a new engineer suggests migrating everything to IPv6-only immediately since it 'is the future.' What is the strongest reason to push back on doing that today?"
+  answer={0}
+  options={[
+    "A meaningful share of external services, older equipment, and some regions still rely on IPv4, so an IPv6-only network risks losing reachability to things that have not fully adopted IPv6 yet.",
+    "IPv6 addresses cannot be routed by BGP, so an IPv6-only network would have no path to the rest of the internet.",
+    "IPv6 does not support subnetting, so large networks cannot be broken into smaller segments.",
+    "Firewalls are incompatible with IPv6, so an IPv6-only network cannot be secured.",
+  ]}
+  explanation="Adoption is real but uneven and still climbing, which is exactly why dual-stack is the standard approach today rather than an IPv6-only cutover. BGP routes IPv6 natively, IPv6 subnetting with /64 prefixes is a core part of the design, and firewalls work on IPv6 traffic the same way they do on IPv4, so none of the other options describe a real limitation."
+/>
+
+<CommandCard command="ip -6 addr show" title="terminal" explain="Lists IPv6 addresses assigned to network interfaces on a Linux host" />
+
+<ExpectedOutput label="ip -6 addr show output">
+```
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500
+    inet6 2001:db8:85a3::1a2b/64 scope global
+       valid_lft forever preferred_lft forever
+    inet6 fe80::216:3eff:fe74:c9a1/64 scope link
+       valid_lft forever preferred_lft forever
+```
+</ExpectedOutput>
+
+That output shows two IPv6 addresses on the same interface, and both are worth reading closely. The
+first, 2001:db8:85a3::1a2b/64, is a global scope address, meaning it is meant to be reachable from
+the wider internet, sitting on a /64 subnet as expected. The second, starting with fe80::, is a
+link-local address, a kind of address every IPv6 interface generates for itself automatically and
+uses only for communication with other devices on the same physical link, never routed beyond it.
+IPv4 has nothing quite like it built into every interface by default; link-local addresses exist
+specifically so devices on a segment can talk to each other, discover routers, and configure
+themselves before anything else, like DHCP or manual configuration, has happened at all.
+
+<Exercise title="Shorten an IPv6 address by hand">
+Take the documentation-range address 2001:0db8:0000:0042:0000:0000:0000:8a2e and shorten it using
+both rules: drop leading zeros within each group, then collapse the single longest run of
+all-zero groups into a double colon. Write down the shortened form, then check it by expanding it
+back out group by group and confirming it matches the original exactly.
+</Exercise>
+
+Reading and shortening addresses by hand is a skill worth having, but nobody configures a real
+network of any size by typing individual addresses into individual devices one at a time anymore.
+The next lesson picks up exactly there: how modern network engineers actually apply IPv6 addressing,
+IPv4 dual-stack, and every routing and firewall decision covered so far at scale, using code instead
+of retyping the same commands into device after device.
+
+<Notes />

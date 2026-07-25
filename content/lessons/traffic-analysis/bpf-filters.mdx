@@ -1,0 +1,106 @@
+---
+title: BPF Filters
+module: traffic-analysis
+moduleTitle: Traffic Analysis
+moduleOrder: 4
+moduleIcon: Activity
+order: 2
+summary: Slice a giant capture down to the one host, port, or subnet you care about.
+estimatedMinutes: 16
+objectives:
+  - Write host, port, and net filters in BPF syntax
+  - Combine primitives with and, or, and not
+  - Filter a capture down to one conversation on the wire or from a pcap
+tags:
+  - traffic-analysis
+  - bpf
+  - filtering
+---
+
+A busy interface pushes thousands of packets a second. Reading all of them is
+hopeless. **Berkeley Packet Filter** syntax is the language that tells tcpdump
+(and Wireshark's capture side) exactly which packets to keep. Learn a handful of
+primitives and you can carve one conversation out of the flood.
+
+## The three primitives you use constantly
+
+Every BPF filter is built from a few keywords. These are the ones that matter:
+
+- `host 10.10.14.5` keeps traffic to or from that one IP.
+- `port 80` keeps traffic to or from that port, either direction.
+- `net 10.10.14.0/24` keeps traffic to or from anything in that subnet.
+
+Add a direction word to be specific: `src host 10.10.14.23` is traffic **from**
+that host, `dst port 22` is traffic **to** port 22. Without `src` or `dst`, BPF
+matches both directions.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "sudo tcpdump -i eth0 -nn host 10.10.14.5", comment: "everything to or from that one box" },
+    { cmd: "sudo tcpdump -i eth0 -nn dst port 22", comment: "SSH traffic heading into the network" },
+    { cmd: "sudo tcpdump -i eth0 -nn net 10.10.14.0/24", comment: "anything inside this subnet" },
+  ]}
+/>
+
+The `net` primitive takes CIDR notation, so knowing your subnet math pays off
+directly here. A `/24` filter watches up to 254 hosts, a `/29` just six.
+
+<Diagram type="subnet" />
+
+## Combine them with logic
+
+Primitives get powerful when you glue them together with `and`, `or`, and `not`.
+Wrap groups in escaped parentheses so the shell does not eat them.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "sudo tcpdump -i eth0 -nn host 10.10.14.5 and port 80", comment: "web traffic to that one host" },
+    { cmd: "sudo tcpdump -i eth0 -nn port 80 or port 443", comment: "all web traffic, HTTP and HTTPS" },
+    { cmd: "sudo tcpdump -i eth0 -nn not port 22", comment: "everything except your own noisy SSH session" },
+    { cmd: "sudo tcpdump -i eth0 -nn 'host 10.10.14.5 and (port 80 or port 443)'", comment: "grouped: web traffic, either port, one host" },
+  ]}
+/>
+
+That `not port 22` trick is a daily habit. When you are SSHed into the box you
+are sniffing, your own session floods the output. Filter it out and the real
+traffic becomes readable.
+
+## Filter a saved pcap the same way
+
+The exact same syntax works when reading a file back with `-r`, so you can
+capture broadly and slice narrowly later.
+
+<CommandCard command="tcpdump -nn -r capture.pcap 'host 10.10.14.5 and port 21'" explain="Read the saved capture and show only FTP traffic with that host. No root needed to read a file, and you can re-filter it as many times as you like." />
+
+<Callout type="tip" title="Capture broad, filter narrow">
+Set your capture filter wide (a whole subnet, or no filter at all) so you never
+miss a packet, then apply tight BPF filters when reading the pcap back. A packet
+you filtered out at capture time is gone forever; one you keep can be sliced any
+way you want afterward.
+</Callout>
+
+<Quiz
+  id="bpf-net"
+  question="Which filter captures all traffic to or from the 10.10.14.0/24 subnet?"
+  answer={1}
+  options={[
+    "host 10.10.14.0/24",
+    "net 10.10.14.0/24",
+    "port 10.10.14.0/24",
+    "subnet 10.10.14.0/24",
+  ]}
+  explanation="net takes a CIDR range and matches any host inside it. host expects a single address, and there is no subnet primitive."
+/>
+
+<Exercise
+  id="bpf-combine"
+  prompt="Write a BPF filter that keeps only HTTP or HTTPS traffic to or from host 10.10.14.5. Just the filter expression, not the full command."
+  answer="host 10.10.14.5 and (port 80 or port 443)"
+  placeholder="host ... and (...)"
+>
+Combine a host primitive with an or-group of the two web ports, joined by and.
+</Exercise>
+
+<Notes />

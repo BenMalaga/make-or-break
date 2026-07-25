@@ -1,0 +1,67 @@
+---
+title: Patching Binaries
+module: reverse-engineering
+moduleTitle: Reverse Engineering
+moduleOrder: 34
+moduleIcon: Microscope
+order: 4
+summary: One conditional jump stands between "access denied" and "welcome"; flip the byte and the check is gone.
+estimatedMinutes: 20
+objectives:
+  - Locate the conditional jump that gates a check
+  - Patch a jump to invert or bypass it, by byte and by NOP
+  - Save a working patched binary and confirm the new behavior
+tags:
+  - reverse-engineering
+  - patching
+  - binary
+  - assembly
+---
+
+You found the check. `check_key` returns 1 on success, `main` does `test eax, eax` then `je fail`, and every wrong key sends you to the failure branch. You do not need to compute the right key. You need that one jump to stop going to `fail`, and that is a single byte on disk. Patching is editing the compiled instructions so the program behaves the way you want instead of the way it was built.
+
+The most common patch in RE is flipping a conditional jump. The CPU decides pass or fail at a `je`, `jne`, `jz`, or `jnz`, and each of those is one opcode byte plus an offset. Change `je` (opcode `0x74`) to `jne` (opcode `0x75`) and the branch now fires on the exact opposite condition. Wrong keys start passing. Right keys start failing, which nobody cares about because you only have wrong keys.
+
+## The two patches you reach for
+
+Invert the jump when you want the opposite decision. `0x74` becomes `0x75`, `0x75` becomes `0x74`. One byte, done.
+
+NOP the jump when you want the branch to never be taken at all. Overwrite the jump instruction with `0x90` bytes, the x86 no-op, so control just falls through to the success path. A short jump `je` is two bytes, so you write `90 90` over it. Match the length exactly, because a `jne rel32` is six bytes and overwriting only two of them corrupts the next instruction.
+
+Radare2 makes this fast. Open in write mode with `-w`, seek to the instruction, and assemble over it.
+
+<CommandBlock
+  commands={[
+    { cmd: "r2 -w ./license_check", comment: "-w opens the file for writing" },
+    { cmd: "s 0x00001189", comment: "seek to the address of the jump" },
+    { cmd: "pd 5", comment: "print 5 disassembled instructions to confirm you are on it" },
+    { cmd: "wa jne 0x11a5", comment: "write-assemble: replace je with jne to the same target" },
+    { cmd: "wx 9090", comment: "or write raw bytes: two NOPs over a 2-byte je" },
+  ]}
+/>
+
+`wa` assembles a mnemonic and writes it. `wx` writes raw hex when you already know the bytes. After either one, `pd 5` again to confirm the patch landed, then `q` to quit. Radare2 writes in place, so you just changed the file on disk.
+
+## Confirm it before you trust it
+
+Run the patched binary with any wrong key. If it prints the success message, you won. If it segfaults, you probably wrote a wrong-length patch and clipped the following instruction, so reopen and check the disassembly around your edit.
+
+Keep a copy of the original. `cp license_check license_check.bak` before you touch it, every time, because an over-eager `wx` on the wrong offset can brick the file and you do not want to redo your analysis.
+
+<Callout type="security" title="Patch only what you own or are cleared to modify">
+Modifying a program to bypass its licensing or protection is what people mean by cracking, and doing it to commercial software is both a license violation and, under laws like the DMCA's anti-circumvention clause, potentially illegal. Keep this to crackmes, CTF binaries, and your own code. The technique is the same either way; the authorization is what makes it legitimate.
+</Callout>
+
+For a permanent understanding, also patch at runtime in GDB first. `set $eax = 1` right after `check_key` returns forces the success value without touching disk, which lets you verify your theory before you commit a file patch. If the runtime override makes the program accept the key, the on-disk patch at that same spot will too. That two-step, prove it live then bake it in, saves you from patching the wrong jump and wondering why nothing changed.
+
+<Exercise
+  id="patch-nop-length"
+  prompt="A check is gated by a 6-byte 'jne rel32' instruction and you want to force fall-through. How many 0x90 bytes do you write, and why does the count matter?"
+  answer="Six, because the NOPs must cover the entire instruction; writing fewer leaves trailing bytes that decode as a new, corrupt instruction"
+  placeholder="How many NOPs, and what breaks if you write too few?"
+>
+The replacement has to be the same length as what it replaces. A partial
+overwrite leaves orphaned bytes that the CPU tries to decode as an instruction.
+</Exercise>
+
+<Notes />

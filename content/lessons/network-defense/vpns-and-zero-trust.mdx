@@ -1,0 +1,76 @@
+---
+title: VPNs and Zero Trust
+module: network-defense
+moduleTitle: Network Defense
+moduleOrder: 28
+moduleIcon: ShieldHalf
+order: 4
+summary: A VPN that drops you onto the flat corporate LAN just gave the attacker a tunnel straight in. Zero trust fixes the model.
+estimatedMinutes: 22
+objectives:
+  - Explain what a VPN actually protects and what it does not
+  - Describe why "inside the network equals trusted" is a broken assumption
+  - Apply zero-trust principles to remote access design
+tags:
+  - vpn
+  - zero-trust
+  - remote-access
+  - wireguard
+  - defense
+---
+
+The classic remote-access setup: an employee connects to the corporate VPN from a coffee shop, authenticates once, and now their laptop is on the internal network with the same reach as if they were plugged in at their desk. That is convenient and it is exactly the problem. If that laptop is already compromised, or those VPN credentials got phished, the attacker now has a tunnel onto your LAN with a trusted internal IP. The VPN did its job perfectly and handed the attacker the keys.
+
+A VPN encrypts traffic between two points and authenticates who is allowed to build the tunnel. That is the whole job. It protects data in transit from someone sniffing the coffee shop wifi, and it proves the connecting party holds a valid key. What it does not do is verify that the device is healthy, that the user is who the credential says, or that this person should reach the specific server they are now trying to reach. Encryption in transit is not authorization, and treating a VPN as your access control is the mistake at the center of a decade of breaches.
+
+## The perimeter model is dead
+
+The old model is a castle. Hard wall on the outside, soft trusted interior. Get past the firewall and you are trusted, because "inside the network" was treated as a proxy for "authorized." That assumption breaks the moment anything inside is compromised, and something always is: a phished credential, a vulnerable IoT device, a contractor's infected laptop, a misconfigured server. Once the attacker is inside a flat trusted network, lateral movement is trivial because everything trusts everything else on the LAN.
+
+Remote work and cloud killed the perimeter for good. Your users are everywhere, your servers are in three clouds and a data center, and "inside the network" no longer describes anything meaningful. There is no wall left to be inside of.
+
+## Zero trust: never trust the network
+
+Zero trust throws out the idea that network location implies trust. The principle is one line: never trust, always verify. Every request to every resource gets authenticated and authorized on its own, regardless of where it comes from. A request from a machine sitting in the server room gets the same scrutiny as one from a hotel wifi, because the network it rides on tells you nothing about whether it should be allowed.
+
+Three things get checked on every access, not once at login. Who is the user, and can you prove it with strong authentication. What is the device, and is it in a healthy known state. What resource are they asking for, and does policy allow this identity to reach that specific thing right now. Grant the minimum access needed for that one request, and re-verify continuously rather than issuing a broad trust token that stays valid for hours.
+
+<Callout type="security" title="Test remote access on your own systems">
+Auditing VPN configs, testing for split-tunnel leaks, and probing what a VPN client can reach after connecting are all active assessment. Do it against infrastructure you own or are authorized to test. Connecting to and mapping someone else's VPN-reachable network without scope is unauthorized access.
+</Callout>
+
+## Build the tunnel right
+
+WireGuard is the VPN to reach for now: small, fast, and simple enough to audit. Keys instead of passwords, and a config short enough to read in one screen.
+
+<CommandBlock
+  commands={[
+    { cmd: "wg genkey | tee privatekey | wg pubkey > publickey", comment: "generate the keypair; the private key never leaves the device" },
+    { cmd: "wg-quick up wg0", comment: "bring up the tunnel from the config" },
+    { cmd: "wg show", comment: "confirm the handshake completed and see the allowed IPs per peer" },
+  ]}
+/>
+
+The line that matters most in a WireGuard config is `AllowedIPs`, because it decides what the tunnel can reach. Set it to `0.0.0.0/0` and you route everything, full tunnel. Set it to a single subnet or a single host and the client can only reach that. This is where you enforce least privilege at the network layer: do not give a contractor's tunnel a route to the entire LAN when they need one internal app.
+
+The zero-trust upgrade is to stop terminating the VPN onto a flat network at all. Instead of "connect and you are inside," you put an identity-aware proxy in front of each application. The user authenticates to reach the one app they need, the proxy checks device health and policy per request, and there is no general network access granted. Compromise one session and the attacker reaches one app, not the LAN. That is the difference between a breach that is contained and one that becomes a domain-wide incident.
+
+<Quiz
+  id="zt-vpn-trust"
+  question="An attacker phishes valid VPN credentials and connects from their own machine. In a traditional perimeter model, what have they gained?"
+  answer={0}
+  options={[
+    "A trusted internal IP with broad reach across the LAN, because the network treats VPN-connected as inside and inside as trusted",
+    "Nothing, because the VPN only encrypts traffic and grants no access",
+    "Access to a single application, gated by per-request device and identity checks",
+    "Read-only access to public resources only",
+  ]}
+  explanation="In the perimeter model, the VPN drops the authenticated user onto the internal network, and internal equals trusted. Phished credentials therefore buy broad lateral reach. Zero trust breaks this by verifying identity, device, and policy on every request to every resource, so a stolen credential reaches only what that identity is explicitly allowed, not the whole LAN."
+/>
+
+<Exercise
+  id="zt-allowedips"
+  prompt="Take a WireGuard client config and look at the AllowedIPs line. If it says 0.0.0.0/0, the client routes all traffic through the tunnel and can reach everything the server can. Rewrite it to permit only the single subnet or host the client legitimately needs, then explain what lateral movement you just prevented if that client is later compromised."
+/>
+
+<Notes />

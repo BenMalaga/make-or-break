@@ -1,0 +1,170 @@
+[
+  {
+    "domain": 4,
+    "question": "At which layer of the OSI model do IP addresses and routing between different networks operate?",
+    "options": ["Layer 2, Data Link", "Layer 3, Network", "Layer 4, Transport", "Layer 7, Application"],
+    "correct": [1],
+    "explanation": "Layer 3, the Network layer, handles logical addressing (IP) and routing packets between networks. The Data Link layer uses MAC addresses within a single segment, the Transport layer handles TCP and UDP ports, and the Application layer handles protocols like HTTP.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "The TCP/IP model is often described as having four layers. Which OSI layers are combined into the single TCP/IP Application layer?",
+    "options": ["Physical and Data Link", "Network and Transport", "Session, Presentation, and Application", "Transport and Network"],
+    "correct": [2],
+    "explanation": "The four-layer TCP/IP model rolls the OSI Session, Presentation, and Application layers into one Application layer. The Physical and Data Link layers map to the TCP/IP Link (Network Access) layer, while Network and Transport stay largely one-to-one.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A client and server complete a TCP connection using a SYN, then SYN-ACK, then ACK exchange. What is this process called?",
+    "options": ["Three-way handshake", "Two-way handshake", "Connectionless datagram exchange", "Session key negotiation"],
+    "correct": [0],
+    "explanation": "The three-way handshake (SYN, SYN-ACK, ACK) establishes a reliable TCP session before data flows. UDP is connectionless and uses no handshake, and session key negotiation is a cryptographic step, not the TCP connection setup.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Which protocol is connectionless, provides no guaranteed delivery, and is commonly used for DNS queries and streaming media?",
+    "options": ["TCP", "UDP", "ICMP", "ARP"],
+    "correct": [1],
+    "explanation": "UDP is connectionless and does not guarantee delivery or ordering, which suits latency-sensitive traffic like DNS lookups and streaming. TCP is connection-oriented and reliable, ICMP is used for diagnostics like ping, and ARP resolves IP addresses to MAC addresses.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "An administrator needs to allow secure, encrypted remote command-line administration of a Linux server. Which port should be open?",
+    "options": ["23", "22", "21", "80"],
+    "correct": [1],
+    "explanation": "Secure Shell (SSH) uses TCP port 22 and encrypts the remote session. Port 23 is Telnet, which sends credentials in cleartext, port 21 is FTP control, and port 80 is unencrypted HTTP.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Which pair correctly matches the protocol to its default port?",
+    "options": ["HTTPS uses TCP 8080", "DNS uses TCP or UDP 53", "SMTP uses TCP 110", "RDP uses TCP 443"],
+    "correct": [1],
+    "explanation": "DNS listens on port 53 and uses UDP for most queries and TCP for larger responses and zone transfers. HTTPS uses 443, SMTP uses 25 (110 is POP3), and RDP uses 3389, so the other options are mismatched.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A user reports that a legacy application transmits both files and login credentials in plaintext over port 21. Which secure replacement should be recommended?",
+    "options": ["Telnet", "SFTP or FTPS", "SNMPv1", "TFTP"],
+    "correct": [1],
+    "explanation": "FTP on port 21 sends data and credentials in cleartext, so SFTP (over SSH) or FTPS (FTP over TLS) provides encrypted file transfer. Telnet and SNMPv1 are also cleartext protocols, and TFTP offers no authentication or encryption.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "In a distributed denial-of-service (DDoS) attack, what is the primary goal of the attacker?",
+    "options": ["Steal encryption keys from the server", "Exhaust resources so legitimate users cannot access a service", "Escalate privileges on a compromised host", "Alter stored records without detection"],
+    "correct": [1],
+    "explanation": "A DDoS attack floods a target from many sources to consume bandwidth, connections, or compute so the service becomes unavailable, attacking availability. Stealing keys, escalating privileges, and altering records are goals of other attack types, not the defining aim of a DDoS.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "An attacker positions themselves between two communicating parties to intercept and possibly alter traffic without either party knowing. What is this attack called?",
+    "options": ["On-path (man-in-the-middle) attack", "Denial-of-service attack", "SQL injection", "Phishing"],
+    "correct": [0],
+    "explanation": "An on-path attack, also called man-in-the-middle, secretly relays and can modify communications between two parties. A DoS attacks availability, SQL injection targets databases through input, and phishing tricks users into revealing information.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which device inspects traffic against a set of rules and permits or blocks packets based on source, destination, port, and protocol?",
+    "options": ["Firewall", "Hub", "Repeater", "Patch panel"],
+    "correct": [0],
+    "explanation": "A firewall enforces rules that allow or deny traffic based on attributes such as address, port, and protocol. A hub and repeater simply forward or regenerate signals with no filtering, and a patch panel is a passive cabling termination point.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "What is the key difference between an intrusion detection system (IDS) and an intrusion prevention system (IPS)?",
+    "options": ["An IDS encrypts traffic while an IPS decrypts it", "An IDS only alerts on suspicious activity while an IPS can actively block it", "An IDS works at Layer 1 while an IPS works at Layer 7", "An IDS is hardware only while an IPS is software only"],
+    "correct": [1],
+    "explanation": "An IDS monitors and generates alerts on suspicious traffic but does not stop it, whereas an IPS sits inline and can automatically block or drop malicious traffic. Neither is defined by encryption, a fixed OSI layer, or a hardware-versus-software distinction.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A company wants remote employees to securely access internal resources over the public internet as if they were on the local network. Which technology best meets this need?",
+    "options": ["VLAN", "VPN", "DMZ", "NAT"],
+    "correct": [1],
+    "explanation": "A virtual private network (VPN) creates an encrypted tunnel over the internet so remote users can reach internal resources securely. A VLAN segments a local switched network, a DMZ hosts public-facing servers, and NAT translates addresses but does not by itself encrypt remote access.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Which network zone is designed to host public-facing servers such as web and email while isolating them from the internal trusted network?",
+    "options": ["VLAN 1", "Demilitarized zone (DMZ)", "Loopback interface", "Broadcast domain"],
+    "correct": [1],
+    "explanation": "A DMZ (also called a screened or perimeter network) sits between the internet and the internal LAN to host services that must be reachable from outside while limiting exposure of internal systems. A VLAN 1 is a default segment, a loopback is a local internal address, and a broadcast domain is a networking concept, not a security zone.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Dividing a network into smaller isolated segments so that a compromise in one segment cannot easily spread to others is known as:",
+    "options": ["Network segmentation", "Load balancing", "Port mirroring", "Link aggregation"],
+    "correct": [0],
+    "explanation": "Network segmentation splits a network into zones to limit lateral movement and contain breaches. Load balancing distributes traffic across servers, port mirroring copies traffic for monitoring, and link aggregation combines links for bandwidth, none of which are primarily isolation controls.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Which technology logically separates devices on the same physical switch into different broadcast domains?",
+    "options": ["VPN", "VLAN", "NAT", "PKI"],
+    "correct": [1],
+    "explanation": "A VLAN (virtual LAN) groups ports on a switch into separate logical networks and broadcast domains regardless of physical location. A VPN encrypts remote connections, NAT translates addresses, and PKI manages digital certificates.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "In the shared responsibility model for cloud computing, which party is typically always responsible for the security OF the cloud, meaning the underlying physical infrastructure?",
+    "options": ["The customer", "The cloud service provider", "A third-party auditor", "The end user"],
+    "correct": [1],
+    "explanation": "In the shared responsibility model, the cloud service provider secures the physical infrastructure (security of the cloud), while the customer secures their data and configurations (security in the cloud). Auditors verify compliance and end users are not parties to the model's split of duties.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A cloud customer uses a provider's platform to develop and deploy their own applications without managing the underlying operating systems or servers. Which cloud service model is this?",
+    "options": ["Infrastructure as a Service (IaaS)", "Platform as a Service (PaaS)", "Software as a Service (SaaS)", "Function as a Service only"],
+    "correct": [1],
+    "explanation": "PaaS gives developers a managed platform, including runtime and OS, so they can build and deploy applications without maintaining the underlying infrastructure. IaaS provides raw compute and storage the customer must manage, and SaaS delivers a finished application the customer only uses.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which two protocols operate at the Transport layer of the TCP/IP stack? (Choose two.)",
+    "options": ["TCP", "IP", "UDP", "HTTP"],
+    "correct": [0, 2],
+    "explanation": "TCP and UDP are the two core Transport layer protocols, providing reliable connection-oriented and connectionless delivery respectively. IP operates at the Network (Internet) layer and HTTP operates at the Application layer.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An attacker sends forged ARP replies on a local network to associate their MAC address with the default gateway's IP so traffic is routed through them. What is this technique called?",
+    "options": ["DNS poisoning", "ARP spoofing", "SYN flooding", "MAC flooding"],
+    "correct": [1],
+    "explanation": "ARP spoofing (ARP poisoning) sends falsified ARP messages so a victim maps a trusted IP, such as the gateway, to the attacker's MAC address, enabling interception. DNS poisoning corrupts name resolution, SYN flooding exhausts connection resources, and MAC flooding overwhelms a switch's address table.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "Which statement best describes a zero trust network security approach?",
+    "options": ["Devices inside the corporate perimeter are automatically trusted", "No user or device is trusted by default and every access request must be verified", "Firewalls are unnecessary once a VPN is in place", "Trust is granted based solely on IP address ranges"],
+    "correct": [1],
+    "explanation": "Zero trust assumes no implicit trust based on network location and continuously verifies every user and device before granting access. The other options describe the traditional perimeter model that zero trust was designed to replace, where being inside the network implied trust.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A microservice sends monitoring data using SNMP. To avoid transmitting community strings and data in cleartext, which version should be required?",
+    "options": ["SNMPv1", "SNMPv2c", "SNMPv3", "SNMPv0"],
+    "correct": [2],
+    "explanation": "SNMPv3 adds authentication and encryption, protecting management traffic that earlier versions expose. SNMPv1 and SNMPv2c send community strings in cleartext with no encryption, and SNMPv0 is not a real version.",
+    "difficulty": "HARD"
+  }
+]

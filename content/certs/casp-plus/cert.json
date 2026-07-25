@@ -1,0 +1,18 @@
+{
+  "slug": "casp-plus",
+  "code": "CAS-004",
+  "name": "CompTIA CASP+",
+  "vendor": "CompTIA",
+  "description": "The senior hands-on architect cert. Where Security+ tests awareness, CASP+ tests judgment: designing, engineering, and running security across complex enterprise environments.",
+  "passScore": 75,
+  "examMinutes": 165,
+  "questionCount": 90,
+  "icon": "Medal",
+  "order": 11,
+  "domains": [
+    { "number": 1, "name": "Security Architecture", "weight": 29 },
+    { "number": 2, "name": "Security Operations", "weight": 30 },
+    { "number": 3, "name": "Security Engineering and Cryptography", "weight": 26 },
+    { "number": 4, "name": "Governance, Risk, and Compliance", "weight": 15 }
+  ]
+}

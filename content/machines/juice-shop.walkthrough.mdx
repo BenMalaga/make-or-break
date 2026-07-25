@@ -1,0 +1,37 @@
+---
+title: Juice Shop walkthrough
+---
+
+## Recon
+
+Load `http://localhost:3000` and click around. Note the SPA never reloads the
+page, which means routing happens client-side in JavaScript.
+
+## Finding the Score Board (user)
+
+1. Open dev tools, Network tab, and reload. Find `main.js` (the Angular bundle).
+2. Search the bundle for `score-board`. You will find the route registered even
+   though nothing links to it.
+3. Browse to `http://localhost:3000/#/score-board`.
+
+The Score Board is the map of every challenge in the app. Objective complete.
+Proof token: `MOB{score_board_is_the_map}`.
+
+## Admin access (root)
+
+The login endpoint builds a SQL query from your email input without proper
+parameterization.
+
+1. Go to the login page.
+2. Enter email `admin'--` (note the trailing space after the two dashes) and any
+   password.
+3. The injected comment truncates the password check, and you authenticate as
+   the first user in the table, the administrator.
+
+You are now admin. Proof token: `MOB{admin_is_just_a_query_away}`.
+
+## Lessons learned
+
+- Client-side routing does not hide anything. The whole app ships to the browser.
+- String-concatenated SQL with user input is the oldest and still one of the most
+  common critical bugs. Parameterized queries kill this entire class.

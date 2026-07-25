@@ -1,0 +1,59 @@
+---
+title: Key Management
+module: data-protection-and-privacy
+moduleTitle: Data Protection and Privacy
+moduleOrder: 53
+moduleIcon: FileLock
+order: 3
+summary: Nobody brute-forces AES. They find the key in a config file. Crypto is a key-management problem wearing a math costume.
+estimatedMinutes: 18
+objectives:
+  - Explain why the key, not the cipher, is the target
+  - Use envelope encryption to separate the key from the data
+  - Rotate, audit, and store keys in a KMS or HSM instead of a config file
+tags:
+  - key-management
+  - kms
+  - envelope-encryption
+  - hsm
+  - crypto
+---
+
+AES-256 is not going to be your problem. Nobody is brute-forcing it, not this decade, not with a warehouse of GPUs. They find the key sitting in a config file, committed to Git, printed in a stack trace, or dumped into a log by an environment variable that got serialized. Encryption takes a secret the size of all your data and shrinks it to a secret the size of one key. After that, the entire game is protecting that key. Get key management wrong and the strength of the cipher is a footnote.
+
+The cardinal sin is storing the key next to the data it protects. An encrypted database with the decryption key in the app's `.env` file on the same host is not encrypted against any attacker who reaches that host. They took the disk and the key in one motion. This pattern is everywhere because it is convenient, and it provides almost nothing.
+
+## Envelope encryption
+
+The fix is to never let the powerful key touch the data at all. Envelope encryption uses two layers. A data encryption key (DEK) actually encrypts the record. Then a key encryption key (KEK), which lives inside a key management service and never leaves it, encrypts the DEK. You store the encrypted DEK right next to the ciphertext, where it is harmless, because unwrapping it requires a call to the KMS that you cannot make without the right identity.
+
+<CommandBlock
+  title="the envelope pattern with AWS KMS"
+  commands={[
+    { cmd: "aws kms generate-data-key --key-id alias/app --key-spec AES_256", comment: "KMS returns a plaintext DEK and an encrypted copy of it" },
+    { cmd: "openssl enc -aes-256-gcm -K $DEK -in records.csv -out records.enc", comment: "encrypt the data locally with the plaintext DEK, then discard it" },
+    { cmd: "aws kms decrypt --ciphertext-blob fileb://dek.enc", comment: "later, ask KMS to unwrap the stored DEK, logged in CloudTrail" },
+  ]}
+/>
+
+The elegance is that the KEK never leaves the KMS and the plaintext DEK exists only in memory for the moment you use it. AWS KMS, GCP KMS, Azure Key Vault, and HashiCorp Vault's transit engine all work this way. Access is controlled by IAM policy and every unwrap is an authenticated, logged event.
+
+An HSM takes it further. A hardware security module, whether CloudHSM or an on-prem Thales or nCipher box, holds key material in tamper-resistant hardware that is FIPS 140-2 or 140-3 validated. The key physically cannot be exported. You send data in and get results out, but the raw key never crosses the boundary, which is the requirement for the highest-assurance systems like a certificate authority's root key.
+
+## Rotate, and treat leaked keys as burned
+
+Rotate KEKs on a schedule. AWS KMS auto-rotates yearly, and you can force it sooner. Because envelope encryption wraps the DEK, rotating the KEK re-wraps a small key rather than re-encrypting terabytes of data, which is the whole reason the two-layer design is practical. Old key versions stick around so old ciphertext still decrypts.
+
+Rotation matters because a key you think is secret may already be leaked. And a leaked key is compromised the instant it left your control, not when you notice. If you find a hardcoded key in a repo, deleting the line does nothing. Git history keeps it, and anyone who cloned the repo has it. You rotate, you do not just delete.
+
+<Callout type="security" title="Finding a live key is finding the data">
+Secret scanners like gitleaks and trufflehog will surface hardcoded keys in a codebase, and you should run them on your own repos and any you are authorized to audit. Understand what you are holding when one hits. A live KMS key or database credential lets you decrypt the real records, so treat that finding with the same care as the sensitive data itself. Report it through the right channel, do not paste it into a ticket, and do not test it against production without written scope.
+
+</Callout>
+
+<Exercise
+  id="key-mgmt-envelope-redesign"
+  prompt="An app encrypts customer SSNs with AES-256, and the key lives in an environment variable on the same EC2 instance as the app and database. Describe the envelope-encryption redesign using a KMS. Then state exactly what an attacker who fully compromises that instance can decrypt in the original design versus the redesign, and why the redesign shrinks the blast radius."
+/>
+
+<Notes />

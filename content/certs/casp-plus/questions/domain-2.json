@@ -1,0 +1,301 @@
+[
+  {
+    "domain": 2,
+    "question": "A threat intelligence analyst wants to map an adversary's observed behavior to specific tactics and techniques so detection engineers can build coverage against each step of an intrusion. Which framework is purpose-built for this behavioral mapping?",
+    "options": [
+      "The Cyber Kill Chain",
+      "MITRE ATT&CK",
+      "The Diamond Model of Intrusion Analysis",
+      "STRIDE"
+    ],
+    "correct": [1],
+    "explanation": "MITRE ATT&CK is a knowledge base of adversary tactics and techniques organized so defenders can map observed behaviors and measure detection coverage technique by technique. The Kill Chain describes phases at a higher level, the Diamond Model relates adversary, capability, infrastructure, and victim, and STRIDE is a threat-modeling taxonomy for design.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "During an investigation a responder must collect evidence from a compromised host that is still powered on. According to the order of volatility, which data source should be captured first?",
+    "options": [
+      "Archived logs on a backup server",
+      "CPU registers and cache",
+      "Data on the local hard disk",
+      "Contents of a USB flash drive attached to the host"
+    ],
+    "correct": [1],
+    "explanation": "The order of volatility dictates collecting the most ephemeral data first. CPU registers and cache change in nanoseconds and are lost almost immediately, so they precede RAM, disk, and archival media. Disk and removable media are far more persistent, and archived backups are the least volatile.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A SOC is drowning in alerts and wants to codify repeatable response actions such as enriching an IOC, isolating a host, and opening a ticket without an analyst clicking through each step. Which capability directly addresses this need?",
+    "options": [
+      "SOAR playbooks",
+      "A network TAP",
+      "A honeynet",
+      "Full-disk encryption"
+    ],
+    "correct": [0],
+    "explanation": "Security orchestration, automation, and response (SOAR) uses playbooks to chain enrichment, containment, and ticketing into automated or semi-automated workflows, reducing analyst toil and mean time to respond. A TAP only mirrors traffic, a honeynet is a deception asset, and full-disk encryption protects data at rest.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A vulnerability report lists a flaw with a CVSS base score of 9.8 but the affected service is on an isolated lab segment with no inbound connectivity and no sensitive data. To prioritize remediation realistically, which factor should the analyst weigh most heavily beyond the base score?",
+    "options": [
+      "The alphabetical order of the CVE identifier",
+      "Environmental and threat context such as exposure, exploit availability, and asset value",
+      "The number of characters in the vulnerability's description",
+      "The vendor that discovered the flaw"
+    ],
+    "correct": [1],
+    "explanation": "A high base score reflects theoretical severity, but true risk depends on environmental context: is the asset exposed, is an exploit available in the wild, and how valuable is the data. CVSS temporal and environmental metrics exist precisely to adjust base scores to real conditions. The other options are irrelevant to risk.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An organization wants to detect previously unknown malware and living-off-the-land activity that signature-based antivirus misses on endpoints, with the ability to record process trees and roll back changes. Which control best fits?",
+    "options": [
+      "A stateful packet-filtering firewall",
+      "Endpoint detection and response (EDR)",
+      "A DNS sinkhole",
+      "A password vault"
+    ],
+    "correct": [1],
+    "explanation": "EDR continuously records endpoint telemetry such as process creation, network connections, and file changes, enabling behavioral detection of novel and fileless threats plus investigation and remediation. A firewall filters network traffic, a DNS sinkhole redirects malicious lookups, and a password vault stores credentials.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A forensic examiner images a seized drive and must be able to prove in court that the evidence was not altered between seizure and analysis. Which two practices most directly establish this? (Choose two.)",
+    "options": [
+      "Recording a cryptographic hash of the image at acquisition and re-verifying it before analysis",
+      "Maintaining a documented chain of custody for the drive",
+      "Compressing the image to save storage space",
+      "Renaming the evidence files to friendly labels"
+    ],
+    "correct": [0, 1],
+    "explanation": "A hash captured at acquisition and re-verified later proves the bits are unchanged, and a documented chain of custody proves who handled the evidence and when. Compression and renaming do not establish integrity or custody and could raise defensibility questions.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A security engineer is tuning a detection that fires constantly on benign administrator activity, burying real threats. Reducing this noise without discarding legitimate detections primarily addresses which metric?",
+    "options": [
+      "The true negative rate",
+      "The false positive rate",
+      "The mean time between failures",
+      "The recovery point objective"
+    ],
+    "correct": [1],
+    "explanation": "Alerts that fire on benign activity are false positives; tuning the rule to exclude known-good behavior lowers the false positive rate and reduces alert fatigue. MTBF and RPO are reliability and backup metrics, and true negatives are correctly ignored benign events, not the problem here.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An incident responder follows the NIST SP 800-61 incident response life cycle. After successfully containing and eradicating an intrusion and restoring services, which phase remains and what is its primary purpose?",
+    "options": [
+      "Preparation, to purchase new tooling before the next incident",
+      "Detection and analysis, to re-scan for the same indicators",
+      "Post-incident activity, to capture lessons learned and improve controls",
+      "Containment, to re-isolate the already-clean systems"
+    ],
+    "correct": [2],
+    "explanation": "NIST 800-61 closes with post-incident activity, a lessons-learned review that feeds process, control, and detection improvements back into preparation. The scenario has already passed containment, eradication, and recovery, so the remaining structured phase is the retrospective.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A threat hunter forms a hypothesis that an adversary is using scheduled tasks for persistence and proactively searches endpoint telemetry for anomalous task creation, rather than waiting for an alert. This activity is best described as which of the following?",
+    "options": [
+      "Signature-based detection",
+      "Hypothesis-driven threat hunting",
+      "Vulnerability scanning",
+      "Passive reconnaissance"
+    ],
+    "correct": [1],
+    "explanation": "Threat hunting is a proactive, hypothesis-driven search through existing telemetry for adversary behavior that automated alerting has not flagged. Signature detection is reactive pattern matching, vulnerability scanning enumerates weaknesses, and reconnaissance is an attacker activity.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A SIEM is receiving logs from firewalls, endpoints, and cloud services in different formats and time zones, making correlation unreliable. Which two data preparation steps most directly improve cross-source correlation? (Choose two.)",
+    "options": [
+      "Normalizing fields into a common schema",
+      "Synchronizing all sources to a single authoritative time source",
+      "Deleting logs older than one hour to reduce volume",
+      "Storing each source in a separate index with no shared fields"
+    ],
+    "correct": [0, 1],
+    "explanation": "Normalization maps disparate log formats into common fields so a single rule can match across sources, and consistent time synchronization lets events be ordered and correlated accurately. Aggressive deletion destroys investigative data, and fully siloed indexes with no shared fields defeat correlation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An analyst receives a STIX bundle over a TAXII feed containing malicious IP addresses, file hashes, and associated adversary TTPs. What is the primary role of STIX and TAXII in this exchange?",
+    "options": [
+      "STIX is the transport protocol and TAXII is the data format",
+      "STIX is a structured language for threat intelligence and TAXII is the protocol that transports it",
+      "Both are encryption algorithms for securing indicators",
+      "Both are vulnerability scoring systems"
+    ],
+    "correct": [1],
+    "explanation": "STIX (Structured Threat Information Expression) is the standardized language for describing indicators, TTPs, and threat actors, while TAXII (Trusted Automated Exchange of Intelligence Information) is the application-layer protocol that transports STIX content between parties. Neither is an encryption or scoring scheme.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A responder must acquire volatile memory from a running Linux server suspected of hosting an in-memory-only implant before the host is powered down. Which action best preserves the evidence needed to analyze that implant?",
+    "options": [
+      "Reboot the server to clear the malware, then image the disk",
+      "Capture a live RAM image before shutdown using a memory acquisition tool",
+      "Run a full antivirus scan and quarantine any findings",
+      "Copy the /etc directory to a network share"
+    ],
+    "correct": [1],
+    "explanation": "An in-memory-only implant vanishes at power-off, so a live RAM capture must be taken before shutdown to preserve process, network, and injected-code artifacts. Rebooting destroys the evidence, antivirus quarantine alters state and may miss it, and copying config files does not capture memory.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A large enterprise wants continuous visibility into which of its known assets are affected as new CVEs are published, without manually re-scanning the whole estate each time. Which combination best supports this goal?",
+    "options": [
+      "A one-time penetration test each year",
+      "An accurate asset inventory correlated with an ongoing vulnerability management feed",
+      "Disabling logging to reduce noise",
+      "Relying solely on endpoint antivirus definitions"
+    ],
+    "correct": [1],
+    "explanation": "Continuous exposure awareness requires knowing what you own (asset inventory) and matching those assets against a current stream of vulnerability and CVE data so newly disclosed flaws are mapped to affected systems automatically. Annual pen tests, disabled logging, and antivirus alone do not provide continuous CVE-to-asset mapping.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An automation engineer wants a threat feed of malicious domains to update firewall blocklists automatically as new indicators arrive. Which integration approach best enables this hands-off updating?",
+    "options": [
+      "Manually copying indicators from a PDF report each morning",
+      "Consuming the feed through an API and pushing indicators to enforcement points programmatically",
+      "Emailing the SOC a screenshot of new domains",
+      "Printing the indicator list for the firewall team"
+    ],
+    "correct": [1],
+    "explanation": "API-based ingestion lets the feed's machine-readable indicators flow directly into enforcement points on a schedule, achieving continuous, hands-off blocking. Manual copying, screenshots, and printouts are slow, error-prone, and defeat the automation goal.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A financial firm classifies an intrusion as an APT after observing months of dwell time, custom tooling, and credential-based lateral movement. Which containment strategy best balances stopping the adversary against tipping them off before evidence is collected?",
+    "options": [
+      "Immediately unplug every affected system with no coordination",
+      "A coordinated, staged containment that isolates key footholds while preserving forensic evidence and monitoring adversary reaction",
+      "Ignore the activity until the next quarterly review",
+      "Publicly announce the breach before investigating"
+    ],
+    "correct": [1],
+    "explanation": "Against a patient, well-resourced adversary, an abrupt uncoordinated response can destroy evidence and reveal detection, prompting the attacker to burn access or escalate. A staged, coordinated containment isolates critical footholds while preserving forensics and observing the adversary. Ignoring the activity or premature disclosure both worsen the outcome.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A cloud team enables flow logs, control-plane audit logs, and object-storage access logs, then ships them to a central analytics platform. What is the primary security operations benefit of centralizing these logs?",
+    "options": [
+      "It encrypts the underlying storage buckets automatically",
+      "It enables cross-service correlation, retention, and alerting from a single vantage point",
+      "It eliminates the need for identity and access management",
+      "It guarantees the cloud provider will investigate incidents for you"
+    ],
+    "correct": [1],
+    "explanation": "Aggregating diverse cloud logs into one platform lets analysts correlate events across services, retain data for investigation, and build unified alerting, which is central to monitoring. Centralization does not by itself encrypt storage, replace IAM, or shift investigative responsibility to the provider.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "During eradication of a web-shell compromise, the team removes the malicious files but the attacker returns within a day using the same access. Which eradication failure most likely explains the recurrence?",
+    "options": [
+      "The team forgot to update the corporate wiki",
+      "Root cause and persistence mechanisms such as the exploited vulnerability and any additional backdoors were not fully identified and removed",
+      "The SIEM retention window was too long",
+      "The incident was not assigned a severity label"
+    ],
+    "correct": [1],
+    "explanation": "If eradication removes only the visible artifact without closing the exploited vulnerability and finding every persistence mechanism, the attacker simply re-enters. Effective eradication requires root-cause identification and removal of all footholds. Wiki updates, long retention, and severity labels do not cause re-entry.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An analyst wants to detect data exfiltration hidden inside DNS queries, where subdomains encode chunks of stolen data. Which monitoring signal is the strongest indicator of this technique?",
+    "options": [
+      "A high volume of unusually long, high-entropy DNS queries to a single domain",
+      "A user successfully resolving a well-known corporate hostname",
+      "A slight increase in ICMP echo replies",
+      "Normal TLS handshakes to a reputable CDN"
+    ],
+    "correct": [0],
+    "explanation": "DNS tunneling and exfiltration produce many long, high-entropy subdomain queries to one controlled domain as data is encoded into the query strings. Routine hostname resolution, minor ICMP variation, and normal CDN TLS traffic are expected and not indicative of DNS-based exfiltration.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A SOC lead defines an SLA that critical alerts must be triaged within 15 minutes and wants to track how quickly the team actually begins working real incidents. Which metric most directly measures this?",
+    "options": [
+      "Mean time to detect (MTTD)",
+      "Mean time to acknowledge or respond (MTTA/MTTR)",
+      "Recovery time objective (RTO)",
+      "Annualized loss expectancy (ALE)"
+    ],
+    "correct": [1],
+    "explanation": "Mean time to acknowledge or respond measures the interval from alert generation to the team beginning work, exactly what the 15-minute triage SLA targets. MTTD measures how long a threat goes unnoticed, RTO is a recovery planning target, and ALE is a quantitative risk figure.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A vulnerability scan of production database servers is scheduled, but the team is concerned an aggressive scan could crash a fragile legacy service. Which approach best balances thorough assessment against operational risk?",
+    "options": [
+      "Run the most aggressive scan profile during peak business hours",
+      "Use a credentialed but throttled scan in a maintenance window, and test the aggressive profile against a staging replica first",
+      "Skip scanning the databases entirely and assume they are secure",
+      "Only scan the marketing website instead"
+    ],
+    "correct": [1],
+    "explanation": "A credentialed scan gives deeper, more accurate results, and throttling plus a maintenance window limits impact on fragile services, while validating the aggressive profile against staging avoids surprising production. Aggressive peak-hour scans risk outages, and skipping or substituting an unrelated target leaves the real risk unassessed.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A newly disclosed vulnerability has no vendor patch, but active exploitation is being observed in the wild against internet-facing systems. Which immediate action is the most appropriate compensating measure while awaiting a fix?",
+    "options": [
+      "Wait for the official patch and take no interim action",
+      "Apply virtual patching or a WAF/IPS signature and restrict exposure while monitoring for exploitation",
+      "Publicly post the exploit code to raise awareness",
+      "Disable all logging to reduce the attack surface"
+    ],
+    "correct": [1],
+    "explanation": "For an actively exploited zero-day with no patch, compensating controls such as virtual patching, WAF or IPS signatures, and reduced exposure buy time while defenders monitor for attempts. Doing nothing leaves systems exploitable, publishing exploit code aids attackers, and disabling logging removes the visibility needed to detect attacks.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A security team wants to enrich raw IOCs with context such as which threat actor uses them, related campaigns, and confidence levels before feeding them to detection tools. Which platform is designed to store, correlate, and share this enriched intelligence?",
+    "options": [
+      "A threat intelligence platform (TIP)",
+      "A load balancer",
+      "A configuration management database used only for asset tags",
+      "A backup deduplication appliance"
+    ],
+    "correct": [0],
+    "explanation": "A threat intelligence platform ingests, deduplicates, enriches, and correlates indicators with actors, campaigns, and confidence scoring, then shares them with detection and enforcement tools. A load balancer distributes traffic, a CMDB tracks assets, and a backup appliance handles data protection, none of which manage threat intelligence.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An engineer builds a script that, when a SIEM alert scores above a threshold, automatically pulls the endpoint's process list, submits any unknown binary hash to a reputation service, and quarantines the host only if the verdict is malicious. This design pattern is best described as which of the following?",
+    "options": [
+      "A manual runbook executed by a human analyst",
+      "An automated, conditional response playbook with enrichment and decision logic",
+      "A vulnerability scanner plugin",
+      "A static firewall access control list"
+    ],
+    "correct": [1],
+    "explanation": "The script chains enrichment (process list, hash reputation) with conditional decision logic (quarantine only if malicious), which is exactly an automated response playbook of the kind SOAR platforms orchestrate. A manual runbook needs a human, and scanners and static ACLs do not perform conditional, telemetry-driven response.",
+    "difficulty": "MEDIUM"
+  }
+]

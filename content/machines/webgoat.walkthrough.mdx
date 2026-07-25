@@ -1,0 +1,63 @@
+---
+title: WebGoat walkthrough
+---
+
+## Setup
+
+1. Load `http://localhost:8080/WebGoat`. If it redirects, follow it. The app is
+   served under the `/WebGoat` context, not the root.
+2. Click `Register new user`, create a local account, and log in. The account is
+   stored inside the container only.
+3. The left menu lists lesson categories. Each lesson has an assignment page with
+   a live form and a green success indicator you are trying to trigger.
+
+## Injection lesson (user)
+
+Open the `(A1) Injection` category and work through the SQL Injection lessons to
+their interactive assignments.
+
+1. On an assignment that queries a table from your input, break the query with a
+   single quote and confirm the error handling.
+2. Return rows you should not by making the condition always true:
+
+```
+' OR '1'='1
+```
+
+3. On a login-style assignment, inject into the username field to bypass the
+   password check:
+
+```
+tom' -- -
+```
+
+4. Adjust the payload to match the exact field and query the lesson describes.
+   When the server accepts it, the page shows the success state.
+
+Any SQL injection assignment reaching its success state clears this objective.
+
+Proof token: `MOB{injection_lesson_cleared}`.
+
+## Access control lesson (root)
+
+Open the `Broken Access Control` category, including the Insecure Direct Object
+References lessons.
+
+1. The lesson first shows you your own record and the request that fetched it.
+2. Inspect that request. It usually references an object by an id, a URL segment,
+   or a hidden field the server trusts without checking ownership.
+3. Change that reference to another value and replay the request, for example
+   incrementing or swapping an object id to view a different user's profile.
+4. When you reach data or a function that should be off limits to your account,
+   the lesson accepts it and shows success.
+
+Proof token: `MOB{broken_access_control_cleared}`.
+
+## Lessons learned
+
+- Injection is about input crossing a boundary into a query or interpreter. The
+  fix is parameterization, not blocklists.
+- Access control must be enforced on the server for every request. Trusting a
+  client-supplied id is how one user reads another user's data.
+- WebGoat checks the actual exploit server-side. Passing a lesson means you
+  reproduced the real attack, which is exactly the point.

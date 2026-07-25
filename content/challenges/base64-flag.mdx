@@ -1,0 +1,35 @@
+---
+title: Not Encryption
+summary: Decode the string to recover the flag.
+track: break
+category: crypto
+difficulty: EASY
+tags: [encoding, base64]
+answer: "MOB{base64_is_not_encryption}"
+answerType: flag
+starterLang: python
+starter: |
+  # The string below is base64. Decode it to recover the flag.
+  import base64
+
+  data = "TU9Ce2Jhc2U2NF9pc19ub3RfZW5jcnlwdGlvbn0="
+  print(base64.b64decode(data).decode())
+hints:
+  - Base64 uses A-Z, a-z, 0-9, + and /, and often ends with = padding. That padding is the giveaway.
+  - Almost every language has a base64 decoder built in. Python's is base64.b64decode.
+  - The decoded text is the flag. Submit it exactly, including the MOB{...} wrapper.
+---
+
+Base64 gets mistaken for encryption all the time. It is not. It is an
+**encoding**: a reversible way to carry bytes through a text-only channel, with
+no key and no secret. Anyone can decode it.
+
+Here is a base64 string:
+
+```
+TU9Ce2Jhc2U2NF9pc19ub3RfZW5jcnlwdGlvbn0=
+```
+
+Decode it back to plain text and you will find a flag in the form
+`MOB{...}`. Run the starter code to do it, or decode it any way you like, then
+submit the flag exactly as it reads.

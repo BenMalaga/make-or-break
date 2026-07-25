@@ -1,0 +1,126 @@
+---
+title: Server-Side Request Forgery
+module: web-application-attacks
+moduleTitle: Web Application Attacks
+moduleOrder: 15
+moduleIcon: Crosshair
+order: 5
+summary: An app that fetches a URL an attacker controls can reach services the attacker cannot.
+estimatedMinutes: 18
+objectives:
+  - Recognize the app features that turn user input into a server-side request
+  - Explain how SSRF reaches loopback and internal-only services
+  - Describe why the cloud metadata endpoint made SSRF a credential-theft vector
+  - Defend a URL fetcher with allowlists, address checks, and IMDSv2
+prerequisites:
+  - file-upload-attacks
+tags:
+  - web
+  - ssrf
+  - cloud
+  - metadata
+---
+
+The last lesson turned an avatar uploader into a foothold, because an upload is a feature the application offers and an attacker bent it past its purpose. Server-side request forgery is the same move against a different feature. Instead of accepting a file, the application accepts a URL and goes and fetches it. The bug is not the fetch. The bug is that the fetch happens from the server, and the server lives inside a network the attacker cannot reach directly.
+
+Name the actor that does the work. When a user pastes a link into an image-from-URL field, the browser sends that link to the application, and then the application, not the browser, opens the connection. That outbound request starts inside the data center, behind the firewall, with whatever internal DNS and routing the server enjoys. A request that the public internet would drop sails through because it comes from a trusted host.
+
+The vulnerable pattern is any feature where attacker input becomes an outbound request. A webhook tester that pings a URL to confirm it is reachable. A PDF generator that renders a page into a document. A link-preview service that fetches a target to build a thumbnail. An XML parser that resolves an external entity. An avatar loader that takes a URL instead of a file. Each of these lifts a destination out of the request and asks the server to visit it.
+
+The reason this matters is the trust boundary. Firewalls and cloud security groups rest on one assumption: internal services only ever talk to other internal services. A Redis instance bound to 127.0.0.1 skips authentication because nothing outside the host can reach 127.0.0.1. An admin panel on port 8080 has no route from the internet. SSRF collapses that assumption by handing the attacker one trusted mouth inside the wall. The server becomes an unwilling proxy, and every request it makes carries the server's own privileges.
+
+<Quiz
+  id="ssrf-trust-boundary"
+  question="Why does SSRF let an attacker reach services a normal external request cannot?"
+  answer={1}
+  options={[
+    "The attacker's browser connects straight to the internal service",
+    "The request originates from the server, which sits inside the network's trust boundary",
+    "Internal services are always deployed without any firewall",
+    "SSRF disables the target's firewall rules before the request",
+  ]}
+  explanation="The fetch is made by the server, from inside the network, so controls that block the public internet let it pass. The attacker's browser never touches the internal service; it only tells the server where to go."
+/>
+
+## Reaching internal services
+
+The first target of an SSRF is the loopback interface. Addresses like 127.0.0.1 and localhost resolve to the server itself, and services bound there are the ones administrators treat as private: a Redis on 6379, a metrics dashboard on 9090, a database admin console on 8080. A tester walks the ports through the vulnerable parameter and reads how the response body, the status code, or the timing changes. A connection refused looks different from a service that answers, and that difference maps what listens on a host that was never meant to answer strangers.
+
+From loopback, the next hop is the local subnet. The source IP the server presents, visible in an out-of-band callback, reveals the private range it sits in, something like 10.0.x.x or 192.168.x.x. Other hosts on that range become reachable one request at a time: internal APIs with no auth, a container orchestrator's control plane, a cache cluster, a build server. None of them expected a request from the web application, so few of them check who is calling.
+
+<CommandBlock
+  title="destinations an SSRF reaches on a lab target"
+  commands={[
+    { cmd: "http://127.0.0.1:6379/", comment: "loopback Redis, commonly unauthenticated" },
+    { cmd: "http://127.0.0.1:8080/admin", comment: "an internal panel with no public route" },
+    { cmd: "http://192.168.0.10/", comment: "a neighbor on the server's private subnet" },
+  ]}
+/>
+
+<Callout type="security" title="Authorized targets only">
+SSRF turns a server into a scanner and a battering ram against hosts inside someone else's network. Confine every request in this lesson to a lab or an engagement with written scope. Reaching internal infrastructure through an application the tester does not own is unlawful access, and the fact that the app made the request does not move the liability.
+</Callout>
+
+## The cloud metadata endpoint
+
+The highest-value destination is not on the corporate subnet at all. On AWS, Azure, and GCP, every virtual machine can reach a link-local address, 169.254.169.254, that answers with instance metadata. Link-local means it is routable only from the instance itself, so cloud providers parked configuration, tags, and, on AWS, the temporary credentials for the IAM role attached to the machine at that address. The design assumed nothing but the instance would ever ask.
+
+That assumption is exactly what an SSRF breaks. The original scheme, now called IMDSv1, answered any HTTP GET that reached it, with no token and no header. An SSRF that could request an arbitrary URL could request the credentials path and read an AccessKeyId, a SecretAccessKey, and a session token belonging to the instance role. Those keys carry whatever the role was granted, so a single fetched URL could become read access on storage buckets, or the ability to spin up new infrastructure. This is the mechanism behind the 2019 Capital One breach, where an SSRF reached the metadata service and lifted role credentials that opened tens of millions of records.
+
+<CommandCard command="http://169.254.169.254/latest/meta-data/iam/security-credentials/" explain="On AWS IMDSv1 this path returns the name of the IAM role bound to the instance, and the same path plus that role name returns temporary credentials. No token and no header are required, which is why an SSRF that reaches the metadata endpoint has caused headline cloud breaches, and why IMDSv2 was introduced to demand a session token first." />
+
+The distance between a curiosity and a catastrophe is small here. One reading is that the application fetched a strange internal address. The other is that the attacker now holds live cloud credentials scoped to whatever the instance was trusted to do. The metadata endpoint is what moves an SSRF from the first reading to the second.
+
+<Quiz
+  id="ssrf-imds"
+  question="An app on an AWS instance running IMDSv1 has SSRF that reaches 169.254.169.254. What is the direct consequence, and what defense removes it?"
+  answer={1}
+  options={[
+    "It leaks the instance hostname; renaming the host fixes it",
+    "It returns the instance's IAM role credentials with no token required; requiring IMDSv2 removes the easy path",
+    "It crashes the metadata service; a reboot restores safety",
+    "It exposes only the public IP; a firewall rule fixes it",
+  ]}
+  explanation="IMDSv1 answered any GET with no authentication, so an SSRF could read the role's temporary keys. IMDSv2 requires a session token obtained from a PUT with a low hop limit, which a plain SSRF GET cannot produce."
+/>
+
+## Blind SSRF and filter bypasses
+
+Not every SSRF returns the response to the attacker. Many fetchers discard the body and report only success or failure, or say nothing at all. That is blind SSRF, and it is confirmed out-of-band. The tester supplies a URL pointing at a listener under external control, a plain HTTP server or a tool like Burp Collaborator, and watches for the callback. When a request for a unique, unguessable path arrives from the target's IP, the fetch is proven even though the application showed nothing on screen. From there, timing differences and error messages stand in for the missing response body.
+
+Naive defenses blocklist the strings 127.0.0.1 and localhost, which is a leaky filter because the same address wears many costumes. The short form 127.1 collapses to the same loopback. The decimal integer 2130706433 is 127.0.0.1 written as one number. The bracketed [::1] is the IPv6 loopback. A hostname registered in public DNS can be pointed at 127.0.0.1 so string matching never sees a suspicious literal. And a filter that inspects the submitted URL but follows redirects can be walked past with a 302 from an allowed host to a forbidden one. A blocklist has to enumerate every disguise, and it never finishes.
+
+## Defending a URL fetcher
+
+The fix is to invert the logic. A blocklist of bad destinations loses to the disguises above, so a defender builds an allowlist of the exact hosts the feature is permitted to reach. A webhook tester that only ever calls a handful of partner domains should refuse everything else, with no convenience exception for arbitrary URLs.
+
+An allowlist alone is not enough, because DNS is attacker-influenced. The server must resolve the hostname, confirm the resulting IP is not in a private or link-local range (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, and the IPv6 equivalents), and then connect to that validated IP rather than re-resolving the name. Re-resolving opens a DNS-rebinding window where the name passes the check and then flips to a forbidden address a moment before the fetch.
+
+Redirects need the same discipline. A destination that passes validation can respond with a 302 to 169.254.169.254, so the fetcher must re-validate every hop against the same address checks, or refuse to follow redirects at all. A single unchecked redirect undoes the allowlist.
+
+Restrict the scheme too. A fetcher that hands the raw URL to a general-purpose library may quietly accept file:// to read a local path, or gopher:// to speak line by line to a Redis or SMTP service that expects a plain text protocol. Those schemes turn a simple GET into a way to write commands to internal daemons. Permitting only http and https closes the side doors before the address checks even run.
+
+On the cloud side, the instance itself should require IMDSv2. IMDSv2 makes the metadata service demand a session token obtained through a PUT request that also sets a low TTL hop limit, so a plain SSRF GET, and any request forwarded even one hop away, is rejected before it sees a credential. Setting the instance metadata options to require tokens removes the credential path even when an SSRF exists elsewhere in the stack.
+
+The last control is quiet but load-bearing: the application should not hand the raw fetched response back to the requester. Returning the body verbatim upgrades a blind SSRF into a full internal read primitive. Fetching server-side and then extracting only the specific field the feature needs, an image's pixels or a webhook's status code, starves an attacker of the internal data even when a request slips past the earlier checks.
+
+<Quiz
+  id="ssrf-defense"
+  question="A URL-fetching feature must reach only three partner domains. Which control best prevents SSRF?"
+  answer={1}
+  options={[
+    "Blocklist the strings 127.0.0.1 and localhost in the submitted URL",
+    "Allowlist the three domains, resolve the host, reject private and link-local IPs, and re-validate on every redirect",
+    "Accept only URLs served over HTTPS",
+    "Rate-limit the feature to a few fetches per minute",
+  ]}
+  explanation="A blocklist misses disguises like 127.1, decimal IPs, and DNS rebinding, and it ignores redirects. An allowlist plus resolve-and-check-the-IP plus redirect re-validation closes those gaps. HTTPS and rate limits never stop the request from reaching an internal address."
+/>
+
+<Exercise title="Confirm an SSRF against your own lab">
+Open the PortSwigger Web Security Academy lab "Basic SSRF against the local server," which is free and built to be attacked. Intercept the stock-check request in Burp, find the parameter that carries a URL, and change its value to http://localhost/admin. The response comes back with the internal admin page that has no public link, which proves the server fetched a destination you chose. For the blind case, load "Blind SSRF with out-of-band detection," point the vulnerable header at a Burp Collaborator address, and watch the DNS and HTTP interactions arrive from the lab server rather than your browser. To see the same effect on hardware you own, run python3 -m http.server 8000 next to a deliberately vulnerable app such as OWASP Juice Shop and aim its URL fetcher at http://127.0.0.1:8000/probe, then confirm the hit in the server log.
+</Exercise>
+
+SSRF works because the server trusts a destination that arrived in the request. The next lesson turns to a deeper version of that same misplaced trust, where the server accepts not a URL but a whole object rebuilt from bytes the attacker supplied, and the act of rebuilding that object can run code.
+
+<Notes />

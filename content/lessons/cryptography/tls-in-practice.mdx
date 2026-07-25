@@ -1,0 +1,241 @@
+---
+title: TLS in Practice
+module: cryptography
+moduleTitle: Cryptography
+moduleOrder: 8
+moduleIcon: KeyRound
+order: 4
+prerequisites: ["pki-and-certificates"]
+summary: Where symmetric speed, key agreement, hashing, and certificates meet on one HTTPS connection.
+estimatedMinutes: 16
+objectives:
+  - Trace what a TLS handshake settles before any data moves
+  - Name the three guarantees TLS makes on data in transit
+  - Explain forward secrecy and why ephemeral keys matter
+  - Separate what the padlock proves from what it does not
+tags:
+  - cryptography
+  - tls
+  - protocols
+---
+
+Four ideas have carried this module, and each has been a piece on its own.
+Symmetric encryption moves data fast once two parties share a key. Asymmetric
+encryption lets two strangers agree on that key across an open wire. Hash
+functions catch a single flipped bit. Certificates tie a public key to a name a
+client can trust. A single HTTPS request runs all four at once, in order, in
+under a tenth of a second. That combined machine is TLS.
+
+TLS, short for Transport Layer Security, is the protocol behind every `https`
+address and every padlock. It sits between the application, a browser or an API
+client or a mail program, and the raw TCP connection, and it turns that open
+pipe into a channel that is private, tamper-evident, and pointed at a verified
+server. HTTPS is nothing more than ordinary HTTP running inside TLS.
+
+## Three guarantees on the wire
+
+TLS makes three promises about data in transit, and keeping them separate is
+what makes the rest of this lesson honest.
+
+Confidentiality means an eavesdropper on the path sees ciphertext and nothing
+else. A coffee-shop router, an internet provider, anyone tapping the cable: they
+watch bytes go by and learn nothing from them. The request line, the headers,
+the cookies, the body are all encrypted with a symmetric cipher like AES-GCM,
+the fast workhorse from the symmetric encryption lesson.
+
+Integrity means the client and the server detect any change to those bytes. TLS
+attaches an authentication tag to every record it sends, computed from a keyed
+hash over the contents. Flip one bit in transit and the tag no longer matches,
+so the receiver drops the record instead of acting on forged or corrupted data.
+This is the keyed-hash idea from the hashing lesson, wired straight into the
+transport.
+
+Server authentication means the client holds cryptographic proof that it reached
+the real server rather than an impostor. This is where the certificate from the
+PKI lesson does its work. The server proves it possesses the private key that
+matches the public key inside a certificate a trusted certificate authority
+already signed.
+
+Notice what is missing from that list. TLS authenticates the server to the
+client by default. It does not authenticate the client back to the server unless
+the server explicitly asks for a client certificate, which almost no public web
+traffic does. The password and the session cookie, not TLS, are what identify a
+user to the site.
+
+<Quiz
+  id="tls-in-practice-guarantees"
+  question="A user logs into a bank over HTTPS. What does TLS by itself prove to the bank about who the user is?"
+  answer={3}
+  options={[
+    "That the user holds a valid client certificate",
+    "That the user's password is correct",
+    "That the user's device is malware-free",
+    "Nothing; TLS authenticates the server to the client, not the reverse",
+  ]}
+  explanation="By default TLS proves the server's identity to the client. The client stays anonymous at the TLS layer unless mutual TLS is configured, so the password and session cookie, not the transport, identify the user."
+/>
+
+## The handshake, step by step
+
+None of those guarantees exist until the two sides agree on how to talk. That
+negotiation is the handshake, and it runs once at the start of a connection,
+before any application data moves. Conceptually it settles four things.
+
+First, parameters. The client opens with the list of TLS versions and cipher
+suites it supports. A cipher suite names the exact algorithms for the session:
+the key-exchange method, the symmetric cipher, and the hash. The server picks one
+that both sides support and answers with its choice. Modern deployments land on
+TLS 1.3, which cut the old menu down to a short list of strong suites and dropped
+the broken options entirely.
+
+Second, identity. The server presents its certificate chain, the leaf
+certificate for its hostname plus the intermediates that lead up toward a root.
+The client validates that chain the way the PKI lesson described: check each
+signature up to a root in its trust store, confirm the certificate covers the
+hostname the client asked for, and confirm the dates are current. A failure here
+is the browser warning nearly everyone has clicked past at least once.
+
+Third, key agreement. The client and the server run an authenticated key exchange
+to derive a shared secret that no eavesdropper can compute, not even one who
+recorded every byte of the handshake. TLS 1.3 uses ephemeral Diffie-Hellman for
+this. Diffie-Hellman is a method where each side sends a public value, keeps a
+private value, and combines the two to arrive at the same shared number without
+that number ever crossing the wire. Ephemeral means both sides generate a fresh
+key pair for this one connection and discard it when the connection ends. The
+server signs its half of the exchange with the private key behind its
+certificate, and that signature is what binds the anonymous math to the verified
+identity, stopping a man in the middle from splicing in their own values.
+
+Fourth, the switch. Once both sides hold the shared secret, they derive symmetric
+session keys from it and turn on encryption. Every record after that point is
+AES, fast enough for a video call or a multi-gigabyte download. The expensive
+asymmetric math ran exactly once, at the top, to bootstrap the cheap symmetric
+channel. That is the hybrid design from the symmetric-versus-asymmetric lesson,
+running live on a real connection.
+
+On any machine with OpenSSL installed, a single command replays the negotiation
+and prints what was agreed:
+
+```bash
+# Connect, run the TLS handshake, and print the negotiated details
+openssl s_client -connect example.com:443 -tls1_3 </dev/null
+```
+
+The output names the protocol version, the chosen cipher suite, and the
+certificate the server presented. That is the handshake laid out in plain text,
+each field mapping to one of the four steps above.
+
+<Quiz
+  id="tls-in-practice-hybrid"
+  question="In a modern TLS session, which part of the connection is protected by fast symmetric encryption?"
+  answer={2}
+  options={[
+    "The certificate that proves the server's identity",
+    "The ephemeral Diffie-Hellman key exchange",
+    "The bulk application data sent after the handshake",
+    "The signature the client verifies against a trusted CA",
+  ]}
+  explanation="Asymmetric operations happen once during the handshake to agree on a shared secret and prove identity. All the application data that follows is encrypted with a fast symmetric cipher derived from that secret."
+/>
+
+## Why ephemeral keys matter
+
+The word ephemeral is doing heavy lifting, and it buys a property called forward
+secrecy.
+
+Picture an attacker who cannot break AES and cannot forge a certificate, so they
+do the patient thing instead. They record the encrypted traffic and store it.
+Months or years later they compromise the server and steal its long-term private
+key, the one tied to the certificate. In an older TLS design, where that
+long-term key was used to encrypt the session key directly, the stolen key
+unlocks the recording. Every captured session decrypts at once.
+
+Forward secrecy closes that door. Because TLS 1.3 derives each session's keys
+from ephemeral Diffie-Hellman values that were generated fresh and then thrown
+away, the long-term private key never encrypted the session key and cannot
+recover it. The ephemeral private values lived only in memory during the
+connection and were wiped when it closed. The recording stays unreadable.
+Stealing today's key does not retroactively open yesterday's conversations.
+
+That is a large guarantee for a small cost, which is why TLS 1.3 made forward
+secrecy mandatory rather than optional. The certificate's job narrowed to one
+thing: signing the handshake to prove identity. It no longer holds the keys to
+the past, so a future key compromise cannot reach backward through recorded
+traffic. An attacker who records a session in 2024 and steals the server key in
+2026 gets nothing from the old recording, because the ephemeral values that keyed
+it were wiped the moment the connection closed.
+
+## What the padlock does not say
+
+The padlock icon is the most misread symbol in a browser. It certifies exactly
+two facts and no more: the connection is encrypted, and the server presented a
+valid certificate for the hostname in the address bar. That is an encrypted pipe
+to a verified host. It is not a verdict on the host.
+
+A phishing site can hold a perfectly valid certificate. Free, automated
+certificate authorities will issue one for `paypa1-login.com` in seconds, because
+the authority verifies control of a domain, not the honesty of the person who
+controls it. The padlock on that page is genuine. It confirms the traffic is
+private and reaches the server named in the certificate, and it says nothing
+about whether that server is a scam. Reading the padlock as a safety badge is
+exactly the confusion an attacker counts on.
+
+<Callout type="security" title="A valid certificate is not a trust verdict">
+The padlock answers one question: is this an encrypted connection to the host
+named in the certificate. It does not answer whether that host is honest, whether
+its owner is who the brand suggests, or whether the page is safe to hand a
+password to. Certificate validity and site trustworthiness are separate checks,
+and users conflate them constantly.
+</Callout>
+
+Encryption also has edges it does not cover. TLS hides the content of the
+traffic, not the fact that it happened. An observer on the path still sees the
+destination IP address, the rough size and timing of each message, and, in most
+current deployments, the hostname the client asked for, which travels in the
+clear during the early part of the handshake. The body of the letter is sealed.
+The envelope and the postmark are not.
+
+<Callout type="warning" title="What a network observer still learns">
+Even over TLS, a party watching the wire can see which server a client talked to,
+how much data moved, and when. That metadata is often enough to infer which site
+was visited and which action was taken. TLS protects the payload, not the pattern
+of the conversation.
+</Callout>
+
+<Quiz
+  id="tls-in-practice-padlock"
+  question="A browser shows a valid padlock for a site. Which conclusion is actually justified?"
+  answer={2}
+  options={[
+    "The site is run by a legitimate, trustworthy business",
+    "The data exchanged is safe from every attacker",
+    "The connection is encrypted and reaches the host named in the certificate",
+    "The site cannot possibly be a phishing page",
+  ]}
+  explanation="The padlock proves an encrypted connection to the certified host, nothing more. A phishing site can hold a valid certificate, so the padlock is never a statement that the destination is safe or honest."
+/>
+
+Every mechanism in this lesson is strong when it is configured and implemented
+correctly. The trouble starts when it is not: a server left accepting a
+decade-old protocol version, a library that leaks a secret through the timing of
+an error, a certificate check quietly skipped in code nobody reviews. The next
+module, cryptographic attacks, takes these same building blocks and shows what
+breaks when they are misused, starting with why crypto implementations fail even
+when the underlying math is sound.
+
+<Exercise
+  id="tls-in-practice-inspect"
+  title="Read a real handshake"
+  prompt="Open a site you use over HTTPS and inspect the certificate the server presented, then confirm the protocol and cipher that were negotiated."
+>
+In a browser, click the padlock in the address bar, open the certificate view,
+and read the Issuer, the Subject Alternative Names, and the validity dates.
+Confirm that the hostname you typed appears in the SAN list. If you have OpenSSL
+installed, run `openssl s_client -connect example.com:443 </dev/null` against the
+same host and find the `Protocol` and `Cipher` lines in the output. Notice that
+the negotiated cipher is a symmetric AES suite, while the certificate you just
+read is what authenticated the server. You are looking at both halves of the
+hybrid model in one live connection.
+</Exercise>
+
+<Notes />

@@ -1,0 +1,69 @@
+---
+title: Evil Twin and Rogue APs
+module: wireless-security
+moduleTitle: Wireless Security
+moduleOrder: 20
+moduleIcon: Wifi
+order: 4
+summary: A fake AP that clones a real network, plus a captive portal that asks nicely for the password. The human attack.
+estimatedMinutes: 17
+objectives:
+  - Explain how an evil twin lures clients away from the real AP
+  - Describe the captive-portal phishing flow that harvests a passphrase
+  - Recognize why this attack beats a strong passphrase that cracking cannot
+tags:
+  - wireless
+  - evil-twin
+  - rogue-ap
+  - captive-portal
+  - phishing
+---
+
+When the passphrase is too strong to crack, you stop attacking the crypto and start attacking the person. An evil twin does exactly that: it does not break WPA2, it convinces a human to type the password into a page you control. Against a 20-character random passphrase this is the attack that works when the handshake crack has already lost.
+
+An evil twin is a rogue AP that clones a legitimate network: same SSID, often the same or a spoofed BSSID, broadcasting a stronger signal from closer range. Clients associate to the BSSID with the best signal for a known SSID, and they do it automatically. Your laptop reconnects to "CoffeeShop-WiFi" without asking you. That reflex is the entire vulnerability.
+
+## The lure
+
+You stand up an AP advertising the target SSID, then you make the real one unusable so clients drift to yours. The push is the deauth attack from the last lesson, aimed continuously at the legitimate AP. Clients get knocked off the real network, see your identical SSID with a strong signal, and reassociate to you.
+
+Now the client is on your network. Here is the catch that makes this different from a normal man-in-the-middle: you still do not know the WPA2 passphrase, so you cannot run a normal WPA2 AP that the client authenticates against. So you run an open network instead, or a WPA network that accepts any password, and let the client associate. The moment it has an IP from your DHCP, you own its DNS and its default route.
+
+## The captive portal
+
+You have probably seen a captive portal: connect to hotel Wi-Fi and a login page appears before you can browse. Attackers weaponize that expectation. Your rogue AP hijacks every DNS lookup and HTTP request and redirects the browser to a page you host. The page looks like a firmware update or a "reconnect to your network" prompt, and it asks for the Wi-Fi password.
+
+The flow is blunt and it works:
+
+1. Client reconnects to your evil twin after repeated deauths.
+2. Every web request redirects to your captive portal.
+3. The page claims the router needs the Wi-Fi password to finish a mandatory update.
+4. The victim types the real passphrase, which you log.
+5. You validate it against the captured handshake in the background, and if it matches you let the client back onto the real network so nothing seems wrong.
+
+`wifiphisher` and `airgeddon` automate this whole sequence, spinning up the rogue AP, the deauth, the DHCP and DNS services, and a library of portal templates. You point them at a target and they run the play. That convenience cuts both ways: it also means unskilled attackers can run it, which is why this shows up in real incidents against real people.
+
+<Callout type="warning" title="Why this beats cracking">
+Handshake cracking has a hard ceiling: a passphrase with enough entropy simply will not fall to any wordlist. The evil twin routes around the math entirely. It targets the one component with no entropy budget, the user, who will hand over even a perfect passphrase if the page looks official enough. Strong passwords do not defend against being asked politely.
+</Callout>
+
+The tell for a defender is a duplicate SSID with a different BSSID, or a familiar network suddenly demanding a password through a browser page it never used before. A legitimate WPA2 network authenticates at the radio layer and never asks for the Wi-Fi key in a web form. If a webpage asks for your Wi-Fi password, something is wrong.
+
+<Callout type="security" title="Only test networks you own">
+This attack targets people, not just packets, which raises the stakes. Deauthing strangers and phishing their credentials is illegal without authorization, full stop. Run wifiphisher or airgeddon only in an isolated lab with your own devices as the victims, or under a signed social-engineering engagement that explicitly permits it.
+</Callout>
+
+<Quiz
+  id="evil-twin-why"
+  question="Why is an evil twin effective against a network whose passphrase is too strong to crack from a captured handshake?"
+  answer={3}
+  options={[
+    "It uses a faster GPU to break the PBKDF2 iterations",
+    "It downgrades the network from WPA2 to WEP",
+    "It captures a second handshake that leaks the PMK directly",
+    "It bypasses the crypto entirely and tricks a human into typing the passphrase into an attacker-controlled page",
+  ]}
+  explanation="The evil twin does not attack the cryptography at all. It clones the SSID, forces clients over with deauths, and phishes the passphrase through a captive portal. The user is the weak point, not the key."
+/>
+
+<Notes />

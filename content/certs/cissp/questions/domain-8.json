@@ -1,0 +1,210 @@
+[
+  {
+    "domain": 8,
+    "question": "During which phase of the software development life cycle should security requirements and initial risk analysis first be formally incorporated?",
+    "options": [
+      "Requirements gathering and initiation",
+      "Implementation and coding",
+      "Testing and verification",
+      "Deployment and operations"
+    ],
+    "correct": [0],
+    "explanation": "Security should be built in from the start rather than bolted on later. Defining security requirements and performing risk analysis during the requirements phase is far cheaper and more effective than remediating flaws after code exists.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 8,
+    "question": "A time-of-check-to-time-of-use (TOCTOU) flaw, where a resource is validated and then changed before it is actually used, is a classic example of which category of vulnerability?",
+    "options": [
+      "Race condition",
+      "Buffer overflow",
+      "SQL injection",
+      "Cross-site scripting"
+    ],
+    "correct": [0],
+    "explanation": "TOCTOU is a race condition because it exploits the gap between when a condition is checked and when the resource is used. An attacker who alters the resource during that window can bypass the earlier check.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 8,
+    "question": "Which statement best describes static application security testing (SAST)?",
+    "options": [
+      "It analyzes source code, byte code, or binaries without executing the program",
+      "It probes a running application by sending crafted inputs over the network",
+      "It monitors live production traffic for anomalies",
+      "It requires the application to be fully deployed to a server first"
+    ],
+    "correct": [0],
+    "explanation": "SAST is a white-box technique that examines code from the inside without running it. Because it does not need a running instance, it can be applied early in development, though it may produce false positives that require triage.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 8,
+    "question": "In a multilevel secure database, polyinstantiation is used primarily to defend against what threat?",
+    "options": [
+      "A lower-classified user inferring the existence of higher-classified data",
+      "Deadlocks between concurrent transactions",
+      "Injection of malicious SQL statements",
+      "Loss of referential integrity during normalization"
+    ],
+    "correct": [0],
+    "explanation": "Polyinstantiation allows multiple rows with the same primary key to exist at different classification levels. This prevents a low-clearance user from detecting or inferring the presence of high-classified information through a key collision.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 8,
+    "question": "Combining several individually non-sensitive pieces of data to produce information at a higher sensitivity level is known as what?",
+    "options": [
+      "Aggregation",
+      "Inference",
+      "Polyinstantiation",
+      "Normalization"
+    ],
+    "correct": [0],
+    "explanation": "Aggregation is the act of assembling multiple lower-level data items so that the combined result reveals more sensitive information. It differs from inference, which is deducing sensitive facts from data the user can already see.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 8,
+    "question": "Which two of the following are properties of the ACID model for reliable database transactions? (Choose two.)",
+    "options": [
+      "Atomicity",
+      "Isolation",
+      "Aggregation",
+      "Inheritance"
+    ],
+    "correct": [0, 1],
+    "explanation": "ACID stands for atomicity, consistency, isolation, and durability. Atomicity ensures a transaction completes fully or not at all, and isolation keeps concurrent transactions from interfering with one another.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 8,
+    "question": "Which object-oriented concept hides an object's internal data and exposes only a defined set of methods for interacting with it?",
+    "options": [
+      "Encapsulation",
+      "Polymorphism",
+      "Inheritance",
+      "Instantiation"
+    ],
+    "correct": [0],
+    "explanation": "Encapsulation bundles data with the methods that operate on it and restricts direct outside access, also called data hiding. This supports security by forcing interaction through controlled interfaces rather than exposing internal state.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 8,
+    "question": "Well-designed modular software should aim for which combination of characteristics?",
+    "options": [
+      "High cohesion and low coupling",
+      "Low cohesion and high coupling",
+      "High cohesion and high coupling",
+      "Low cohesion and low coupling"
+    ],
+    "correct": [0],
+    "explanation": "High cohesion means each module performs a single well-defined task, and low coupling means modules depend on each other as little as possible. This combination makes code easier to maintain, test, and secure.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 8,
+    "question": "Which CMMI maturity level is characterized by processes that are measured and controlled using quantitative metrics?",
+    "options": [
+      "Managed",
+      "Defined",
+      "Quantitatively Managed",
+      "Initial"
+    ],
+    "correct": [2],
+    "explanation": "The Capability Maturity Model Integration level 4, Quantitatively Managed, uses statistical and quantitative techniques to control process performance. Level 5, Optimizing, adds continuous process improvement on top of that measurement.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 8,
+    "question": "A software escrow agreement primarily protects a customer against which risk?",
+    "options": [
+      "The software vendor going out of business or failing to maintain the product",
+      "A distributed denial-of-service attack on the vendor",
+      "Malware embedded in the delivered binaries",
+      "An insider stealing the customer's data"
+    ],
+    "correct": [0],
+    "explanation": "In a software escrow arrangement a trusted third party holds the source code and releases it if the vendor fails, goes bankrupt, or stops supporting the product. This lets the customer maintain critical software even if the original developer disappears.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 8,
+    "question": "Fuzz testing (fuzzing) evaluates software by doing what?",
+    "options": [
+      "Submitting large volumes of malformed, unexpected, or random inputs to trigger faults",
+      "Reviewing source code line by line for logic errors",
+      "Encrypting stored data to test key management",
+      "Tracking version changes across a code repository"
+    ],
+    "correct": [0],
+    "explanation": "Fuzzing feeds an application unexpected, malformed, or random data to see whether it crashes, hangs, or behaves insecurely. It is effective at uncovering input-handling flaws such as buffer overflows and unhandled exceptions.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 8,
+    "question": "What is the most effective primary defense against SQL injection attacks?",
+    "options": [
+      "Parameterized queries with proper input validation",
+      "Enforcing longer user passwords",
+      "Disabling application logging",
+      "Serving the site only over HTTPS"
+    ],
+    "correct": [0],
+    "explanation": "Parameterized queries (prepared statements) separate code from data so user input can never be interpreted as SQL commands. Combined with input validation, this is the recommended defense against injection.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 8,
+    "question": "Which attack tricks an authenticated user's browser into silently submitting an unwanted request to a site where the user is already logged in?",
+    "options": [
+      "Cross-site request forgery (CSRF)",
+      "Cross-site scripting (XSS)",
+      "SQL injection",
+      "Privilege escalation"
+    ],
+    "correct": [0],
+    "explanation": "CSRF abuses the trust a web application places in the user's browser by riding on existing authenticated sessions. Anti-CSRF tokens and checking the origin or referer header are common countermeasures.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 8,
+    "question": "Which two testing techniques require the application to actually be running to find defects? (Choose two.)",
+    "options": [
+      "Dynamic application security testing (DAST)",
+      "Fuzz testing",
+      "Static application security testing (SAST)",
+      "Manual source code review"
+    ],
+    "correct": [0, 1],
+    "explanation": "Both DAST and fuzzing exercise a live, running application by sending it inputs and observing behavior, so they are black-box or dynamic techniques. SAST and manual source review inspect code without executing it.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 8,
+    "question": "In a DevSecOps pipeline, the practice of shifting security left means what?",
+    "options": [
+      "Integrating security activities early and continuously throughout development",
+      "Postponing all security testing until just before production release",
+      "Moving servers to a specific geographic region",
+      "Assigning security only to the operations team after deployment"
+    ],
+    "correct": [0],
+    "explanation": "Shifting left embeds security testing, threat modeling, and code analysis into the earliest stages of the pipeline and repeats them throughout. Catching issues sooner lowers remediation cost and reduces the chance of shipping vulnerabilities.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 8,
+    "question": "Which process is responsible for ensuring that modifications to software are formally requested, reviewed, approved, tested, and documented before implementation?",
+    "options": [
+      "Change management",
+      "Configuration management",
+      "Regression testing",
+      "Continuous integration"
+    ],
+    "correct": [0],
+    "explanation": "Change management governs how changes are proposed, evaluated, approved, and recorded so that unauthorized or destabilizing modifications are prevented. Configuration management, by contrast, focuses on identifying and tracking the baseline state of configuration items.",
+    "difficulty": "HARD"
+  }
+]

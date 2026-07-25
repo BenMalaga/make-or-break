@@ -1,0 +1,136 @@
+---
+title: Insecure Deserialization
+module: web-application-attacks
+moduleTitle: Web Application Attacks
+moduleOrder: 15
+moduleIcon: Crosshair
+order: 6
+summary: How turning attacker-controlled bytes back into an object can invoke code, and why data-only formats defuse it.
+estimatedMinutes: 18
+objectives:
+  - Explain what serialization and deserialization do and where the trust breaks
+  - Recognize serialized data in cookies and tokens by its language fingerprint
+  - Describe how a gadget chain turns object reconstruction into remote code execution
+  - Apply the core defenses, from refusing untrusted input to signing and type-restricting what must be deserialized
+prerequisites:
+  - ssrf
+tags:
+  - web
+  - deserialization
+  - rce
+  - gadget-chain
+---
+
+SSRF worked because a server trusted a URL an attacker could shape, then followed it somewhere it should never have gone. Insecure deserialization is the same broken trust wearing different clothes. The attacker-influenced data here is not a URL, it is a serialized object, a blob of bytes that the application rebuilds into a live object in memory. The instant an application reconstructs an object from bytes the attacker controls, that reconstruction can be steered into running code.
+
+That is the entire vulnerability class, and it produces some of the cleanest remote code execution in web security. The reason is subtle. Deserialization looks like a passive copy, a decode step no more dangerous than reading a number out of a form field. It is not. In several languages, rebuilding an object is an active process that calls methods along the way.
+
+The pattern shows up wherever objects move as bytes. Session cookies are the classic case, but the same risk rides in cache entries, message-queue payloads, serialized view state in older .NET pages, and any API that accepts a serialized object instead of plain fields. Anywhere an application deserializes something an outsider can influence, the question stays the same: what happens during reconstruction.
+
+## What serialization actually does
+
+Serialization is the act of flattening a live in-memory object into a sequence of bytes that can sit on disk or move across a network. Deserialization is the reverse, taking those bytes and standing the original object back up. A shopping cart, a user session, a cached record: each is an object a program may need to persist or pass to another service, and serialization is the format it travels in.
+
+A concrete case makes the danger visible. Picture a web application that keeps a user's session in a cookie rather than a server-side store. It takes a Session object holding a username and a role, serializes it with the language's native serializer, base64-encodes the bytes, and sets the result as the cookie. On the next request the browser sends the cookie back, the server base64-decodes it, and the deserializer rebuilds the Session object so the handler can read session.role. The application never has to track session state itself. Tidy, and quietly dangerous.
+
+The danger is that the cookie now lives in the browser, which means the attacker holds the bytes and can rewrite them. A serialized blob is not a passive snapshot of fields. It is a set of instructions for reconstruction, and reconstruction is active. The deserializer reads a class name embedded in the bytes, instantiates that class, and calls lifecycle methods on the new object as it wakes it up, all before the application inspects the result. Control the bytes and the attacker controls which class is built and what state it wakes in.
+
+Two levels of attack follow from that control. The first is simple tampering. With PHP's readable format, an attacker who decodes the cookie can change a role field from a normal user to admin, re-encode it, and hand back a session that now claims administrator, no gadget required, because the application trusted the object's contents. The second level is the serious one, where the attacker does not just edit fields but replaces the whole object with one whose reconstruction runs code.
+
+<Quiz
+  id="insecure-deserialization-why-dangerous"
+  question="Why is deserializing attacker-controlled bytes with a native serializer more dangerous than parsing attacker-controlled JSON?"
+  answer={0}
+  options={[
+    "Native deserialization instantiates classes and invokes lifecycle methods during reconstruction, while a JSON parser only produces plain data",
+    "JSON cannot represent nested objects, so it always carries less attacker data",
+    "Base64 encoding hides the serialized payload from the server entirely",
+    "Cookies are always sent over HTTPS, so their contents cannot be edited"
+  ]}
+  explanation="A JSON parser reads strings, numbers, arrays, and objects and hands back data. A native deserializer names a class from the bytes, builds it, and runs its wake-up methods before the app ever looks, which is the door to code execution."
+/>
+
+## Reading the fingerprints
+
+Recognizing serialized data is the first skill, for defender and tester alike, because a blob nobody decodes is a danger that stays hidden. Most real deserialization bugs are missed not because the exploit is hard but because a base64 cookie scrolled past unread. Each language stamps its serialized output with a recognizable fingerprint.
+
+A Java serialized object almost always opens with the magic bytes ac ed 00 05. Base64-encoded, the blob begins rO0. A cookie or parameter starting rO0AB is a Java object in transit, and its presence in a client-controlled field is worth a second look.
+
+PHP serialization is human-readable once decoded. A value like O:4:"User":2:{s:4:"name";s:5:"admin";} reads as an object, the O: marker, of a four-character class name, User, carrying two properties. The structure is plain text, which makes editing it trivial for anyone who holds the cookie.
+
+Python pickle is the third common format, often base64 with leading bytes such as gASV, and the pickle module is documented as unsafe to load from untrusted input by design. .NET rounds out the list, where BinaryFormatter and similar APIs emit blobs carrying type names the runtime resolves on the way back in.
+
+<CommandBlock
+  title="decode a suspicious cookie"
+  commands={[
+    { cmd: "echo 'rO0ABXNyABP...' | base64 -d | xxd | head", comment: "ac ed 00 05 up front confirms a Java object" },
+    { cmd: "echo 'Tzo0OiJVc2Vy...' | base64 -d", comment: "prints readable O:4:\"User\":... PHP serialization" },
+  ]}
+/>
+
+On an authorized engagement the finding usually starts here, with a decode rather than an exploit. A tester notes a rO0 cookie or an O: parameter, confirms the framework and its library versions from error pages or response headers, and reasons about whether a known weakness could apply. Any proof-of-concept that follows belongs only on a target that is in scope.
+
+## Why it climbs to remote code execution
+
+A serialized cookie does not arrive with a system() call waiting to be flipped. The route to code execution is indirect, and it has a name: the gadget chain. A gadget is a small fragment of code that already lives inside the application or one of its libraries and that runs automatically during deserialization. PHP fires magic methods like __wakeup() and __destruct() without the program asking. Java calls readObject(). .NET has its own reconstruction callbacks. Each of these executes as an object is rebuilt.
+
+A single gadget rarely does anything dangerous alone. The attack strings gadgets together so the automatic call in one class hands control to a method in another, and again, until the chain lands somewhere that runs a command or loads a remote class. Assembling such a chain by hand means reading a great deal of library source. That research is already done and packaged. Tools such as ysoserial for Java, phpggc for PHP, and their counterparts for Python pickle and .NET carry prebuilt chains for popular libraries, so a tester selects the library a target uses and a matching object comes out the far end.
+
+The impact sits at the top of the severity scale. A working chain against a deserializer that accepts attacker bytes is remote code execution: the server runs commands of the attacker's choosing, with the privileges of the application process. Reading secrets, reaching the database, and moving deeper all follow from there. Unlike a reflected script bug that waits for a victim to click, a deserialization bug fires on the server the moment the crafted blob lands, which is what makes it both prized and hazardous.
+
+<Quiz
+  id="insecure-deserialization-gadget-chain"
+  question="What is a gadget chain in the context of a deserialization attack?"
+  answer={0}
+  options={[
+    "A sequence of classes already present in the app or its libraries whose automatic deserialization callbacks are linked to reach code execution",
+    "A hardware token that signs serialized objects before they leave the server",
+    "The allowlist of classes a deserializer is permitted to reconstruct",
+    "A brute-force wordlist for guessing valid serialized cookie values"
+  ]}
+  explanation="Gadgets are existing code fragments that run on their own during reconstruction. Chaining them routes control from one automatic callback to the next until it reaches a method that executes a command. Prebuilt chains for common libraries are what tools like ysoserial package."
+/>
+
+## Defending the deserializer
+
+The cleanest defense is refusal. An application should not deserialize data that arrived from a client, full stop. Native serialization exists to move objects between components that already trust each other, not to accept objects handed over by a browser. When a session must travel in a cookie, the safer shape is a data-only format the receiver can validate, and in practice that means JSON parsed into a known schema. JSON can describe strings, numbers, arrays, and objects; it has no way to name a class or invoke a method, so a JSON parser cannot be walked into a gadget. The parser reads data and only data.
+
+Where a native format is genuinely unavoidable, two controls shrink the blast radius. The first is integrity. The server signs the serialized blob with a secret key, typically an HMAC, and verifies that signature before the bytes reach the deserializer at all. A tampered blob fails the check and is discarded, so the attacker can no longer substitute a crafted object without also forging a signature. The second is a strict type allowlist. Many runtimes let a program restrict which classes the deserializer may reconstruct, so a blob naming a gadget class is rejected before any lifecycle method runs. Java's ObjectInputFilter and similar look-ahead filters exist for exactly this.
+
+One tempting non-fix is worth naming. Wrapping the deserialization call in a try/catch does nothing, because the gadget chain executes during reconstruction, before any value is returned for the surrounding code to check. By the time an exception surfaces, the command has already run. Validating the object after it comes back is useless for the same reason. The dangerous work happens inside the deserializer, not after it hands an object over.
+
+Defending an existing codebase starts with finding the sinks. The dangerous calls are few and greppable: readObject and ObjectInputStream in Java, pickle.loads and yaml.load in Python, unserialize in PHP, BinaryFormatter in .NET. Each hit marks a place where untrusted bytes might reach a native deserializer, and each one earns a trace back to where its input comes from.
+
+<CommandCard command="grep -rEn 'readObject|ObjectInputStream|pickle.loads|yaml.load|unserialize|BinaryFormatter' ./src" explain="Sweeps a codebase for the handful of native deserialization sinks across Java, Python, PHP, and .NET. Every hit is a spot where attacker-influenced bytes might reach a deserializer, so each one gets traced to its input source and either removed, moved to signed JSON, or fenced behind a type filter." />
+
+<Quiz
+  id="insecure-deserialization-primary-defense"
+  question="For a session that has to travel to the client and back, which choice most directly removes the deserialization risk?"
+  answer={1}
+  options={[
+    "Serialize the session with the language's native object serializer and obfuscate the bytes",
+    "Send the session as JSON parsed into a strict, known schema so no class can be named or method invoked",
+    "Deserialize the native blob but wrap the call in a try/catch and log failures",
+    "Rename the session class so published gadget tools cannot find a match"
+  ]}
+  explanation="JSON with a strict schema carries data and nothing that can name a class or trigger a callback, so there is no gadget to reach. Obfuscation, try/catch, and renaming all leave the active reconstruction in place, which is where the code runs."
+/>
+
+<Exercise title="Decode and defang a session token in a lab">
+Spin up PortSwigger Web Security Academy's insecure deserialization labs, or Juice Shop, or DVWA running on your own machine. These are yours to test, and nothing here points at a live third party.
+
+1. Log into the lab and capture the session cookie with your browser's dev tools or an intercepting proxy like Burp.
+2. base64-decode the cookie value on the command line and read the first bytes. Decide which format it is: rO0 or ac ed for Java, a readable O: for PHP, gASV for pickle.
+3. Find one harmless field, a username or a display name, and change only that. Re-encode it, replace the cookie, and reload. Watch whether the application trusts your edited object without complaint. That trust is the whole bug.
+4. Switch sides. Open the lab's server code or one of your own projects and grep for the sinks from the CommandCard. For each hit, write one sentence on how you would fix it: refuse the input, move to signed JSON, or add a type filter.
+
+Stop at reading and reasoning. The goal is to recognize the shape and rehearse the fix, not to fire a payload.
+</Exercise>
+
+<Callout type="security" title="Authorized targets only">
+Deserialization proof-of-concepts can run code on the server that receives them, which makes them among the most disruptive tests in the book. Point them only at systems that belong to the reader or that carry written authorization to test, such as DVWA, Juice Shop, or the PortSwigger Academy labs. Sending a crafted serialized object at an application outside that scope is unlawful access and can take the service down as a side effect.
+</Callout>
+
+A signed, schema-checked token shuts the deserialization door, and in closing it opens the next question. The whole scheme leans on a secret key and on the login step that minted the token in the first place. If an attacker can forge that signature, guess the credential behind it, or ride a session that was never theirs, the type restrictions guard an empty vault. That login step, and every way it bends, is where the next module goes.
+
+<Notes />

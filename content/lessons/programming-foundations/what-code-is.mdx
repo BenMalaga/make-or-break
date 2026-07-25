@@ -1,0 +1,241 @@
+---
+title: What Code Is
+module: programming-foundations
+moduleTitle: Programming Foundations
+moduleOrder: 1
+moduleIcon: Code
+order: 1
+summary: "A program is a list of exact steps a machine follows in order: what that really means, and the one line of Python that proves it."
+estimatedMinutes: 14
+prerequisites: []
+objectives:
+  - Describe what a program is and why a computer follows its steps literally and in order
+  - Explain the difference between code as written text and a program that is running
+  - Say what a programming language is and why plain English will not do the job
+  - Read and run a one-line Python program that prints text to the screen
+tags:
+  - programming
+  - python
+---
+
+A vending machine takes a dollar, waits for a code, and the moment someone
+presses B4 it spins the coil at slot B4 and drops whatever sits there. It never
+decides B4 looks hungry and hands over a candy bar for free. It runs the same
+stored steps, in the same order, every single time, with no judgment and no
+improvisation.
+
+That stubborn literalness is the thing to hold onto, because it is the whole
+personality of every computer ever built. A computer is a machine that follows
+instructions: fast, exact, and completely without common sense. It does what the
+instructions say, not what the person who wrote them meant. Most of the
+difficulty in learning to program comes from that one gap, so it is worth meeting
+head on before a single line of code shows up.
+
+## A program is a list of exact steps
+
+A program is a set of instructions that a computer follows to get something done.
+An instruction is one step: add these two numbers, put this word on the screen,
+wait for a key to be pressed. A program is those steps written out in an order,
+and the computer works through them the way a person reads a page, top to bottom,
+one line at a time, unless a step explicitly says to jump somewhere else.
+
+Order is not a detail. It is most of the meaning. "Pour the batter, then heat the
+pan" and "heat the pan, then pour the batter" use the same words and produce very
+different mornings. A computer will follow either version exactly and will not
+warn anyone that the first one makes a mess. Getting the steps right, and getting
+them in the right order, is a large part of what writing a program actually is.
+
+The literalness cuts the other way too. A program that is 99 percent correct is
+not 99 percent working. One step in the wrong place, one misspelled word, one
+instruction the machine does not recognize, and the whole thing can stop cold.
+This sounds harsh, and at first it is. It is also the good news: the machine
+never quietly does something close to what was asked. It does exactly what the
+steps say, which makes a broken program something that can be found and fixed
+rather than a mystery to be feared.
+
+<Quiz
+  id="prog-order-literal"
+  question="A program is supposed to save a file and then show a success message, but the two steps are written in reverse order, so the message step comes first. What does the computer do?"
+  answer={1}
+  options={[
+    "It reorders the steps, since saving before confirming is the sensible thing to do.",
+    "It runs them in the written order, showing the message before the file is saved, and warns no one.",
+    "It refuses to run, because the order is clearly wrong.",
+    "It picks whichever of the two steps finishes faster.",
+  ]}
+  explanation="A computer follows instructions in the order given, top to bottom. It has no sense of what was intended, so a sensible-sounding plan written in the wrong order simply runs in the wrong order, with no warning."
+/>
+
+## Code is those instructions written down
+
+The instructions have to exist in a form the computer can act on. That written
+form is code. Source code is the same thing said more precisely: the instructions
+as text, saved in a file, before the computer has done anything with them. Code
+is writing. It sits in a file the way a paragraph sits in a document, made of
+characters a person typed.
+
+Not any characters in any arrangement, though. English is built for humans, who
+fill gaps with guesswork. "Leave the light on for a bit" works fine for a person
+and is useless to a machine, because "a bit" is not a length of time and "on"
+could mean several things. A computer cannot guess. It needs instructions that
+carry exactly one meaning.
+
+That is what a programming language is: a fixed, small vocabulary plus a strict
+set of rules for arranging it, designed so that every valid instruction means
+exactly one thing. The rules for arranging the words are called the language's
+grammar, or its syntax. A programming language is far smaller than English, on
+purpose. Fewer words and stricter rules leave no room for the machine to misread.
+The trade is that the writing has to be precise. A comma out of place is not a
+style quibble, it can be the difference between an instruction the computer
+accepts and one it throws back.
+
+There are many programming languages, and each one is a different set of words
+and rules suited to different work. They all share the core idea. Code is
+instructions, and a language is the fixed system for writing those instructions
+so exactly that a machine can carry them out without guessing.
+
+<Quiz
+  id="prog-why-language"
+  question="Why do programmers write instructions in a programming language instead of plain English?"
+  answer={1}
+  options={[
+    "English is too slow for a computer to read quickly enough.",
+    "A programming language has a fixed vocabulary and strict rules, so each instruction has exactly one meaning, which English does not guarantee.",
+    "Computers can only read languages that were invented after 1990.",
+    "Plain English uses too many letters to fit inside a file.",
+  ]}
+  explanation="The point of a programming language is exactness. English is full of phrases a person fills in by guessing, and a computer cannot guess. A small fixed vocabulary with strict grammar removes the ambiguity."
+/>
+
+## From written code to a running program
+
+Two ideas that sound like the same thing are worth pulling apart, because
+confusing them causes a lot of early fog. The code is the text. The running
+program is what happens when the computer actually carries that text out.
+
+Picture a file named `hello.py` sitting on a disk, holding one line of text. That
+file is source code. Nothing is happening. It is a set of instructions waiting,
+the way a recipe card in a drawer is not a meal. When someone tells the computer
+to run that file, the language reads the instructions and does what they say. For
+those few moments a running program exists: an active process, doing the work,
+using the machine's memory. When the last instruction finishes, the running
+program ends and vanishes. The file stays exactly where it was, unchanged, ready
+to be run again.
+
+So one program has two states. As source code it is text a person can read and
+edit. As a running program it is activity the computer is performing right now.
+Writing software is mostly working on the first so that the second behaves. This
+matters more than it looks: a lot of beginner frustration comes from editing the
+text, forgetting to run it again, and wondering why nothing changed. The saved
+file and the run are two separate events.
+
+## Why Python is a good place to start
+
+Python is a good first language, and the reasons are practical rather than
+sentimental.
+
+Python reads close to English. The instruction to put text on the screen is
+`print`, the word a person would guess. Older languages demand a page of setup
+before the first useful line runs. Python lets a real instruction be the first
+thing written, which means less to memorize before anything works. That matters
+most at the very start, when every small win is what keeps a beginner going.
+
+Python is also everywhere. The same code runs on Windows, macOS, and Linux
+without changes. It is used for real work: websites, data analysis, automation,
+scientific computing, and a large share of the tools behind modern artificial
+intelligence. What gets learned here is not a toy. It is the same language
+working programmers use every day.
+
+And Python fails helpfully. When an instruction is wrong, Python stops and prints
+a message that describes what went wrong and names the line that caused it. Those
+messages read as noise at first. They become the single most useful tool for
+fixing code, so it pays to read them instead of flinching.
+
+## The first program
+
+By a tradition older than most languages in use, the first program a language
+teaches prints the words "Hello, world!" to the screen. Here it is, the whole
+thing:
+
+```python
+print("Hello, world!")
+```
+
+One line, and every piece of it carries meaning. `print` is a function: a named
+instruction that performs a task when it is used. This particular function writes
+text to the screen. The parentheses hold what the function should act on. Inside
+them sits `"Hello, world!"` wrapped in quotation marks, which makes it a string:
+a piece of text the program treats as data rather than as a command. The
+quotation marks are the boundary. They tell Python that everything between them is
+text to be printed literally, not an instruction to be understood. Swap the words
+between the quotes and `print` puts those new words on the screen instead.
+
+Saving that line in a file named `hello.py` and running it from a terminal, the
+plain text window where typed commands are entered, produces exactly one thing.
+
+<CommandCard
+  command="python3 hello.py"
+  title="terminal"
+  explain="Tells Python to read the file hello.py and carry out the instructions inside it, top to bottom."
+/>
+
+<ExpectedOutput label="running hello.py">
+```
+Hello, world!
+```
+</ExpectedOutput>
+
+Notice what the machine printed: the text between the quotes and nothing else.
+Not the word `print`, not the parentheses, not the quotation marks themselves. It
+followed the single instruction exactly. Take this string, write it to the
+screen. That is the entire mental model in miniature. A person wrote one precise
+instruction, the computer carried it out literally, and the result is exactly
+what the instruction described.
+
+The exactness has teeth. Misspell `print` as `primt` and Python does not shrug
+and guess the intent. It stops and complains.
+
+<Callout type="warning" title="One typo stops the whole thing">
+Running `primt("Hello, world!")` prints no greeting. Instead Python halts and
+reports `NameError: name 'primt' is not defined`, because there is no instruction
+called `primt`. The exact wording and layout of the message vary slightly by
+Python version, but the last line always names the problem. Reading that line is
+faster than staring at the code, and it is a habit worth building on lesson one.
+</Callout>
+
+<Quiz
+  id="prog-print-output"
+  question="A file holds the single line print(&quot;Save me&quot;), and the computer runs it. What appears on the screen?"
+  answer={1}
+  options={[
+    "print(\"Save me\")",
+    "Save me",
+    "\"Save me\"",
+    "Nothing, because the file was only source code.",
+  ]}
+  explanation="The print function writes the text inside the quotation marks and nothing else. The quotes mark the boundary of the string and are not themselves printed, and neither is the word print or the parentheses. The file was source code, but running it turned it into a program that did its one job."
+/>
+
+<Exercise title="Print something of your own">
+Say out loud, in plain words, the one instruction you would give a computer to
+put your own name on the screen. That sentence is the program, before any Python.
+
+Now, if a computer with Python is within reach, put a single line in a file named
+`hello.py`: write `print("")` and drop your name between the quotation marks. Run
+it with `python3 hello.py` and watch what appears. Then change only the words
+between the quotes, run it again, and confirm the screen shows exactly the new
+words and nothing more.
+
+If the program errors instead of printing, do not panic and do not rewrite
+everything. Read the message. It names the line and what confused Python. Reading
+that message is the start of debugging, and debugging is most of what
+programming actually is.
+</Exercise>
+
+This first program does its one job and forgets it the instant it ends. It cannot
+remember a name, count how many times it has run, or hold a number to use a moment
+later. Everything a program keeps track of while it runs has to live somewhere,
+and that somewhere is a variable. The next lesson, variables and data, gives a
+program its memory.
+
+<Notes />

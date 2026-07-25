@@ -1,0 +1,18 @@
+{
+  "slug": "azure-az500",
+  "code": "AZ-500",
+  "name": "Microsoft Azure Security Engineer",
+  "vendor": "Microsoft",
+  "description": "Validates the skills to secure Azure: identity and access with Entra ID, network protection, securing compute and data, and running security operations with Defender and Sentinel.",
+  "passScore": 70,
+  "examMinutes": 120,
+  "questionCount": 50,
+  "icon": "CloudCog",
+  "order": 9,
+  "domains": [
+    { "number": 1, "name": "Manage Identity and Access", "weight": 28 },
+    { "number": 2, "name": "Secure Networking", "weight": 24 },
+    { "number": 3, "name": "Secure Compute, Storage, and Databases", "weight": 24 },
+    { "number": 4, "name": "Manage Security Operations", "weight": 24 }
+  ]
+}

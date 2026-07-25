@@ -1,0 +1,254 @@
+---
+title: Hashing and Integrity
+module: cryptography
+moduleTitle: Cryptography
+moduleOrder: 8
+moduleIcon: KeyRound
+order: 2
+summary: How a one-way digest proves data has not changed, and why MD5 and raw password hashes fail at it.
+estimatedMinutes: 15
+prerequisites:
+  - symmetric-vs-asymmetric
+objectives:
+  - Explain what a cryptographic hash guarantees and why it is not encryption
+  - Verify a file's integrity by computing and comparing digests
+  - Store passwords safely with a per-user salt and a deliberately slow hash
+  - Say why MD5 and SHA-1 are broken and where HMAC fits
+tags:
+  - cryptography
+  - hashing
+  - integrity
+---
+
+The last lesson drew a hard line between two jobs a cipher does. Symmetric
+encryption hides the contents of a message. Asymmetric encryption solves how two
+strangers agree on a key in the first place. Hashing sits next to both and does
+neither. A hash does not hide data, and it cannot be undone. What it proves is
+narrower, and on a bad day more useful: that a chunk of data has not changed by a
+single bit since someone last looked at it.
+
+## A hash is a one-way fingerprint
+
+A cryptographic hash function takes an input of any length, one byte or a
+four-gigabyte disk image, and returns a fixed-size output called a digest.
+SHA-256 always returns 256 bits, written as 64 hex characters, no matter how much
+data went in. Feed the function the same input twice and it returns the same
+digest twice. Change that input in the smallest way possible and the digest
+changes past all recognition.
+
+Here is the whole idea in two lines. The word hello and the word Hello differ by
+exactly one bit, the case of the H:
+
+```
+$ printf 'hello' | sha256sum
+2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+$ printf 'Hello' | sha256sum
+185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969
+```
+
+One flipped bit in, and every part of the digest is different out. Nothing about
+the second result hints that it came from almost the same word. That scattering
+has a name, the avalanche effect, and it is what makes a hash a reliable tamper
+check. A corrupted download, a byte flipped in transit, an attacker who edited
+one line of a script: each one changes the digest, and the change gives no clue
+how small the edit was.
+
+## The four properties that matter
+
+Mapping big inputs to small outputs is easy. A checksum like CRC32 does it in a
+handful of instructions. What makes a hash cryptographic is a set of guarantees
+that a plain checksum never makes.
+
+- Deterministic. The same input always produces the same digest, on any machine,
+  in any language, forever. Without this, comparing two digests would prove
+  nothing.
+- Fast, up to a point. The function computes a digest quickly over a large file,
+  which is what makes integrity checks cheap. That same speed turns into a
+  liability for password storage, a problem this lesson comes back to.
+- Preimage resistant. Given a digest, no one can work backward to an input that
+  produces it. This is the one-way property. The digest leaks nothing usable
+  about the data behind it.
+- Collision resistant. No one can find two different inputs that hash to the same
+  digest. A near cousin, second-preimage resistance, is the weaker promise that
+  given one specific input, no one can find a second input matching its digest.
+
+A checksum gives the first two and skips the last two on purpose, which is why a
+checksum catches accidents but not attackers.
+
+## Why this is not encryption
+
+Encryption and hashing get filed together because both spit out scrambled-looking
+output, but they answer different questions. Encryption is reversible by design:
+a key turns plaintext into ciphertext, and the same key, or its partner from the
+last lesson, turns it back. Hashing has no key and no reverse. The digest of a
+contract is not a locked copy of the contract that the right key reopens. It is a
+fingerprint. Keep only the digest and the original data is gone for good, the
+same way a photo of a fingerprint will never rebuild the finger.
+
+That difference decides what each tool is for. Encryption keeps a secret. A hash
+proves a fact: this data is the data that was expected.
+
+<Quiz
+  id="hashing-and-integrity-one-way"
+  question="A service stores only the SHA-256 digest of each uploaded document, then deletes the document. What can it still do with the digest alone?"
+  answer={1}
+  options={[
+    "Reconstruct the original document from the digest",
+    "Confirm whether a later copy of the document is byte-for-byte identical",
+    "Decrypt the document using the matching key",
+    "Recover the document as long as the digest is kept safe",
+  ]}
+  explanation="A hash is one-way. The digest cannot rebuild the document, and there is no key to decrypt because none was used. It can only be recomputed on a later copy and compared, which proves that copy is identical to the original."
+/>
+
+## Checking integrity in the wild
+
+The most visible use of hashing is verifying a download. A project publishes a
+file next to its expected SHA-256 digest, usually in a manifest named something
+like SHA256SUMS. Once the download lands, the recipient recomputes the digest and
+compares:
+
+```
+$ sha256sum -c SHA256SUMS
+ubuntu-24.04.iso: OK
+```
+
+If the digests match, the file that arrived is the file the project built, down
+to the last byte. If a mirror served a truncated image or a proxy mangled a
+packet, the digest will not match and the check fails loudly. A package manager
+runs this on every install. Git runs a version of it too: every commit is named
+by the SHA hash of its contents, so a repository cannot be quietly rewritten
+without every clone downstream noticing the name changed.
+
+None of this hides the file. The digest is public, the file is public, and that
+is fine. Integrity checking never needed secrecy, only a fingerprint both sides
+can compute and agree on.
+
+## Passwords: the right way and the ruinous way
+
+Password storage is where teams get hashing wrong most often, and the mistake
+fills breach headlines. The instinct is sound: never store the password itself,
+store its hash, and compare hashes at login. If the database leaks, the reasoning
+goes, the attacker only walks away with digests.
+
+The trouble is speed. SHA-256 is built to be fast, and a leaked table of raw
+SHA-256 password hashes is an open invitation. A single modern GPU computes
+billions of SHA-256 digests per second. The attacker takes a list of common
+passwords, hashes each candidate, and compares against the stolen table. Every
+match hands over a plaintext password. Precomputed tables, called rainbow tables,
+make this faster still by trading storage for compute.
+
+Two defenses turn the problem around, and real systems use both together.
+
+First, a salt. A salt is a unique random value, stored in the clear next to each
+hash, that gets mixed into the password before hashing. Two users who both pick
+sunshine1 end up with different digests, because each got a different salt. The
+salt does not need to be secret. Its whole job is to make every stored hash
+unique, which kills precomputed tables outright: one rainbow table can no longer
+crack everyone at once.
+
+Second, a slow hash. Password storage deliberately picks a function built to be
+slow and memory-hungry, such as bcrypt, scrypt, or argon2. Each has a tunable
+cost factor. A login checks one password and can spend a tenth of a second on it
+without anyone noticing. An attacker grinding billions of guesses cannot afford
+that tenth of a second per attempt. The same math that felt free at one guess
+becomes ruinous at scale. argon2 is the current first choice, bcrypt the boring
+default that has held up for years.
+
+The rule that falls out of this is simple. A fast general-purpose hash like
+SHA-256 is right for file integrity and wrong for passwords. Passwords get a
+per-user salt and a slow hash chosen precisely because it is slow.
+
+<Callout type="warning" title="A raw fast hash is not password storage">
+Hashing a password once with SHA-256, or worse with MD5, and storing the result
+is the most common credential-handling mistake there is. It stops nothing that
+matters. Salting alone is not enough either, since a salted fast hash is still
+fast. The two go together: a per-user salt plus a deliberately slow function like
+bcrypt or argon2.
+</Callout>
+
+<Quiz
+  id="hashing-and-integrity-password-storage"
+  question="A site stores each password as a single unsalted SHA-256 digest, and the database leaks. Why is this weak even though the passwords were hashed?"
+  answer={2}
+  options={[
+    "SHA-256 can be decrypted back to the password with the right key",
+    "SHA-256 digests are too short to represent a password",
+    "SHA-256 is fast, so an attacker hashes billions of guesses per second and reuses precomputed tables against the unsalted digests",
+    "The digests expire over time and become unverifiable",
+  ]}
+  explanation="SHA-256 is a fast, keyless hash. With no salt, identical passwords share a digest and rainbow tables apply directly. The fix is a per-user salt plus a deliberately slow hash such as bcrypt or argon2."
+/>
+
+## Which hash, and which to bury
+
+Not every hash function still holds its guarantees. Two names show up constantly,
+and both are broken for collision resistance.
+
+MD5, a 128-bit hash from 1992, can be made to collide on a laptop in seconds.
+Researchers have produced two different files, even two different TLS
+certificates, that share one MD5 digest. SHA-1 followed: a real collision was
+demonstrated in 2017, and the cost has only fallen since. A matching MD5 or SHA-1
+digest no longer proves two files are the same, which means neither belongs
+anywhere near a signature, a certificate, or tamper detection.
+
+Both linger in the wild as non-security checksums, catching accidental corruption
+where no attacker is involved. That is the only safe use left for them. For
+anything an adversary might target, the answer is SHA-256, the rest of the SHA-2
+family, or SHA-3. SHA-256 is the workhorse: fast, supported everywhere, with no
+practical collision known.
+
+<Quiz
+  id="hashing-and-integrity-broken-md5"
+  question="A build system trusts a plugin if its MD5 digest matches a known-good value. Why does this fail to keep malicious plugins out?"
+  answer={0}
+  options={[
+    "An attacker can craft a malicious plugin whose MD5 digest matches the trusted value",
+    "MD5 is too slow to compute during a build",
+    "MD5 needs a secret key that the build system cannot store safely",
+    "MD5 digests change every time they are computed",
+  ]}
+  explanation="MD5 is collision-broken. An attacker can produce a malicious file that shares the trusted file's MD5 digest, so a match proves nothing about safety. A modern hash such as SHA-256 is required, and even then a bare digest proves integrity, not authorship."
+/>
+
+## When integrity is not enough
+
+A bare digest published next to a file proves the file was not corrupted. It says
+nothing about who made it. An attacker who can swap the file on a mirror can
+usually swap the published digest sitting next to it, and the check still passes.
+Integrity and authenticity are different claims, and a plain hash only answers the
+first.
+
+Closing the gap means mixing a secret into the hash. An HMAC, a hash-based message
+authentication code, does exactly that: it folds a secret key into the message so
+that only a party holding the key can produce a valid tag. An API signs its
+webhook payloads with HMAC so the receiver can tell a genuine request from a
+forged one.
+
+<Callout type="security" title="Integrity is not authenticity">
+A hash beside a download only proves the bytes did not change on the way over. It
+cannot vouch for who produced them. Proving authorship needs a secret or a private
+key behind the hash: an HMAC when both sides share a secret, a digital signature
+when identity has to be proven to a stranger.
+</Callout>
+
+<Exercise
+  id="hashing-and-integrity-avalanche"
+  title="Watch one byte change everything"
+  prompt="On any machine with a shell, save a line of text to a file, hash it with sha256sum (or shasum -a 256 on macOS, or openssl dgst -sha256), then change a single character and hash it again. Compare the two digests."
+>
+Run sha256sum on the file and note the digest. Edit one character, save, and run
+sha256sum again. The two digests should share nothing in common, even though the
+files differ by a single byte. That is the avalanche effect that makes a hash a
+dependable tamper check. As a second pass, hash the same file with md5sum, watch
+it produce a stable digest too, and recall why a matching MD5 no longer proves two
+files are identical.
+</Exercise>
+
+An HMAC still assumes both sides already share a secret, which lands right back on
+the key-distribution problem from the last lesson. The public-key answer to
+identity picks it up from there: a certificate that binds a key to a name, an
+authority that signs it, and a chain of those signatures that lets a browser trust
+a site it has never met. That is where PKI and certificates come in.
+
+<Notes />

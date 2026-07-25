@@ -1,0 +1,89 @@
+---
+title: Race Conditions
+module: advanced-web-attacks
+moduleTitle: Advanced Web Attacks
+moduleOrder: 46
+moduleIcon: Flame
+order: 4
+summary: You fire the same request many times in the same instant and slip through the gap between check and use.
+estimatedMinutes: 18
+objectives:
+  - Explain the TOCTOU window that makes limit checks fail
+  - Recognize limit-overrun targets like coupons and withdrawals
+  - Fire near-simultaneous requests with the single-packet technique
+tags:
+  - web
+  - race-condition
+  - toctou
+  - concurrency
+---
+
+A gift-card balance of 10 dollars should redeem once. Send fifty redeem requests in the same 5 millisecond window and several of them read the balance before any of them writes the new one, so the card pays out five or six times. That gap between when the app checks a value and when it updates it is the whole vulnerability.
+
+The pattern has a name, TOCTOU, time-of-check to time-of-use. The app checks a condition (balance is 10, coupon unused, one vote per user) and then acts on it. If two requests both pass the check before either finishes acting, they both act, and the invariant the check was supposed to protect is gone. Single requests never expose it. You need collisions.
+
+## What to aim at
+
+Anything that enforces a limit by reading state, deciding, then writing state is a candidate. Look for the "you can only do this once" or "up to N" features, because those are exactly the checks a race defeats.
+
+<CommandBlock
+  title="the limit-overrun targets worth trying"
+  commands={[
+    { cmd: "POST /coupon/apply  code=SAVE20", comment: "one-time discount applied N times" },
+    { cmd: "POST /withdraw  amount=100", comment: "drain more than the balance allows" },
+    { cmd: "POST /invite/redeem  token=abc", comment: "single-use token accepted repeatedly" },
+    { cmd: "POST /vote  option=2", comment: "one-vote-per-user stuffed" },
+  ]}
+/>
+
+Gift cards and store credit are the cleanest demonstrations because the overrun converts directly to money. But the same bug shows up in rate limits, in "reserve the last seat" flows, and in any registration that checks a username is free before inserting it.
+
+## The window is tiny, so timing is everything
+
+The race window can be a few milliseconds. Requests sent one after another over separate connections arrive too far apart and each one sees the previous one's write. You have to make them land together.
+
+The old way was to queue many requests and release them at once. The sharp way now is the single-packet attack, which removes network jitter as a variable entirely by putting the tail end of many HTTP/2 requests into one TCP packet. All of them complete their headers first, then the final frames release together, so the server starts processing them within microseconds of each other.
+
+<CommandCard command="Burp Repeater group > Send group in parallel (single-packet attack)" explain="Burp Suite bundles 20 to 30 requests and fires them as one packet, collapsing the arrival spread from milliseconds to microseconds. This is what makes modern race testing reliable where the old queue-and-release approach was flaky. The Turbo Intruder script race-single-packet-attack.py does the same from code." />
+
+<Callout type="security" title="Real money and real state, so lab only">
+Winning a race can mint currency, drain balances, or corrupt shared records, and the app has no clean way to know it was you testing. Run these only against systems you own or have written authorization for. PortSwigger's Web Security Academy has a full race conditions track built for the single-packet technique, and it resets cleanly between attempts.
+</Callout>
+
+## Confirm and measure
+
+Send the burst, then read the result state and compare it against the limit. If a 10 dollar card shows 60 dollars redeemed, or a single-use coupon appears on the order three times, the race landed. Note how many of the parallel requests succeeded, because that number tells you how wide the window is and whether the fix later actually closed it.
+
+<CommandBlock
+  title="the test loop"
+  commands={[
+    { cmd: "seed a card with a known small balance", comment: "10.00, redeemable once by design" },
+    { cmd: "group 30 identical redeem requests in Repeater", comment: "same token, same body" },
+    { cmd: "send group in parallel", comment: "single-packet, all land together" },
+    { cmd: "read final balance and redemption count", comment: "overrun confirms the race" },
+  ]}
+/>
+
+The fix side is worth knowing so you can describe it in a report. The durable patch is a database-level lock or an atomic conditional update, `UPDATE cards SET balance = balance - 10 WHERE id = ? AND balance >= 10`, so the check and the write happen as one indivisible operation. Application-level checks in separate statements will always have the gap.
+
+<Exercise
+  id="race-toctou-window"
+  prompt="What is the name of the gap between when an app checks a value and when it acts on it, the gap a race condition exploits?"
+  answer="TOCTOU"
+  placeholder="acronym"
+/>
+
+<Quiz
+  id="race-single-packet"
+  question="Why does the single-packet attack beat the old queue-and-release method for triggering races?"
+  answer={1}
+  options={[
+    "It sends more total requests over a longer period",
+    "It collapses arrival timing to microseconds by finishing many HTTP/2 requests in one packet",
+    "It uses a different HTTP verb that skips validation",
+    "It disables the server's rate limiting",
+  ]}
+  explanation="Network jitter is what spreads requests apart and lets each one see the prior write. Packing the final frames of many HTTP/2 requests into a single TCP packet removes that jitter, so the server processes them within microseconds and several slip through the check together."
+/>
+
+<Notes />

@@ -1,0 +1,302 @@
+---
+title: Microcontrollers and Arduino
+module: electronics-foundations
+moduleTitle: Electronics Foundations
+moduleOrder: 4
+moduleIcon: CircuitBoard
+order: 4
+summary: "A microcontroller is a tiny computer that can switch its own pins on and off: what that means, and the sketch that makes one blink an LED."
+estimatedMinutes: 17
+prerequisites: ["what-electricity-is", "components-and-schematics", "your-first-circuit"]
+objectives:
+  - Describe what a microcontroller is and what makes its controllable pins different from a laptop processor
+  - Explain what an Arduino board and a sketch add on top of a bare chip
+  - Set a digital pin HIGH or LOW and say what voltage each state puts on the pin
+  - Size the current-limiting resistor for an LED driven by a 5 volt pin using Ohm's law
+  - Read the Blink sketch line by line and explain setup, loop, pinMode, digitalWrite, and delay
+tags:
+  - electronics
+  - hardware
+---
+
+In your-first-circuit, a battery lit an LED. Wire a battery to a resistor to an
+LED and back into a loop, and the light comes on and stays on. It is a
+satisfying first result, and it has one flaw: the battery does exactly one
+thing, forever. It cannot make the light blink. It cannot wait two seconds and
+then switch off. It cannot notice a button being pressed and light up only then.
+A battery pushes current and holds no opinions.
+
+Making a light do something in time, or in response to the world, needs a part
+that can decide: on now, off in a second, on again when something happens. That
+part is a microcontroller, and getting one to blink a single LED is the doorway
+into every board, robot, and gadget that follows.
+
+## The computer on a single chip
+
+A microcontroller is a complete, small computer built onto one chip of silicon.
+Not a computer wired to a screen and a keyboard: a bare one, about the size of a
+fingernail, meant to be soldered onto a board and left to run one program.
+Everything a computer needs sits inside that chip. A processor that carries out
+instructions. Memory that holds the program and the handful of numbers it works
+with while running. And the part that sets it apart from a laptop, a row of pins
+it can control directly.
+
+A pin is one metal leg on the edge of the chip, a single electrical connection to
+the outside world. The chip can read the voltage on a pin, or set the voltage on
+a pin, under the command of the program running inside it. That is the whole
+trick. A laptop processor does its work behind glass and never touches a wire on
+purpose. A microcontroller exists to touch wires: to switch things on, and to
+sense whether something out there is on or off.
+
+Real numbers make it concrete. The chip at the center of the most common beginner
+board, the ATmega328P, runs at 16 MHz, meaning its processor steps through 16
+million basic operations a second. It holds 32 KB of flash memory for the program
+(flash keeps its contents with the power off, so the program survives being
+unplugged) and 2 KB of SRAM for the values the program juggles while it runs. It
+controls 23 pins. A modern laptop has billions of times more memory and a
+processor hundreds of times faster. None of that helps blink an LED. The small
+chip is not a weak laptop. It is a different tool, aimed at controlling physical
+things cheaply and reliably, and it costs a couple of dollars.
+
+## Arduino is the board and the on-ramp
+
+A bare ATmega328P is awkward to use on its own. It needs a steady power supply, a
+clock to pace it, and a special piece of hardware to load a program onto it.
+Arduino removes that friction. Arduino is two things wearing one name: a family of
+circuit boards that wrap a microcontroller in the supporting parts it needs, and
+a plain system for writing programs and loading them onto that chip over an
+ordinary USB cable.
+
+The board most people start with is the Arduino Uno. It carries the ATmega328P, a
+USB socket, a power regulator, and two rows of labeled sockets called headers that
+bring the chip's pins out where a wire can reach them. The Uno labels 14 of those
+pins for digital use, numbered 0 to 13, plus 6 more for reading analog signals, a
+split a later lesson picks up. A wire pushed into the socket marked 13 connects to
+pin 13 of the chip.
+
+A program written for an Arduino is called a sketch. The language is close to C
+and C++, but the ideas carry across every language: prior lessons described code
+as a list of exact steps a machine follows in order, and a sketch is exactly that,
+with one wrinkle specific to hardware that the code below makes clear.
+
+<Quiz
+  id="mcu-what-is-microcontroller"
+  question="What makes a microcontroller different from the processor in a laptop?"
+  answer={2}
+  options={[
+    "It runs faster than a laptop processor because nothing else competes for it.",
+    "It can only ever run one program, burned in at the factory and never changed.",
+    "It is a whole computer, processor, memory, and controllable pins, on one chip, built to sense and control physical things directly.",
+    "It needs no power to run, so it works on a bare bench with nothing attached.",
+  ]}
+  explanation="A microcontroller packs a processor, memory, and directly controllable pins onto a single chip. The ATmega328P runs at 16 MHz, far slower than a laptop, and it can be reprogrammed freely. Its point is controlling wires, not raw speed."
+/>
+
+## Digital output: two voltages, nothing between
+
+The simplest thing a microcontroller can do to the world is set one pin to one of
+two voltages. That is called digital output. Digital here means two states and no
+middle ground: fully on or fully off, like a wall switch, not a dimmer.
+
+On an Arduino Uno the two states have names and real values. HIGH means the pin is
+connected, inside the chip, to the board's 5 volt supply. (Voltage is the
+electrical push that drives current through a wire, measured in volts.) LOW means
+the pin is connected to 0 volts, the board's ground, its electrical zero. A pin
+set HIGH can push current out through a wire. A pin set LOW cannot; it sits at
+zero.
+
+Two instructions cover it. pinMode tells the chip that a given pin will be used
+for output rather than input, which has to be said once before the pin is driven.
+digitalWrite then sets that pin HIGH or LOW. None of this is a metaphor.
+`digitalWrite(13, HIGH)` physically raises pin 13 to 5 volts, and it stays there
+until something sets it LOW again.
+
+## The pin takes the battery's place
+
+Here is where your-first-circuit comes back. That lesson built a loop: a battery,
+a resistor, and an LED, wired on a breadboard, the plastic board with rows of
+clip-in holes that joins parts without soldering. Current left the battery's
+positive side, flowed through the resistor, through the LED, and back to the
+battery's negative side. The LED lit. The resistor was mandatory: an LED cannot
+limit its own current, and left alone across a battery it pulls until it burns
+out. The resistor holds the current down to a safe level.
+
+Swapping in a microcontroller changes exactly one part of that picture. The
+Arduino pin takes the place of the battery's positive terminal. When the program
+sets pin 13 HIGH, the pin sits at 5 volts, current flows out of it, through the
+resistor, through the LED, and into one of the board's ground pins, which plays
+the role the battery's negative terminal used to. Set the pin LOW and it drops to
+0 volts, current stops, and the LED goes dark. The program, not a hand moving a
+wire, now opens and closes that loop.
+
+Everything else is the same, and that includes the resistor. The LED still cannot
+limit its own current, so the resistor is still doing the same job, now against 5
+volts from a pin instead of the voltage from a battery. Skip it and the LED tries
+to pull far more current than the pin can safely give, which damages the LED, the
+pin, or both. (Current is the flow of charge through the circuit, measured in
+amps, or in thousandths of an amp, milliamps.)
+
+The value comes from Ohm's law, from the earlier electrical basics: current
+equals voltage divided by resistance, so resistance equals voltage divided by
+current. The pin supplies 5 volts. A standard red LED drops about 2 volts across
+itself when lit, which leaves 5 minus 2, or 3 volts, for the resistor to work
+against. A safe, bright current for that LED is about 10 milliamps, well under the
+20 milliamps an Uno pin is rated to supply comfortably (40 milliamps is the
+absolute limit before the pin is damaged). So:
+
+```text
+R = (5 V - 2 V) / 0.010 A = 3 V / 0.010 A = 300 ohms
+```
+
+No resistor is sold as exactly 300 ohms, so the nearest common value up is 330
+ohms. At 330 ohms the current lands at 3 V divided by 330 ohms, about 9
+milliamps: bright, and safely inside the pin's limit. A 220 ohm resistor works
+too, at about 14 milliamps, a little brighter and still safe. That one resistor is
+the entire difference between a circuit that runs for years and one that kills a
+pin the first time the program sets it HIGH.
+
+<Quiz
+  id="mcu-resistor-still-needed"
+  question="An Arduino Uno pin set HIGH sits at 5 V. A red LED drops about 2 V and should carry about 10 mA. What resistor puts it in that range, and why is one still needed now that a pin, not a battery, drives the LED?"
+  answer={1}
+  options={[
+    "No resistor is needed, because the Arduino limits the pin's current to a safe level automatically.",
+    "About 300 ohms, from (5 V minus 2 V) divided by 0.010 A; the LED still cannot limit its own current, so the resistor does it whatever the source is.",
+    "About 500 ohms, because the pin supplies 5 V and the LED needs all of it dropped across the resistor.",
+    "About 50 ohms, because lower resistance makes the LED brighter and brighter is always better.",
+  ]}
+  explanation="Ohm's law gives (5 - 2) / 0.010 = 300 ohms, rounded up to a standard 330 ohms. The pin does not limit current on its own, and the LED never could, so the resistor is as mandatory here as it was with a battery."
+/>
+
+## The blink program
+
+The classic first Arduino program blinks an LED on and off, one second each way.
+It uses every idea so far. Every Arduino sketch is built from two named blocks,
+and this one shows both. A named, reusable group of instructions is a function,
+from prior lessons. `setup()` is the function that runs one time the instant the
+board powers on or resets. `loop()` is the function that runs right after and then
+repeats from its first line forever, because a microcontroller has no desktop to
+return to. That endless repeat is the normal life of the chip.
+
+Here is the whole sketch:
+
+```cpp
+// Blink: one second on, one second off, forever.
+
+const int LED_PIN = 13;
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(LED_PIN, HIGH);  // pin 13 to 5 V: current flows, LED on
+  delay(1000);                  // hold for 1000 ms (one second)
+  digitalWrite(LED_PIN, LOW);   // pin 13 to 0 V: current stops, LED off
+  delay(1000);                  // hold for one more second
+}
+```
+
+Every line earns its place. The first real line, `const int LED_PIN = 13`, gives
+the number 13 a name. `const` means the value never changes; `int` means it is a
+whole number. Naming the pin once means it can be moved to a different socket by
+editing one line instead of hunting through the code.
+
+`setup()` holds a single instruction: `pinMode(LED_PIN, OUTPUT)`, which tells the
+chip that pin 13 will drive current out rather than read it in. This runs once at
+power-up. Declaring a pin's direction before using it is required; a pin left in
+its default input state cannot reliably drive an LED.
+
+`loop()` holds four instructions and runs them top to bottom, then repeats from
+the top for as long as the board has power. `digitalWrite(LED_PIN, HIGH)` raises
+pin 13 to 5 volts, current flows through the resistor and LED, and the light comes
+on. `delay(1000)` pauses the program for 1000 milliseconds, one full second (a
+millisecond is a thousandth of a second), holding the pin HIGH the whole time.
+`digitalWrite(LED_PIN, LOW)` drops the pin to 0 volts and the LED goes dark. The
+last `delay(1000)` holds that dark second, then `loop()` returns to its first line
+and the cycle begins again. On, one second. Off, one second. Forever.
+
+<Callout type="tip" title="Pin 13 blinks even with nothing wired">
+The Uno wires pin 13 to a small LED soldered onto the board, with its own resistor
+already in place. That means this exact sketch blinks a light on the board itself,
+before any external LED, resistor, or breadboard is connected. It is the fastest
+way to confirm a fresh board is alive and running the program that was loaded.
+</Callout>
+
+## Compiling and uploading
+
+The sketch is text. The ATmega328P does not read C++. Something has to translate
+the sketch into the raw numeric instructions the chip runs, then copy those
+instructions into its flash memory. Two steps: compile, then upload.
+
+The Arduino IDE does both behind one button, and the command line shows the same
+steps plainly. The Arduino CLI tool compiles a sketch with one command.
+
+<CommandCard
+  command="arduino-cli compile --fqbn arduino:avr:uno Blink"
+  title="terminal"
+  explain="Translates the sketch in the folder named Blink into instructions for the Uno. The --fqbn flag names the exact board so the compiler targets the right chip; get it wrong and the code will not run."
+/>
+
+<ExpectedOutput label="compiling the Blink sketch">
+```
+Sketch uses 924 bytes (2%) of program storage space. Maximum is 32256 bytes.
+Global variables use 9 bytes (0%) of dynamic memory, leaving 2039 bytes for local variables. Maximum is 2048 bytes.
+```
+</ExpectedOutput>
+
+Those two lines are worth reading, not skipping. The whole Blink program is 924
+bytes, using 2 percent of the chip's 32256 bytes of program storage (32 KB of
+flash, minus 512 bytes the board reserves for its own start-up code). That leaves
+enormous room, which is the point: a microcontroller program is small on purpose.
+The exact byte counts shift a little with toolchain versions, but the shape holds.
+
+Compiling only checks and translates. Uploading copies the result onto the chip:
+`arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno Blink` sends the
+compiled program down the USB cable and writes it into flash. The port name,
+`/dev/ttyACM0` here, is where the board appears to the computer and varies by
+system. A second later the LED starts blinking, and it keeps blinking with the USB
+cable unplugged and a battery attached, because flash held the program through the
+power cycle.
+
+<Quiz
+  id="mcu-blink-no-delay"
+  question="In the Blink sketch, loop() writes the pin HIGH, waits, writes it LOW, waits. What happens if both delay(1000) lines are deleted and everything else stays?"
+  answer={0}
+  options={[
+    "loop() still runs top to bottom forever, but it switches the pin on and off so fast that the LED looks steadily lit instead of blinking.",
+    "The LED blinks once per second instead of once every two seconds.",
+    "The program stops after one blink, because delay is what keeps loop() repeating.",
+    "Nothing changes, because delay only affects setup(), not loop().",
+  ]}
+  explanation="loop() repeats on its own, with or without delay. Remove the pauses and the pin toggles HIGH and LOW thousands of times a second, far faster than an eye can follow, so the LED reads as continuously on. The delays are what stretch the on and off states long enough to see."
+/>
+
+<Exercise title="Trace the current, then change the rhythm">
+Before touching any hardware, follow the current in the Blink circuit on paper.
+Start at pin 13 the moment the program has set it HIGH. Name every part the
+current passes through, in order, until it reaches ground. Write down where the
+resistor sits, then say in one sentence what would happen to the LED and the pin
+if it were removed.
+
+Now change the timing without rewiring anything. In the sketch, set the first
+delay to 100 and leave the second at 1000. Predict what the light does before
+running it: a short flash, then a long dark gap, repeating. If an Arduino and an
+LED are within reach, wire pin 13 through a 330 ohm resistor to the LED's long
+leg, the LED's short leg to a ground pin, upload the sketch, and check your
+prediction against the board.
+
+If the light stays dark, do not rewrite the program. Check three things in order:
+the LED's legs may be reversed (it passes current only one way), the resistor may
+sit in the wrong row of the breadboard, or the wrong pin number may be in the
+code. Each is a five second fix once found.
+</Exercise>
+
+Blink proves a microcontroller can drive the world on a schedule of its own. It is
+still one direction of traffic: the chip talks, the LED listens, and nothing comes
+back. A pin can also run the other way, reading whether the voltage on it is high
+or low, which is how a board notices a button press, a flipped switch, or a sensor
+reporting the temperature. The next lesson, inputs-outputs-and-sensors, turns the
+pins around and lets the board read the world instead of only lighting it.
+
+<Notes />

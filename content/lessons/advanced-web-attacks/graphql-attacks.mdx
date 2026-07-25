@@ -1,0 +1,82 @@
+---
+title: Attacking GraphQL
+module: advanced-web-attacks
+moduleTitle: Advanced Web Attacks
+moduleOrder: 46
+moduleIcon: Flame
+order: 5
+summary: One endpoint, a self-documenting schema, and per-field authorization that developers forget to write.
+estimatedMinutes: 20
+objectives:
+  - Pull the full schema through introspection or suggestions
+  - Find object-level authorization gaps by walking the graph
+  - Abuse aliases and batching to defeat rate limits
+tags:
+  - web
+  - "graphql"
+  - api
+  - introspection
+---
+
+GraphQL puts the whole API behind one URL, usually `/graphql`, and lets the client ask for exactly the fields it wants. That flexibility is the attack surface. The server exposes a typed schema, authorization has to be checked on every field instead of every route, and the batching features that make it fast also make brute-force and rate-limit bypass trivial.
+
+Start by confirming the endpoint and getting the map. GraphQL will often hand you its entire schema through introspection, a built-in query that describes every type, field, and argument the API supports. If it is enabled, you never have to guess a field name.
+
+## Introspection: ask for the whole map
+
+<CommandBlock
+  title="pull the schema"
+  commands={[
+    { cmd: "POST /graphql  {\"query\":\"{__schema{types{name}}}\"}", comment: "quick check, lists every type" },
+    { cmd: "full introspection query {__schema{queryType{name} types{name fields{name}}}}", comment: "types plus their fields" },
+    { cmd: "clairvoyance <url>", comment: "reconstruct the schema when introspection is disabled" },
+  ]}
+/>
+
+When introspection is turned off, you are not done. Many servers still return helpful error messages that suggest valid field names when you get close, "Cannot query field 'passwrd', did you mean 'password'?". Tools like Clairvoyance walk that suggestion behavior to rebuild the schema field by field. Turning off introspection is not a security control, it is a speed bump.
+
+<Callout type="security" title="Authorized endpoints only">
+Introspection dumps the full attack surface and batching lets you send thousands of operations in one request, which is easy to mistake for a denial-of-service attempt. Point these at systems you own or have written scope for. Spin up the Damn Vulnerable GraphQL Application locally, or use PortSwigger's GraphQL labs, and practice the full flow there.
+</Callout>
+
+## The real bug: broken object-level authorization
+
+GraphQL's per-field auth model means a developer has to remember to check permissions on every sensitive field. They forget. The result is that a query the UI never sends, asking for another user's data by id, often just works.
+
+<CommandCard command="query { user(id: 2) { email passwordHash } }" explain="The app's own frontend only ever requests the logged-in user, so the server-side check on the user field was never written. Increment the id and read whoever you want. This is IDOR wearing a GraphQL costume, and it is the single most common finding on GraphQL targets." />
+
+Walk the graph, not just the top-level queries. A field that returns your own orders might expose a nested `user` object, and that nested object might leak fields the direct query would have blocked. Authorization gaps hide in the relationships between types.
+
+## Aliases and batching break rate limits
+
+Here is the feature that ruins a lot of defenses. Aliases let you request the same field many times in one query under different names. A login mutation that is rate-limited to five attempts per minute assumes one attempt per request. Aliases put a hundred attempts in one request.
+
+<CommandBlock
+  title="brute force under one request"
+  commands={[
+    { cmd: "mutation { a: login(pw:\"1234\"){token} b: login(pw:\"1235\"){token} }", comment: "each alias is a separate attempt, one HTTP request" },
+    { cmd: "scale that to 100 aliases per request", comment: "rate limit counts requests, not operations" },
+    { cmd: "or send an array of queries (query batching)", comment: "same bypass through the batch feature" },
+  ]}
+/>
+
+<ExpectedOutput label="what a hit looks like">
+"c47": { "login": { "token": "eyJhbGciOi..." } }
+</ExpectedOutput>
+
+The rate limiter sees one request and waves it through. Inside, a hundred password guesses ran. This same aliasing trick amplifies any expensive operation into a denial-of-service, which is why deep queries and huge alias counts are a standard GraphQL abuse case. Batching, whether through aliases or an array of query objects, is the feature to reach for whenever a per-request limit is in your way.
+
+<Quiz
+  id="graphql-aliases"
+  question="A login mutation is rate-limited to 5 attempts per minute. How do aliases defeat that?"
+  answer={2}
+  options={[
+    "They encrypt the request so the limiter cannot read it",
+    "They change the endpoint URL to one without a limit",
+    "They pack many login attempts into a single request, and the limiter counts requests not operations",
+    "They disable introspection on the server",
+  ]}
+  explanation="Aliases let one GraphQL request contain the same mutation many times under different names. A rate limiter that counts HTTP requests sees one request and allows it, while the server actually processed dozens of login attempts inside it."
+/>
+
+<Notes />

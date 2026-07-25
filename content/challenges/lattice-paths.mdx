@@ -1,0 +1,57 @@
+---
+title: Lattice Paths
+summary: Count the routes across a 20 by 20 grid moving only right and down.
+track: make
+category: algorithms
+difficulty: MEDIUM
+tags: [combinatorics, binomial, counting]
+daily: true
+answer: 137846528820
+answerType: number
+starterLang: python
+starter: |
+  # Goal: count the distinct right/down routes across a 20 by 20 grid
+  # of squares, from the top-left corner to the bottom-right corner.
+  #
+  # A 20 by 20 grid of squares means you take 20 steps right and
+  # 20 steps down, in some order. The count is a binomial coefficient.
+
+  import math
+
+  # Fill in the two numbers, then print the result.
+  # answer = math.comb(?, ?)
+
+  print("replace me")
+hints:
+  - Every route is exactly 20 steps right and 20 steps down, so it is a sequence of 40 steps total.
+  - A route is fully determined by which 20 of the 40 steps are the "right" moves. That is a combination.
+  - The answer is C(40, 20), which Python computes directly with math.comb(40, 20).
+---
+
+Picture a 20 by 20 grid of unit squares. A token starts at the **top-left**
+corner of the grid and must reach the **bottom-right** corner. On every move it
+may step only one square **right** or one square **down**. It never moves left,
+up, or diagonally.
+
+The question is a counting problem, not a search: **how many distinct routes**
+reach the bottom-right corner?
+
+Here is the key observation. To cross a 20 by 20 grid of squares you walk along
+the grid lines, and any valid route is made of exactly 20 right moves and 20 down
+moves, taken in some order. That is 40 moves total. A route is completely
+determined the moment you decide which 20 of those 40 moves are the right moves,
+because the rest must be down moves.
+
+So the count is the number of ways to choose 20 positions out of 40, the binomial
+coefficient C(40, 20). Do not try to enumerate the paths one by one. There are far
+too many for a brute-force walk, but the combination formula gives the exact value
+instantly.
+
+In Python:
+
+```python
+import math
+print(math.comb(40, 20))
+```
+
+Run your code in the editor, read the single number it prints, and submit it.

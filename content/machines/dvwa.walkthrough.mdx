@@ -1,0 +1,58 @@
+---
+title: DVWA walkthrough
+---
+
+## Setup
+
+1. Load `http://localhost:8080` and log in with `admin` / `password`.
+2. Open `Setup / Reset DB` from the left menu and click `Create / Reset Database`.
+   The app is dead until this runs.
+3. Open `DVWA Security` and set the level to `Low`.
+
+## SQL injection (user)
+
+Go to the `SQL Injection` module. It asks for a User ID and builds a query like
+`SELECT ... WHERE user_id = '$id'`, concatenating your input directly.
+
+1. Enter a single quote `'` to confirm the input breaks the query and throws a
+   SQL error.
+2. Enter `1' OR '1'='1` to return every row instead of one.
+3. Escalate to a UNION to pull the credentials table:
+
+```
+1' UNION SELECT user, password FROM users -- -
+```
+
+The response lists every username alongside its stored MD5 hash, including the
+admin hash. You have turned a single ID field into a full table dump.
+
+Proof token: `MOB{low_sqli_dumps_the_hashes}`.
+
+## Command execution (root)
+
+Open the `Command Injection` module. It takes a host and runs `ping` against it,
+passing your input to the shell unfiltered.
+
+1. Enter a normal address like `127.0.0.1` and confirm you see ping output.
+2. Chain your own command after it:
+
+```
+127.0.0.1; id
+```
+
+3. The page prints the ping output followed by the result of `id`, showing the
+   web server user (typically `www-data`). Swap `id` for `uname -a`, `ls`, or a
+   reverse-shell one-liner to go further.
+
+The server just executed a command you injected. That is remote code execution.
+
+Proof token: `MOB{command_injection_is_a_shell}`.
+
+## Lessons learned
+
+- User input concatenated into a SQL string is the whole SQL injection class.
+  Parameterized queries close it.
+- Passing user input to a shell is the same mistake in a different language. Use
+  argument arrays and never build a command string from untrusted data.
+- Raise the DVWA security level and repeat both attacks. Watching the Medium and
+  High filters try and fail to stop you is the real lesson.

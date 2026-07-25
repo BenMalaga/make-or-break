@@ -1,0 +1,70 @@
+---
+title: How Modern APIs Work
+module: api-security
+moduleTitle: API Security
+moduleOrder: 32
+moduleIcon: Webhook
+order: 1
+summary: The app you are testing is mostly a thin shell over an API doing all the real work.
+estimatedMinutes: 18
+objectives:
+  - Read a REST request and name every part that matters to an attacker
+  - Explain how bearer tokens and API keys authenticate a request
+  - Spot why the API tier is a bigger attack surface than the website
+tags:
+  - api
+  - rest
+  - json
+  - tokens
+  - http
+---
+
+Open the network tab on any modern web app and click one button. You will see a burst of requests to `/api/v2/orders`, `/api/user/me`, `/graphql`, all returning JSON. The pretty page is a shell. The API underneath is where the accounts, the orders, and the money live, and that is what you are actually attacking.
+
+A REST API is HTTP with discipline. The URL names a thing, the method says what to do with it, and the body carries the data. That's the whole model, and once you see it you can read any endpoint on sight.
+
+```
+GET    /api/v2/users/1042        read user 1042
+POST   /api/v2/users            create a user
+PATCH  /api/v2/users/1042        update part of user 1042
+DELETE /api/v2/orders/8890       delete order 8890
+```
+
+The method carries meaning that developers lean on for access control, which is exactly why they get it wrong. An app might block `DELETE` in the UI but leave the method live on the server. Change the verb, keep the URL, and see what happens.
+
+## The pieces that matter
+
+Every request has four parts you will poke at: the method, the path, the headers, and the body. The path holds object identifiers (`/users/1042`), and those numbers are the first thing you tamper with. The headers carry authentication and content type. The body, usually JSON, holds the fields you will add, remove, and lie about.
+
+<CommandCard command={`curl -i https://target.tld/api/v2/users/1042 -H "Authorization: Bearer eyJhbGciOiJIUzI1..."`} explain="The -i flag prints response headers with the body. Bearer plus a token is how nearly every API says who you are. Swap 1042 for another id and you are testing authorization, the number-one API bug." />
+
+JSON is just keys and values, and it lies as easily as it reads. A registration endpoint might accept `{"email":"you@x.tld","role":"user"}`. Add `"role":"admin"` and resend. If the server trusts fields the UI never showed you, you just escalated. That is mass assignment, and it is common because developers bind the whole request body straight to a database object.
+
+## How the API knows who you are
+
+HTTP is stateless. Every request stands alone, so the API re-checks who you are on each one, and it does that with a token or a key you carry in a header.
+
+A bearer token, usually a JWT, is a signed blob the server hands you at login. You attach it to every request in `Authorization: Bearer <token>`. Whoever holds the token is the user, full stop, which is why a leaked token in a log or a URL is game over.
+
+An API key is a long static string like `sk_live_51H...` that identifies an app or account. Keys get committed to public GitHub repos constantly. That is not a rare mistake, it is a daily source of real breaches, and searching a target's repos for one is standard recon.
+
+<Callout type="security" title="Authorized targets only">
+Practice against APIs built to be attacked: OWASP crAPI, the VAmPI project, PortSwigger's API labs, or an app you own. Sending crafted requests to a production API you are not cleared to test is unauthorized access under the CFAA and similar laws worldwide.
+</Callout>
+
+The reason APIs are the softer target: the browser front end funnels you through forms and buttons, but the API exposes hundreds of endpoints directly, many of them undocumented, most of them assuming a well-behaved client. Nobody is a well-behaved client. You send the request the app never expected, and the checks it skipped become your way in.
+
+<Quiz
+  id="api-token-holder"
+  question="An API uses Authorization: Bearer with a JWT. You find one of those tokens sitting in a server access log. What does that get you?"
+  answer={2}
+  options={[
+    "Nothing, tokens are encrypted end to end",
+    "Only the ability to read that one log entry",
+    "The identity of that user until the token expires, because whoever holds a bearer token is treated as that user",
+    "The user's plaintext password",
+  ]}
+  explanation="Bearer means possession is authentication. A leaked token authenticates you as that user for its whole lifetime, no password needed, which is why tokens in logs and URLs are a serious finding."
+/>
+
+<Notes />

@@ -1,0 +1,91 @@
+---
+title: OSINT Tooling
+module: osint
+moduleTitle: Open Source Intelligence
+moduleOrder: 21
+moduleIcon: Eye
+order: 5
+summary: Three tools, three jobs. Pick the right one instead of running all of them.
+estimatedMinutes: 16
+objectives:
+  - Match theHarvester, recon-ng, and SpiderFoot to the job each does best
+  - Run a fast harvest and a structured recon-ng workflow
+  - Know when to automate and when to stay hands-on
+tags:
+  - osint
+  - tools
+  - theharvester
+  - recon-ng
+  - spiderfoot
+---
+
+New people run every OSINT tool on every target and drown in redundant output. The skill is knowing which tool answers your current question. theHarvester, recon-ng, and SpiderFoot overlap a lot, but they sit at different points on the fast-versus-thorough curve, and picking wrong wastes an afternoon.
+
+## theHarvester: the fast first sweep
+
+theHarvester is your opening move. Point it at a domain, name your sources, get emails, hostnames, and names in under a minute. It does one thing and does it fast, which makes it the reflex tool when you land on a new target and want a shape of the attack surface.
+
+<CommandBlock
+  commands={[
+    { cmd: "theHarvester -d company.com -b bing,crtsh,duckduckgo -l 500", comment: "Emails and hosts from multiple free sources at once" },
+    { cmd: "theHarvester -d company.com -b crtsh -f harvest.json", comment: "Save structured output to feed the next tool" },
+  ]}
+/>
+
+Stick to free sources like `crtsh`, `bing`, `duckduckgo`, and `anubis`. Several backends want paid API keys and will just error without them, which is noise you do not need on a first pass. theHarvester is collection, not analysis: it hands you a list, and you decide what it means.
+
+## recon-ng: structured, repeatable, database-backed
+
+When one harvest becomes a real recon phase, move to recon-ng. It's built like Metasploit: a workspace holds a database, modules populate tables, and each module's output feeds the next. That structure is the point. You're not juggling text files, you're growing a queryable dataset.
+
+<CommandBlock
+  commands={[
+    { cmd: "recon-ng -w company", comment: "Open or create a workspace named company" },
+    { cmd: "marketplace install recon/domains-hosts/hackertarget", comment: "Add a module from the marketplace" },
+    { cmd: "modules load recon/domains-hosts/hackertarget", comment: "Load it, set the domain, run it" },
+  ]}
+/>
+
+Inside the console you set `SOURCE` to your domain, run the module, and the discovered hosts land in the `hosts` table. Load a resolver module next and it reads those hosts automatically. That chaining is why recon-ng beats a pile of one-off commands once you're past the first hour: it remembers, it dedupes, and it exports a clean report at the end.
+
+The cost is setup. Many marketplace modules need free API keys you register with `keys add`. Worth it for a full engagement, overkill for a five-minute look.
+
+## SpiderFoot: automate the whole graph
+
+SpiderFoot is the heavyweight. You give it a target, enable a set of modules, and it recursively pivots on its own: an email leads to a breach lookup, a domain leads to subdomains, an IP leads to a netblock, all correlated in a web UI.
+
+<CommandCard command="spiderfoot -l 127.0.0.1:5001" explain="Starts the web interface locally. Create a scan, set the target, choose passive-only modules if you want to stay off the target, and let it run." />
+
+SpiderFoot's strength is breadth and correlation across hundreds of data sources with almost no babysitting. Its weakness is the same thing: it generates a mountain of results, plenty irrelevant, and some modules go active and touch the target unless you restrict the scan to passive. Turn on "By Required Module: Passive" when you want it quiet.
+
+<Callout type="security" title="Automation does not read your scope for you">
+SpiderFoot and recon-ng will happily pivot onto IPs and domains outside your
+engagement if you let them run wide. Confirm every host they touch falls inside your
+authorized scope, and prefer passive-only modes until you have explicit sign-off to go
+active. The tool does not know what you are allowed to test. You do.
+</Callout>
+
+## Which one, when
+
+Reach for theHarvester when you want a fast list and you'll move on in minutes. Reach for recon-ng when you're running a real, multi-day recon phase and want a database you can query and report from. Reach for SpiderFoot when you want maximum coverage with minimum manual effort and you can afford to sift the output. They stack: harvest fast, structure the promising leads in recon-ng, and run SpiderFoot in parallel to catch what you'd miss by hand.
+
+<Exercise
+  id="osint-tool-choice"
+  prompt="Three scenarios: (1) you just got a domain and want to know if this target is even worth a deeper look, in the next five minutes; (2) you are on day two of a two-week engagement and need a clean, queryable dataset you can hand to a teammate and export into the report; (3) you want the broadest possible automated sweep across breach data, subdomains, and social accounts with correlation, and you have time to filter noise. Which tool fits each, and why?"
+  answer="(1) theHarvester: fastest first sweep, free sources, a list in under a minute. (2) recon-ng: workspace database, chained modules, dedupe, and clean report export make it the tool for a sustained, shareable recon phase. (3) SpiderFoot: recursive pivoting and correlation across hundreds of sources with little babysitting, at the cost of a lot of output to filter. Set it to passive-only to stay off the target."
+/>
+
+<Quiz
+  id="osint-reconng-structure"
+  question="What is the main advantage recon-ng has over running theHarvester repeatedly?"
+  answer={1}
+  options={[
+    "It is faster for a single quick lookup",
+    "It stores results in a workspace database so modules chain and feed each other",
+    "It never requires any API keys",
+    "It only works against passive sources",
+  ]}
+  explanation="recon-ng's workspace database is the point: one module's output populates tables that the next module reads automatically, with dedupe and report export built in. That structure pays off across a sustained recon phase; for a five-minute lookup, theHarvester is simpler and faster."
+/>
+
+<Notes />

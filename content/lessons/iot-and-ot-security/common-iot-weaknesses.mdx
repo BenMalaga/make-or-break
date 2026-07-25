@@ -1,0 +1,74 @@
+---
+title: Common IoT Weaknesses
+module: iot-and-ot-security
+moduleTitle: IoT and OT Security
+moduleOrder: 40
+moduleIcon: Factory
+order: 3
+summary: The same four bugs ship on almost every device. Default creds, no real updates, exposed services, and secrets baked into the image.
+estimatedMinutes: 18
+objectives:
+  - Recognize the four weaknesses that show up across nearly every IoT product
+  - Test for default credentials and exposed services on a device you own
+  - Explain why a shared hardcoded secret compromises an entire product line
+tags:
+  - iot
+  - default-credentials
+  - hardcoded-secrets
+  - insecure-services
+---
+
+Mirai took down a chunk of the internet in 2016 with a list of about 60 username and password pairs. No exploit, no memory corruption, just admin and root against telnet on cameras and DVRs that all shipped the same way. That is the honest state of IoT security. The bugs are not clever. They repeat, and they repeat because the same four mistakes get made on nearly every device.
+
+## Default and hardcoded credentials
+
+The first login you try is `admin:admin`, then `root:root`, then whatever the Mirai list holds for that vendor. Devices ship with a factory password nobody changes, and worse, many carry a hidden account you cannot change at all because it is compiled in.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "hydra -C /usr/share/wordlists/iot-default-creds.txt telnet://192.168.1.50", comment: "spray known default pairs at the telnet service" },
+    { cmd: "grep -riE 'root:.*:0:0' etc/passwd", comment: "in unpacked firmware, hunt for hardcoded or backdoor root accounts" },
+  ]}
+/>
+
+When you find the same root hash in a firmware image, crack it once and it opens every unit of that model in the world. The vendor used one password for the whole production run.
+
+## No real update mechanism
+
+Plenty of devices update over plain HTTP with no signature check. That means anyone who can intercept the download, a man in the middle on the network, can hand the device a firmware image of their choosing and the device installs it. No signing, no encryption, no rollback protection. The update channel becomes the persistence channel.
+
+Even when an update exists, it often never runs. The device ships, sits on a shelf, and stays on a build with known bugs for its entire service life because there is no auto-update and no one logs in to flash it.
+
+## Exposed and insecure services
+
+Embedded devices love to listen. Telnet on 23, UPnP quietly punching holes in the router, a debug service on some high port the developer forgot, an MQTT broker on 1883 with no authentication, RTSP video on 554 that streams to anyone who asks.
+
+<CommandCard command="nmap -sV --script mqtt-subscribe -p 1883 192.168.1.50" title="attacker@kali" explain="An open MQTT broker with no auth lets you subscribe to every topic the fleet publishes, which is often live sensor data and device commands. RTSP on 554 with no credentials is the same story for video." />
+
+Each open service is a door. Half of them were meant for the factory or a developer and should never have shipped enabled.
+
+## Secrets baked into the image
+
+The last lesson showed how to grep firmware for keys. This is why it matters. Devices carry hardcoded API keys, TLS private keys, Wi-Fi passwords, and cloud tokens right in the filesystem. A single shared private key across a product line means pulling it from one device you own lets you decrypt or impersonate traffic for all of them.
+
+The pattern under all four is the same: the device trusts its network, trusts its cloud, and assumes nobody will ever read what is on the chip. Every one of those assumptions is wrong the moment a tester shows up.
+
+<Callout type="security" title="Test default creds only on your own gear">
+Spraying default passwords at a device is a real intrusion attempt against whatever answers. Point hydra and nmap at hardware on your own lab segment or a target inside a signed scope. Running these against a camera or router you do not own is unauthorized access, and the fact that the password was left at the default is not a defense.
+</Callout>
+
+<Quiz
+  id="iot-shared-key"
+  question="You extract a TLS private key from the firmware of one thermostat you bought. Why does this compromise more than just your unit?"
+  answer={1}
+  options={[
+    "The key expires, so all devices stop working at once",
+    "The same key is reused across every device of that model, so it can decrypt or impersonate traffic for the whole product line",
+    "Extracting the key wipes the local device",
+    "TLS keys only protect the mobile app, not the device",
+  ]}
+  explanation="Vendors routinely bake one private key into an entire production run. Recovering it from a single device gives an attacker the ability to impersonate or decrypt traffic for every unit that shares it, which is why hardcoded shared secrets are so damaging."
+/>
+
+<Notes />

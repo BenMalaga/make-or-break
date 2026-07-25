@@ -1,0 +1,63 @@
+---
+title: Identity as the Perimeter
+module: zero-trust-architecture
+moduleTitle: Zero Trust Architecture
+moduleOrder: 49
+moduleIcon: ShieldQuestion
+order: 4
+summary: When the network is not a boundary, identity becomes the boundary. Conditional access and continuous verification are how you enforce it.
+estimatedMinutes: 18
+objectives:
+  - Explain why identity replaces the network as the control plane
+  - Build a conditional access decision from live risk signals
+  - Describe continuous verification and why a one-hour token is a liability
+tags:
+  - zero-trust
+  - identity
+  - conditional-access
+  - mfa
+---
+
+Once you accept that the network grants no trust, something else has to be the boundary. That something is identity. The question at every access is no longer "what subnet are you on" but "who are you, on what device, asking for what, right now, and does policy allow it." Get identity right and the rest of zero trust has a foundation. Get it wrong and every downstream control inherits the weakness.
+
+A verified identity by itself is not the whole decision. The decision reads a bundle of signals at request time and returns allow, deny, or "allow but prove more." This is conditional access, and it is the working heart of identity-as-perimeter in Entra ID, Okta, and every serious identity provider.
+
+## Signals feed the decision
+
+A useful conditional access policy weighs several inputs, not just a password.
+
+- **User risk**: has this account shown signs of compromise, like impossible travel or credentials found in a breach dump?
+- **Device posture**: is the device managed, compliant, patched, and running its endpoint agent? An unmanaged laptop should not reach payroll no matter whose password it holds.
+- **Location and network**: not as a trust signal, but as risk context. A login from a country the user has never worked in raises the bar.
+- **Resource sensitivity**: reaching the cafeteria menu and reaching the source repo are not the same request and should not clear the same check.
+
+The policy combines these into an outcome. Low risk, compliant device, normal resource: allow. Same user, unmanaged device, sensitive app: block, or force step-up authentication with a hardware key before granting the session. A clean way to reason about the rule is the Kipling method, answering who, what, when, where, why, and how for the access before you write it.
+
+## Continuous verification, not a golden hour
+
+Here is the failure most identity setups still ship with. The user authenticates once, gets a token valid for an hour, and for that hour the system stops checking. Disable the account, and the stolen token keeps working until it expires. That hour is a gift to an attacker sitting on a hijacked session.
+
+Continuous verification closes the window. Instead of trusting a token until expiry, the system re-evaluates when conditions change. Entra's Continuous Access Evaluation is the concrete version: revoke a session, flag the account as risky, or detect the device fell out of compliance, and the access token is invalidated in near real time rather than after sixty minutes. Verification becomes an ongoing state, not a one-time gate at the front door.
+
+<CommandCard command="az ad signed-in-user show --query 'userPrincipalName'" explain="Confirm which identity a token actually resolves to before trusting what the app claims. In a zero trust design the token, not the source IP, is the subject of every authorization decision, so knowing exactly whose identity is bound to a session is the first thing you check when triaging suspicious access." />
+
+The one control that anchors all of this is phishing-resistant MFA. FIDO2 or WebAuthn keys bind the login to the real site and a physical authenticator, which defeats the credential phishing and MFA-fatigue push spam that beat SMS and prompt-based methods. If your identity perimeter still allows SMS codes or plain push approval on sensitive resources, that is the crack an attacker aims at first.
+
+<Callout type="security" title="Test conditional access against your own tenant">
+Probing conditional access, trying an unmanaged device against a policy, or checking whether a revoked token really dies is legitimate testing only on a tenant you own or are authorized to assess. Spin up a free developer identity tenant and attack your own policies there. Attempting to bypass another organization's access controls without written scope is unauthorized access.
+</Callout>
+
+<Quiz
+  id="zt-token-window"
+  question="An analyst disables a compromised account, but the attacker's stolen access token keeps working for another 40 minutes. What zero trust capability would have shut this down immediately?"
+  answer={0}
+  options={[
+    "Continuous verification, such as Continuous Access Evaluation, which revokes the token in near real time when the account is flagged instead of waiting for expiry",
+    "A longer token lifetime so revocation has more time to propagate",
+    "Moving the user to a trusted network segment",
+    "Disabling MFA to simplify the session",
+  ]}
+  explanation="A token trusted until its one-hour expiry keeps a hijacked session alive even after the account is disabled. Continuous verification re-evaluates access when conditions change and invalidates the token near-instantly, closing the window a static token lifetime leaves open."
+/>
+
+<Notes />

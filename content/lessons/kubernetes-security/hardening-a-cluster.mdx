@@ -1,0 +1,107 @@
+---
+title: Hardening a Cluster
+module: kubernetes-security
+moduleTitle: Kubernetes Security
+moduleOrder: 31
+moduleIcon: Ship
+order: 5
+summary: Every attack path in this module closes if you take away the defaults nobody changed.
+estimatedMinutes: 20
+objectives:
+  - Lock down pod-to-pod traffic with network policies
+  - Strip pod privileges with Pod Security Standards
+  - Cut RBAC and service-account permissions to what a workload actually needs
+tags:
+  - kubernetes
+  - k8s
+  - hardening
+  - defense
+---
+
+Almost every cluster compromise you just learned about traces back to a default
+that shipped open and stayed open. Flat pod networking. A service account token
+mounted into every pod. RBAC roles copied from a tutorial. Harden those and the
+attacker who lands in one pod stays stuck in that pod.
+
+## Default-deny the network
+
+Out of the box, any pod can talk to any other pod. That is how a single web pod
+turns into cluster-wide reconnaissance. A `NetworkPolicy` changes that, but only
+if your CNI plugin enforces it (Calico and Cilium do, plain flannel does not).
+
+Start by denying everything in a namespace, then add back only what a workload
+needs.
+
+<CommandBlock
+  title="operator@workstation"
+  commands={[
+    { cmd: "kubectl get pods -n prod --show-labels", comment: "know your labels before you write policy" },
+    { cmd: "kubectl apply -f default-deny.yaml -n prod", comment: "deny all ingress, then allow-list" },
+    { cmd: "kubectl exec -n prod web-0 -- curl -m 3 http://db.prod:5432", comment: "confirm blocked traffic actually fails" },
+  ]}
+/>
+
+The last command matters. Write the policy, then prove from inside a pod that
+the path you meant to close is closed. Policies that were never tested are
+policies that quietly do nothing.
+
+## Take away pod privileges
+
+A pod does not need to run as root, mount the host filesystem, or share the
+host's process namespace. Almost none do, yet the defaults allow all of it.
+Pod Security Standards give you three levels, and `restricted` is the one you
+want for anything untrusted.
+
+<Callout type="tip" title="Enforce, do not just warn">
+The built-in Pod Security Admission runs in three modes: warn, audit, and
+enforce. Label a namespace with enforce and the API server rejects a pod that
+tries to run privileged or as root. Warn-only mode looks like security and stops
+nothing.
+</Callout>
+
+```
+kubectl label namespace prod \
+  pod-security.kubernetes.io/enforce=restricted
+```
+
+That one label blocks privileged pods, host mounts, and host namespaces across
+the whole namespace. It is the single highest-value setting in this lesson.
+
+## Cut RBAC and the service-account token
+
+The token mounted into a pod is only dangerous because of what its service
+account can do. Give each workload its own service account, bind it to the
+narrowest Role you can, and turn off the automatic token mount when a pod does
+not call the API at all.
+
+<CommandCard
+  command="kubectl auth can-i --list --as=system:serviceaccount:prod:web"
+  explain="Ask the API exactly what a service account can do. If it can read secrets or create pods and it is a web frontend, that is your finding."
+/>
+
+Set `automountServiceAccountToken: false` on pods that never touch the Kubernetes
+API. No token in the pod means nothing for an attacker to steal from it.
+
+## Watch the audit log
+
+Hardening is not one-and-done. Turn on the API server audit log and alert on the
+calls that matter: `exec` into a pod, reading secrets, creating a `ClusterRoleBinding`,
+or anything hitting the `kube-system` namespace from an unexpected identity. Those
+are the exact moves the attacking-a-cluster lesson made, and they are loud if you
+are listening.
+
+<Quiz
+  id="k8s-harden-psa"
+  question="Which Pod Security Admission mode actually prevents a privileged pod from being created?"
+  answer={2}
+  options={["audit", "warn", "enforce", "baseline"]}
+  explanation="Only enforce rejects the pod at admission time. Audit and warn just record or flag it, and baseline is a policy level, not a mode."
+/>
+
+<Exercise
+  id="k8s-harden-canifind"
+  prompt="What is the kubectl subcommand that lists every action a given identity is allowed to take?"
+  answer="auth can-i"
+/>
+
+<Notes />

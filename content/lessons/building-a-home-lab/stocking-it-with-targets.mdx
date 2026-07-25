@@ -1,0 +1,258 @@
+---
+title: Stocking It With Targets
+module: building-a-home-lab
+moduleTitle: Building a Home Lab
+moduleOrder: 42
+moduleIcon: FlaskConical
+order: 4
+summary: "Where deliberately vulnerable machines and apps come from, how to check the file that arrived is the one that was published, and which to reach for first."
+estimatedMinutes: 15
+prerequisites: ["why-you-need-a-lab", "choosing-virtualization", "networking-your-lab"]
+objectives:
+  - Tell a legal, deliberately vulnerable target from a machine that is neither
+  - "Name where these targets come from: VulnHub, the OWASP apps, Metasploitable"
+  - Choose between a full boot-to-root VM and a single vulnerable app for what is being practiced
+  - Verify a download with a checksum and a signature, and say what each one proves
+  - Build a difficulty progression instead of hoarding a shelf of boxes
+tags:
+  - lab
+  - vulnhub
+  - docker
+  - targets
+---
+
+The previous lesson, networking-your-lab, built an isolated segment: the attacker
+box and its targets can reach each other, and nothing on that segment can reach
+the house network or the internet. The segment works. It is also empty. A
+host-only network with a single machine on it has nothing to point a scanner at,
+and reading about an attack is a long way from running one.
+
+This lesson fills the empty segment: where to get machines and applications that
+were built, on purpose, to be broken into, how to confirm the file that arrived is
+the one the author published, and which ones are worth starting on.
+
+## What makes something a legal target
+
+The word target carries a warning straight from the first lesson in this module,
+why-you-need-a-lab: attacking a machine without the owner's permission is a crime,
+and a machine sitting on the public internet with an obvious hole in it is still
+someone's machine. A legal target is not "a computer with a vulnerability." It is a
+computer whose owner published it so that strangers would attack it.
+
+Two conditions have to hold, and they are separate. The first is authorization:
+somebody built the thing to be broken into and released it under a license that
+says so, a standing grant of permission to attack it. The second is containment:
+it runs inside the isolated lab from the last lesson, where anything it does stays
+caged. Miss authorization and the exercise is a crime no matter how isolated the
+lab is. Miss containment and a deliberately broken app is now reachable from the
+wider network, an accident of a different kind.
+
+Deliberately vulnerable software is a small, well-mapped field. VulnHub is the
+community archive: hundreds of vulnerable virtual machines, free to download.
+OWASP, the group behind a lot of open security tooling, publishes two standard
+practice apps, Juice Shop and WebGoat. DVWA, the Damn Vulnerable Web Application,
+is a separate long-running project. Metasploitable is a whole vulnerable operating
+system from Rapid7, the company that makes Metasploit. None of these hides what it
+is: each one announces in its own README that it is broken by design.
+
+<Quiz
+  id="targets-legal-target"
+  question="A scan of the public internet turns up a server running software full of known holes, and the lab it would be attacked from is fully isolated. Is that server a legal target to practice on?"
+  answer={1}
+  options={[
+    "Yes. The lab is isolated, so nothing can leak out to the rest of the network.",
+    "No. Isolation controls where an attack can go, not whether it is allowed. The server's owner never published it to be attacked.",
+    "Yes, as long as nothing on the server is changed or deleted.",
+    "No, but only because scanning the public internet is itself illegal.",
+  ]}
+  explanation="Legality comes from authorization: the owner has to have published the machine to be attacked. Isolation is a second, separate condition that keeps a legitimate target contained. An isolated lab does nothing to make a stranger's server fair game, and attacking it is the crime the first lesson named."
+/>
+
+## Two shapes of target
+
+Targets come in two shapes, and picking between them is really a choice between
+rooting a whole machine and drilling one class of bug.
+
+A full machine is a complete operating system with services running, users
+configured, and misconfigurations planted, packaged as a virtual machine. VulnHub
+distributes these as `.ova` files, the portable format the hypervisors from the
+choosing-virtualization lesson import directly. Booting one puts a fresh Linux or
+Windows host on the network with a hidden path from a first `nmap` scan, through a
+foothold, to full root access. That end-to-end path is the point: it is the whole
+job in one box. Metasploitable 2 is the broad practice range, an intentionally
+ancient Ubuntu with dozens of vulnerable services. Kioptrix, DC-1, and Basic
+Pentesting 1 are the well-worn beginner machines, each a self-contained puzzle.
+
+A single app is narrower and faster. Instead of a whole operating system it is one
+deliberately broken web application, and it runs well as a container rather than a
+full virtual machine, the lighter option weighed in the choosing-virtualization
+lesson. Juice Shop is a modern single-page shop stuffed with realistic web flaws.
+WebGoat is structured as guided lessons, each teaching one bug with instructions
+attached. DVWA is the plain old drill machine for SQL injection, cross-site
+scripting, and file upload, with a security level that switches between Low,
+Medium, High, and Impossible so the same bug can be practiced as it gets harder to
+reach.
+
+Juice Shop comes up in a single command, most of why it gets recommended first.
+
+<CommandCard
+  command="docker run --rm -d -p 127.0.0.1:3000:3000 bkimminich/juice-shop"
+  title="docker"
+  explain="Runs OWASP Juice Shop in a container. -d runs it in the background, --rm deletes the container when it stops, and -p maps a host port to the container's port 3000. The 127.0.0.1 in front of that mapping is the part that matters."
+/>
+
+<ExpectedOutput label="docker ps after the container starts (columns trimmed to what matters)">
+```
+CONTAINER ID   IMAGE                   STATUS         PORTS                      NAMES
+7f3c9a2b1d84   bkimminich/juice-shop   Up 3 seconds   127.0.0.1:3000->3000/tcp   xenodochial_curie
+```
+</ExpectedOutput>
+
+The `127.0.0.1:3000->3000/tcp` in the PORTS column is the whole safety story. That
+prefix binds the published port to the local host only, so nothing but the machine
+running the container can reach the deliberately vulnerable app. Writing
+`-p 3000:3000` instead tells the container engine to publish the port on every
+network interface, quietly undoing the network isolation the last lesson set up.
+The binding is the software-level echo of a host-only network: same idea, one layer
+up.
+
+<Quiz
+  id="targets-docker-bind"
+  question="A container is published with -p 3000:3000 instead of -p 127.0.0.1:3000:3000. What changes?"
+  answer={2}
+  options={[
+    "Nothing. The two forms do the same thing.",
+    "The app starts faster because the engine skips a localhost lookup.",
+    "The engine publishes the port on every interface, so the deliberately vulnerable app becomes reachable from the wider network, not just the host running it.",
+    "The container loses its own access to the internet.",
+  ]}
+  explanation="Without the 127.0.0.1 prefix, the port is bound to all interfaces (0.0.0.0). A broken-by-design app that was supposed to be reachable only from its own host is now exposed to anything that can route to that machine. Pinning it to localhost keeps the target caged."
+/>
+
+## Check the file before trusting it
+
+A VulnHub machine is a disk image built by a stranger and copied across mirror
+servers the project does not run. Two things can go wrong on the way. The download
+can arrive corrupted, a few bytes mangled by a flaky connection, in which case the
+machine will not boot cleanly. Worse, the file on a mirror could have been swapped
+for a different one by whoever controls that mirror. A checksum catches both.
+
+A checksum is the output of a hash function, a piece of math that reads an entire
+file and boils it down to a short fixed-length fingerprint. SHA-256 is the common
+one, and its fingerprint is 64 hexadecimal characters. The fingerprint is fragile
+on purpose: flip a single bit anywhere in a multi-gigabyte image and the 64
+characters come out completely different. The author computes that fingerprint on
+the real file and publishes it next to the download. Recomputing it locally and
+comparing the two strings answers one question exactly: is this the same file.
+
+<CommandCard
+  command="sha256sum DC-1.ova"
+  title="linux"
+  explain="Reads the whole file and prints its SHA-256 fingerprint. On macOS the command is shasum -a 256; the output is the same 64 hex characters."
+/>
+
+<ExpectedOutput label="sha256sum on a downloaded image (the digest shown is illustrative)">
+```
+9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08  DC-1.ova
+```
+</ExpectedOutput>
+
+That string gets compared, character by character, against the one printed on the
+download page. A match means the file is the author's file. A single differing
+character means it is not, and the safe move is to delete it and pull it again from
+a different mirror. Comparing 64 characters by eye is error-prone, so the honest
+way is to paste the published value into a file and let `sha256sum -c` read the
+expected hashes and print `OK` or `FAILED` per file.
+
+There is still a gap. A checksum printed on the same page as the download is only
+as trustworthy as the page: anyone who could swap the image could swap the number
+next to it. The fix is a signature. Kali, the standard attacker distribution,
+publishes its checksums as a file and signs that file with a GPG key only Kali
+holds. Verifying the signature proves the checksum list came from Kali, not from a
+mirror.
+
+<CommandCard
+  command="gpg --verify SHA256SUMS.gpg SHA256SUMS"
+  title="linux"
+  explain="Checks that the checksum file was signed by Kali's own key. Only if the signature is good is checking a download against those hashes worth anything."
+/>
+
+<ExpectedOutput label="a good signature on Kali's checksum file (the date is illustrative)">
+```
+gpg: Signature made Wed 13 Mar 2024 10:20:15 AM UTC
+gpg:                using RSA key 44C6513A8E4FB3D30875F758ED444FF07D8D0BF6
+gpg: Good signature from "Kali Linux Repository <devel@kali.org>" [unknown]
+```
+</ExpectedOutput>
+
+The `44C6513A8E4FB3D30875F758ED444FF07D8D0BF6` fingerprint is Kali's real signing
+key, published on kali.org, and confirming it matches that published value is what
+makes the signature mean anything. The `[unknown]` at the end is normal: it means
+the key is valid but has not been personally vouched for, which is fine here.
+
+<Callout type="security" title="What a checksum proves, and what it does not">
+A matching checksum proves one thing: the file is byte-for-byte the one the author
+published. It says nothing about whether the file is safe. A deliberately
+vulnerable machine matches its checksum perfectly and is still riddled with holes,
+because that is exactly what its author shipped. The hash confirms integrity, not
+harmlessness. Safety comes from the isolation in the previous lesson.
+</Callout>
+
+<Quiz
+  id="targets-checksum-proves"
+  question="The SHA-256 digest of a downloaded VulnHub image matches the one on the download page exactly. What does that prove?"
+  answer={1}
+  options={[
+    "The image is free of malware and safe to run anywhere.",
+    "The file is byte-for-byte the one the author published and was not corrupted or altered on the way down.",
+    "The image has no exploitable vulnerabilities left in it.",
+    "The download came from an official source rather than a copy.",
+  ]}
+  explanation="A matching hash proves integrity, nothing more. The image is intact and unaltered; it is also, by design, full of holes. Proving the checksum itself came from the author, rather than from whatever mirror served it, takes a signature, which is a different check."
+/>
+
+## A difficulty that can actually be climbed
+
+The common failure here is downloading twenty boxes, staring at the pile, and
+learning nothing. A shelf of targets is not progress. The better shape is one
+target at a time, chosen by the skill being practiced, because a target is really a
+lesson in disguise. A week on web bugs points at Juice Shop, DVWA, and WebGoat, not
+a full Windows domain. A week on privilege escalation points at a VulnHub machine
+known for a sloppy `sudo` rule or an old kernel, or at Metasploitable's pile of bad
+services.
+
+The first box should be one that other people have written walkthroughs for, so
+there is a way to get unstuck. Kioptrix, DC-1, and Basic Pentesting 1 all qualify.
+Opening the walkthrough first, though, throws away the exercise. The value is in
+the struggle: import the machine, scan it, work the problem, and reach for the
+writeup only after hitting a genuine wall. WebGoat is the
+gentlest on-ramp because its vulnerabilities come with the lesson attached, and
+DVWA's security levels teach more than a new box would, since running the same
+injection at Low, then Medium, then High shows how a fix changes the attack rather
+than just handing over a new puzzle.
+
+<Exercise title="Stand up your first target">
+Pick one target, not five. WebGoat or Juice Shop if the goal is web bugs, or a
+beginner VulnHub machine like DC-1 if the goal is a full boot-to-root.
+
+Download it, then verify it before anything else. Run `sha256sum` on the file (or
+`shasum -a 256` on macOS) and compare the result against the checksum on the
+download page. If it does not match, delete the file and pull it from another
+mirror.
+
+If it is a VulnHub machine, import the `.ova` into your hypervisor and attach it to
+the host-only network from the last lesson. If it is a container app, run it with
+the port bound to `127.0.0.1`. Then, from the attacker box, confirm you can reach
+it: a single `nmap` sweep of the host-only subnet should list your new target and
+its open ports. Seeing it appear is the whole point of the segment.
+</Exercise>
+
+The segment now has targets on it and the attacker box can reach them. The moment
+real work starts, those boxes get messy. A rooted machine is contaminated with
+whatever was done to it, and the temptation to reuse a real password or let a box
+slip onto the internet shows up fast. The last lesson in this module,
+snapshots-and-safe-habits, covers rolling a machine back to a clean state, keeping
+the lab off the internet, never reusing personal credentials inside it, and
+rebuilding from scratch when something is contaminated beyond trust.
+
+<Notes />

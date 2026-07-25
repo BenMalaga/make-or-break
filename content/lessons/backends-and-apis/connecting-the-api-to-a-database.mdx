@@ -1,0 +1,169 @@
+---
+title: Connecting the API to a Database
+module: backends-and-apis
+moduleTitle: Backends and APIs
+moduleOrder: 3
+moduleIcon: Webhook
+order: 4
+summary: "A REST API that stores data in memory forgets everything on restart; a real database, wired in safely, is what makes it survive."
+estimatedMinutes: 16
+prerequisites: [building-a-rest-api]
+objectives:
+  - Trace a single request from an HTTP call through a SQL query to a JSON response
+  - Write parameterized queries that accept user input without building SQL by hand
+  - Explain why string-concatenated SQL creates a SQL injection vulnerability
+  - Weigh raw SQL against an ORM like SQLAlchemy and pick one with a reason
+tags:
+  - api
+  - database
+---
+
+Restart the API from the last lesson and every book added during testing disappears. The list snaps back to whatever three or four books were hardcoded at the top of the file, because the data never lived anywhere except the running process's memory. Kill the process, and the process's memory goes with it. A Python list sitting inside a function is a fine place to hold a handful of test rows while an endpoint is taking shape, but it is not storage. It is a scratchpad that happens to survive between requests only because the process itself hasn't stopped.
+
+The SQL and Databases module already solved this half of the problem, weeks before an API entered the picture. The changing data lesson wrote real rows into a real table with INSERT, changed a rating with UPDATE, and showed exactly what a table looks like the moment a connection closes: still there, untouched, waiting on disk for the next thing that opens it. That's the piece a running program is missing when its data lives in memory. A database doesn't care whether a process is up. It doesn't care whether a person is looking at it. Rows sit in a table file, or in a managed instance somewhere, and they stay there through restarts, deploys, and crashes. This lesson connects the two halves: the API from last time gets a real table underneath it, and every endpoint that used to read or write a Python list starts running SQL against that table instead.
+
+## What a Request Actually Does Underneath
+
+A client sending `GET /books/3` is not asking a table a question directly. It's asking an endpoint a question in the vocabulary of HTTP, a method and a path, and the endpoint is the thing that knows what to do with it. Inside that endpoint, the path parameter `3` becomes the value in a WHERE clause, the method GET becomes a SELECT, and a query runs against the books table exactly like the SELECT statements from the SQL module. The database hands back a row, or nothing, and the endpoint converts whatever it got into JSON before the HTTP response goes out. Four completely different systems, HTTP on the wire, Python running the endpoint, SQL talking to the table, JSON in the response body, all cooperating on one request, and none of them aware the others exist except through the endpoint that sits between them.
+
+That's worth slowing down on, because it's the real shape of nearly every backend running today, not a simplification for a lesson. A request comes in as HTTP. A response goes out as JSON. Everything in between is however the backend chooses to store and retrieve the data, and a relational database is the default choice because it already solved the hard problems: it enforces the NOT NULL rules from the SQL module even when a sloppy request tries to skip a required field, it keeps a numeric id column unique without the application writing that logic itself, and it survives a crash without losing committed rows. The endpoint's job narrows down to translation. It reads what came in over HTTP, runs the matching SQL, and reshapes what comes back into something a client can parse. Nothing more clever than that.
+
+Mapping HTTP methods onto SQL statements makes the translation concrete. `GET /books/3` becomes `SELECT * FROM books WHERE id = 3`, reading a single row. `GET /books` with no id becomes a plain `SELECT * FROM books`, reading every row in the table. `POST /books` with a JSON body becomes an INSERT, the same INSERT the changing data lesson wrote by hand, except now the values come from the request body instead of being typed directly into a SQL client. `PUT` or `PATCH /books/3` becomes an UPDATE with a WHERE that matches the id in the path, the same UPDATE from that lesson, run on the client's behalf instead of by a person at a terminal. `DELETE /books/3` becomes exactly what it sounds like. Every endpoint that changes data is one of those four SQL statements wearing an HTTP method and a JSON body. Nothing new is being invented here. The SQL module already covered the actual data operations; an API is what lets someone who has never seen a WHERE clause trigger one anyway, safely, through a phone screen or a website form.
+
+It's also worth naming something that quietly matters more as a system grows: one backend, with one set of endpoints running against one database, typically serves a web front end, a mobile app, and sometimes other backend services too, all through the same API. Nobody writes a separate copy of the books endpoints for the iOS app and a different copy for the website. They all send the same HTTP requests to the same URLs and get the same JSON back. That's a big part of why the translation layer earns its keep: get the SQL right once, behind one set of endpoints, and every client that speaks HTTP gets a correct, consistent view of the data without needing to know a query language exists.
+
+<Quiz
+  id="db-api-translator"
+  question="An endpoint handles GET /books/3 by running a SQL query and converting the result to JSON before sending the HTTP response. What is the best description of the endpoint's role?"
+  answer={2}
+  options={[
+    "It stores the books table permanently inside the running process so future requests are faster.",
+    "It replaces the database, since the endpoint could answer the request on its own without SQL.",
+    "It translates between two vocabularies: HTTP and JSON on the outside, SQL and tables on the inside.",
+    "It only forwards the raw HTTP request to the database unchanged and returns whatever the database sends back.",
+  ]}
+  explanation="The endpoint is the translation layer. It reads a request in HTTP terms, runs the matching SQL against the database, and reshapes the result into JSON. It does not store the data itself, and it does not send raw HTTP to a database, since a database speaks SQL, not HTTP."
+/>
+
+## Building the SQL From User Input, Safely
+
+Every endpoint above has one thing in common: some piece of the SQL statement comes from outside, from a path parameter, a query string, or a JSON body that a client controls. That value has to end up inside the query text somehow, and how it gets there is the single most consequential decision in this whole lesson. Get it wrong and a book id in a URL can turn into a command that reads every password hash in the database. Get it right and user input never has the power to change what a query does, no matter what someone types into it.
+
+The wrong way looks almost reasonable the first time someone writes it. Build the SQL as a string, drop the user's value straight into it, and run the result.
+
+```python
+title = request_query_param  # comes straight from the client
+query = f"SELECT * FROM books WHERE title = '{title}'"
+cursor.execute(query)
+```
+
+For a normal title like `Kindred`, this produces `SELECT * FROM books WHERE title = 'Kindred'`, and it works. The trouble starts the moment the input isn't a normal title. Someone sends `x' OR '1'='1` as the value, and the string gets built into `SELECT * FROM books WHERE title = 'x' OR '1'='1'`. Read that as SQL, not as a title: the WHERE clause now says "title equals x, or 1 equals 1," and 1 always equals 1, so the condition is true for every row in the table. What was supposed to be a lookup for one book returns the entire table. A more damaging payload can chain a semicolon and a second statement, or pull rows out of a completely different table with a UNION SELECT, all because the application never distinguished between SQL it wrote and text a stranger typed into a form. This is called SQL injection, and it has been on the list of the most exploited web vulnerabilities for over two decades because this exact mistake keeps getting made, in every language, by people who know better in theory and still reach for an f-string under deadline pressure.
+
+<Callout type="warning" title="Never build a SQL string by pasting user input into it">
+The example above, an f-string or plain concatenation with a value that came from a client, is SQL injection waiting to happen. It doesn't matter whether the value came from a URL, a JSON body, a form field, or a header: if it originated outside the code and it lands inside query text before that text runs, an attacker can shape the query. There's no safe amount of "sanitizing" a string by hand that closes this off reliably, escaping quotes catches some cases and misses others depending on the database. The fix isn't cleverness. It's never doing the string-building in the first place.
+</Callout>
+
+The correct approach is a parameterized query: the SQL text has a placeholder where the user's value goes, and the database driver fills that placeholder in separately, after the query has already been parsed as SQL. A placeholder value can never turn into part of the query's structure, because by the time it arrives the database has already decided what the query means. It's treated strictly as data, never as code, no matter what characters it contains.
+
+```python
+import sqlite3
+from fastapi import FastAPI, HTTPException
+
+app = FastAPI()
+
+def get_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect("library.db")
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@app.get("/books/{book_id}")
+def get_book(book_id: int) -> dict:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT id, title, author_id, year, rating FROM books WHERE id = ?",
+        (book_id,),
+    ).fetchone()
+    conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return dict(row)
+```
+
+The `?` is the placeholder, and the tuple `(book_id,)` is the value that fills it, kept completely separate from the query text passed to `execute`. FastAPI's own type hint on `book_id: int` adds a second layer before the query even runs: a path segment that isn't a whole number never reaches the SQL at all, FastAPI rejects it with a 422 response automatically. Calling this endpoint for a book that exists returns exactly what the SQL module would print from a SELECT, reshaped into JSON.
+
+<CommandCard command="curl -s localhost:8000/books/3" title="terminal" explain="GET request for the book with id 3" />
+
+<ExpectedOutput label="response body">
+```json
+{
+  "id": 3,
+  "title": "Neuromancer",
+  "author_id": 2,
+  "year": 1984,
+  "rating": 5
+}
+```
+</ExpectedOutput>
+
+Writing works the same way, with the same discipline. A POST to add a book takes a JSON body, and FastAPI's request model already validates its shape before any SQL runs, so the endpoint knows `title` is a string and `author_id` is an integer before either value gets near a query.
+
+```python
+from pydantic import BaseModel
+
+class NewBook(BaseModel):
+    title: str
+    author_id: int
+    year: int | None = None
+
+@app.post("/books", status_code=201)
+def create_book(book: NewBook) -> dict:
+    conn = get_connection()
+    cursor = conn.execute(
+        "INSERT INTO books (title, author_id, year) VALUES (?, ?, ?)",
+        (book.title, book.author_id, book.year),
+    )
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+    return {"id": new_id, "title": book.title, "author_id": book.author_id, "year": book.year}
+```
+
+Three placeholders, three values, in the same order, exactly the way the changing data lesson's named-column INSERT lined values up with columns. A 201 status code comes back because a new resource was created, not the 200 a GET returns for reading something that already existed. The row this INSERT writes is indistinguishable from one typed by hand at a SQL prompt: the database enforces the same NOT NULL rule on `title`, assigns the same auto-incrementing id, and a SELECT against that table afterward returns it exactly the same way. The API didn't invent a new way to write data. It just runs the INSERT on someone else's behalf, with their input carried safely through a placeholder instead of pasted into the statement.
+
+<Quiz
+  id="db-parameterized-queries"
+  question="An endpoint takes a book title from a client and needs to look it up. Why is a parameterized query safer than building the SQL string with an f-string?"
+  answer={1}
+  options={[
+    "Parameterized queries run noticeably faster because the database skips parsing the SQL text.",
+    "A placeholder value is always treated as data by the database, never as part of the query's structure, so it can't change what the query does.",
+    "F-strings are only a problem in Python; other languages don't have this issue.",
+    "Parameterized queries automatically remove any letters that could be dangerous before running the query.",
+  ]}
+  explanation="The safety comes from separation: the SQL text is parsed first, and the placeholder value is substituted in afterward purely as data. A crafted string in that position has no way to alter the query's logic. F-string injection is a general problem, not language-specific, and parameterized queries don't strip characters, they just never let a value reach the parser as code."
+/>
+
+## Raw SQL or an ORM
+
+Writing SQL by hand inside every endpoint, the way the examples above do, is one legitimate way to build a backend, and plenty of production systems do exactly this. The common alternative in a modern Python codebase is an ORM, an object relational mapper, a library that maps rows in a table to instances of a class, so code reads and writes records by working with objects and attributes instead of writing SELECT and INSERT statements directly. SQLAlchemy is the standard choice for this in Python: a `Book` class with `title`, `author_id`, and `year` attributes stands in for the table, `session.query(Book).filter(Book.id == 3).first()` stands in for the SELECT, and the library generates the actual SQL underneath, still using parameterized placeholders, still safe against injection when used as intended. The honest tradeoff is that an ORM buys convenience and less repetition, especially once a schema has a dozen tables and endpoints reference several of them at once, at the cost of a layer of abstraction between the code and the query that actually runs, which occasionally makes an inefficient or surprising SQL statement harder to spot. Raw SQL gives more direct control over exactly what query executes, at the cost of writing more of it by hand. Neither choice is wrong; the field mostly reaches for an ORM as a project grows past a handful of endpoints, and drops to raw SQL for anything performance-sensitive enough that the generated query needs hand-tuning.
+
+<Quiz
+  id="db-orm-tradeoff"
+  question="A team chooses SQLAlchemy over hand-written SQL for a new backend with many related tables. What is the most accurate way to describe what they gained and gave up?"
+  answer={0}
+  options={[
+    "They gained less repetitive code by working with objects instead of writing every SELECT and INSERT by hand, and gave up some direct visibility into the exact SQL a given operation runs.",
+    "They gained a backend that no longer needs a real database at all, since the ORM stores everything in memory.",
+    "They gained protection from SQL injection that raw parameterized queries don't have, since only ORMs are safe from it.",
+    "They gave up the ability to run any SQL query more complex than a single-table SELECT.",
+  ]}
+  explanation="An ORM's real tradeoff is convenience versus visibility: less repetitive code, generated queries that are sometimes harder to inspect or tune. Parameterized raw SQL is just as safe from injection as an ORM when written correctly, an ORM still needs a real database underneath, and SQLAlchemy can absolutely express complex multi-table queries, it just takes more of its own syntax to do it."
+/>
+
+<Exercise title="Trace one request end to end">
+Pick one endpoint from the API built in the last lesson and rewrite it against a real SQLite table instead of the in-memory list. Start by writing the CREATE TABLE statement for whatever resource that endpoint manages, using the same column rules (required fields as NOT NULL) from the SQL module. Then rewrite the endpoint's function body to run a parameterized SELECT, INSERT, UPDATE, or DELETE against that table, matching the HTTP method to the right SQL statement from this lesson. Restart the process after adding a row through the API, then call the read endpoint again. The row should still be there. That's the whole test: data that survives a restart is data that actually left memory.
+</Exercise>
+
+An endpoint that runs a safe, parameterized query is only answering one question: what does the client want to read or write. It isn't answering a second question that every real API has to face, which is whether this particular client is allowed to ask for this particular row at all. Right now, anyone who can reach the URL can read any book, create any book, or delete any book, with no notion of who they are. The next lesson, authentication and API security, is where that gets decided, giving each request an identity and a set of permissions before it ever reaches the SQL this one just wired up.
+
+<Notes />

@@ -1,0 +1,67 @@
+---
+title: Defending Connected Devices
+module: iot-and-ot-security
+moduleTitle: IoT and OT Security
+moduleOrder: 40
+moduleIcon: Factory
+order: 5
+summary: You cannot run an agent on a lightbulb, so you defend the network around it and assume the device is already owned.
+estimatedMinutes: 18
+objectives:
+  - Design network segmentation that contains a compromised IoT device
+  - Monitor devices you cannot install software on using passive network visibility
+  - List the realistic controls that actually reduce IoT and OT risk
+tags:
+  - iot
+  - ot
+  - segmentation
+  - monitoring
+  - defense
+---
+
+You will never patch your way out of an IoT fleet. Half the devices have no update mechanism, the vendor abandoned the rest, and you cannot install an EDR agent on a smart plug. So you stop trying to secure the device and start designing around the assumption that it is already compromised. Contain it, watch it, and make sure that when one falls it cannot reach anything that matters.
+
+## Segment first
+
+Segmentation is the control that pays off most, because it limits blast radius no matter how bad the device is. Put IoT on its own VLAN or a separate SSID, then write firewall rules that deny device-to-device traffic and block outbound to the internet except the specific destinations a device actually needs.
+
+The default posture is deny. A camera that only needs to reach its vendor's cloud on port 8883 gets exactly that and nothing else. It should not be able to talk to your workstations, your file server, or an arbitrary host in another country. When a device is popped, tight segmentation is the difference between one dead camera and an attacker pivoting into your network.
+
+OT takes this further with the Purdue model and a real DMZ at level 3.5. Nothing routes straight from enterprise IT to the controllers. Where a historian needs to send data up and nothing should ever come down, a data diode or unidirectional gateway enforces one-way flow in hardware.
+
+## Monitor what you cannot instrument
+
+No agent on the device means you watch it from the network instead. Passive monitoring off a SPAN port sees everything without touching the device. Tools like Zeek give you a full record of what talked to what, and ICS-aware platforms like Nozomi or the open-source Malcolm stack understand OT protocols on top of that.
+
+The trick is baselining. An IoT device is boring and predictable. It phones home to two domains, on two ports, forever. Learn that normal, then alert on anything outside it.
+
+<CommandBlock
+  title="defender@sensor"
+  commands={[
+    { cmd: "zeek -i eth0 -C", comment: "run Zeek on the mirror port to log all device connections" },
+    { cmd: "cat conn.log | zeek-cut id.resp_h id.resp_p | sort | uniq -c | sort -rn", comment: "baseline which destinations and ports a device actually uses" },
+  ]}
+/>
+
+DNS logging catches a lot on its own. A thermostat that suddenly resolves a domain it has never touched is either a firmware update or command and control, and both are worth knowing about. On OT, watch Modbus for write function codes that no legitimate operation should be issuing.
+
+## The controls that actually help
+
+Everything above only works if you know what is on the network in the first place. Asset inventory is the unglamorous foundation. You cannot defend a device you did not know was plugged in.
+
+The rest is a short, boring list that works: change every default credential, disable telnet and UPnP, keep firmware current on the devices that support it, and buy from vendors that sign their updates so a man in the middle cannot push a malicious image. None of it is exciting. All of it moves the needle more than any single clever detection.
+
+<Callout type="security" title="Even inventory scans need sign-off on OT">
+Defensive work is still active traffic. An asset-discovery scan or a Zeek deployment that requires touching a switch on a production OT network has to be authorized and scheduled the same way an attacker's scan would be, because a mistimed scan can still disrupt a fragile controller. Passive taps and mirror ports are the safe default on OT precisely because they add nothing to the wire.
+</Callout>
+
+<Exercise
+  id="iot-segmentation-goal"
+  prompt="An IoT camera on your network gets fully compromised. In one word, what property of good network segmentation keeps that single event from becoming a network-wide breach?"
+  answer="containment"
+  placeholder="one word"
+>
+Segmentation contains the compromise. With the camera isolated on its own VLAN and denied everything except its required cloud endpoint, the attacker who owns it has nowhere to pivot.
+</Exercise>
+
+<Notes />

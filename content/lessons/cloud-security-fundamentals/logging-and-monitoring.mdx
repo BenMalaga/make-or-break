@@ -1,0 +1,79 @@
+---
+title: Logging and Monitoring
+module: cloud-security-fundamentals
+moduleTitle: Cloud Security Fundamentals
+moduleOrder: 29
+moduleIcon: Cloud
+order: 5
+summary: Every API call in the account is recorded. The question is whether anyone reads it.
+estimatedMinutes: 20
+objectives:
+  - Know which log records the control-plane actions that reveal an attacker
+  - Read a CloudTrail event and spot the signals of compromise
+  - Understand why attackers try to kill logging first, and how to stop them
+tags:
+  - cloud
+  - cloudtrail
+  - logging
+  - detection
+  - incident-response
+---
+
+Every action in an AWS account, every key created, every bucket policy changed, every login, generates a record. AWS captures it whether you asked or not. The gap between a breach that gets caught in an hour and one that runs for months is almost never whether the evidence existed. It is whether anyone was looking at it.
+
+## CloudTrail is the log that matters
+
+CloudTrail records the control plane: the API calls that manage the account. Who called `CreateUser`, from what IP, at what time, and did it succeed. This is where an intruder shows up, because to do anything useful in a cloud account they have to make API calls, and CloudTrail sees them all.
+
+Do not confuse it with its neighbors. CloudWatch is metrics and application logs, useful for "is the CPU pegged," not "who assumed this role." VPC Flow Logs record network connections, packets from A to B, but not the API actions behind them. GuardDuty sits on top of CloudTrail, DNS, and flow logs and raises alerts. Azure's version of CloudTrail is Activity Log; GCP's is Cloud Audit Logs. Same idea, same primacy.
+
+A CloudTrail event is JSON. The fields you read first every time:
+
+```json
+{
+  "eventName": "CreateAccessKey",
+  "eventTime": "2026-07-15T03:14:22Z",
+  "sourceIPAddress": "203.0.113.44",
+  "userIdentity": { "type": "IAMUser", "userName": "svc-deploy" },
+  "errorCode": null
+}
+```
+
+`eventName` is the action. `sourceIPAddress` is where it came from. `userIdentity` is who did it. `errorCode` tells you if it was denied, and a burst of `AccessDenied` from one identity is often someone probing the edges of what a stolen credential can do.
+
+## What compromise looks like in the log
+
+You learn to read these by knowing the shapes attackers make. A service account that always calls from an AWS internal IP suddenly calling from a residential ISP in another country. `CreateUser` or `CreateAccessKey` outside a deploy window. `AttachUserPolicy` granting `AdministratorAccess`. `GetCallerIdentity` right after a credential shows up, because that is the first thing both attackers and their tools run to see whose keys they hold.
+
+<CommandCard command="aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=CreateAccessKey --max-results 10" explain="Pull the recent access-key creations. Cross-check each against a known deploy or admin action. One you cannot explain is a lead worth chasing, because minting new keys is how an intruder gives themselves a foothold that survives the original one being revoked." />
+
+The single strongest signal is a change to logging itself. `StopLogging`, `DeleteTrail`, or `PutEventSelectors` narrowing what gets recorded. A legitimate admin rarely turns off the audit trail. An attacker does it early, because the log is the thing that will get them caught.
+
+<Callout type="warning" title="Attackers go for the logs first">
+One of the first moves after gaining access is to blind the defender. If you see StopLogging or DeleteTrail in CloudTrail, treat it as an active incident, not a config change. Enable log file validation and, better, ship CloudTrail to a separate account or an S3 bucket with MFA-delete and object lock so the attacker who owns the compromised account still cannot erase the record.
+</Callout>
+
+## Make the log actually get read
+
+A log nobody reads is theater. Turn it into detection. Turn on GuardDuty first, because it costs little and flags the obvious patterns, including access from Tor and known-bad IPs, out of the box. Route CloudTrail into CloudWatch Logs with metric filters and alarms on the events that should never happen quietly: root account usage, IAM policy changes, security-group edits, and any logging change.
+
+<Callout type="security" title="This is a defender skill, use it that way">
+Reading CloudTrail requires legitimate access to the account it belongs to. In a real engagement you review these logs under authorization, the same as any other client system. On the offensive side, know that everything you do is being recorded here; a good pentest report includes what you did and when, so the blue team can match it against exactly these events.
+</Callout>
+
+The logs are already running. The work is wiring them to something that pages a human when the shape is wrong, and protecting them so the record survives the attacker who wants it gone.
+
+<Quiz
+  id="csf-cloudtrail-detection"
+  question="While reviewing CloudTrail, you see a StopLogging event from an IAM user that normally only deploys code. What is the most likely explanation?"
+  answer={2}
+  options={[
+    "A routine cost-optimization by the finance team",
+    "CloudTrail rotating its own log files automatically",
+    "An attacker who compromised the account trying to blind the audit trail",
+    "A required step whenever you deploy new code",
+  ]}
+  explanation="Disabling CloudTrail is a classic early move to hide activity. A deploy account has no reason to stop logging, so treat StopLogging or DeleteTrail as an active incident. Protect against it with log file validation and shipping logs to a separate, locked-down account."
+/>
+
+<Notes />

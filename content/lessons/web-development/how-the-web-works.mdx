@@ -1,0 +1,264 @@
+---
+title: How the Web Works
+module: web-development
+moduleTitle: Web Development
+moduleOrder: 2
+moduleIcon: LayoutTemplate
+order: 1
+summary: "A browser asks, a server answers with text, and the browser draws it: the request and response every site runs on, plus the three languages that fill the page in."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Trace what happens when a browser visits a site: the request it sends and the response it gets back"
+  - Define client, server, request, response, URL, and HTTP in plain terms
+  - Explain what a web page actually is, meaning text the browser reads and draws
+  - Name the three languages of the web and the job each one owns
+tags:
+  - web
+  - html
+---
+
+Type an address, press Enter, and a fraction of a second later a full page is on
+the screen: text, images, buttons, all arranged and styled. From the outside it
+feels like one instant thing. From the builder's side it is a short, ordered
+exchange between two programs, and most of building for the web is filling in the
+pieces of that exchange.
+
+Two programs do the work. One runs on the visitor's device and one runs somewhere
+else. This lesson names both, walks through the single message they trade, and
+then names the three languages that decide what the finished page looks like and
+does. Nothing here needs prior knowledge. Every word gets defined the first time
+it shows up.
+
+## The browser asks, the server answers
+
+The program a person opens to look at websites is the browser. Chrome, Safari,
+Firefox, and Edge are all browsers. A browser has one core job: fetch a web page
+from somewhere else and draw it on the screen. It is the side doing the asking,
+and the name for the side that asks is the client. Client just means the program
+that requests something from another program.
+
+The address typed into the browser is a URL, short for Uniform Resource Locator.
+It is the full address of one thing on the web, like `https://example.com`. A URL
+names where to go and what is wanted, and the browser reads it to work out which
+machine to contact.
+
+That machine runs the other program: the server. A server is a program that waits
+for requests and answers them, along with the computer it runs on. The one word
+covers both the program and the machine, which trips people up early, so keep the
+program meaning in mind first. While a browser opens and closes all day, a server
+sits running around the clock, ready to answer whoever shows up.
+
+So the setup is two programs on two machines. The client asks. The server answers.
+Neither one does the other's job, and that division is the frame for everything
+that follows.
+
+## The request and the response
+
+Once the browser has a URL, it sends a request. A request is a short message that
+says, in effect, "send me the page at this address." It travels across the network
+to the server named in the URL.
+
+The server reads the request, finds the page that was asked for, and sends back a
+response. A response is the server's reply: a message that carries the actual page
+content back to the browser.
+
+Both messages follow a fixed set of rules called HTTP, short for HyperText
+Transfer Protocol. A protocol is an agreed set of rules for a conversation: what
+each side is allowed to say and what each message means. HTTP is the protocol for
+the web. It defines how a browser phrases a request for a page and how a server
+phrases its answer. Because both ends follow the same rules, a browser built by
+one company can talk to a server built by a completely different one and they
+understand each other exactly.
+
+The pattern is worth stating plainly, because every website runs on it. The
+browser, which is the client, sends an HTTP request. The server sends back an HTTP
+response. That single round trip, ask and then answer, is what happens every time
+a page loads.
+
+<Quiz
+  id="web-request-direction"
+  question="A browser opens example.com and the page appears. Which side sent the request, and which side sent the page content back?"
+  answer={1}
+  options={[
+    "The server sent the request; the browser sent the page content back.",
+    "The browser sent the request; the server sent the page content back.",
+    "Both sent requests at the same moment and the faster one won.",
+    "The URL sent the request; the server sent the page content back.",
+  ]}
+  explanation="The browser is the client, the side that asks. It sends an HTTP request. The server is the side that waits and answers, so it sends back the response carrying the page content. Ask, then answer, in that order."
+/>
+
+## What comes back is text
+
+Here is the part that surprises most people building their first page. The
+response is not a picture. It is not the finished page delivered as an image. The
+server sends back text, and the browser builds the visible page out of that text.
+
+The text that comes back is written in HTML, short for HyperText Markup Language.
+HTML is the format that describes what is on a page and how its parts are
+organized: this piece is a heading, this piece is a paragraph, this piece is a
+button. It is plain text, the same kind of characters found in any document,
+arranged by a set of rules the browser knows how to read.
+
+The browser takes that text and draws the page from it. Reading the HTML top to
+bottom, it turns "this is a heading" into an actual heading on the screen, "this
+is a paragraph" into a block of text, and so on down the file. The page a person
+sees is the browser's drawing of the text it received. Nothing more mysterious
+than that.
+
+This is easy to prove. On the command line, the tool `curl` fetches a URL and
+prints the raw response text without drawing anything.
+
+<CommandCard
+  command="curl https://example.com"
+  title="command line"
+  explain="Fetches the URL and prints the exact text the server sends back, with no page drawn. It shows the response in its raw form."
+/>
+
+<ExpectedOutput label="curl https://example.com (trimmed to the visible parts)">
+```html
+<!doctype html>
+<html>
+<head>
+    <title>Example Domain</title>
+</head>
+<body>
+<div>
+    <h1>Example Domain</h1>
+    <p>This domain is for use in illustrative examples in documents.</p>
+    <p><a href="https://www.iana.org/domains/example">More information...</a></p>
+</div>
+</body>
+</html>
+```
+</ExpectedOutput>
+
+That block of text is the response for that page. A browser pointed at the same
+URL receives the same text and, instead of printing it, reads it and paints the
+heading, the paragraph, and the link as a real page. Same text, two different
+things done with it.
+
+<Callout type="info" title="The server sends text either way">
+Some servers keep a finished HTML file on disk and send it as-is. Others run code
+that assembles the HTML fresh for each request, pulling in a name or a price
+before sending. The visitor never sees that difference. What crosses the network
+is always text, and the browser's job is always the same: read the text and draw
+the page.
+</Callout>
+
+One consequence matters for anyone building sites. Everything visible on a web
+page started as text that a person wrote or a program produced. There is no hidden
+layer underneath. Learning to build for the web is, in large part, learning to
+write that text so the browser draws what was intended.
+
+<Quiz
+  id="web-page-is-text"
+  question="A server responds to a request for a web page. What does it actually send back across the network?"
+  answer={1}
+  options={[
+    "A finished picture of the page that the browser displays as-is.",
+    "Text the browser reads and uses to draw the page.",
+    "The browser program itself, downloaded fresh on every visit.",
+    "A live video feed of the page being built on the server.",
+  ]}
+  explanation="The response is text, written in HTML. The browser reads that text and draws the page from it. The page on screen is the browser's rendering of the text it received, not an image or video the server painted."
+/>
+
+## Three languages, three jobs
+
+The text a browser receives to build a full page is not all one language. A
+finished page is made from three, and each one owns a different job. Keeping those
+jobs separate is the single most useful habit in web development, so it is worth
+getting straight before writing a line.
+
+HTML is structure. It says what the content is and how it is organized: the
+headings, the paragraphs, the images, the buttons, and the order they come in.
+HTML on its own produces a plain, unstyled page, black text on a white background
+stacked top to bottom. Plain, but complete. Everything on a page exists because
+some HTML put it there.
+
+A few lines of HTML look like this:
+
+```html
+<h1>Tomato Soup</h1>
+<p>Ready in 30 minutes.</p>
+<button>Save recipe</button>
+```
+
+Each line names one piece of the page: a large heading, a paragraph, and a button.
+The browser draws all three, plain and unstyled.
+
+CSS is style. CSS, short for Cascading Style Sheets, controls how the HTML looks:
+colors, fonts, sizes, spacing, and where things sit on the screen. It changes
+appearance without changing what the content is. The same heading can be black or
+blue, small or huge, depending only on the CSS.
+
+```css
+h1 {
+  color: darkred;
+  font-family: Georgia, serif;
+}
+```
+
+That rule finds every `h1` heading on the page and paints it dark red in a serif
+font. The heading's words do not change. Only its look does.
+
+JavaScript is behavior. JavaScript is a programming language that runs inside the
+browser and makes the page react to what the visitor does: click a button and a
+message appears, type in a box and results narrow, scroll and more content loads.
+HTML and CSS describe a page that sits still. JavaScript is what makes it respond.
+
+```js
+const button = document.querySelector("button");
+button.addEventListener("click", function () {
+  alert("Recipe saved.");
+});
+```
+
+That code finds the button from the HTML above and says: when it is clicked, pop
+up the message "Recipe saved." The HTML made the button exist, CSS could color it,
+and JavaScript gives it something to do.
+
+A short way to hold the three apart: HTML is the content and its structure, CSS is
+the paint, JavaScript is the action. A page can exist with only HTML. Add CSS and
+it looks the way it should. Add JavaScript and it responds. Much of building for
+the web is deciding which of the three jobs a task belongs to, then writing that
+language and no other. Mixing them up, like reaching for JavaScript to do a job
+CSS already handles, is where a lot of early tangles come from.
+
+<Quiz
+  id="web-three-languages"
+  question="A page shows a heading in plain black. The goal is to make that heading blue and add a click on it that pops up a message. Which language does each job?"
+  answer={1}
+  options={[
+    "HTML makes it blue; HTML also handles the click.",
+    "CSS makes it blue; JavaScript handles the click.",
+    "JavaScript makes it blue; CSS handles the click.",
+    "CSS makes it blue; HTML handles the click.",
+  ]}
+  explanation="Color is appearance, which is CSS's job. Reacting to a click is behavior, which is JavaScript's job. HTML already put the heading on the page; the other two change how it looks and what it does."
+/>
+
+<Exercise title="Read the text behind a real page">
+Open any website in a browser. Right-click somewhere on the page and choose "View
+Page Source" (in most browsers the keyboard shortcut is Ctrl+U, or on a Mac,
+Option+Command+U). A new tab opens showing the raw HTML text the server sent,
+before the browser drew anything.
+
+Scroll through it. It will look dense and unfamiliar, and that is fine for now.
+Find a few recognizable words from the visible page and spot them sitting inside
+the text. That text is the whole page, exactly as the server delivered it.
+Everything drawn on the screen came from what is written there.
+
+Close the tab and picture the round trip once more: the browser sent a request for
+this URL, the server sent back this text, and the browser drew the page from it.
+</Exercise>
+
+Two programs and one round trip: the browser sends an HTTP request, the server
+sends back HTML, and the browser draws the page from that text. Three languages
+fill the text in, and HTML carries the structure the other two attach to. That
+structure is where building actually starts. The next lesson, writing the HTML
+that a page is made of, opens a blank file and puts the first real elements in it.
+
+<Notes />

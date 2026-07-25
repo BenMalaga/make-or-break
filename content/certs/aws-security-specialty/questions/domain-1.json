@@ -1,0 +1,114 @@
+[
+  {
+    "domain": 1,
+    "question": "A security engineer enables Amazon GuardDuty in a new account and wants to understand what it analyzes by default. Which two log sources does GuardDuty ingest as foundational data sources without the account owner needing to enable, store, or pay to retain those logs separately? (Choose two.)",
+    "options": ["VPC Flow Logs", "AWS Config configuration snapshots", "CloudTrail management events", "AWS WAF web ACL logs"],
+    "correct": [0, 2],
+    "explanation": "GuardDuty consumes VPC Flow Logs, CloudTrail management events, CloudTrail S3 data events, and DNS query logs directly from an independent stream, so you do not have to enable or store those logs yourself. AWS Config snapshots and AWS WAF logs are not GuardDuty foundational data sources. This is why GuardDuty can begin producing findings almost immediately after being enabled.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "GuardDuty raises an UnauthorizedAccess:EC2/MaliciousIPCaller.Custom finding indicating a production EC2 instance is communicating with a known malicious IP address. The incident response plan requires containment while preserving the instance for forensic analysis. What is the most appropriate immediate containment action?",
+    "options": ["Terminate the EC2 instance immediately to stop the traffic", "Attach a forensic isolation security group with no allow rules so the instance can no longer send or receive traffic, then snapshot its EBS volumes", "Delete the VPC to sever all connectivity", "Reboot the instance to clear the running malware from memory"],
+    "correct": [1],
+    "explanation": "Isolating the instance with a restrictive security group that permits no traffic contains the threat while keeping the instance running for evidence collection. Terminating or rebooting destroys volatile memory and other forensic evidence. Snapshotting the EBS volumes after isolation preserves disk state for later analysis.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "After GuardDuty produces several related findings, an analyst needs to determine the scope and root cause of the activity by visualizing how an IAM principal and an EC2 instance behaved over time. Which AWS service is purpose-built to automatically build a behavior graph from VPC Flow Logs, CloudTrail events, and GuardDuty findings for this investigation?",
+    "options": ["Amazon Detective", "AWS Security Hub", "Amazon Inspector", "AWS Config"],
+    "correct": [0],
+    "explanation": "Amazon Detective automatically ingests VPC Flow Logs, CloudTrail, and GuardDuty findings to build a linked behavior graph that supports root-cause and scope investigations. Security Hub aggregates and prioritizes findings but does not build an investigative graph. Inspector assesses vulnerabilities, and Config tracks resource configuration state.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A company wants a single pane of glass that ingests findings from GuardDuty, Amazon Inspector, Amazon Macie, and third-party tools in one normalized JSON schema so they can be searched and correlated together. Which format does AWS Security Hub use to normalize findings from all of these sources?",
+    "options": ["Open Cybersecurity Schema Framework (OCSF)", "AWS Security Finding Format (ASFF)", "Common Event Format (CEF)", "Structured Threat Information eXpression (STIX)"],
+    "correct": [1],
+    "explanation": "Security Hub normalizes every finding into the AWS Security Finding Format (ASFF), a standardized JSON schema, so findings from AWS and partner sources can be correlated. CEF and STIX are other industry formats not used natively by Security Hub for this normalization. OCSF is a separate open schema and is not the format Security Hub uses to store its findings.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A security team wants GuardDuty findings above a severity threshold to automatically trigger a remediation workflow with no human in the loop. Which architecture correctly delivers this automated response?",
+    "options": ["Configure GuardDuty to call an SSM Automation runbook directly through a finding subscription", "Create an Amazon EventBridge rule that matches the GuardDuty finding event pattern and targets a Lambda function or SSM Automation runbook", "Enable Security Hub auto-remediation, which natively executes remediation without any additional service", "Attach an SNS topic to the GuardDuty detector so the topic runs the remediation script"],
+    "correct": [1],
+    "explanation": "GuardDuty publishes findings to Amazon EventBridge, so the standard pattern is an EventBridge rule that matches the finding pattern and invokes a Lambda function or an SSM Automation runbook to remediate. GuardDuty cannot invoke SSM runbooks directly, and SNS delivers notifications rather than executing scripts. Security Hub does not natively run remediation without EventBridge and a target action.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "During an incident, responders must preserve forensic evidence from a suspected compromised EC2 instance before it is taken out of service. Which action best preserves volatile and non-volatile evidence for later analysis?",
+    "options": ["Stop the instance so the state is frozen, then read the ephemeral instance store volumes later", "Capture a memory dump of the running instance and create EBS snapshots of its volumes before termination", "Detach the EBS volumes and reattach them to the same instance after a reboot", "Enable termination protection and leave the compromised instance running in production indefinitely"],
+    "correct": [1],
+    "explanation": "Capturing a memory image while the instance is running preserves volatile evidence, and EBS snapshots preserve the disk contents for offline analysis. Stopping an instance discards instance-store (ephemeral) data and loses memory state. Rebooting also destroys volatile evidence, and leaving a compromised instance in production is not acceptable containment.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "GuardDuty Malware Protection is enabled. When GuardDuty raises a finding suggesting an EC2 instance may be running malware, how does the agentless EBS malware scan work?",
+    "options": ["It installs a scanning agent on the instance and runs a full antivirus sweep of memory", "It creates snapshots of the instance's EBS volumes, scans replicas of those snapshots for malware, and generates a finding if malware is detected", "It streams live network packets from the instance to a managed sandbox for detonation", "It requires the instance to be stopped before any scan can begin"],
+    "correct": [1],
+    "explanation": "GuardDuty Malware Protection performs an agentless scan by taking snapshots of the instance's EBS volumes, creating replicas, and scanning those replicas for malware without touching the running workload. No agent is installed and the instance does not need to be stopped. A malware finding is generated when malicious files are detected.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "A developer accidentally committed an active IAM user access key to a public GitHub repository, and GuardDuty produced an UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration-style alert. Which two actions should the incident responder take first? (Choose two.)",
+    "options": ["Immediately deactivate or delete the exposed access key", "Rotate the AWS account root user password as the primary fix", "Review CloudTrail to identify what API calls were made with the compromised key", "Disable GuardDuty so it stops generating additional findings for the key"],
+    "correct": [0, 2],
+    "explanation": "The first priority is to revoke the credential by deactivating or deleting the exposed access key so it can no longer be used. Reviewing CloudTrail then reveals what the attacker did with the key so the blast radius can be scoped and remediated. Rotating the root password does not address a compromised IAM user key, and disabling GuardDuty would remove needed visibility.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An organization wants Security Hub to continuously check its accounts against a curated set of AWS-authored best-practice controls covering services like IAM, S3, and CloudTrail. Which Security Hub standard should they enable for this AWS-native baseline?",
+    "options": ["AWS Foundational Security Best Practices", "ISO 27001 Annex A", "SOC 2 Type II", "COBIT 2019"],
+    "correct": [0],
+    "explanation": "The AWS Foundational Security Best Practices standard is an AWS-authored set of automated controls that check accounts and resources against security best practices across many services. ISO 27001, SOC 2, and COBIT are external frameworks, not Security Hub automated standards. Security Hub also offers CIS AWS Foundations and PCI DSS standards.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A security team is seeing anomalous database login attempts against an Amazon Aurora cluster and wants GuardDuty to detect suspicious login behavior against their databases. Which GuardDuty protection plan should they enable?",
+    "options": ["GuardDuty S3 Protection", "GuardDuty RDS Protection", "GuardDuty EKS Runtime Monitoring", "GuardDuty Lambda Protection"],
+    "correct": [1],
+    "explanation": "GuardDuty RDS Protection analyzes login activity to supported Amazon Aurora databases and flags suspicious or anomalous access attempts. S3 Protection covers data access to buckets, EKS Runtime Monitoring covers container workloads, and Lambda Protection covers function network activity. For suspicious Aurora logins, RDS Protection is the correct plan.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "GuardDuty is generating a large volume of findings for a specific benign automated scanner that the security team trusts. They want to stop these expected findings from cluttering the console without turning off detection for the underlying finding type across other resources. What is the recommended approach?",
+    "options": ["Disable the GuardDuty detector for the entire Region", "Create a GuardDuty suppression rule using filter criteria that match the benign findings", "Delete each finding manually every day as it appears", "Remove VPC Flow Logs so the scanner activity is no longer analyzed"],
+    "correct": [1],
+    "explanation": "A GuardDuty suppression rule uses filter criteria to automatically archive matching findings so expected, benign activity does not clutter the active findings list while detection continues for everything else. Disabling the detector or removing log sources would blind you to real threats. Manually deleting findings is not scalable and does not prevent them from recurring.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A company runs GuardDuty and Security Hub in 12 Regions and wants to review and manage all findings from one place instead of switching Regions. Which Security Hub capability provides this consolidated view?",
+    "options": ["Cross-Region finding aggregation to a single aggregation Region", "A VPC peering connection between all Regional Security Hub endpoints", "S3 Cross-Region Replication of the findings bucket", "Enabling Security Hub only in us-east-1 so all Regions report there automatically"],
+    "correct": [0],
+    "explanation": "Security Hub cross-Region aggregation designates a single aggregation Region that consolidates findings, insights, and control statuses from the linked Regions for centralized review. VPC peering and S3 replication do not aggregate Security Hub findings. Security Hub must be enabled in each Region you want covered; it does not automatically pull from Regions where it is disabled.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A large AWS Organization wants GuardDuty and Security Hub managed centrally, with one account able to enable protection, view findings, and configure policies across all member accounts. What is the recommended way to achieve this at scale?",
+    "options": ["Share IAM user credentials for the management account with each security analyst", "Designate a delegated administrator account for GuardDuty and Security Hub through AWS Organizations", "Manually enable each service in every member account with no central control", "Use the AWS account root user of each member account to enable the services"],
+    "correct": [1],
+    "explanation": "Both GuardDuty and Security Hub integrate with AWS Organizations and support designating a delegated administrator account that centrally enables the service, auto-enrolls member accounts, and aggregates findings. Sharing credentials or using root users violates least privilege and is not scalable. Manually enabling each account defeats the purpose of centralized management.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A Security Hub control detects that an S3 bucket was made publicly accessible, and the team wants this to be remediated automatically. They configure an EventBridge rule that fires on the finding. Which target most directly lets them run a predefined, auditable set of remediation steps such as re-applying the bucket's public access block?",
+    "options": ["An SNS topic that emails the security team", "An AWS Systems Manager Automation runbook invoked by the EventBridge rule", "An Amazon SQS queue that stores the finding", "A CloudWatch dashboard widget"],
+    "correct": [1],
+    "explanation": "An SSM Automation runbook executes a defined, repeatable, and auditable sequence of remediation steps and can be invoked as an EventBridge target when the finding fires. SNS and SQS only notify or queue the finding, and a CloudWatch dashboard only visualizes data. For hands-off remediation, the Automation runbook is the correct target.",
+    "difficulty": "HARD"
+  }
+]

@@ -1,0 +1,134 @@
+---
+title: Your Data Trail
+module: digital-self-defense
+moduleTitle: Digital Self-Defense
+moduleOrder: 6
+moduleIcon: EyeOff
+order: 4
+summary: A stranger with a name and ten minutes can assemble a file on someone. Here is what they pull, and how to make it smaller.
+estimatedMinutes: 16
+objectives:
+  - See a personal data trail the way an attacker reading public sources sees it
+  - Run a self-OSINT pass on a name, an email, and reused usernames with free tools
+  - Reduce the trail by opting out of brokers, stripping geotags, and posting deliberately
+tags:
+  - privacy
+  - osint
+  - data-brokers
+prerequisites: ["spotting-scams-and-phishing"]
+---
+
+The previous lesson showed how a phishing message gets convincing. The attacker names the target's bank, the package that arrived last week, the manager who signs the expense reports. None of that is guessed. It is looked up. Before a single word of the lure is written, the attacker spends a few minutes reading what the internet already publishes about the person, and this lesson is a walk through that reading room. The point is to see a data trail the way a stranger sees it, and then make it smaller.
+
+Open-source intelligence, OSINT, is the craft of building a picture of a person or an organization from public information alone. No break-in, no password, nothing illegal. Pointed at one individual, it goes further than most people expect. The attacker starts with a single seed, usually a full name or an email address, and pivots outward. A name plus a city narrows to a specific person on a people-search site. That listing hands over past addresses, relatives, and an approximate age. The email address, dropped into a breach-lookup service, reveals which sites the person holds accounts on. A profile photo, run through reverse image search, surfaces the other corners of the web where that same face was posted. Every result is a new seed, and the file fills itself in.
+
+## Turning the search inward
+
+The honest way to measure this exposure is to run the same pass on oneself. A structured self-OSINT sweep takes three seeds in turn: the name, the email, the reused handles.
+
+The name comes first. A search engine query of a full name in quotes, then the name plus a home town or an employer, shows what floats to the top for anyone curious enough to look. Image search and a reverse image search on a public profile picture reveal where else that photo lives. The email address is the sharper tool. Dropped into Have I Been Pwned, a free service run by security researcher Troy Hunt, it lists every known data breach that address appeared in. That matters because a breach ties the address to a specific site, and it often exposes an old password that still works somewhere else. Have I Been Pwned reports where the address leaked. It does not tell the account holder who currently holds that data, and it cannot pull the record back. It is a smoke detector, not a fire extinguisher.
+
+Handles are the seed people underestimate. A person who uses one memorable username across a gaming forum, a fitness app, and a marketplace has quietly stitched those accounts together. Sherlock, an open-source tool on GitHub, takes a single username and checks hundreds of sites for an account under that name. WhatsMyName does the same thing from a web page for anyone without a terminal.
+
+```bash
+# Sherlock: hunt one username across sites
+# github.com/sherlock-project/sherlock
+python3 sherlock rivergale88
+```
+
+Both tools produce false positives. A hit means an account with that name exists, not that the same human owns it. Two people can pick the same handle. The signal is real anyway, because an attacker treats every match as a lead to confirm, and confirmation is cheap.
+
+<Quiz
+  id="your-data-trail-username-reuse"
+  question="A person uses the same handle rivergale88 on a gaming forum, a fitness app, and a resale marketplace. Why does reusing one username across sites matter for privacy?"
+  answer={1}
+  options={[
+    "It makes the accounts easier to remember, which is only a convenience issue",
+    "A single search of that handle links the accounts together, merging what each one reveals",
+    "Sites automatically block reused usernames to protect their owners",
+    "It has no privacy effect once every account has a strong, unique password",
+  ]}
+  explanation="A distinct password protects the login, not the identity. One handle searched across sites collapses separate accounts into a single profile, so the gaming forum's location, the fitness app's routine, and the marketplace's real name all attach to the same person."
+/>
+
+## The photo problem
+
+A phone does more than capture an image. It writes metadata into the file, a block called EXIF that records the camera model, the exact timestamp, the exposure settings, and, when location services are on for the camera, the GPS coordinates of where the shutter fired. A picture of a living room can carry the latitude and longitude of the house it was taken in.
+
+ExifTool, a free command-line program by Phil Harvey, reads and strips that block. One command dumps every field. Another writes a clean copy with the metadata gone.
+
+```bash
+# read every metadata field, GPS included
+exiftool photo.jpg
+
+# strip all metadata into a clean file
+exiftool -all= -o photo_clean.jpg photo.jpg
+```
+
+Here the honest nuance matters, because fear without accuracy just wastes effort. The large social platforms, Facebook, Instagram, and X among them, strip EXIF from photos on upload. A picture posted to Instagram is usually not the leak. The leak is the original file shared in a channel that keeps the metadata: an email attachment, a cloud file-sharing link, a personal blog, or a forum that stores the file as-is. And the picture itself geolocates even with the EXIF gone. A street sign, a school crest on a hoodie, a house number in the background, a distinctive skyline. The camera does not need coordinates when the frame hands them over.
+
+<Quiz
+  id="your-data-trail-exif-leak"
+  question="Instagram and Facebook strip EXIF metadata when a photo is uploaded. Given that, where does a geotagged photo still leak its location through metadata?"
+  answer={2}
+  options={[
+    "Nowhere, because every website removes metadata on upload",
+    "Only on the phone that originally took the photo",
+    "When the original file is shared directly, by email, a file-sharing link, or a site that keeps metadata",
+    "Only if the photo is printed on paper",
+  ]}
+  explanation="Stripping happens on the platforms that choose to do it. The original file still holds the GPS block, so sharing it raw, over email, a shared drive link, or a site that preserves uploads, carries the coordinates along. Separately, the visible content of a photo can reveal a location with no metadata at all."
+/>
+
+## The aggregation business
+
+People-search sites are the part of the trail nobody signed up for. Companies like Spokeo, Whitepages, BeenVerified, Radaris, Intelius, and PeopleFinders buy public records, voter rolls, property filings, court documents, marketing lists, and old breach dumps, then merge them into a single profile they sell for a few dollars. A data broker is the wholesaler behind those retail sites, assembling the raw feeds. The result is a page keyed to a real name that lists ages, addresses going back years, phone numbers, and named relatives, all in one place an attacker can buy without a warrant.
+
+Most of these sites are required, in several states, to offer a free opt-out. The suppression form is usually buried, and it has to be filed broker by broker. Google runs a free tool called Results about you that scans Search for a person's phone number, home address, and email, then requests removal of the pages that show them. It is worth running because it covers the highest-traffic surface, the search results a casual snooper actually sees.
+
+The reframe has to stay honest. Opting out is not deletion. A broker that drops a record often re-lists it months later when the source records refresh, and every other broker still holds its own copy pulled from the same public feeds. This is a recurring chore, not a one-time fix. Paid services like DeleteMe and Optery automate the broker-by-broker removals for a subscription, and Optery has a free tier that will at least show where a person already appears. None of them touch the underlying public records, which are the wellspring the whole industry draws from.
+
+<Quiz
+  id="your-data-trail-broker-optout"
+  question="After submitting an opt-out to a people-search site and confirming the listing is gone, what is the honest expectation going forward?"
+  answer={1}
+  options={[
+    "The person is now removed from every data broker permanently",
+    "That broker may re-list the record later, and other brokers still hold their own copies",
+    "Search engines will purge every cached copy of the page within an hour",
+    "The opt-out also deletes the underlying public records the listing came from",
+  ]}
+  explanation="One opt-out affects one broker, and only until its source data refreshes. The rest of the industry pulls from the same public records, so removal is a repeating maintenance task, not a permanent erase. The source records themselves stay untouched."
+/>
+
+## Shrinking the surface
+
+The trail cannot be erased, but it can be made expensive to follow. Three moves do most of the work.
+
+Privacy settings come first, because they are free and they cover the largest volume of data. Every major platform ships a privacy checkup that sets who can see past posts, who can look up an account by phone number or email, and whether new posts carry a location tag. Setting old posts to friends-only and turning off lookup-by-phone shuts a wide door that most accounts leave open by default. The app will not do this on its own. It defaults to open because open is better for the app.
+
+Distinct usernames per context break the linking that Sherlock exploits. A separate handle for gaming, for professional work, and for anything tied to a legal name means one search no longer merges them. This is forward-looking. It does nothing for accounts already connected under an old shared handle, so the value is in every new account from here on.
+
+Deliberate posting is the habit that outlasts any tool. A single post can broadcast three things an attacker wants: location, schedule, and home. A vacation photo captioned with the return date advertises an empty house for a known window. A gym check-in at the same hour every morning is a published routine. A photo of a new front door with the number in frame is an address. The fix is not silence. It is a half-second pause on what a given post hands to a stranger, and a delay on the ones that reveal a pattern until the pattern is over.
+
+<Callout type="security" title="Deleting a post is not the same as removing it">
+A deleted tweet or a scrubbed photo can already live in a search-engine cache, an archive site like the Wayback Machine, or a screenshot on someone else's phone. Removal reduces future exposure. It rarely reverses what has already been copied. Treat anything posted publicly as potentially permanent from the moment it goes up, and make the decision at posting time, not after.
+</Callout>
+
+<Exercise title="Run a ten-minute self-OSINT pass">
+Do this on your own identity only, using free tools, and change nothing you are not sure about.
+
+1. Search your full name in quotes, then your name plus your town and your employer. Note the top five results a stranger would see.
+2. Put your main email address into haveibeenpwned.com. Write down which breached sites it appears in, and change the password on any of those where you reused it.
+3. Run one of your usual handles through whatsmyname.app (or Sherlock if you have Python). Count how many accounts it links, and decide which ones you want unlinked going forward.
+4. Search your name on one people-search site, Spokeo or Whitepages. If a listing exists, find its opt-out page and start the removal.
+5. Open the privacy checkup on your most-used social account. Set past posts to friends-only and turn off lookup by phone number.
+
+Time-box it to ten minutes. The goal is a baseline of what is exposed, not a perfect cleanup.
+</Exercise>
+
+Perfect erasure is not on offer. Old archives, cached pages, and screenshots outlive any delete button, and the broker machine re-aggregates whatever gets pulled. The realistic target is cost. Every opt-out filed, every geotag stripped, every context split onto its own handle raises the price of building that file and shrinks what an attacker recovers for the effort. A hard target is not an invisible one. It is one that is not worth the time.
+
+The trail measured here is the one a person leaves on purpose, in posts and profiles and photos. The browser leaves a second trail with every page it loads, a stream of signals nobody typed and few ever see. That is where browsing-privately picks up.
+
+<Notes />

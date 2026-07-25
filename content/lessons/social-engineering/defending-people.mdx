@@ -1,0 +1,102 @@
+---
+title: Defending People
+module: social-engineering
+moduleTitle: Social Engineering
+moduleOrder: 11
+moduleIcon: Drama
+order: 4
+summary: Turn the softest target into a sensor grid with training, reporting, and controls.
+estimatedMinutes: 16
+objectives:
+  - Design awareness training that changes behavior, not just compliance
+  - Build a reporting culture that treats users as sensors
+  - Layer technical controls that blunt phishing and impersonation
+tags:
+  - social-engineering
+  - defense
+  - blue-team
+---
+
+You cannot patch a person, but you can train, measure, and back them up. The goal
+of defense is not a workforce that never gets fooled. That does not exist. The
+goal is a workforce that notices, reports fast, and is caught by technical
+controls when they slip. Done right, the human attack surface becomes a sensor
+grid.
+
+## Training that actually changes behavior
+
+Annual click-through slides are compliance theater. Behavior changes when training
+is frequent, specific, and tied to real feedback:
+
+- **Simulated phishing**: send your own authorized test emails, then coach anyone
+  who clicks in the moment. The teachable second is right after the click.
+- **Role-relevant scenarios**: finance sees wire fraud, engineers see fake code
+  reviews, HR sees fake resumes with macros.
+- **Short and recurring**: a five minute nudge each month beats a two hour session
+  once a year.
+- **No blame**: shame makes people hide mistakes. You want them reported, not buried.
+
+<Callout type="tip" title="Measure the report rate, not just the click rate">
+Most programs only track who clicked. Track who reported instead. A rising report
+rate means your users are becoming detectors. A team that clicks a little but
+reports within two minutes is far safer than one that clicks nothing on the test
+and stays silent on the real thing.
+</Callout>
+
+## A reporting culture
+
+Speed of detection decides how bad an incident gets. A credential phished at 9:00
+and reported at 9:03 can be contained before the attacker logs in. The same
+credential reported next week is a breach. Make reporting the path of least
+resistance:
+
+- Give people a one-click **report phish** button in the mail client.
+- Thank every report, even the false alarms. Punishing false positives kills the
+  signal you need.
+- Close the loop: tell reporters what happened so they see their report mattered.
+
+<CommandBlock
+  title="soc@analyst"
+  commands={[
+    { cmd: "grep -Ri 'reply-to' reported_email.eml", comment: "does the reply address differ from the sender" },
+    { cmd: "dig +short txt targetcorp.com | grep spf", comment: "check the sender policy record" },
+    { cmd: "urlscan.io lookup hxxp://suspicious-link", comment: "detonate the URL safely, never click it live" },
+  ]}
+/>
+
+## Technical controls that catch the slip
+
+Awareness is one layer. Assume it fails sometimes and stack controls behind it:
+
+- **Email authentication**: enforce SPF, DKIM, and DMARC so spoofed sender domains
+  get rejected or quarantined.
+- **Phishing-resistant MFA**: FIDO2 security keys do not hand a code to a fake
+  page the way SMS codes do.
+- **Least privilege**: a phished account that can reach little limits the blast.
+- **Visitor and badge policy**: escort visitors, challenge tailgaters, and migrate
+  off legacy prox cards.
+- **DNS and web filtering**: block known malicious domains before the click lands.
+
+<Exercise
+  id="report-metric"
+  prompt="Team A clicks 0 percent on the phishing test but never reports. Team B clicks 8 percent but reports within two minutes. Which team is safer against a real campaign, and why?"
+>
+Team B. A real attacker only needs one click, which no training drives to zero.
+Team B's fast reporting means the security team can revoke sessions and reset
+credentials before the attacker acts. Team A's silence gives an attacker free time.
+</Exercise>
+
+<Quiz
+  id="dmarc"
+  question="Which technical control most directly stops an attacker from spoofing your own domain in the From address?"
+  answer={2}
+  options={[
+    "Antivirus on endpoints",
+    "A longer password policy",
+    "SPF, DKIM, and DMARC email authentication",
+    "Full disk encryption",
+  ]}
+  explanation="DMARC, built on SPF and DKIM, tells receiving servers to reject or quarantine mail that fails authentication for your domain, which blocks direct domain spoofing."
+/>
+
+<Notes />

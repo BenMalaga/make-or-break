@@ -1,0 +1,81 @@
+---
+title: IDS and IPS
+module: network-defense
+moduleTitle: Network Defense
+moduleOrder: 28
+moduleIcon: ShieldHalf
+order: 2
+summary: One tells you an attack happened, the other stops it mid-packet, and the difference is where you place the box.
+estimatedMinutes: 20
+objectives:
+  - Distinguish an IDS from an IPS by where it sits in the traffic path
+  - Compare signature detection against anomaly detection and when each fails
+  - Write and test a basic Snort or Suricata rule
+tags:
+  - ids
+  - ips
+  - snort
+  - suricata
+  - detection
+---
+
+The gap between an IDS and an IPS is one word: inline. An intrusion detection system watches a copy of the traffic and yells when it sees something bad. By the time it yells, the packet already reached the target. An intrusion prevention system sits directly in the path, so it can drop the malicious packet before it lands. Same detection engine, same rules, completely different consequences when it is wrong.
+
+That "when it wrong" part decides everything. A false positive on an IDS is a noisy alert someone triages later. A false positive on an IPS drops legitimate traffic and takes down a service. People run IDS mode first, tune the rules until the noise is manageable, then flip to IPS mode once they trust it. Skipping that order is how you page yourself at 3am because your prevention engine decided a big file upload looked like an exploit.
+
+## Where the box goes
+
+An IDS gets a mirror of the traffic. You feed it from a SPAN port on the switch or a network tap, so it sees a copy and cannot touch the live flow. It is out of band by design, which means it can never break anything and can also never stop anything.
+
+An IPS is wired in series between two network segments. Every packet passes through it before continuing, so a `drop` verdict actually removes the packet. That power costs you: the IPS is now a single point of failure and a latency tax on every connection. Size it for your throughput or it becomes the bottleneck.
+
+## Signature vs anomaly
+
+Signature detection matches traffic against known-bad patterns. A rule says "if you see this byte sequence in an HTTP request, that is CVE-2021-44228," and when the pattern appears, it fires. This is precise and low-noise for threats you have a signature for. It is completely blind to anything new. A zero-day or a payload you have never catalogued sails straight through, because there is no pattern to match.
+
+Anomaly detection flips the model. You build a baseline of what normal looks like, then flag deviations. A host that suddenly talks to 500 internal IPs on port 445, a workstation beaconing outbound every 60 seconds on the dot, a 2am spike from an account that only ever logs in during business hours. This catches novel attacks that no signature covers. It also drowns you in false positives, because "different" and "malicious" are not the same thing, and normal drifts constantly.
+
+Neither wins alone. Run signatures for the known catalogue and anomaly detection for the unknown, and accept that the anomaly side needs a human reading the output.
+
+## Writing a rule
+
+Snort and Suricata share a rule syntax, and Suricata can run Snort rules with minor caveats, so learning one gets you both. A rule has an action, a protocol, source and destination with directions, and the options that define the match.
+
+<CommandCard command='alert tcp any any -> $HOME_NET 22 (msg:"SSH connection attempt"; sid:1000001; rev:1;)' explain="Fires an alert on any TCP traffic from anywhere to port 22 on your protected network. msg is the label you see in the log, sid is the unique rule ID (keep local rules at 1000000+), rev is the version." />
+
+That rule only alerts. Change `alert` to `drop` and run the engine inline and the same match now blocks the connection. The action word is the entire difference between detection and prevention.
+
+Content matching is where signatures earn their keep. This one looks for a specific payload byte string:
+
+<CommandCard command='alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"possible /etc/passwd read"; content:"/etc/passwd"; nocase; sid:1000002; rev:1;)' explain="The content keyword matches the literal string anywhere in the packet payload, nocase makes it case-insensitive. Real production rules pin the match to an offset and depth so the engine is not scanning every byte of every packet." />
+
+<Callout type="security" title="Test on traffic you own">
+Deploy and tune these engines against your own lab or an authorized network. Mirroring and inspecting production traffic that carries other people's data has privacy and legal implications, so get sign-off before you tap a live link.
+</Callout>
+
+## Run it and prove it fires
+
+<CommandBlock
+  commands={[
+    { cmd: "suricata -T -c /etc/suricata/suricata.yaml", comment: "test the config and rules load before you go live" },
+    { cmd: "suricata -i eth0", comment: "run live on an interface in IDS mode" },
+    { cmd: "tail -f /var/log/suricata/fast.log", comment: "watch alerts land in real time" },
+  ]}
+/>
+
+Then generate the traffic that should trip your rule and confirm the alert shows up. A rule you never triggered on purpose is a rule you do not know works. Attackers evade IDS with fragmentation, encoding, and encryption, so a signature that looks right on paper can still miss the real payload. Verify by firing the actual attack in a lab, not by reading the rule and assuming.
+
+<Quiz
+  id="ids-ips-placement"
+  question="Your security team wants to block a live exploit attempt before it reaches the web server, not just be notified after. What do you need?"
+  answer={1}
+  options={[
+    "An IDS fed by a SPAN port, tuned for low false positives",
+    "An IPS deployed inline in the traffic path with a drop rule",
+    "An IDS with anomaly detection enabled",
+    "A signature rule with the alert action",
+  ]}
+  explanation="Blocking before the packet lands requires the engine to sit inline in the traffic path, which is an IPS. An IDS on a SPAN port only sees a copy and can alert but never drop. The alert action detects; the drop action on an inline engine is what actually prevents."
+/>
+
+<Notes />

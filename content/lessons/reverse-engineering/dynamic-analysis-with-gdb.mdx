@@ -1,0 +1,80 @@
+---
+title: Dynamic Analysis With GDB
+module: reverse-engineering
+moduleTitle: Reverse Engineering
+moduleOrder: 34
+moduleIcon: Microscope
+order: 3
+summary: Static reading only takes you so far; run the binary under GDB and watch the real value it compares against.
+estimatedMinutes: 22
+objectives:
+  - Set breakpoints on functions and addresses and inspect registers at each stop
+  - Read memory and watch a variable change as the program runs
+  - Single-step through a check to see which branch the CPU actually takes
+tags:
+  - reverse-engineering
+  - gdb
+  - dynamic-analysis
+  - debugging
+---
+
+Ghidra shows you that the program compares your input against something. It cannot always tell you what that something is, because the value gets computed at runtime: a hash of the current time, a key derived from your username, a constant XORed in a loop. Static analysis hits a wall there. GDB walks straight through it, because you just stop the program at the compare and read the number out of the register.
+
+Install GDB and, seriously, install the GEF or pwndbg extension on top of it. Plain GDB works but its default output is bleak. GEF adds a context view that dumps registers, stack, and disassembly at every stop, which is exactly what you want during RE. One line into your `~/.gdbinit` and you have it.
+
+## Break, then look
+
+Load the target and set a breakpoint before you run. Break on a function name if symbols exist, or on a raw address from Ghidra if they do not.
+
+<CommandBlock
+  commands={[
+    { cmd: "gdb ./license_check", comment: "load it, does not run yet" },
+    { cmd: "break main", comment: "stop at the start of main" },
+    { cmd: "break *0x0000555555555189", comment: "break on a specific address; the * is required" },
+    { cmd: "run AAAA-BBBB-CCCC", comment: "start execution with your input as argv" },
+  ]}
+/>
+
+Addresses shift when the binary is PIE, which almost everything is now. The address Ghidra shows you is usually based at `0x100000` or `0x400000`, but the loaded process sits somewhere else. Break on `main` first, then use `info proc mappings` or GEF's `vmmap` to find the real load base, and add the offset. GEF also lets you break on file offsets directly, which sidesteps the math.
+
+When execution stops, look at the machine state. Registers hold the values in flight, and on x86-64 the compare you care about usually lands in `rax`, `rdi`, `rsi`, or `rdx`.
+
+<CommandBlock
+  commands={[
+    { cmd: "info registers", comment: "all registers; rip is where you are" },
+    { cmd: "x/8xb $rsp", comment: "8 bytes of the stack as hex" },
+    { cmd: "x/s $rdi", comment: "read rdi as a null-terminated string" },
+    { cmd: "x/20i $rip", comment: "next 20 instructions from where you stopped" },
+  ]}
+/>
+
+`x` is examine, and the format letters after the slash matter: `s` for string, `i` for instruction, `xb` for hex bytes, `xg` for 8-byte giants. If a function takes your input and a comparison string, `x/s $rsi` right before a `strcmp` frequently prints the correct answer in plain text. That is the whole trick against a lot of easy keygen challenges.
+
+## Watch it change, step through the decision
+
+A watchpoint stops the program the instant a memory location changes, which is how you catch where a computed key gets written.
+
+<CommandCard command="watch *0x555555558040" explain="Execution halts the moment the 4 bytes at that address are modified, and GDB prints the old and new value. Perfect for catching where a runtime-derived key lands in memory before it is compared." />
+
+To see which branch a check takes, single-step across it. `stepi` runs one instruction. `nexti` does too but steps over calls instead of diving into them, which keeps you out of library internals. Step up to the conditional jump, check the flags, and watch where `rip` goes.
+
+The flag that decides most branches is the zero flag, `ZF`. A `cmp eax, ebx` followed by `je` jumps when the two were equal, meaning `ZF` is set. Stop on the `cmp`, run one `stepi`, and read the flags in the register view. If the branch is about to go the wrong way, you already know the compare failed, and the values in the registers tell you by how much.
+
+<Callout type="security" title="Debug only what you have rights to run">
+Attaching a debugger to a process, or running an unknown binary at all, is something you do on lab targets, CTF files, or software you are authorized to test. Run untrusted binaries in a throwaway VM, not on your daily machine, because dynamic analysis means you are actually executing the thing.
+</Callout>
+
+<Quiz
+  id="gdb-strcmp-peek"
+  question="You break right before a strcmp that compares your input to a runtime-generated key. What single command most likely reveals the correct key?"
+  answer={1}
+  options={[
+    "info registers, then read rip",
+    "x/s on the register holding the second strcmp argument",
+    "watch the entire stack for changes",
+    "stepi until the program exits",
+  ]}
+  explanation="strcmp's two arguments arrive in rdi and rsi on x86-64. One of them is your input; the other is the expected key. Printing that register as a string with x/s shows the answer before the comparison even runs."
+/>
+
+<Notes />

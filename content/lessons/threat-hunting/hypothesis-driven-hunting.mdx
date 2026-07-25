@@ -1,0 +1,64 @@
+---
+title: Hypothesis-Driven Hunting
+module: threat-hunting
+moduleTitle: Threat Hunting
+moduleOrder: 26
+moduleIcon: Footprints
+order: 2
+summary: A good hunt is a falsifiable bet, not a vibe. Write the claim down before you touch a log.
+estimatedMinutes: 18
+objectives:
+  - Turn a vague worry into a testable, falsifiable hypothesis
+  - Map a hypothesis to specific data sources and queries before hunting
+  - Reach a clear verdict and know what to do with each outcome
+tags:
+  - threat-hunting
+  - hypothesis
+  - methodology
+  - mitre-attack
+---
+
+"I feel like something is off with our service accounts" is not a hunt. It is anxiety. A hunt is a sentence you can prove false: "A service account has authenticated interactively in the last 30 days, which it should never do." Now you have something a query can settle. Either that event exists in the logs or it does not.
+
+The falsifiable part matters more than it sounds. If your hypothesis cannot come back clean, you have not written a test, you have written a mood. And a hunt that can never end is one you will abandon halfway through, learning nothing.
+
+## Build the hypothesis from a real technique
+
+The strongest hypotheses come from a specific attacker behavior, not a general fear. Pick a MITRE ATT&CK technique that fits your threat model and phrase it as something that either happened or did not.
+
+Take T1053.005, scheduled task persistence. The vague version is "attackers use scheduled tasks." The hypothesis version is testable:
+
+<CommandCard command="A non-admin process created a scheduled task that runs a script from a user-writable directory in the last 14 days." explain="Every clause is checkable against process-creation and task-creation logs. If nothing matches, the hypothesis is falsified for that window and you move on with a clear answer, not a shrug." />
+
+Notice the shape. A subject (non-admin process), an action (created a scheduled task), a suspicious qualifier (script from a user-writable path), and a time bound (14 days). Strip any of those and the hunt gets harder to end.
+
+## Map it to data before you query
+
+Before you write a single query, answer three questions on paper. Which log source records this behavior. Do you actually collect it and for how long. What field distinguishes benign from suspicious. If you skip this, you will burn an hour building a query against a log that does not contain the answer.
+
+For the scheduled-task hunt on Windows, the mapping is concrete: Security event ID 4698 records task creation, Sysmon event ID 1 gives you the parent-child process lineage, and the task's `Command` field tells you what it runs. On Linux the analog is auditd rules on `cron` writes plus `execve` logs. Write that mapping down. It is half the hunt.
+
+<Callout type="security" title="Scope the query, log the query">
+Run these searches only against environments you are authorized to hunt in. Time-bound every query, filter to the smallest asset scope that tests the hypothesis, and keep a record of what you ran. A hunter who cannot show exactly which data they touched is a compliance incident waiting to happen.
+</Callout>
+
+## Reach a verdict, every time
+
+A hunt has exactly three honest outcomes and you should name which one you hit. You found malicious activity, so it becomes an incident. You found benign activity that looks malicious, so it becomes tuning or an allow-list entry. Or you found nothing, which either falsifies the hypothesis or exposes a visibility gap because you could not see well enough to answer.
+
+The failure mode is stopping at "hmm, weird" and walking away. Weird is not a verdict. Chase every anomaly to one of the three endpoints. Even a clean result is worth writing down, because next quarter someone will ask "did we ever check for this," and "yes, on this date, over this window, nothing" is a real answer.
+
+<Quiz
+  id="hunt-hypothesis-falsifiable"
+  question="Which of these is a usable hunting hypothesis?"
+  answer={1}
+  options={[
+    "Attackers might be abusing PowerShell somewhere in the network",
+    "A PowerShell process spawned by winword.exe made an outbound connection in the last 7 days",
+    "Our endpoint tooling is probably missing something important",
+    "There could be persistence on some of our servers",
+  ]}
+  explanation="Only the second is falsifiable: a specific parent process, a specific behavior, and a time bound. A query can return it or return nothing, which gives you a real verdict. The others are moods, not tests."
+/>
+
+<Notes />

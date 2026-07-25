@@ -1,0 +1,70 @@
+---
+title: Encryption at Rest and in Transit
+module: data-protection-and-privacy
+moduleTitle: Data Protection and Privacy
+moduleOrder: 53
+moduleIcon: FileLock
+order: 2
+summary: The checkbox says encrypted. That hides the two questions that matter, encrypted where and against whom.
+estimatedMinutes: 18
+objectives:
+  - Match at-rest and in-transit encryption to the attacker each one stops
+  - Name the threats neither one covers
+  - Read a TLS handshake and inspect a disk image to prove the difference
+tags:
+  - encryption
+  - tls
+  - full-disk-encryption
+  - data-protection
+  - crypto
+---
+
+The audit says "data is encrypted" and everyone nods. That sentence hides the only two questions worth asking: encrypted where, and against whom. Encryption at rest and encryption in transit defend against completely different attackers, and each one is useless against the other's threat. Confuse them and you will protect a laptop that was never at risk while leaving the live database wide open.
+
+Encryption at rest protects data sitting on storage. Full-disk encryption like LUKS on Linux, BitLocker on Windows, or the transparent volume encryption AWS puts under EBS and S3. The attacker it stops is physical: someone who steals the laptop, buys your decommissioned drive off eBay, or grabs a database snapshot from an unsecured backup bucket.
+
+Here is the limit people miss. Full-disk encryption only helps while the disk is locked, which in practice means powered off. The moment the server boots and mounts the volume, the data is transparently decrypted for anything with normal access. A SQL injection against a running app reads plaintext no matter how the disk is encrypted. FDE on a server that never powers down is close to compliance theater against a live attacker. It earns its keep on laptops and dead media, which is exactly where physical theft happens.
+
+Encryption in transit protects data moving across a network. That is TLS, and in 2026 you want TLS 1.3 with valid certificate checking. The attacker it stops is on the wire: someone sniffing the coffee-shop wifi, a compromised switch, a machine-in-the-middle downgrading your connection.
+
+Its limit is symmetric to the other one. TLS protects the pipe, not the endpoints. Data is plaintext at both ends before it enters the tunnel and after it leaves. A TLS-terminating load balancer decrypts everything at the edge, so the traffic behind it on your own network is cleartext unless you re-encrypt to the backend. "We use HTTPS" says nothing about what happens after the request lands.
+
+<CommandBlock
+  title="prove each layer instead of trusting the checkbox"
+  commands={[
+    { cmd: "cryptsetup luksFormat /dev/sdb", comment: "encrypt a block device at rest with LUKS" },
+    { cmd: "openssl s_client -connect example.com:443 -tls1_3", comment: "confirm the negotiated protocol and cert chain" },
+    { cmd: "testssl.sh https://example.com", comment: "flag old TLS versions and weak ciphers still enabled" },
+  ]}
+/>
+
+<ExpectedOutput label="testssl output you want to see">
+ TLS 1.2   offered
+ TLS 1.3   offered (OK)
+ SSLv3     not offered (OK)
+ NULL ciphers (no encryption)  not offered (OK)
+</ExpectedOutput>
+
+Between the two sits the gap nobody covers: data in use. While your app processes a record, it is plaintext in RAM. Confidential computing and hardware enclaves aim at that window, but they are rare and you should assume memory is readable to anyone who owns the host.
+
+<Callout type="security" title="Sniff and image only what you own">
+Seeing the difference for yourself is the fastest way to internalize it. Run Wireshark and watch a plain HTTP request expose a password in cleartext, then watch the same request over HTTPS turn into opaque bytes. Do the capture on a network you own or are authorized to test. Sniffing traffic on a network you do not control is wiretapping in most places, full stop. Same rule for pulling a disk image to prove FDE works, use your own VM.
+
+</Callout>
+
+The practical takeaway is to stop treating "encrypted" as one control. You need at rest to survive a stolen backup, in transit to survive a hostile network, and application-layer or field-level encryption to limit what a compromised app can read. Field-level encryption, where the app decrypts only the columns it needs with a key the disk never holds, is the one that actually shrinks the blast radius from a running-system compromise. The other two do nothing for that case.
+
+<Quiz
+  id="encryption-at-rest-limits"
+  question="Your database volume has full-disk encryption. An attacker finds a SQL injection flaw in the running web app. What does the encryption do for you?"
+  answer={2}
+  options={[
+    "It blocks the injection because the query hits an encrypted disk",
+    "It scrambles the results so the attacker gets ciphertext",
+    "Nothing, the volume is mounted and decrypting transparently for the app",
+    "It logs the attacker and alerts the SOC automatically",
+  ]}
+  explanation="Full-disk encryption only protects data while the volume is locked, effectively while the machine is off. On a running system the disk is mounted and decrypted for normal access, so an app-layer flaw like SQLi reads plaintext straight through it."
+/>
+
+<Notes />

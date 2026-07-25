@@ -1,0 +1,99 @@
+---
+title: Kerberos and Kerberoasting
+module: active-directory
+moduleTitle: Active Directory
+moduleOrder: 10
+moduleIcon: Building2
+order: 3
+summary: Understand the ticket dance, then abuse it to crack service passwords offline.
+estimatedMinutes: 22
+objectives:
+  - Trace the Kerberos authentication flow step by step
+  - Explain what a Service Principal Name is and why it matters
+  - Perform a kerberoasting attack and crack the result offline
+tags:
+  - active-directory
+  - kerberos
+  - kerberoasting
+---
+
+Kerberos is how AD proves who you are without sending your password across the
+wire. It works with tickets issued by the Domain Controller. Understand the flow
+and one of its design choices hands you a way to steal service account passwords.
+
+## The ticket dance
+
+Kerberos has three parties: the client, the **Key Distribution Center** (KDC,
+which runs on the DC), and the service you want to reach. The flow:
+
+- **AS-REQ / AS-REP**: the client proves it knows its password and receives a
+  **Ticket Granting Ticket** (TGT), encrypted with the KDC's own key.
+- **TGS-REQ / TGS-REP**: the client presents the TGT and asks for a ticket to a
+  specific service. The KDC returns a **service ticket** (TGS).
+- **AP-REQ**: the client presents the service ticket to the service, which trusts
+  it because it is encrypted with the service account's password hash.
+
+That last point is the whole game. A service ticket is encrypted with the hash of
+the **service account's password**. If you can get a service ticket, you are
+holding ciphertext that only that password can produce.
+
+## SPNs: the name of a service
+
+A **Service Principal Name** (SPN) links a service to the account that runs it,
+in the form `MSSQLSvc/db01.corp.local:1433`. Any authenticated user can ask the
+KDC for a service ticket to any SPN. The KDC does not check whether you are
+actually allowed to use that service. It just hands over the ticket.
+
+## Kerberoasting: crack the password offline
+
+Put it together. As a normal user, you request service tickets for accounts that
+have SPNs, extract the encrypted blob, and crack it offline at whatever speed
+your hardware allows. No traffic to the DC during cracking, no lockouts, no alarms.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "netexec ldap 10.10.10.5 -u jdoe -p Passw0rd --kerberoasting roast.txt", comment: "request tickets for all SPN accounts, save hashes" },
+    { cmd: "hashcat -m 13100 roast.txt rockyou.txt", comment: "crack the TGS-REP hashes offline" },
+  ]}
+/>
+
+<ExpectedOutput label="hashcat result">
+$krb5tgs$23$*svc_sql$CORP.LOCAL$MSSQLSvc...:Summer2026!
+Session..........: hashcat
+Status...........: Cracked
+</ExpectedOutput>
+
+Service accounts are prime targets because they often have weak, rarely-rotated
+passwords and sit in privileged groups.
+
+<Callout type="security" title="Why this works so well">
+Kerberoasting needs only one valid domain account and never touches the target
+service. The crack happens entirely offline, so account lockout policies and
+network monitoring do not slow you down. Strong service passwords and Group
+Managed Service Accounts are the real defense.
+</Callout>
+
+<Quiz
+  id="kroast-key"
+  question="What password hash is a kerberoastable service ticket encrypted with?"
+  answer={2}
+  options={[
+    "The requesting user's password hash",
+    "The Domain Controller's machine hash",
+    "The service account's password hash",
+    "The KDC's krbtgt hash",
+  ]}
+  explanation="A service ticket is encrypted with the service account's password hash. That is what lets you crack the service account password offline once you hold the ticket."
+/>
+
+<Exercise
+  id="kroast-flow"
+  prompt="Which Kerberos message returns the service ticket you crack in kerberoasting?"
+  answer="TGS-REP"
+>
+Recall the two round trips. The AS exchange gives you a TGT. The next exchange
+asks for a ticket to a named service.
+</Exercise>
+
+<Notes />

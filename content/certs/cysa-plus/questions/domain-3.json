@@ -1,0 +1,288 @@
+[
+  {
+    "domain": 3,
+    "question": "In the MITRE ATT&CK framework, what is the correct relationship between tactics and techniques?",
+    "options": [
+      "A tactic is the adversary's goal for a stage of the attack, and a technique is a specific way that goal is achieved",
+      "A technique is the adversary's overall objective, and a tactic is a single tool used to reach it",
+      "Tactics and techniques are interchangeable labels for the same concept",
+      "A tactic is a signature hash, and a technique is the malware family that produced it"
+    ],
+    "correct": [0],
+    "explanation": "In ATT&CK, tactics are the adversary's tactical goals (columns like Initial Access or Exfiltration) and techniques are the specific methods used to accomplish each goal. The other options invert the relationship or confuse the model with indicators and malware naming.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Which framework describes an intrusion using four core interconnected features: adversary, capability, infrastructure, and victim?",
+    "options": [
+      "Cyber Kill Chain",
+      "Diamond Model of Intrusion Analysis",
+      "MITRE ATT&CK",
+      "OWASP Testing Guide"
+    ],
+    "correct": [1],
+    "explanation": "The Diamond Model represents every intrusion event with four vertices: adversary, capability, infrastructure, and victim. The Cyber Kill Chain describes sequential phases, ATT&CK catalogs tactics and techniques, and the OWASP Testing Guide focuses on web application testing.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "An analyst is mapping an intrusion to the Lockheed Martin Cyber Kill Chain. Which sequence lists the phases in the correct order?",
+    "options": [
+      "Reconnaissance, Weaponization, Delivery, Exploitation, Installation, Command and Control, Actions on Objectives",
+      "Delivery, Reconnaissance, Exploitation, Weaponization, Installation, Actions on Objectives, Command and Control",
+      "Weaponization, Reconnaissance, Installation, Delivery, Exploitation, Command and Control, Actions on Objectives",
+      "Reconnaissance, Delivery, Weaponization, Installation, Exploitation, Actions on Objectives, Command and Control"
+    ],
+    "correct": [0],
+    "explanation": "The Cyber Kill Chain runs Reconnaissance, Weaponization, Delivery, Exploitation, Installation, Command and Control, then Actions on Objectives. The other orders scramble the phases, most commonly by placing Delivery before Weaponization or C2 after Actions on Objectives.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "According to the NIST SP 800-61 incident response life cycle, which order correctly lists the four phases?",
+    "options": [
+      "Detection and Analysis; Preparation; Containment, Eradication, and Recovery; Post-Incident Activity",
+      "Preparation; Detection and Analysis; Containment, Eradication, and Recovery; Post-Incident Activity",
+      "Preparation; Containment, Eradication, and Recovery; Detection and Analysis; Post-Incident Activity",
+      "Detection and Analysis; Containment, Eradication, and Recovery; Preparation; Post-Incident Activity"
+    ],
+    "correct": [1],
+    "explanation": "NIST SP 800-61 defines the phases as Preparation, Detection and Analysis, Containment/Eradication/Recovery, and Post-Incident Activity. Preparation always comes first because you cannot detect or respond effectively without tooling, plans, and training in place.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "During evidence collection on a live compromised host, which order of volatility should the analyst follow to capture data before it is lost?",
+    "options": [
+      "Archival media, then hard disk, then swap files, then CPU registers and cache",
+      "Hard disk, then routing tables and ARP cache, then RAM, then CPU registers",
+      "CPU registers and cache, then RAM and running processes, then disk, then archival media",
+      "Backup tapes, then RAM, then CPU cache, then network configuration"
+    ],
+    "correct": [2],
+    "explanation": "Order of volatility says collect the most ephemeral data first: CPU registers and cache, then memory and network state, then disk, then removable and archival media. Reversing the order risks losing volatile data like RAM contents and active connections before they are captured.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which document records every person who handled a piece of evidence, along with the date, time, and purpose, to preserve its admissibility in court?",
+    "options": [
+      "Chain of custody form",
+      "Memorandum of understanding",
+      "Service level agreement",
+      "Business impact analysis"
+    ],
+    "correct": [0],
+    "explanation": "The chain of custody documents each transfer and handler of evidence so its integrity can be proven in legal proceedings. An MOU and SLA govern relationships and service commitments, and a BIA measures the impact of disruptions, none of which track evidence handling.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "An organization isolates an infected workstation by moving it to a quarantine VLAN that has no route to production systems but still allows the IR team to investigate remotely. Which containment approach is this?",
+    "options": [
+      "Segmentation-based containment",
+      "Eradication",
+      "Reconstitution",
+      "Secure disposal"
+    ],
+    "correct": [0],
+    "explanation": "Placing the host on a restricted VLAN that limits its reach while keeping it available for analysis is segmentation-based containment. Eradication removes the threat, reconstitution restores services, and secure disposal destroys media, none of which describe controlled network isolation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "After malware is confirmed on several endpoints, the IR team wipes and rebuilds the systems from a known-good image and applies all patches. Which incident response activity does re-imaging represent?",
+    "options": [
+      "Detection",
+      "Eradication",
+      "Preparation",
+      "Lessons learned"
+    ],
+    "correct": [1],
+    "explanation": "Re-imaging removes the malicious code and any persistence, which is eradication. Detection identifies the incident, preparation builds capability before an incident, and lessons learned occurs in the post-incident phase after recovery.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Which of the following is the best example of a behavioral indicator of compromise rather than an atomic indicator?",
+    "options": [
+      "A specific malicious file MD5 hash",
+      "A known command-and-control IP address",
+      "A user account authenticating from two countries within five minutes",
+      "A blacklisted sender email address"
+    ],
+    "correct": [2],
+    "explanation": "Impossible-travel authentication is a behavioral IoC because it is derived from patterns of activity rather than a single static artifact. A hash, an IP address, and an email address are atomic indicators that map directly to one observable value.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A company wants to share structured cyber threat intelligence with an ISAC using a standardized language and an automated transport protocol. Which pair should they use?",
+    "options": [
+      "STIX for the data format and TAXII for the transport",
+      "TAXII for the data format and STIX for the transport",
+      "SNMP for the data format and SMTP for the transport",
+      "YARA for the data format and NetFlow for the transport"
+    ],
+    "correct": [0],
+    "explanation": "STIX is the structured language that describes threat intelligence, and TAXII is the protocol that exchanges STIX content between systems. The reversed pairing is a common distractor, and SNMP, SMTP, YARA, and NetFlow serve monitoring, mail, detection-rule, and flow-record purposes rather than intelligence sharing.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "During the preparation phase of incident management, which two activities are most appropriate? (Choose two.)",
+    "options": [
+      "Developing and testing the incident response plan and playbooks",
+      "Conducting a root cause analysis of the incident",
+      "Building a jump bag and configuring log aggregation before an incident occurs",
+      "Writing the final incident report for stakeholders"
+    ],
+    "correct": [0, 2],
+    "explanation": "Preparation covers building capability ahead of time: creating and exercising IR plans and playbooks, and assembling tools like a jump bag and centralized logging. Root cause analysis and the final report belong to post-incident activity, which happens after an incident is handled.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An analyst detonates a suspicious executable inside an isolated virtual environment to observe its network callbacks and file changes without risking production. What is this technique called?",
+    "options": [
+      "Static code analysis",
+      "Sandboxing (dynamic analysis)",
+      "Fuzzing",
+      "Threat hunting"
+    ],
+    "correct": [1],
+    "explanation": "Running a sample in an isolated environment to watch its runtime behavior is dynamic analysis, or sandboxing. Static analysis inspects code without executing it, fuzzing sends malformed inputs to find flaws, and threat hunting proactively searches an environment for undetected threats.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Legal has issued a hold requiring that all data relevant to a potential lawsuit be retained. What is the primary purpose of a legal hold during an incident?",
+    "options": [
+      "To suspend normal data retention and deletion so potentially relevant evidence is preserved",
+      "To immediately encrypt all affected systems to prevent further access",
+      "To notify affected customers within 72 hours of the breach",
+      "To grant investigators administrative access to all systems"
+    ],
+    "correct": [0],
+    "explanation": "A legal hold pauses routine destruction and retention schedules so that data relevant to anticipated litigation is preserved. It is not an encryption control, a breach-notification rule, or an access-provisioning mechanism.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A security team uses a SOAR platform to automatically enrich alerts with threat intelligence and open a ticket without analyst intervention. Which capability of SOAR does this describe?",
+    "options": [
+      "Orchestration and automation of response workflows",
+      "Full-packet capture of all network traffic",
+      "Hardware-based key storage for encryption",
+      "Real-time disk imaging of endpoints"
+    ],
+    "correct": [0],
+    "explanation": "SOAR (Security Orchestration, Automation, and Response) chains tools together and automates repetitive response steps like enrichment and ticket creation. Full-packet capture, hardware key storage, and disk imaging are functions of other tools, not the defining purpose of SOAR.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "During the post-incident phase, the team meets to determine what went well, what failed, and how to improve. What is the primary goal of this lessons-learned meeting?",
+    "options": [
+      "To assign blame to the individuals responsible for the breach",
+      "To improve future response by updating plans, controls, and playbooks based on the incident",
+      "To immediately restore all affected systems to production",
+      "To collect volatile evidence from compromised hosts"
+    ],
+    "correct": [1],
+    "explanation": "The lessons-learned review turns the incident into concrete improvements to the IR plan, controls, and playbooks. It is deliberately blameless, restoration happens during recovery, and volatile evidence collection occurs much earlier during detection and analysis.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "An analyst determines how many systems, users, and records an incident affected in order to prioritize the response. Which two concepts is the analyst assessing? (Choose two.)",
+    "options": [
+      "Scope of the incident",
+      "Impact of the incident",
+      "Order of volatility",
+      "Chain of custody"
+    ],
+    "correct": [0, 1],
+    "explanation": "Counting affected systems, users, and data measures the incident's scope and its impact, which together drive prioritization. Order of volatility governs evidence collection sequence and chain of custody tracks evidence handling, neither of which is a measure of breadth or severity.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which statement best distinguishes eradication from containment in the incident response process?",
+    "options": [
+      "Containment removes the threat entirely, while eradication only limits its spread",
+      "Containment limits the damage and stops the spread, while eradication removes the root cause and artifacts",
+      "They are the same activity performed by different teams",
+      "Eradication occurs before containment in every incident"
+    ],
+    "correct": [1],
+    "explanation": "Containment stops the bleeding by limiting spread and impact, then eradication removes the malware, accounts, and persistence that caused it. The first option reverses the definitions, they are distinct activities, and containment normally precedes eradication.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "After recovering systems, the IR team confirms that endpoint logs are once again flowing to the SIEM and that alerting rules fire on test events. Which recovery activity does this represent?",
+    "options": [
+      "Secure disposal of media",
+      "Verification of logging and communication to security monitoring",
+      "Reconnaissance of the adversary",
+      "Weaponization of a payload"
+    ],
+    "correct": [1],
+    "explanation": "Confirming that restored systems report to the SIEM and trigger alerts is verification of logging and communication to security monitoring, a required recovery step. Secure disposal destroys media, while reconnaissance and weaponization are adversary kill chain phases, not recovery tasks.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An organization defines who must be notified, how, and how often during an incident, including executives, legal, and regulators. What is this part of the IR plan called?",
+    "options": [
+      "Communication plan",
+      "Disaster recovery plan",
+      "Acceptable use policy",
+      "Data classification policy"
+    ],
+    "correct": [0],
+    "explanation": "A communication plan specifies stakeholders, channels, and cadence for incident notifications, including regulatory reporting. A disaster recovery plan restores IT after a disruption, an AUP governs user behavior, and a data classification policy labels data sensitivity.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Which scenario best illustrates why an analyst should cross-validate an indicator against multiple data sources before declaring an incident?",
+    "options": [
+      "A single antivirus alert may be a false positive, so it is corroborated with EDR telemetry and proxy logs before escalation",
+      "Multiple sources always slow the response and should be avoided",
+      "A single log source is inherently tamper-proof and needs no corroboration",
+      "Cross-validation replaces the need for a chain of custody"
+    ],
+    "correct": [0],
+    "explanation": "Correlating an alert with independent sources like EDR and proxy logs reduces false positives and confirms the event is real before spending response effort. Cross-validation improves accuracy rather than slowing response needlessly, no single source is tamper-proof, and it does not substitute for chain of custody.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A ransomware outbreak is spreading laterally across the network. Which immediate action is the most appropriate first containment step?",
+    "options": [
+      "Begin drafting the final incident report",
+      "Isolate the affected network segments to halt lateral movement",
+      "Reset the passwords of every employee in the company",
+      "Perform a full root cause analysis before taking any action"
+    ],
+    "correct": [1],
+    "explanation": "Isolating affected segments immediately stops lateral spread and limits damage, which is the priority during active ransomware. The final report and root cause analysis come later in post-incident activity, and a company-wide password reset is not the fastest way to stop propagation already underway.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An analyst is using MITRE ATT&CK to enrich detections. What is the best use of the framework in this context?",
+    "options": [
+      "Mapping observed adversary behaviors to specific technique IDs to identify detection gaps and inform hunts",
+      "Calculating the CVSS base score for each vulnerability discovered",
+      "Generating the legal chain-of-custody documentation automatically",
+      "Encrypting exfiltrated data to prevent adversary reuse"
+    ],
+    "correct": [0],
+    "explanation": "ATT&CK is best used to map observed behaviors to technique IDs, revealing coverage gaps and guiding threat hunts. CVSS scoring is a separate vulnerability-severity system, and the framework does not produce custody documents or encrypt data.",
+    "difficulty": "HARD"
+  }
+]

@@ -1,0 +1,272 @@
+---
+title: "Raster Formats: GeoTIFF, COGs, and Tiles"
+module: gis-data-formats
+moduleTitle: Spatial Data and Formats
+moduleOrder: 2
+moduleIcon: Database
+order: 2
+summary: "A satellite image is a grid of numbers, and GeoTIFF is the file that ties that grid to real ground coordinates so software knows where every pixel sits."
+estimatedMinutes: 14
+prerequisites: ["vector-formats"]
+objectives:
+  - Explain what makes a GeoTIFF different from an ordinary image file and what its bands and NoData value represent
+  - Describe how compression like LZW or DEFLATE shrinks a raster without losing data
+  - Explain what a Cloud-Optimized GeoTIFF is and why its internal tiling and overviews let a client fetch part of a huge file over HTTP
+  - Read a gdalinfo summary to check a raster's size, bands, coordinate system, and NoData setting before trusting it
+---
+
+The previous lesson closed on the split between vector and raster data: points,
+lines, and polygons on one side, grids of cells on the other. A satellite
+picture of a coastline is not made of shapes. It is a grid of numbers, one
+number (or a few) per cell, arranged in rows and columns like a spreadsheet
+with no headers. An elevation model of the same coastline is the same kind of
+grid, just with each cell holding a height in meters instead of a color. This
+lesson is about the files that hold those grids and the format that quietly
+took over how the biggest ones get shared.
+
+## An ordinary image plus the facts that make it a map
+
+A digital photo and a satellite image can look identical on screen: both are
+grids of colored cells. The difference is what each file knows about where
+those cells sit on the Earth. A photo's pixel grid means nothing outside the
+frame of the picture. A raster's pixel grid is anchored to real coordinates,
+and that anchoring is the entire reason a GIS can treat it as data rather than
+a picture.
+
+**GeoTIFF** is the format that does this anchoring on top of an already common
+image format. A TIFF (Tagged Image File Format) file is a general-purpose
+image container that has existed since the late 1980s, built around a simple
+idea: an image plus a set of tags, meaning labeled metadata fields, that
+describe how to read it. GeoTIFF adds a handful of geospatial tags to that
+same TIFF structure. A GeoTIFF file is, underneath, a valid TIFF that any old
+image viewer can open and display, just without understanding the extra tags
+that make it spatial.
+
+Two of those tags matter more than the rest. The first names the raster's
+**coordinate reference system**, the agreement about what a coordinate number
+means on the Earth, usually stored as an EPSG code such as 4326 for plain
+longitude and latitude or a UTM zone like EPSG 32610 for a metric grid over
+the U.S. Pacific Northwest. The second is the **affine transform**, six
+numbers that convert a pixel's row and column into a real ground coordinate.
+Ask a GeoTIFF what pixel (0, 0), the top left corner, actually sits at on the
+Earth, and the affine transform is the arithmetic that answers it. Without
+that transform, a raster is just a grid of numbers with no idea where the
+grid begins or how big each cell is on the ground. With it, software can
+place the grid on a map, measure real distances across it, and overlay it
+correctly against vector layers built from a completely different source.
+
+<Quiz
+  id="raster-what-makes-geotiff"
+  question="A plain TIFF photograph and a GeoTIFF satellite image can look pixel-for-pixel identical on screen. What actually makes the GeoTIFF spatial data rather than just a picture?"
+  answer={2}
+  options={[
+    "GeoTIFF files are always higher resolution than ordinary photographs.",
+    "GeoTIFF pixels are stored in a completely different file structure that only GIS software can read at all.",
+    "GeoTIFF carries extra tags naming a coordinate reference system and an affine transform, so software can map every pixel to a real ground location.",
+    "GeoTIFF files cannot be opened by any software that is not a GIS program.",
+  ]}
+  explanation="The geospatial tags, the coordinate reference system and the affine transform that converts pixel position to ground coordinates, are what let software place the grid correctly on the Earth. Underneath, a GeoTIFF is still an ordinary TIFF, so plain image viewers can open it and show the picture, they just have no idea what the extra tags mean. Resolution and readability by non-GIS software are not what defines the format."
+/>
+
+## Bands: one grid, or several stacked together
+
+A raster is not always a single grid. Many rasters carry several grids
+stacked on top of each other, all sharing the same rows, columns, and ground
+footprint, each holding a different kind of value at every cell. Each of
+these stacked grids is called a **band**.
+
+A digital elevation model is usually **single-band**: one grid, one height
+value per cell, nothing else needed. A satellite scene is often **multi-band**:
+a common visible-light image stores a red band, a green band, and a blue
+band, and combining the three the way a screen combines them produces a
+normal-looking color photo. Many satellites go further and add a
+**near-infrared** band, invisible to human eyes but extremely useful, since
+healthy vegetation reflects near-infrared light strongly while stressed or
+dead vegetation does not. An analyst studying crop health or deforestation
+works directly with that near-infrared band, sometimes never even looking at
+a true-color version of the same scene.
+
+GDAL and every library built on it number bands starting from 1, not 0. A
+four-band Sentinel-2 image, red, green, blue, near-infrared, is one GeoTIFF
+file, not four separate files, and all four bands share the same affine
+transform, since they were captured over the same footprint at once.
+
+## The gap where there is no data at all
+
+Real rasters have holes. A satellite pass might miss a corner of its
+rectangular capture area, a sensor might glitch on one line, or a coastline
+raster clipped to a country's border leaves every cell over the ocean or a
+neighboring country empty. A raster format needs a way to mark a cell as "no
+real value here" rather than pretending the ocean has an elevation of zero.
+
+That marker is the **NoData value**: a specific number, agreed on when the
+file is written, that means "skip this cell" wherever it appears in a band.
+A common choice for elevation data is -9999, a value no real elevation will
+ever hit. Software that respects the NoData setting skips those cells when
+it calculates a statistic, so an average elevation over a coastal county
+does not get dragged down by thousands of ocean cells silently reading zero.
+
+<Callout type="warning" title="A missing NoData setting is a silent trap">
+The danger is not the value itself, it is a raster that has holes but never
+declares which number means "no data." A file like that mixes real
+zero-elevation sea-level cells with fake zero cells that mean nothing, and
+nothing in the file distinguishes them. Any average, minimum, or histogram
+computed over that band quietly includes the wrong cells, with no error and
+no warning. Checking a raster's NoData setting before running any statistics
+on it is worth the ten seconds it takes.
+</Callout>
+
+## Compression: the same grid, a smaller file
+
+An uncompressed raster stores every single cell value with no shortcuts,
+which adds up fast. A single Landsat scene with several bands at 30 meter
+resolution can run past a gigabyte with no compression at all. GeoTIFF
+supports several compression schemes that shrink the file while keeping
+every value fully recoverable, meaning nothing is thrown away.
+
+**LZW** (Lempel-Ziv-Welch) and **DEFLATE** are the two most common choices,
+and both are **lossless**: decompressing the file returns the exact original
+values, cell for cell, with zero difference. They work by finding repeated
+patterns in the data and storing the pattern once alongside references to
+where it repeats, the same general idea used by a ZIP file. A raster with
+large flat regions, like a NoData border, a smooth patch of ocean, or a
+uniform field in a land cover map, compresses especially well, since the same
+value repeats over and over in a way these algorithms are built to exploit.
+DEFLATE usually compresses a little tighter than LZW at a modest cost in
+speed, which is why it has become the more common default in modern GIS
+software, though both remain in wide use and both are safe choices.
+
+<Quiz
+  id="raster-lossless-compression"
+  question="A GeoTIFF elevation model is compressed with DEFLATE to shrink it from 800 megabytes to 150 megabytes. What happens to the actual elevation values when the file is opened again?"
+  answer={0}
+  options={[
+    "Every value comes back exactly as it was, since DEFLATE is a lossless compression method that only removes redundancy, not data.",
+    "Values are rounded to the nearest whole number to save space.",
+    "Only the flat, repeated regions keep their original values; unique values are approximated.",
+    "The file cannot be opened by any software until it is decompressed manually first.",
+  ]}
+  explanation="LZW and DEFLATE are both lossless, they shrink the file by encoding repeated patterns more efficiently, and every cell value decompresses back to its exact original number. Nothing is rounded or approximated, unique values are preserved exactly like repeated ones, and GIS software decompresses the file automatically on open with no manual step."
+/>
+
+## The problem a Cloud-Optimized GeoTIFF solves
+
+A standard GeoTIFF, compressed or not, is normally organized in **strips**:
+long horizontal bands running the full width of the image, stored one after
+another from top to bottom. That layout works fine when the whole file gets
+downloaded and opened locally. It falls apart the moment someone only wants
+a small piece of a huge file over a network, because reading even a tiny
+corner still means reading through a large share of every strip that
+crosses it.
+
+A **Cloud-Optimized GeoTIFF**, almost always shortened to **COG**, rearranges
+the same data to fix exactly that problem. Instead of strips, a COG stores
+its pixels in a grid of small square **tiles**, each stored as a separate,
+independently readable block within the file. A COG also embeds a special
+kind of internal table of contents that lists exactly where every tile sits
+inside the file, and it precomputes **overviews**: smaller, lower-resolution
+copies of the same raster stored right alongside the full-resolution version,
+each one a shrunk-down version built for a specific zoomed-out view.
+
+That combination means a piece of client software, whether a desktop GIS
+program or a browser-based map, can send an HTTP range request, a request
+that asks a web server for only a specific byte range of a file instead of
+the whole thing, and pull back exactly the tiles it needs at exactly the
+resolution the current view calls for. Someone zoomed into one city block of
+a satellite mosaic that covers an entire continent does not need to download
+the continent. A COG-aware client asks for the handful of tiles under that
+block from the matching overview level and nothing else.
+
+This is the detail that changed how large rasters get served. Before COGs
+became common, sharing a huge raster meant either downloading the entire
+file first or standing up a dedicated tile server with its own processing
+pipeline just to hand out pieces of it on demand. A COG sitting in ordinary
+cloud storage, the kind that answers plain HTTP range requests with no
+special server logic at all, can do the same job. The file is the server, in
+a sense. That is a large part of why COGs have become the default way public
+satellite archives like those built on Sentinel and Landsat imagery are
+distributed today.
+
+<Quiz
+  id="raster-cog-why"
+  question="Why can a browser-based map display just the visible corner of a huge Cloud-Optimized GeoTIFF stored in ordinary cloud storage, without downloading the whole file first?"
+  answer={3}
+  options={[
+    "COGs use a special image format that browsers can decode natively, unlike regular GeoTIFF.",
+    "Cloud storage providers automatically convert any GeoTIFF into small pieces on request.",
+    "COGs are always small enough in total file size that downloading the whole thing is fast anyway.",
+    "A COG stores pixels as internally tiled blocks with a table of contents and precomputed overviews, so a plain HTTP range request can fetch just the tiles needed at the right resolution.",
+  ]}
+  explanation="The internal tiling plus the overviews are what make partial, resolution-appropriate reads possible using nothing more than an ordinary HTTP range request, which any static file host can answer. COGs are not a different image codec, browsers do not get special native decoding for them, cloud storage does no conversion work on request, and COG files covering large areas are often still huge in total, that is the whole reason partial reads matter."
+/>
+
+## Pyramids and overviews are not only for the cloud
+
+The overviews built into a COG are one case of a broader idea: an
+**overview**, sometimes called a **pyramid level**, is a reduced-resolution
+copy of a raster kept alongside the full one specifically so a viewer does
+not have to resample millions of pixels on every redraw. Desktop GIS software
+builds these same overviews for a local file too, not just for rasters bound
+for the web.
+
+Picture zooming a large raster out to see an entire state at once inside
+QGIS. Drawing that view from the full-resolution data would mean reading and
+averaging together an enormous number of source pixels for every pixel drawn
+on screen, and doing it again on every small shift of the view. Draw it from
+a pre-built overview that is already roughly the right resolution for that
+zoom level instead, and the same redraw touches a tiny fraction of the data.
+QGIS and GDAL's own command-line tools can generate these overviews for an
+existing file, and most raster-heavy workflows build them as a matter of
+course the moment a large file lands on disk, well before anyone asks for
+that data over a network at all.
+
+## Checking a raster before trusting it
+
+Just as `ogrinfo` reports on a vector file without opening a full GIS
+program, GDAL ships a matching command for rasters: `gdalinfo`. Running it
+against an unfamiliar file is worth doing before it goes anywhere near an
+analysis.
+
+```bash
+gdalinfo -stats elevation_cog.tif
+```
+
+<ExpectedOutput label="a summary of a single-band Cloud-Optimized GeoTIFF">
+```
+Driver: GTiff/GeoTIFF
+Size is 10812, 8420
+Coordinate System is:
+PROJCS["WGS 84 / UTM zone 10N", ...]
+Origin = (500280.000, 4649700.000)
+Pixel Size = (10.000, -10.000)
+Metadata:
+  AREA_OR_POINT=Area
+Band 1 Block=512x512 Type=Float32, ColorInterp=Gray
+  NoData Value=-9999
+  Overviews: 5406x4210, 2703x2105, 1351x1052, 675x526
+  Minimum=112.400  Maximum=2841.700
+```
+</ExpectedOutput>
+
+The `-stats` flag adds the minimum and maximum values across the band, which
+is a cheap sanity check on its own: an elevation file reporting a maximum of
+2841.7 meters over mountainous terrain looks right, while a maximum of
+-9999 across the board would mean every real value got mistaken for NoData
+somewhere upstream. The rest of the output answers the same questions the
+GeoTIFF section opened with: the pixel size line gives the ground size of
+one cell, here 10 meters square, straight from the affine transform. The
+`Block=512x512` entry confirms the file is internally tiled in 512 pixel
+squares rather than stored in strips, and the `Overviews` line lists four
+progressively smaller pyramid levels sitting inside the same file, both
+telling signs of a properly built COG rather than an ordinary GeoTIFF that
+merely happens to share the extension.
+
+A raster that reports no overviews and strip-based blocks is not broken. It
+just was not built for partial, over-the-network reads, and turning it into
+a COG later is usually a single GDAL command away. Knowing what `gdalinfo`
+is actually saying is what makes that call possible instead of a guess.
+
+The next lesson turns from the container back to the meaning inside it:
+coordinate reference systems, the agreement about what a raster's or a
+vector's numbers mean on a round Earth, and the mismatches that show up when
+two datasets disagree about it.

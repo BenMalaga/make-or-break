@@ -1,0 +1,85 @@
+---
+title: Prototype Pollution
+module: advanced-web-attacks
+moduleTitle: Advanced Web Attacks
+moduleOrder: 46
+moduleIcon: Flame
+order: 2
+summary: You poison one shared object and suddenly every object in the app inherits a property you control.
+estimatedMinutes: 18
+objectives:
+  - Explain why __proto__ pollution affects every object at once
+  - Find pollutable sinks in merge, clone, and query-parse code
+  - Chain a polluted property into XSS or server-side RCE
+tags:
+  - web
+  - "javascript"
+  - prototype-pollution
+  - nodejs
+---
+
+Every plain object in JavaScript shares one parent, `Object.prototype`. Change a property on that parent and every object in the process inherits it, including objects the app has not created yet. That is the whole bug. If you can reach `Object.prototype` through user input, you can inject a property that silently shows up on every lookup across the entire application.
+
+The magic key is `__proto__`. When code walks an attacker-controlled path and hits that string, it is no longer setting a normal property, it is reaching up into the shared prototype. So a merge function that copies `{"__proto__": {"isAdmin": true}}` into a target does not create a property named `__proto__`. It writes `isAdmin` onto `Object.prototype`, and now `someObject.isAdmin` is `true` everywhere, unless that object explicitly set it otherwise.
+
+## Where it hides
+
+The vulnerable shape is any code that recursively copies attacker-controlled keys into an object without checking for `__proto__`, `constructor`, or `prototype`. Deep-merge helpers are the usual suspect, and for years the small `merge` and `defaultsDeep` functions in older lodash versions were the poster children.
+
+<CommandBlock
+  title="the sinks worth grepping for"
+  commands={[
+    { cmd: "lodash.merge(dst, JSON.parse(userBody))", comment: "recursive copy, classic sink" },
+    { cmd: "Object.assign({}, deepClone(req.query))", comment: "clone functions that walk nested keys" },
+    { cmd: "qs.parse('a[__proto__][x]=1')", comment: "query parsers that build nested objects from bracket syntax" },
+  ]}
+/>
+
+That query-string case matters because it needs no JSON at all. A URL like `?__proto__[isAdmin]=true` gets parsed by libraries that support nested bracket notation into a nested object, and if the app merges that into its state, you polluted the prototype through a GET parameter.
+
+## Confirm the pollution
+
+Prove it in the console before you build an exploit. Set a property through `__proto__`, then read it back off a brand new, unrelated object.
+
+<CommandBlock
+  title="confirm in a Node REPL"
+  commands={[
+    { cmd: "let a = {}; a.__proto__.polluted = 'yes'", comment: "write through the proto key" },
+    { cmd: "let b = {}; console.log(b.polluted)", comment: "b never set polluted" },
+  ]}
+/>
+
+<ExpectedOutput label="output">
+yes
+</ExpectedOutput>
+
+`b` is a fresh object that never touched your input, and it still reports `polluted`. That is the tell. In a real app you confirm the same way through the actual sink, sending the payload and then hitting an endpoint that reads a property you did not legitimately set.
+
+<Callout type="security" title="Test only what you are cleared to test">
+Prototype pollution can flip authorization flags, poison template rendering, and on Node backends reach command execution. That blast radius is the reason you confine this to your own apps or an engagement with written scope. Spin up a vulnerable Node app locally, or use the PortSwigger client-side and server-side prototype pollution labs, and pollute those.
+</Callout>
+
+## Turning it into impact
+
+Pollution by itself is just a weird shared property. The damage comes from a gadget, some existing code that reads a property, assumes it is safe because nobody set it, and does something dangerous with the value you supplied.
+
+On the client, a common gadget is a library that reads an undefined config option and drops it into the DOM. Pollute `Object.prototype.src` or an innerHTML sink and you get DOM XSS out of a property the page never intended to expose.
+
+On the server, the sharpest gadgets reach code execution. If the app later spawns a child process and the spawn options object is missing a field, a polluted default can inject one. The known Node chain pollutes properties like `shell` and `NODE_OPTIONS` so that the next `child_process.spawn` runs your command through a loaded `--require` file.
+
+<CommandCard command='{"__proto__": {"argv0": "node", "shell": "node", "NODE_OPTIONS": "--require /proc/self/environ"}}' explain="A server-side gadget chain: pollute the defaults that child_process reads, so the app's next spawn call executes with attacker-controlled options. The exact properties depend on the Node version and the sink, which is why you confirm the gadget on a matching lab build first." />
+
+<Quiz
+  id="proto-key"
+  question="Why does polluting through __proto__ affect objects the app has not even created yet?"
+  answer={2}
+  options={[
+    "It rewrites the source code of the app",
+    "It only affects the single object you sent",
+    "The property lands on Object.prototype, which every plain object inherits from",
+    "It changes the JSON parser's behavior permanently",
+  ]}
+  explanation="__proto__ resolves to the shared Object.prototype. A property written there is inherited by every plain object via the prototype chain, including objects created after the pollution, unless they explicitly define their own value for that key."
+/>
+
+<Notes />

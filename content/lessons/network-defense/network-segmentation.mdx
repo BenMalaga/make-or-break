@@ -1,0 +1,73 @@
+---
+title: Network Segmentation
+module: network-defense
+moduleTitle: Network Defense
+moduleOrder: 28
+moduleIcon: ShieldHalf
+order: 3
+summary: Flat networks mean one compromised laptop reaches the domain controller. Segmentation is how you make that not true.
+estimatedMinutes: 20
+objectives:
+  - Explain how VLANs and subnets limit an attacker's reach
+  - Design a DMZ that separates internet-facing services from internal ones
+  - Reason about blast radius when you decide where to draw a boundary
+tags:
+  - segmentation
+  - vlan
+  - dmz
+  - architecture
+  - defense
+---
+
+An attacker phishes one accountant, gets a shell on one laptop, and from there can reach the file server, the database, the domain controller, and the badge system, because it is all one flat /16 where everything can talk to everything. That is the nightmare, and it is the default state of most networks that nobody deliberately carved up. Segmentation is the deliberate carving. You split the network into zones and control what crosses the borders, so that owning one machine does not hand over the building.
+
+The word that matters here is blast radius. When something gets popped, how far can the attacker move before they hit a wall? On a flat network the answer is everywhere. Every segment you add is another wall they have to defeat, and every wall is a place you can watch, alert, and stop them.
+
+## VLANs split one switch into many
+
+A VLAN slices a physical switch into isolated logical networks. Ports tagged VLAN 10 cannot talk to ports tagged VLAN 20 as if they were separate switches, even though the cable runs into the same box. Put the finance workstations on one VLAN, the guest wifi on another, the servers on a third, and the printers on their own, because printers are a well-known soft target that has no business initiating connections to anything.
+
+VLANs alone only separate broadcast domains. Traffic between VLANs still has to pass through a router or a layer-3 switch, and that hop is exactly where you enforce policy. No access control list on the inter-VLAN routing and you have built neighborhoods with no fences between them. The isolation lives in the rules at the boundary, not in the VLAN tag itself.
+
+<CommandBlock
+  commands={[
+    { cmd: "ip link add link eth0 name eth0.10 type vlan id 10", comment: "create a tagged subinterface for VLAN 10" },
+    { cmd: "ip addr add 10.10.10.1/24 dev eth0.10", comment: "give the segment its own subnet" },
+    { cmd: "ip link set eth0.10 up", comment: "bring it up, then filter what routes between VLANs" },
+  ]}
+/>
+
+## The DMZ
+
+Anything the internet can reach directly is a liability, because it is the thing most likely to get compromised. Your web server, your mail gateway, your public DNS: put them in a demilitarized zone, a segment that sits between the internet and your internal network with firewalls on both sides.
+
+The rule of a DMZ is one direction. The internet can reach the DMZ on specific ports. The DMZ cannot freely reach the internal network. So when someone pops your public web server through some framework bug, they land in a box that has no clean path inward. They own a web server in a cage, not a foothold on your LAN. If that web server needs the internal database, you open exactly that one flow, from that one host, to that one database port, and nothing else.
+
+<Callout type="security" title="Test segmentation with authorization">
+Verifying isolation means trying to reach across boundaries you are not supposed to cross, which is active testing. Run it only on networks you own or are contracted to assess. Pivoting between segments on someone else's network without written scope is unauthorized access.
+</Callout>
+
+## Test whether the walls actually hold
+
+Segmentation that exists in a diagram but not in the config is worse than none, because it gives you false confidence. Prove it. From a host in one segment, try to reach services in another and confirm you get blocked where you expect.
+
+<CommandCard command="nmap -sS -p 22,445,3389 10.20.0.0/24" explain="From a workstation VLAN, scan the server VLAN for SSH, SMB, and RDP. If the boundary is enforced, these come back filtered. If they come back open, your VLANs are routing freely and the segmentation is decorative." />
+
+The interesting failures are the flows nobody documented. A monitoring agent that needs to reach every host, a backup job that connects everywhere at 2am, a management jump box with a path into every zone. Each of those is a bridge across your segments, and an attacker who lands on that one privileged host inherits all the reach you built the walls to prevent. Map those bridges and treat them as the crown jewels they are.
+
+Microsegmentation pushes this to the extreme: instead of zone-level walls, you put policy around individual workloads, so even two servers in the same subnet cannot talk unless a rule says so. It is more work and it is where mature networks are heading, because east-west traffic between peers is exactly the movement segmentation is supposed to stop.
+
+<Quiz
+  id="seg-dmz-direction"
+  question="An attacker compromises a web server sitting in a properly configured DMZ. What should stop them from immediately reaching the internal database?"
+  answer={3}
+  options={[
+    "The web server's host firewall, which blocks all outbound traffic",
+    "The VLAN tag on the DMZ, which isolates it automatically",
+    "Nothing, a DMZ only protects against inbound internet traffic",
+    "The firewall between the DMZ and internal network, which permits only the specific flow the web app needs",
+  ]}
+  explanation="A DMZ works because the firewall between it and the internal network is default-deny outbound-into-the-LAN, allowing only the exact flow the application requires (for example, this web host to this database on this port). VLAN tags alone do not isolate; the enforcement is the rule at the boundary. That single narrow rule is why a popped web server does not become a foothold on the LAN."
+/>
+
+<Notes />

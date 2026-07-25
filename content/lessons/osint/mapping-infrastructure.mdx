@@ -1,0 +1,91 @@
+---
+title: Mapping Infrastructure and Domains
+module: osint
+moduleTitle: Open Source Intelligence
+moduleOrder: 21
+moduleIcon: Eye
+order: 3
+summary: Every company leaks its own attack surface through DNS and certs. Go read it.
+estimatedMinutes: 18
+objectives:
+  - Pull registration and DNS records for a target domain
+  - Enumerate subdomains from certificate transparency logs
+  - Use Shodan to see exposed hosts without touching them
+tags:
+  - osint
+  - dns
+  - subdomains
+  - shodan
+---
+
+The interesting stuff is almost never on `www.company.com`. It's on `vpn.company.com`, `jira-dev.company.com`, `legacy-mail.company.com`, the hosts nobody remembered to lock down. Mapping infrastructure is the hunt for that forgotten attack surface, and most of it is sitting in public records the company published without thinking twice.
+
+## Start with WHOIS and DNS
+
+WHOIS tells you who registered a domain, when, and through which registrar. Registration dates and shared registrant emails are how you tie a portfolio of domains back to one organization.
+
+<CommandBlock
+  commands={[
+    { cmd: "whois company.com", comment: "Registrar, creation date, registrant contact if not privacy-masked" },
+    { cmd: "dig company.com ANY +noall +answer", comment: "A, MX, TXT, NS records in one shot" },
+    { cmd: "dig company.com TXT +short", comment: "SPF and verification records name their SaaS vendors" },
+  ]}
+/>
+
+Read the TXT records closely. An SPF record listing `include:_spf.google.com` and `include:mailgun.org` tells you they run Google Workspace for mail and Mailgun for transactional sending. That's two vendors and a phishing angle before you've scanned a single port.
+
+## Certificate transparency is the subdomain gold mine
+
+Every TLS certificate a public CA issues gets logged to certificate transparency, and those logs are searchable. When a company gets a cert for `internal-portal.company.com`, they announce that hostname's existence to the world whether they meant to or not.
+
+<CommandCard command={`curl -s "https://crt.sh/?q=%25.company.com&output=json" | jq -r '.[].name_value' | sort -u`} explain="Queries crt.sh for every cert issued under the domain, pulls the hostnames, dedupes them. This is passive: you are reading a public log, not touching the target." />
+
+crt.sh often surfaces dev, staging, and admin subdomains that never appear in DNS brute-forcing because they're internal-facing but still got a public cert. That's the whole reason it beats a wordlist for a first pass.
+
+For the DNS-brute side, amass ties both approaches together.
+
+<CommandCard command="amass enum -passive -d company.com" explain="Aggregates certificate logs, passive DNS databases, and other sources into one subdomain list without sending queries the target can attribute to you." />
+
+Once you have candidate hostnames, resolve them to see which are live. A name in a cert log might point at a host that's been decommissioned.
+
+<CommandCard command="dnsx -l subdomains.txt -a -resp" explain="Resolves each hostname and prints the ones that answer with an A record. Now you know which subdomains are actually reachable." />
+
+## Shodan shows you the exposed hosts
+
+Shodan scans the whole internet continuously and lets you query the results. You get banners, open ports, and service versions for a host without ever connecting to it yourself, because Shodan already did the connecting.
+
+<CommandCard command={`shodan search "org:\\"Company Inc\\" port:3389"`} explain="Finds hosts tied to the org that have RDP exposed. Swap the port or add product filters to hunt for specific exposed services." />
+
+Search by IP range, org name, or hostname. A single query like `ssl:"company.com" http.title:"Login"` can hand you every exposed login portal on their perimeter. Because Shodan is the one that scanned, your reconnaissance stays passive from the target's point of view.
+
+<Callout type="security" title="Passive lookups stay passive only if you keep them that way">
+Reading crt.sh, WHOIS, and Shodan never touches the target. The moment you resolve
+those subdomains, port-scan them, or hit a login page, you are active and in scope for
+their logs. Only do that against systems your engagement authorizes, and confirm every
+IP you scan actually belongs to the target before you send a packet.
+</Callout>
+
+## Watch for the scoping trap
+
+Shodan and cert logs will happily hand you hosts that share a name but belong to a different company, or cloud IPs that rotate to another tenant tomorrow. Before anything active, confirm ownership: does the IP fall in the ranges your rules of engagement list, does WHOIS on the netblock name your client. Scanning the wrong host because a cert mentioned your target's brand is how people end up explaining themselves to someone's legal team.
+
+<Exercise
+  id="osint-ct-vs-brute"
+  prompt="You need every subdomain of target.com, including internal-facing dev and admin hosts. Why would certificate transparency (crt.sh) surface hosts that a DNS wordlist brute-force misses, and why might it also list hosts you cannot reach?"
+  answer="CT logs record any hostname a public CA issued a cert for, so internal or oddly-named hosts (admin-legacy.target.com) appear even though they are not in a common wordlist and may not be publicly resolvable. It lists them because the cert exists, not because the host is live, so some entries point at decommissioned or internal-only boxes you cannot reach from outside. Resolve each with dnsx to separate live from dead."
+/>
+
+<Quiz
+  id="osint-spf-read"
+  question="A target's SPF TXT record contains include:_spf.google.com and include:sendgrid.net. What does that tell you?"
+  answer={3}
+  options={[
+    "The domain is not configured for email",
+    "Only that the DNS is misconfigured",
+    "Their web server runs on Google Cloud",
+    "They use Google Workspace for mail and SendGrid for transactional sending",
+  ]}
+  explanation="SPF includes authorize other services to send mail as the domain. Google's SPF include points at Google Workspace; SendGrid's points at their transactional email vendor. That names two providers and gives you a phishing and impersonation angle before any active recon."
+/>
+
+<Notes />

@@ -1,0 +1,68 @@
+---
+title: Reverse Engineering Fundamentals
+module: reverse-engineering
+moduleTitle: Reverse Engineering
+moduleOrder: 34
+moduleIcon: Microscope
+order: 1
+summary: You get a binary with no source, and you have to figure out what it does anyway.
+estimatedMinutes: 20
+objectives:
+  - Explain what a compiler throws away and what survives into the binary
+  - Read the file type and layout before you open a single function
+  - Follow the static-then-dynamic loop that every RE session runs on
+tags:
+  - reverse-engineering
+  - binary
+  - assembly
+  - workflow
+---
+
+Someone hands you `license_check`, a 40 KB ELF file, and asks why it rejects every key. There is no source. There is no README. The whole job is turning that pile of bytes back into an understanding of what the program decides and where it decides it. That is reverse engineering, and the first skill is accepting that the answer is fully present in the file. It is just written in a language built for the CPU, not for you.
+
+A compiler is a one-way street on purpose. Your C function `verify_key(char *input)` gets translated to machine code, and along the way the compiler deletes the parts that were only there for humans. Variable names, function names past what the symbol table keeps, comments, type information, the blank lines you cared about. All gone. What survives is the logic, because the CPU needs the logic to run.
+
+So the binary still contains the comparison that checks your key. It just looks like `cmp eax, 0x1337` followed by a jump, instead of `if (checksum == 0x1337)`. Your job is reading that back.
+
+## What you actually get to work with
+
+Three layers, from hardest to easiest to read. Raw bytes are the file on disk. Disassembly is those bytes decoded into assembly instructions, which is exact and complete but tedious. Decompilation is a tool's best guess at the original C, which is readable but sometimes wrong. You will bounce between the last two constantly, trusting the disassembly when the decompiler produces nonsense.
+
+Before any of that, identify the thing. `file` tells you the format and often whether symbols were stripped.
+
+<CommandBlock
+  commands={[
+    { cmd: "file license_check", comment: "ELF 64-bit? PE? Mach-O? stripped or not?" },
+    { cmd: "strings -n 8 license_check", comment: "printable runs of 8+ chars: error messages, paths, key formats" },
+    { cmd: "checksec --file=license_check", comment: "NX, PIE, canary, RELRO: the mitigations in play" },
+  ]}
+/>
+
+`strings` alone solves an embarrassing number of easy targets. An error string like "Invalid license key" gives you a phrase to search for in the disassembly, and the cross-reference from that string lands you inside the checking function without reading anything else first. Start there every time.
+
+## The loop
+
+Reverse engineering is not linear. You run a static pass to build a map, then a dynamic pass to confirm what the map claims, then back to static with what you learned.
+
+Static analysis is reading without running: open it in Ghidra or IDA, follow the calls, note the interesting functions. Dynamic analysis is running it under control: set a breakpoint in GDB, watch a register, see the actual value the program compared against. Static tells you where to look. Dynamic tells you what is really there when constants get computed at runtime instead of sitting in the code.
+
+<Callout type="security" title="Only reverse what you are cleared to touch">
+Software licenses and computer-misuse laws frequently prohibit reverse engineering. Do this on CTF binaries, crackmes from crackmes.one, your own code, or targets in an engagement with written authorization. Pulling apart commercial software you merely bought can breach its EULA and, depending on your country, the law.
+</Callout>
+
+Do not try to understand the whole program. A 40 KB binary might have 300 functions, and 295 of them are library boilerplate you will never care about. Find the one function that makes the decision you care about, understand that, and ignore the rest. The string cross-reference, the `main` function, and the list of imported calls like `strcmp` or `ptrace` are your three shortcuts to the part that matters.
+
+<Quiz
+  id="re-what-survives"
+  question="A C program is compiled with symbols stripped. Which of these is still recoverable from the binary?"
+  answer={2}
+  options={[
+    "The original local variable names",
+    "The developer's inline comments",
+    "The comparison logic that validates input",
+    "The original source file formatting",
+  ]}
+  explanation="Names, comments, and formatting are for humans and the compiler discards them. The logic has to survive because the CPU executes it, so the comparison is always in there, just written as assembly."
+/>
+
+<Notes />

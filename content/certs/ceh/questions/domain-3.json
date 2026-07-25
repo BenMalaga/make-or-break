@@ -1,0 +1,288 @@
+[
+  {
+    "domain": 3,
+    "question": "An attacker recovers LM hashes from a legacy Windows host. Why are LM hashes significantly easier to crack than NTLM hashes?",
+    "options": [
+      "LM hashes are salted with the username, which narrows the keyspace",
+      "The password is uppercased, split into two 7-character halves, and each half is hashed separately",
+      "LM hashes use MD5, which has published collision attacks",
+      "LM hashes store the password in reversible Base64 encoding"
+    ],
+    "correct": [1],
+    "explanation": "LM converts the password to uppercase, pads it to 14 characters, splits it into two 7-character halves, and hashes each half independently with no salt. That lets each half be attacked separately and removes case sensitivity, drastically shrinking the effective keyspace. NTLM hashes the full case-sensitive password with MD4, so it resists these shortcuts.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "What primarily distinguishes a worm from a virus?",
+    "options": [
+      "A worm self-replicates and spreads across networks without attaching to a host file or needing user action",
+      "A worm can only infect boot sectors, while a virus infects files",
+      "A worm requires a human to execute an infected file before it can spread",
+      "A worm cannot carry a malicious payload, only a virus can"
+    ],
+    "correct": [0],
+    "explanation": "A worm is self-replicating and propagates on its own over a network, requiring no host program and typically no user interaction. A virus must attach to a host file or program and generally relies on a user action to run and spread. Both can carry payloads, so payload capability is not the distinction.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "How does a metamorphic virus differ from a polymorphic virus?",
+    "options": [
+      "A metamorphic virus encrypts its body and only changes the decryptor each generation",
+      "A metamorphic virus rewrites its own entire code on each infection, using no encryption or fixed decryptor",
+      "A metamorphic virus can only infect macro-enabled documents",
+      "A metamorphic virus runs only in memory and never writes to disk"
+    ],
+    "correct": [1],
+    "explanation": "A polymorphic virus keeps a constant underlying body but encrypts it and mutates the decryptor so the on-disk signature changes. A metamorphic virus actually rewrites and translates its own code on each generation, so no encryption or fixed decryptor is needed, making signature detection harder. Neither behavior is limited to macros or to memory-only execution.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An attacker sits on a network and captures Windows authentication hashes as they cross the wire, without sending any packets to the target. In the CEH password-attack taxonomy, this is classified as which type of attack?",
+    "options": [
+      "Active online attack",
+      "Passive online attack",
+      "Offline attack",
+      "Non-electronic attack"
+    ],
+    "correct": [1],
+    "explanation": "Passive online attacks capture credentials or hashes by observing traffic, such as wire sniffing, man-in-the-middle, and replay, without directly interacting with the target. Active online attacks (password guessing, keyloggers, hash injection) send data to the target. Offline attacks crack captured hashes away from the target, and non-electronic attacks are things like shoulder surfing or dumpster diving.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "Which defense most directly renders a precomputed rainbow-table attack ineffective?",
+    "options": [
+      "Increasing the account lockout threshold",
+      "Adding a unique random salt to each password before hashing",
+      "Storing password hashes in a separate database",
+      "Forcing passwords to expire every 30 days"
+    ],
+    "correct": [1],
+    "explanation": "Rainbow tables are precomputed hash-to-plaintext lookups, so a unique per-password salt means the attacker's tables no longer match the stored hashes and would have to be regenerated for every salt. Lockout thresholds slow online guessing, not offline table lookups. Password expiration and separate storage do not defeat the precomputation.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "On a live Windows system, where are local account password hashes stored, and why can they not simply be copied from that file while the OS is running?",
+    "options": [
+      "In C:\\Windows\\System32\\config\\SAM, which the kernel keeps locked during operation",
+      "In C:\\Windows\\win.ini, which is read-only by default",
+      "In the registry hive HKCU\\SAM, which requires a reboot to load",
+      "In C:\\Windows\\System32\\drivers\\etc\\hosts, which is memory-mapped"
+    ],
+    "correct": [0],
+    "explanation": "Local hashes live in the SAM database at C:\\Windows\\System32\\config\\SAM, and the operating system holds an exclusive lock on it while running. Attackers therefore dump hashes from memory (for example by reading LSASS) or copy the SAM using a volume shadow copy or offline access. The other locations do not store password hashes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A rootkit runs beneath the target operating system by loading as a lightweight virtual machine monitor and hosting the original OS as a guest. Which rootkit type is this?",
+    "options": [
+      "Application-level rootkit",
+      "Library-level rootkit",
+      "Hypervisor-level rootkit",
+      "Boot-loader-level rootkit"
+    ],
+    "correct": [2],
+    "explanation": "A hypervisor-level (virtualized) rootkit installs itself as a hypervisor and runs the original OS as a guest, intercepting operations from below the kernel. Application- and library-level rootkits operate within user space, and a boot-loader (bootkit) replaces or modifies the boot loader. Running the OS as a guest is the defining trait of the hypervisor rootkit.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An investigator finds a technique that hides data by altering the least significant bit of each pixel's color values in a bitmap image. What is this technique called?",
+    "options": [
+      "Transform-domain (DCT) embedding",
+      "Least significant bit (LSB) insertion",
+      "Spread-spectrum encoding",
+      "Cover generation"
+    ],
+    "correct": [1],
+    "explanation": "LSB insertion hides data in the least significant bits of pixel values, producing color changes too small for the eye to notice. DCT (transform-domain) techniques embed in frequency coefficients and are common for JPEG, spread-spectrum spreads the signal across the carrier, and cover generation creates a new carrier to fit the message. The described bit-level pixel manipulation is textbook LSB.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "An attacker runs the command type malware.exe > report.txt:svc.exe on a Windows volume. What is being used, and what limitation applies?",
+    "options": [
+      "An NTFS alternate data stream, which is lost if the file is copied to a FAT volume",
+      "A symbolic link, which requires administrator rights to follow",
+      "A hard link, which only works across separate partitions",
+      "File compression, which antivirus cannot scan"
+    ],
+    "correct": [0],
+    "explanation": "The colon syntax hides svc.exe inside an NTFS alternate data stream (ADS) attached to report.txt, so the payload does not appear in a normal directory listing. ADS is an NTFS-only feature, so moving or copying the host file to a FAT or FAT32 volume strips the hidden stream. It is neither a link nor compression.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "After gaining access, an attacker wants to reduce the evidence recorded in Windows security logs. Which action is a covering-tracks technique aimed at that goal?",
+    "options": [
+      "Running netstat to list active connections",
+      "Disabling auditing with auditpol before activity, then clearing the event logs afterward",
+      "Enabling the Windows Firewall to block inbound traffic",
+      "Creating a new local user account for persistence"
+    ],
+    "correct": [1],
+    "explanation": "Covering tracks includes disabling auditing (for example with auditpol) so actions are not recorded, and clearing or manipulating event logs to remove what was captured. Running netstat is enumeration, enabling the firewall is not log manipulation, and creating an account is a persistence step rather than track covering.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A tester authenticated as a standard domain user exploits a kernel flaw to obtain SYSTEM privileges. In CEH terms, this is best described as which kind of privilege escalation?",
+    "options": [
+      "Horizontal privilege escalation",
+      "Vertical privilege escalation",
+      "Lateral movement",
+      "Privilege de-escalation"
+    ],
+    "correct": [1],
+    "explanation": "Vertical privilege escalation is gaining a higher privilege level than initially held, such as a standard user reaching SYSTEM or administrator. Horizontal escalation is accessing the resources of another account at the same privilege level. Lateral movement refers to pivoting to other hosts, which is a separate concept.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "An attacker binds a trojan to a legitimate installer so the victim sees the expected program while the malware installs silently in the background. What tool category accomplishes this?",
+    "options": [
+      "A packer",
+      "A wrapper (binder)",
+      "A port scanner",
+      "A rootkit"
+    ],
+    "correct": [1],
+    "explanation": "A wrapper, also called a binder, combines a trojan with a legitimate executable into a single file so the malicious code runs alongside the expected program. A packer compresses or obfuscates a binary to evade signatures but does not merge two programs. Port scanners and rootkits serve different purposes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which statement correctly contrasts hardware and software keyloggers?",
+    "options": [
+      "Hardware keyloggers are physical devices inserted between the keyboard and computer, while software keyloggers are programs running on the host",
+      "Hardware keyloggers can only capture mouse movement, not keystrokes",
+      "Software keyloggers require physical access to install, while hardware keyloggers do not",
+      "Hardware keyloggers are always detected by antivirus, software keyloggers never are"
+    ],
+    "correct": [0],
+    "explanation": "A hardware keylogger is a physical device placed inline between the keyboard and the computer (or built into the keyboard), whereas a software keylogger is malware running on the operating system. Because a hardware keylogger is not software on the host, host-based antivirus generally cannot see it, and installing one requires physical access. Software keyloggers can be delivered remotely.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "What is steganalysis?",
+    "options": [
+      "The process of embedding a secret message inside a carrier file",
+      "The process of detecting the presence of hidden data within a carrier and, where possible, recovering it",
+      "A method of encrypting data before transmission",
+      "A technique for compressing images without loss"
+    ],
+    "correct": [1],
+    "explanation": "Steganalysis is the discipline of detecting whether a file contains hidden (steganographic) content and, when feasible, extracting or destroying it. Embedding the message is steganography itself, not steganalysis. It is unrelated to encryption or lossless compression.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An attacker obtains a user's NT hash from LSASS memory but cannot crack the plaintext in time. How can the hash still be used to authenticate to other systems?",
+    "options": [
+      "By performing a pass-the-hash attack, supplying the NT hash directly to NTLM authentication",
+      "By loading the hash into a rainbow-table generator",
+      "By replaying the hash as a Kerberos golden ticket",
+      "By using the hash as an SSH private key"
+    ],
+    "correct": [0],
+    "explanation": "Pass-the-hash supplies the raw NT hash to the NTLM authentication protocol, which never needs the plaintext, so the attacker authenticates as the user without cracking anything. Rainbow tables would be used to recover plaintext, not to authenticate. A golden ticket requires the KRBTGT hash, and NT hashes are not SSH keys.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A malicious document spreads because its embedded VBA code runs automatically when the file is opened in an office application. What type of virus is this?",
+    "options": [
+      "Boot sector virus",
+      "Macro virus",
+      "Multipartite virus",
+      "Cavity (space-filler) virus"
+    ],
+    "correct": [1],
+    "explanation": "A macro virus is written in an application's macro language (such as VBA) and executes when an infected document is opened, making documents its carrier. A boot sector virus infects the MBR or boot record, a multipartite virus infects both boot sectors and files, and a cavity virus hides in empty space inside a host file. The document-and-macro behavior identifies a macro virus.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A trojan exfiltrates data by tunneling it inside ICMP echo-request payloads to slip past a firewall that permits ping. This use of an unintended communication path is called what?",
+    "options": [
+      "An overt channel",
+      "A covert channel",
+      "A trusted channel",
+      "A CPU cache side channel"
+    ],
+    "correct": [1],
+    "explanation": "A covert channel transfers information over a path not intended for communication, such as smuggling data inside ICMP payloads, to bypass controls. An overt channel is the legitimate, intended communication path. A CPU cache side channel is a hardware timing leak, which is different from network tunneling.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "In the CEH system-hacking methodology, which sequence correctly orders these post-access phases?",
+    "options": [
+      "Cover tracks, then escalate privileges, then maintain access",
+      "Escalate privileges, then execute applications, then hide files, then cover tracks",
+      "Hide files, then gain access, then escalate privileges",
+      "Cover tracks, then execute applications, then gain access"
+    ],
+    "correct": [1],
+    "explanation": "After gaining access, the methodology proceeds to escalating privileges, executing applications (for example installing backdoors or keyloggers), hiding files, and finally covering tracks. Covering tracks comes last because it removes the evidence of everything done before it. The other sequences place phases out of order.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Using a tool to alter a file's Modified, Accessed, and Created timestamps so it blends in with legitimate system files is known as which anti-forensic technique?",
+    "options": [
+      "Slack-space carving",
+      "Timestomping",
+      "Log poisoning",
+      "Steganography"
+    ],
+    "correct": [1],
+    "explanation": "Timestomping modifies a file's MAC (Modified, Accessed, Created) timestamps, often via a tool such as the Metasploit timestomp module, to frustrate timeline analysis. Slack-space carving is a forensic recovery method, log poisoning injects data into logs, and steganography hides data inside carriers. Changing MAC times specifically is timestomping.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which two of the following are classified as offline password-cracking attacks in the CEH taxonomy? (Choose two.)",
+    "options": [
+      "Rainbow-table (precomputed hash) attack",
+      "Wire sniffing",
+      "Brute-force attack against a captured hash",
+      "Phishing for credentials"
+    ],
+    "correct": [0, 2],
+    "explanation": "Offline attacks work against captured hashes away from the target and include brute-force, dictionary, hybrid, and precomputed rainbow-table attacks. Wire sniffing is a passive online attack and phishing is an active online or social attack, because both obtain credentials rather than crack a stored hash offline.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A tester wants to conceal a malicious payload on a compromised NTFS Windows host so it does not stand out in a normal directory listing. Which two techniques accomplish concealment? (Choose two.)",
+    "options": [
+      "Attaching the payload to a file as an NTFS alternate data stream",
+      "Embedding the payload inside an image using steganography",
+      "Adding the payload's directory to the PATH environment variable",
+      "Granting the payload Everyone:Full Control permissions"
+    ],
+    "correct": [0, 1],
+    "explanation": "NTFS alternate data streams hide a file's contents behind another file so it does not appear in a standard listing, and steganography hides the payload inside an innocuous carrier such as an image. Adding a directory to PATH only affects lookup order and does not conceal the file, and setting permissive ACLs makes the file more accessible, not hidden.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which built-in approach helps detect a trojan that has opened a listening backdoor port on a Windows host?",
+    "options": [
+      "Running netstat -ano to list listening ports and their owning process IDs",
+      "Running ipconfig /flushdns to clear the resolver cache",
+      "Running chkdsk to repair the file system",
+      "Running defrag to reorganize the disk"
+    ],
+    "correct": [0],
+    "explanation": "netstat -ano lists active and listening connections along with the process ID that owns each port, helping identify an unexpected backdoor listener for further investigation. Flushing DNS, running chkdsk, or defragmenting does not reveal listening ports or malicious processes. Correlating a suspicious port to its PID is a standard trojan-detection step.",
+    "difficulty": "MEDIUM"
+  }
+]

@@ -1,0 +1,75 @@
+---
+title: SPF, DKIM, and DMARC
+module: email-security
+moduleTitle: Email Security
+moduleOrder: 50
+moduleIcon: MailWarning
+order: 2
+summary: Three DNS records decide whether an attacker can send mail as your domain.
+estimatedMinutes: 18
+objectives:
+  - Read an SPF, DKIM, and DMARC record and say what each one checks
+  - Explain why SPF and DKIM alone do not protect the visible From address
+  - Understand DMARC alignment and why forwarding breaks SPF but not DKIM
+tags:
+  - email
+  - dns
+  - spf
+  - dkim
+  - dmarc
+  - anti-spoofing
+---
+
+If someone can send mail that says `From: ceo@yourcompany.com` and land it in an employee's inbox, none of your phishing training matters. The fix is not a product. It is three TXT records in your DNS, and most domains have at least one of them wrong. Get all three right and aligned, and spoofing your exact domain stops being possible.
+
+Start with SPF, the oldest and dumbest of the three. It is a DNS TXT record that lists which IP addresses are allowed to send mail for your domain. The receiving server looks at the envelope sender, the `MAIL FROM`, pulls your SPF record, and checks whether the connecting IP is on the list.
+
+<CommandBlock
+  title="read the three records for a domain"
+  commands={[
+    { cmd: "dig +short TXT google.com | grep spf", comment: "SPF, the list of allowed sending IPs and includes" },
+    { cmd: "dig +short TXT selector1._domainkey.google.com", comment: "DKIM public key, selector name varies per sender" },
+    { cmd: "dig +short TXT _dmarc.google.com", comment: "DMARC policy, the record that ties it together" },
+  ]}
+/>
+
+A real SPF record looks like `v=spf1 include:_spf.google.com ~all`. The `include` pulls in another domain's allowed IPs, and the ending mechanism is the enforcement mode. `-all` is a hard fail, reject anything not listed. `~all` is a soft fail, accept but mark it. Use `-all` once you are confident every legitimate sender is covered. SPF has a hard limit of 10 DNS lookups, and blowing past it makes the record fail open, so keep your includes tight.
+
+## DKIM signs the mail so tampering shows
+
+DKIM adds a cryptographic signature. Your sending server signs selected headers and the body with a private key, and stamps a `DKIM-Signature` header on the message. The matching public key lives in DNS at `selector._domainkey.yourdomain.com`. The receiver fetches that key, verifies the signature, and now knows two things: the message really came from a server holding your private key, and the signed parts were not altered in transit.
+
+DKIM survives forwarding because the signature travels with the message. That is the key difference from SPF, and it matters in a minute.
+
+## DMARC is the record that actually stops spoofing
+
+Here is the part people miss. SPF checks the envelope `MAIL FROM`. DKIM checks a `d=` domain in its own signature. Neither one checks the `From:` header your user actually reads. An attacker can pass SPF and DKIM for their own throwaway domain while displaying `From: ceo@yourcompany.com`, and the checks are green.
+
+DMARC closes that gap with alignment. A DMARC record at `_dmarc.yourdomain.com` says: for me to consider this mail authenticated, SPF or DKIM must pass, and the passing domain must match the domain in the visible `From:` header. Now the attacker's throwaway domain no longer helps them, because it does not align with the `From:` they are trying to spoof.
+
+```
+v=DMARC1; p=reject; rua=mailto:dmarc@yourdomain.com; pct=100; adkim=s; aspf=s
+```
+
+The `p=` tag is the policy for mail that fails alignment. `p=none` monitors only and blocks nothing, which is where you start so you can watch the `rua` aggregate reports without breaking real senders. Move to `p=quarantine` to route failures to spam, then `p=reject` to drop them outright. A domain sitting on `p=none` forever is publishing a smoke detector with the battery pulled.
+
+<Callout type="security" title="Roll it out in report mode first">
+Jumping straight to p=reject on a domain with forgotten senders will bounce real mail: your CRM, your ticketing system, that one script on a marketing box. Start at p=none, read the rua reports for a few weeks to find every legitimate sender, fix their SPF and DKIM, then tighten the policy. This is defensive config on your own domain, not an attack, but breaking payroll email still ruins your week.
+</Callout>
+
+Forwarding is the classic gotcha. When a mailing list or an employee auto-forward relays your message, the connecting IP changes, so SPF fails at the next hop. DKIM still passes because the signature rode along, so a DMARC pass on DKIM saves the message. This is exactly why you want both, not just SPF. ARC exists to preserve authentication results across trusted forwarders, and it is worth enabling once the basics hold.
+
+<Quiz
+  id="dmarc-alignment"
+  question="An attacker sends mail with a From header of billing@yourcompany.com. It passes SPF and DKIM for their own domain evilsender.net. What blocks it?"
+  answer={3}
+  options={[
+    "SPF with -all, because the IP is not listed",
+    "DKIM, because the body was modified",
+    "Nothing, passing SPF or DKIM is always enough",
+    "DMARC, because the passing domain does not align with the From header",
+  ]}
+  explanation="SPF and DKIM can both pass for the attacker's own domain while the visible From says yours. DMARC requires the authenticated domain to align with the From header, so the mismatch fails DMARC and your p=reject policy drops it."
+/>
+
+<Notes />

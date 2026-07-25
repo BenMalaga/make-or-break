@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Make or Break theme - Catppuccin.
+ * Dark = Mocha (default), Light = Latte. Tokens follow the shadcn/ui contract
+ * (hsl channel triples) so every ui/* primitive themes automatically.
+ */
+
+@layer base {
+  :root {
+    /* Light = Catppuccin Latte */
+    --background: 220 23% 95%;
+    --foreground: 234 16% 35%;
+    --card: 220 23% 97%;
+    --card-foreground: 234 16% 35%;
+    --popover: 220 23% 97%;
+    --popover-foreground: 234 16% 35%;
+    --primary: 266 85% 58%;
+    --primary-foreground: 220 23% 95%;
+    --secondary: 223 16% 83%;
+    --secondary-foreground: 234 16% 35%;
+    --muted: 220 22% 92%;
+    --muted-foreground: 227 12% 41%;
+    --accent: 223 16% 83%;
+    --accent-foreground: 234 16% 35%;
+    --destructive: 347 87% 44%;
+    --destructive-foreground: 220 23% 95%;
+    --border: 223 16% 83%;
+    --input: 223 16% 83%;
+    --ring: 266 85% 58%;
+
+    /* Semantic (difficulty + status) - Latte. Darkened from the raw Catppuccin
+       accents so each one clears WCAG AA (>=4.5:1) as small text on the light
+       background and cards. Mocha (dark) keeps the pastel values below. */
+    --easy: 110 66% 24%;
+    --medium: 25 76% 30%;
+    --hard: 14 82% 34%;
+    --insane: 347 84% 37%;
+    --success: 110 62% 30%;
+    --warning: 25 74% 33%;
+    --info: 220 80% 42%;
+    /* Make-track brand green. Same value as --success today, but a separate
+       token so "make" identity and "solved/success" status can diverge. */
+    --make: 110 62% 30%;
+
+    --radius: 0.6rem;
+  }
+
+  .dark {
+    /* Dark = Catppuccin Mocha */
+    --background: 240 21% 12%;
+    --foreground: 226 64% 88%;
+    --card: 240 21% 15%;
+    --card-foreground: 226 64% 88%;
+    --popover: 237 16% 23%;
+    --popover-foreground: 226 64% 88%;
+    --primary: 267 84% 81%;
+    --primary-foreground: 240 23% 9%;
+    --secondary: 237 16% 23%;
+    --secondary-foreground: 226 64% 88%;
+    --muted: 237 16% 23%;
+    --muted-foreground: 228 24% 72%;
+    --accent: 234 13% 31%;
+    --accent-foreground: 226 64% 88%;
+    --destructive: 343 81% 75%;
+    --destructive-foreground: 240 23% 9%;
+    --border: 237 16% 23%;
+    --input: 234 13% 31%;
+    --ring: 267 84% 81%;
+
+    /* Semantic (difficulty + status) - Mocha */
+    --easy: 115 54% 76%;
+    --medium: 41 86% 83%;
+    --hard: 23 92% 75%;
+    --insane: 343 81% 75%;
+    --success: 115 54% 76%;
+    --warning: 41 86% 83%;
+    --info: 217 92% 76%;
+    /* Make-track brand green (see the Latte block). */
+    --make: 115 54% 76%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Thin scrollbars + small helpers that respect the theme. */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.4);
+    border-radius: 9999px;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  /* Subtle grid backdrop used on marketing + auth screens. */
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Faint grid, used behind headers/heroes inside the app. */
+  .bg-grid-faint {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.25) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.25) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* Signature interactive tile: quick lift + accent border + soft purple glow. */
+  .hover-lift {
+    transition-property: transform, box-shadow, border-color, background-color;
+    transition-duration: 200ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--primary) / 0.55);
+    box-shadow: 0 12px 34px -16px hsl(var(--primary) / 0.45);
+  }
+
+  /* Monospace kicker label for metadata (MODULE, DIFFICULTY, etc.). */
+  .kicker {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Steady accent glow for hero/primary surfaces. */
+  .glow-primary {
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.18), 0 0 40px -12px hsl(var(--primary) / 0.35);
+  }
+}
+
+@keyframes cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/*
+ * Accessibility: honor the OS "reduce motion" preference. Neutralizes CSS
+ * animations (the blinking logo cursor, skeleton pulse, spinners) and
+ * transitions for users who ask for less motion. Framer Motion animations are
+ * handled separately by <MotionConfig reducedMotion="user"> in providers.tsx.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

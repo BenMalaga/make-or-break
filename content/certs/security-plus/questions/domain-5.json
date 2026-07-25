@@ -1,0 +1,202 @@
+[
+  {
+    "domain": 5,
+    "question": "A CISO is establishing the top layer of the organization's governance documentation. She needs a document that states management's high-level intent and expectations for protecting information but does not include step-by-step instructions. Which document type best fits this need?",
+    "options": ["Procedure", "Policy", "Standard", "Guideline"],
+    "correct": [1],
+    "explanation": "A policy is a high-level statement of management intent and expectations, and it is mandatory. Procedures are the detailed step-by-step instructions, standards define mandatory specific requirements (such as an approved encryption algorithm), and guidelines are recommendations rather than intent statements.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "During an annual review, a risk analyst calculates that a single flood would destroy a data center valued at 2,000,000 dollars, causing 40 percent damage, and that such floods occur once every 20 years. What is the annualized loss expectancy (ALE) for this risk?",
+    "options": ["16,000 dollars", "40,000 dollars", "800,000 dollars", "160,000 dollars"],
+    "correct": [1],
+    "explanation": "SLE = asset value times exposure factor = 2,000,000 times 0.40 = 800,000 dollars. ARO = 1/20 = 0.05. ALE = SLE times ARO = 800,000 times 0.05 = 40,000 dollars. The 800,000 figure is the SLE, not the ALE, and 16,000 comes from an incorrect exposure factor.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A company decides that the cost of mitigating a low-probability risk exceeds the potential loss, so leadership formally documents the decision to take no action and knowingly proceed. Which risk treatment strategy is this?",
+    "options": ["Risk transference", "Risk mitigation", "Risk acceptance", "Risk avoidance"],
+    "correct": [2],
+    "explanation": "Formally acknowledging a risk and choosing to take no further action is risk acceptance. Transference shifts the risk to a third party (such as insurance), mitigation reduces likelihood or impact with controls, and avoidance eliminates the activity that creates the risk entirely.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "An organization is negotiating with a new SaaS provider and wants a legally binding contract that guarantees 99.9 percent uptime with financial penalties if the target is missed. Which agreement should this uptime commitment be documented in?",
+    "options": ["Memorandum of understanding (MOU)", "Service level agreement (SLA)", "Non-disclosure agreement (NDA)", "Business partnership agreement (BPA)"],
+    "correct": [1],
+    "explanation": "A service level agreement (SLA) defines measurable performance targets such as uptime and the penalties for missing them. An MOU expresses intent but is generally non-binding, an NDA protects confidential information, and a BPA governs the terms between business partners rather than service performance.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A financial firm must demonstrate to an external auditor that its controls operated effectively over a period of time, not just at a single point in time. Which type of report should the firm request from its cloud service provider?",
+    "options": ["SOC 2 Type I", "SOC 2 Type II", "SOC 1 Type I", "SOC 3"],
+    "correct": [1],
+    "explanation": "A SOC 2 Type II report evaluates the design and operating effectiveness of controls over a period of time (typically 6 to 12 months). A Type I report only assesses control design at a point in time, SOC 1 focuses on financial reporting controls, and SOC 3 is a general-use summary without the detailed testing results.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A security manager wants to ensure that a critical vendor cannot subcontract sensitive data processing to an unvetted fourth party without the organization's knowledge. Which control best addresses this concern?",
+    "options": ["Rely on the vendor's SOC 2 report", "Include a right-to-audit clause and fourth-party disclosure requirements in the contract", "Require the vendor to sign an NDA", "Purchase cyber liability insurance"],
+    "correct": [1],
+    "explanation": "A right-to-audit clause combined with contractual fourth-party (subprocessor) disclosure requirements gives the organization visibility and enforcement over supply-chain subcontracting. A SOC 2 report is a point-in-time snapshot, an NDA only protects confidentiality, and insurance transfers financial impact without preventing the unauthorized subcontracting.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "An organization maintains a central document that lists each identified risk, its owner, likelihood, impact, current controls, and treatment status. What is this document called?",
+    "options": ["Risk appetite statement", "Risk register", "Business impact analysis", "Statement of applicability"],
+    "correct": [1],
+    "explanation": "A risk register is the living document that tracks identified risks along with their owners, scores, controls, and treatment status. A risk appetite statement defines how much risk leadership will accept, a business impact analysis identifies critical processes and recovery objectives, and a statement of applicability documents selected controls (ISO 27001).",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A board of directors sets a formal statement describing the amount and type of risk the organization is willing to pursue in order to meet its strategic objectives. Which term describes this?",
+    "options": ["Risk tolerance", "Risk appetite", "Risk threshold", "Residual risk"],
+    "correct": [1],
+    "explanation": "Risk appetite is the broad, board-level statement of how much risk an organization is willing to accept to achieve its objectives. Risk tolerance is the acceptable variation around a specific risk, a risk threshold is a defined trigger point, and residual risk is what remains after controls are applied.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A retailer that processes credit card transactions must comply with a set of requirements including maintaining a firewall, encrypting cardholder data in transit, and restricting access on a need-to-know basis. Which compliance framework imposes these requirements?",
+    "options": ["HIPAA", "GDPR", "PCI DSS", "SOX"],
+    "correct": [2],
+    "explanation": "PCI DSS (Payment Card Industry Data Security Standard) governs the handling of cardholder data and mandates firewalls, encryption of cardholder data, and least-privilege access. HIPAA covers protected health information, GDPR covers EU personal data privacy, and SOX addresses financial reporting integrity.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A multinational company processes personal data of individuals in the European Union. Under this privacy regulation, individuals have the right to request that their personal data be deleted, and the company must report certain breaches to a supervisory authority within 72 hours. Which regulation is this?",
+    "options": ["CCPA", "GDPR", "GLBA", "FISMA"],
+    "correct": [1],
+    "explanation": "The GDPR grants the right to erasure (right to be forgotten) and requires notification of qualifying breaches to the supervisory authority within 72 hours. CCPA is a California privacy law with different mechanics, GLBA governs U.S. financial institution privacy, and FISMA covers U.S. federal information systems.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A company classifies its data into levels such as Public, Internal, Confidential, and Restricted, and assigns handling requirements to each. Who is primarily responsible for assigning the classification level to a specific data set?",
+    "options": ["Data custodian", "Data owner", "Data processor", "Data protection officer"],
+    "correct": [1],
+    "explanation": "The data owner, typically a senior business official accountable for the data, assigns the classification and defines protection requirements. The data custodian implements and maintains controls, the data processor acts on the controller's instructions, and the DPO advises on and monitors privacy compliance.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A security awareness program wants employees to recognize and report messages that create false urgency, spoof executives, and request wire transfers. Which two program elements most directly build this capability? (Choose two.)",
+    "options": ["Simulated phishing campaigns", "Annual acceptable use policy sign-off", "Recognizing and reporting anomalous behavior training", "Mandatory password complexity settings"],
+    "correct": [0, 2],
+    "explanation": "Simulated phishing campaigns give employees hands-on practice spotting and reporting social-engineering attempts, and training on recognizing and reporting anomalous behavior builds the judgment to flag suspicious requests. Acceptable use sign-off and password complexity are governance and technical controls that do not directly teach threat recognition.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "An external firm is hired to attempt to breach an organization's network with no prior knowledge of its internal architecture, simulating an outside attacker. Which type of penetration test is this?",
+    "options": ["Known environment (white box)", "Partially known environment (gray box)", "Unknown environment (black box)", "Physical penetration test"],
+    "correct": [2],
+    "explanation": "An unknown-environment (black box) test provides the tester with no internal information, closely simulating an external attacker. Known-environment (white box) testing supplies full documentation and credentials, partially known (gray box) gives limited information, and a physical test targets facility access rather than the network.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A regulated healthcare provider fails to safeguard protected health information and suffers a large breach. Which of the following is the MOST likely direct consequence of non-compliance with the governing regulation?",
+    "options": ["Loss of the CEO's professional license", "Regulatory fines and mandatory breach notification", "Automatic revocation of the company's business license", "Immediate criminal imprisonment of all IT staff"],
+    "correct": [1],
+    "explanation": "Non-compliance with regulations such as HIPAA commonly results in regulatory fines and required breach notifications to affected individuals and authorities. Blanket loss of a personal license, automatic business-license revocation, and immediate imprisonment of all IT staff are not the standard direct consequences of a compliance failure.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "During onboarding of a new vendor, a security team reviews the vendor's financial stability, security certifications, past breach history, and references before signing a contract. What is this activity called?",
+    "options": ["Due diligence", "Due care", "Right to audit", "Conflict of interest review"],
+    "correct": [0],
+    "explanation": "Due diligence is the investigative process of evaluating a vendor's risk, financial health, and security posture before entering an agreement. Due care is the ongoing exercise of reasonable protection after the relationship begins, a right-to-audit clause is a contractual term, and a conflict-of-interest review addresses relationship bias, not overall vendor vetting.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Two organizations plan to collaborate on a project and want to document their shared understanding, goals, and general responsibilities, but they explicitly do not want a legally binding contract at this stage. Which document is most appropriate?",
+    "options": ["Master service agreement (MSA)", "Memorandum of understanding (MOU)", "Statement of work (SOW)", "Service level agreement (SLA)"],
+    "correct": [1],
+    "explanation": "A memorandum of understanding (MOU) documents mutual intent and general responsibilities and is typically non-binding. An MSA sets binding overarching contract terms, an SOW defines specific deliverables and timelines for a given engagement, and an SLA specifies enforceable performance metrics.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A manufacturer performs a qualitative risk assessment because reliable dollar-value loss data is unavailable. Which approach is most consistent with a qualitative method?",
+    "options": ["Calculating ALE for each asset using SLE and ARO", "Ranking risks on a High/Medium/Low likelihood and impact matrix", "Assigning exact dollar values to each threat scenario", "Computing return on security investment for each control"],
+    "correct": [1],
+    "explanation": "Qualitative risk assessment uses subjective, relative rankings such as a High/Medium/Low likelihood-and-impact matrix rather than precise monetary figures. Calculating ALE from SLE and ARO, assigning exact dollar values, and computing ROSI are all quantitative techniques.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A company purchases cyber insurance to cover potential financial losses from a ransomware incident. Which risk treatment strategy does buying insurance represent?",
+    "options": ["Risk avoidance", "Risk acceptance", "Risk transference", "Risk mitigation"],
+    "correct": [2],
+    "explanation": "Purchasing insurance shifts the financial impact of a risk to a third party, which is risk transference. Avoidance would eliminate the risky activity, acceptance would take no action, and mitigation would reduce likelihood or impact with controls rather than shifting the loss to an insurer.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "An organization must classify assessments as either internal or external and as either performed by staff or by an independent third party. Which combination best describes an independent audit conducted to satisfy a regulator's requirement for objectivity?",
+    "options": ["Internal self-assessment", "External independent third-party audit", "Internal automated vulnerability scan", "Peer review by another department"],
+    "correct": [1],
+    "explanation": "Regulators seeking objectivity typically require an external, independent third-party audit because the assessor has no stake in the outcome. Internal self-assessments and internal scans lack that independence, and a peer review from another department is still internal and not independent of the organization.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "After implementing additional controls to reduce an identified risk, a small amount of risk still remains. The organization must formally decide whether this remaining exposure is acceptable. What is this remaining exposure called?",
+    "options": ["Inherent risk", "Residual risk", "Control risk", "Total risk"],
+    "correct": [1],
+    "explanation": "Residual risk is the exposure that remains after controls have been applied, and it must be evaluated against the organization's risk appetite for acceptance. Inherent risk is the level before controls, and total risk generally refers to inherent exposure; control risk is not the standard term for post-control remaining risk here.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A governance committee wants a document that provides recommended best practices employees should generally follow, but that are advisory rather than mandatory. Which document type is this?",
+    "options": ["Standard", "Guideline", "Procedure", "Policy"],
+    "correct": [1],
+    "explanation": "A guideline offers recommended, advisory best practices that are not strictly enforced. Standards and policies are mandatory, and procedures are the mandatory step-by-step instructions for completing a task.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A company wants a key risk indicator (KRI) tied to third-party risk so leadership is alerted before a vendor problem becomes an incident. Which metric functions as a leading KRI?",
+    "options": ["Number of vendor-caused breaches last year", "Percentage of critical vendors with expired security attestations", "Total dollars paid in breach fines to date", "Count of incidents already escalated to legal"],
+    "correct": [1],
+    "explanation": "The percentage of critical vendors with expired security attestations is a leading indicator that predicts future exposure and lets leadership act before an incident occurs. The other three are lagging indicators that measure harm that has already happened.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "A vendor's contract is ending and the security team must ensure that all of the organization's data held by the vendor is returned or destroyed and that access is revoked. Which contractual and process element governs this stage of the third-party relationship?",
+    "options": ["Right-to-audit clause", "Offboarding and data disposition requirements", "Statement of work", "Non-disclosure agreement"],
+    "correct": [1],
+    "explanation": "Vendor offboarding provisions, including data return or destruction and access revocation, govern the secure termination of a third-party relationship. A right-to-audit clause enables inspection during the relationship, an SOW defines deliverables, and an NDA protects confidentiality but does not by itself mandate data disposition and access removal at exit.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A large enterprise establishes a committee that reports to the board, defines the security strategy, allocates budget, and holds business units accountable for control ownership. This structure is best described as which of the following?",
+    "options": ["Security operations center (SOC)", "Governance structure", "Incident response team", "Change advisory board"],
+    "correct": [1],
+    "explanation": "A committee that sets strategy, allocates resources, and enforces accountability across the organization is a governance structure. A SOC handles monitoring and detection, an incident response team handles active incidents, and a change advisory board reviews and approves changes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A compliance officer must decide how the organization will demonstrate ongoing adherence to a security framework. Which activity provides continuous evidence rather than a one-time point-in-time confirmation?",
+    "options": ["A single third-party attestation letter", "Continuous compliance monitoring with automated control checks", "An annual signed self-attestation", "A one-time gap assessment at project kickoff"],
+    "correct": [1],
+    "explanation": "Continuous compliance monitoring with automated control checks provides ongoing, near-real-time evidence that controls remain effective. An attestation letter, an annual self-attestation, and a one-time gap assessment each capture compliance only at a single moment and can quickly become stale.",
+    "difficulty": "HARD"
+  }
+]

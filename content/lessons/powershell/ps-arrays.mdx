@@ -1,0 +1,277 @@
+---
+title: "Arrays, Ranges, and Hashtables"
+module: powershell
+moduleTitle: PowerShell
+moduleOrder: 1
+moduleIcon: Terminal
+order: 5
+summary: "A PowerShell array holds items in order and answers to a position, while a hashtable holds pairs and answers to a name, and picking the right one is half the battle in writing a clean script."
+estimatedMinutes: 14
+prerequisites: ["ps-pipeline"]
+objectives:
+  - Build an array with a comma list or @(), read it by position with an index, and read the last few items with negative indexes and .Count
+  - Grow an array with += and walk it with a foreach loop or the pipeline
+  - Build a hashtable of key and value pairs with @{} and read a value by its key using either bracket or dot syntax
+  - Decide between an array and a hashtable based on whether the real question is "what comes next" or "what belongs to this name"
+tags:
+  - powershell
+  - arrays
+  - collections
+---
+
+The previous lesson pushed process objects through a pipeline, filtering and sorting them with `Where-Object` and `Sort-Object` without ever touching plain text. That pipeline had to carry more than one item at a time, which raises a question worth answering directly: what is the thing that holds several values together before or after they pass through a pipe. In PowerShell, that thing is usually an array, and its cousin for a different kind of collection is the hashtable.
+
+## Building an array two ways
+
+An array is an ordered list of values. PowerShell builds one from a comma-separated list of items assigned straight to a variable, no special syntax required:
+
+```powershell
+$nums = 1,2,3
+Write-Output $nums
+```
+
+<ExpectedOutput label="each item printed on its own line">
+```
+1
+2
+3
+```
+</ExpectedOutput>
+
+`$nums` now holds three numbers, in that order. PowerShell also accepts an explicit array literal, written `@(...)`, which does the same job and reads a little clearer when the array shows up inside a longer expression or when it needs to hold exactly one item (a bare single value without `@()` does not always behave like an array of one, so `@()` removes the ambiguity):
+
+```powershell
+$colors = @("red", "green", "blue")
+Write-Output $colors
+```
+
+<ExpectedOutput label="a string array built with the @() literal">
+```
+red
+green
+blue
+```
+</ExpectedOutput>
+
+Both forms produce the same kind of object. `$nums = 1,2,3` is faster to type, and `@(...)` is the form worth reaching for when the list is empty, has one item, or sits inside a larger command where the commas could otherwise be misread as separating parameters.
+
+### Ranges build a specific kind of array
+
+Typing out `1,2,3,4,5,6,7,8,9,10` is tedious, and PowerShell has a shortcut for exactly that shape: consecutive whole numbers. The range operator, two dots with no space, builds an array counting from one end to the other:
+
+```powershell
+$oneToTen = 1..10
+Write-Output $oneToTen.Count
+```
+
+<ExpectedOutput label="ten items, counted">
+```
+10
+```
+</ExpectedOutput>
+
+`1..10` is an array containing the ten integers from 1 through 10, inclusive on both ends. The range can run backward too, so `10..1` counts down. Ranges show up constantly for anything that repeats a fixed number of times, or for generating test data without typing every value by hand.
+
+## Reading one item by its position
+
+An array's items sit at positions PowerShell calls indexes, and an index always starts counting from zero. Square brackets after the variable name read one item out by its index:
+
+```powershell
+$nums = 10,20,30,40
+Write-Output $nums[0]
+Write-Output $nums[2]
+```
+
+<ExpectedOutput label="index 0 is the first item, index 2 is the third">
+```
+10
+30
+```
+</ExpectedOutput>
+
+`$nums[0]` is not "the number 0," it is "the item sitting at position 0," which happens to be the first one. `$nums[2]` is the third item, 30, because counting starts at 0: position 0 is first, position 1 is second, position 2 is third. This trips up nearly everyone the first week they use an indexed collection, and it is worth saying out loud until it stops feeling strange: the index is a count of items skipped, not a rank.
+
+Negative indexes read from the other end without any arithmetic. `$nums[-1]` is always the last item, whatever the array's length turns out to be, and `$nums[-2]` is the second to last:
+
+```powershell
+$nums = 10,20,30,40
+Write-Output $nums[-1]
+Write-Output $nums[-2]
+```
+
+<ExpectedOutput label="negative indexes count backward from the end">
+```
+40
+30
+```
+</ExpectedOutput>
+
+That is a real advantage over computing the last index by hand, which would mean writing `$nums[$nums.Count - 1]` and getting the minus-one exactly right every time. `$nums[-1]` says the same thing and cannot be miscounted.
+
+Speaking of `.Count`, every array carries that property, and it reports how many items the array holds:
+
+```powershell
+$nums = 10,20,30,40
+Write-Output $nums.Count
+```
+
+<ExpectedOutput label="four items in the array">
+```
+4
+```
+</ExpectedOutput>
+
+`.Count` reads directly off the array itself; nothing needs to be looped or summed to get it. It is the number to reach for whenever a script needs to know how many things it is dealing with, whether that is deciding when a loop should stop or just reporting a total.
+
+<Quiz
+  id="ps-array-index"
+  question="An array holds $letters = \"a\",\"b\",\"c\",\"d\". What does $letters[1] return, and why?"
+  answer={1}
+  options={[
+    "\"a\", because indexing in PowerShell starts at 1, not 0.",
+    "\"b\", because index 0 is the first item and index 1 is the second.",
+    "\"d\", because PowerShell reads indexes from the end of the array by default.",
+    "An error, because 1 is not a valid position in a four-item array.",
+  ]}
+  explanation="PowerShell indexes start at 0, so index 0 is 'a' and index 1 is the second item, 'b'. Indexing does not start at 1, it does not read from the end unless the index is negative, and 1 is a perfectly valid position in a four-item array (valid indexes here run 0 through 3)."
+/>
+
+## Growing an array and walking through it
+
+An array built with a comma list is not fixed at that size forever. The `+=` operator appends an item to the end and stores the result back into the same variable:
+
+```powershell
+$fruits = "apple","pear"
+$fruits += "plum"
+Write-Output $fruits
+```
+
+<ExpectedOutput label="plum added to the end of the array">
+```
+apple
+pear
+plum
+```
+</ExpectedOutput>
+
+Under the hood, PowerShell arrays have a fixed size once created, so `+=` is quietly building a brand new array with the old items plus the new one and handing it back to `$fruits`. That is fine for adding a handful of items here and there. It is worth knowing that growing an array this way inside a loop that runs thousands of times rebuilds the whole array on every pass, which gets slow; a script with that kind of scale usually collects items differently. For the ordinary case of adding a few values as a script runs, `+=` reads clearly and does the job.
+
+Getting every item out one at a time is where a `foreach` loop earns its keep. It names a variable to hold the current item, then runs its body once per item in the array:
+
+```powershell
+$fruits = "apple","pear","plum"
+foreach ($fruit in $fruits) {
+    Write-Output "Fruit: $fruit"
+}
+```
+
+<ExpectedOutput label="the loop body runs once per item, in order">
+```
+Fruit: apple
+Fruit: pear
+Fruit: plum
+```
+</ExpectedOutput>
+
+`foreach ($fruit in $fruits)` reads almost like English: for each item in `$fruits`, call it `$fruit`, and run the block. On the first pass `$fruit` is `"apple"`, on the second it is `"pear"`, and the loop stops once the array runs out.
+
+The pipeline covered in the previous lesson reaches the same destination a different way. Piping an array into `ForEach-Object` sends each item through one at a time, with `$_` standing in for whichever item is currently passing through:
+
+```powershell
+$fruits = "apple","pear","plum"
+$fruits | ForEach-Object { Write-Output "Fruit: $_" }
+```
+
+Both forms visit every item and print the same three lines. A `foreach` loop tends to read better for a longer block of logic with several steps per item, and the pipeline form tends to read better when it slots into a chain with `Where-Object` or `Sort-Object` right next to it. Neither is more correct than the other; the choice is about which one keeps the surrounding code readable.
+
+<Quiz
+  id="ps-array-grow"
+  question="What does $scores += 95 do when $scores is an existing array?"
+  answer={0}
+  options={[
+    "It builds a new array containing the old items plus 95, and stores that new array back into $scores.",
+    "It changes the value at index 95 in the array.",
+    "It multiplies every item in the array by 95.",
+    "It deletes the last item and replaces it with 95.",
+  ]}
+  explanation="PowerShell arrays have a fixed size once built, so += works by constructing a new array with the existing items plus the new one and reassigning it to the same variable name. It has nothing to do with an index of 95, no multiplication happens, and nothing gets deleted."
+/>
+
+## Hashtables: looking things up by name instead of position
+
+An array answers "what is in position 2." Plenty of real data does not have a natural position at all; it has a name. A user's age does not live at some numbered slot, it lives under the label "Age." PowerShell's collection for that shape of data is the hashtable, a set of key and value pairs built with curly braces:
+
+```powershell
+$user = @{ Name = "Ada"; Age = 36 }
+Write-Output $user["Name"]
+Write-Output $user.Age
+```
+
+<ExpectedOutput label="the same value read two different ways">
+```
+Ada
+36
+```
+</ExpectedOutput>
+
+`@{ Name = "Ada"; Age = 36 }` builds a hashtable with two pairs: the key `Name` paired with the value `"Ada"`, and the key `Age` paired with the value `36`. Reading a value out works two ways, and both are used constantly in real scripts. `$user["Name"]` uses square brackets with the key inside, the same shape as an array index except the thing inside the brackets is a name instead of a number. `$user.Age` uses dot syntax, treating `Age` as if it were a property sitting directly on `$user`. Either one reaches the same pair; which to use is mostly a matter of style, though bracket syntax is the one that works when the key name is stored in a variable rather than typed literally, since `$user[$fieldName]` looks up whatever key `$fieldName` currently holds.
+
+Adding a new pair or changing an existing one uses the same bracket assignment an array index would, except the key is a name:
+
+```powershell
+$user = @{ Name = "Ada"; Age = 36 }
+$user["City"] = "Boston"
+$user.Age = 37
+Write-Output $user["City"]
+Write-Output $user.Age
+```
+
+<ExpectedOutput label="one new pair added, one existing value changed">
+```
+Boston
+37
+```
+</ExpectedOutput>
+
+`$user["City"] = "Boston"` adds City as a brand new key, since it was not there before. `$user.Age = 37` overwrites the existing Age pair rather than adding a second one, because a hashtable key only ever holds one value at a time. That is the core behavior worth remembering: a key is a label that always points at exactly one current value, and writing to an existing key replaces what it points to instead of adding beside it.
+
+<Quiz
+  id="ps-array-vs-hashtable"
+  question="A script needs to store a list of every server name a job checked, in the order it checked them. A different part of the same script needs to look up a server's IP address given its name. Which collection fits each job?"
+  answer={3}
+  options={[
+    "A hashtable for the ordered list, and an array for the name-to-IP lookup.",
+    "An array for both, since arrays can hold any kind of data.",
+    "A hashtable for both, since a hashtable can use numbers as keys to preserve order.",
+    "An array for the ordered list of server names, and a hashtable keyed by server name for the IP lookup.",
+  ]}
+  explanation="An array is the right fit when the real question is about order or position, which matches a list of names in the order they were checked. A hashtable is the right fit when the real question is 'find the value that belongs to this label,' which matches looking up an IP by server name. The other options reverse or misapply that split."
+/>
+
+## Choosing between the two
+
+The split comes down to one question: does the data have a natural position, or does it have a natural name. A queue of tasks to run in order, a set of lines read from a log file top to bottom, the days of a week, all of these are naturally ordered, so an array fits. A configuration made of settings like `MaxRetries` and `TimeoutSeconds`, a lookup from a username to a home directory, a count of how many times each error code showed up, all of these are naturally named, so a hashtable fits.
+
+It is worth noticing the two collections do not compete for the same jobs so much as split the work cleanly. An array answers "what comes next" and "how many are there," reachable through `.Count` and a position. A hashtable answers "what belongs to this label," reachable through a key that means something to the person who chose it. A script that reaches for `$data[0]` when it really wants `$data["username"]` has picked the wrong tool, and the fix is rarely to write more code around the mismatch. It is to switch collections.
+
+Iterating a hashtable's pairs is a job for the `.GetEnumerator()` method piped into `ForEach-Object`, which yields each pair with a `.Key` and a `.Value`, though that is a detail worth setting aside for now; the shape to hold onto from this lesson is simpler. Position asks for an array. A name asks for a hashtable. Getting that choice right at the start of a script saves rewriting it later once the data's real shape becomes obvious.
+
+<Exercise title="Read and grow both collections">
+Save this into a file named `collections.ps1`:
+
+```powershell
+$scores = 88,91,79
+$scores += 95
+Write-Output "First score: $($scores[0])"
+Write-Output "Last score: $($scores[-1])"
+Write-Output "Total scores: $($scores.Count)"
+
+$student = @{ Name = "Grace"; Grade = 90 }
+$student["Grade"] = 94
+Write-Output "Student: $($student.Name), Grade: $($student.Grade)"
+```
+
+Run it, and before checking the output, predict what each `Write-Output` line will print. Then change `$scores[0]` to `$scores[1]` and predict again before rerunning. Add a fourth key to `$student`, something like `Subject = "Math"`, and print it with dot syntax to confirm it reads back correctly.
+</Exercise>
+
+The next lesson picks up flow control: `if`, `elseif`, `for`, and `while`, the pieces that decide which lines run and how many times. Arrays and hashtables are what those loops usually walk through, so having a solid feel for indexes, `.Count`, and key lookups now means the loop syntax ahead has real data to work on instead of toy examples.

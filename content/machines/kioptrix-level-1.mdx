@@ -1,0 +1,86 @@
+---
+name: Kioptrix Level 1
+tagline: The classic first VulnHub box. Old services, honest recon to root.
+description: A downloadable VulnHub virtual machine and one of the most recommended starting points in the scene. It runs several dated network services, and the path to root is pure methodical enumeration followed by a well known service exploit.
+difficulty: EASY
+os: LINUX
+targetType: BYO_VM
+tags:
+  - network
+  - privesc
+  - linux
+points: 30
+byoVm:
+  name: "Kioptrix: Level 1"
+  sourceUrl: https://www.vulnhub.com/entry/kioptrix-level-1-1,22/
+  importNotes: Download the archive and import it into VirtualBox, VMware, or UTM. Place it on the same host-only or NAT lab network as your attacker box so the two can reach each other. Boot it, then discover its IP from your attacker machine since the VM does not display its own address.
+flags:
+  - type: USER
+    label: user.txt
+    value: MOB{old_services_never_die}
+    points: 15
+  - type: ROOT
+    label: root.txt
+    value: MOB{one_exploit_from_root}
+    points: 15
+hints:
+  - title: I booted it but where is it?
+    body: The VM does not announce its IP. Sweep your lab subnet for live hosts and compare against what you already know. netdiscover, arp-scan, or nmap host discovery all work.
+    cost: 0
+  - title: Map every service
+    body: Scan all ports, then get version detail on each open one. This box is old, so expect a web server, SMB, and other legacy daemons. Write down every service and its exact version. The versions are the whole game here.
+    cost: 5
+  - title: Foothold
+    body: One of the running services is a version old enough to have a public remote exploit. Match the service and version string to a known advisory, find the matching exploit, and fire it to land your first shell. Read user.txt from the box.
+    cost: 10
+  - title: User proof token
+    body: When your remote exploit against the outdated service returns a shell and you can read the user flag on the box, submit MOB{old_services_never_die}
+    cost: 15
+  - title: Root
+    body: Depending on which service you exploited, you may already be a privileged user, or you finish with a standard Linux privesc pass. Check your current id, then look at the kernel version, SUID binaries, and sudo rights until one path gives you root. Read root.txt.
+    cost: 10
+  - title: Root proof token
+    body: Once you hold a root shell and can read the root flag, submit MOB{one_exploit_from_root}
+    cost: 15
+tasks:
+  - title: Discover the target IP on your lab network
+    description: The VM will not tell you its address
+  - title: Full TCP port and service version scan
+    description: Do not settle for the top 1000 ports
+  - title: Get an initial foothold (user)
+    description: Exploit the outdated service for a shell
+  - title: Escalate to root
+    description: Land root through the service or a standard privesc
+---
+
+## About this target
+
+Kioptrix Level 1 is where a huge number of people cut their teeth. It is a small
+Linux VM running a handful of services that were already old when the box was
+built, which makes it a clean lesson in the loop that never changes: enumerate
+everything, read the version numbers, match one to a public exploit, and use it.
+No trick puzzles, just discipline and attention to detail.
+
+Your two objectives here: **get a foothold and read the user flag** (user), then
+**land a root shell and read the root flag** (root).
+
+<Callout type="security" title="Authorized target only">
+This VM runs entirely on your own hypervisor, on an isolated lab network. That
+is what makes attacking it legal. Keep it off any network you do not control.
+</Callout>
+
+<Callout type="info" title="Verify the download">
+VulnHub mirrors change over time. Open the entry linked in the setup panel, grab
+the current download, and verify the checksum if one is published before you
+import.
+</Callout>
+
+## The loop
+
+1. Find the target on your network.
+2. Map every open port and identify each service and version.
+3. Turn the weakest, oldest service into a shell (user).
+4. Confirm your privilege level and escalate to root (root).
+
+Work it yourself first. The hints are here when you are genuinely stuck, and each
+one costs points, so earn them.

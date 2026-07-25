@@ -1,0 +1,70 @@
+---
+title: Writing Good Detections
+module: detection-engineering
+moduleTitle: Detection Engineering
+moduleOrder: 37
+moduleIcon: BellRing
+order: 2
+summary: A detection that cries wolf 50 times a day is worse than no detection at all.
+estimatedMinutes: 20
+objectives:
+  - Reason about a detection using precision and recall
+  - Pick the right response tier for a signal, not just alert on everything
+  - Write false-positive filters into a rule from the start
+tags:
+  - detection-engineering
+  - precision-recall
+  - alert-fatigue
+  - blue-team
+---
+
+The fastest way to make your SOC blind is to write a detection that fires 50 times a day and is wrong 48 of them. Analysts learn within a week to close it on sight, and the two real hits ride out with the noise. A noisy detection is not a half-good detection. It is an actively harmful one, because it trains people to ignore the console.
+
+Good detections are a numbers game, and two numbers run it: precision and recall. Get comfortable with both, because every tuning decision you make is trading one against the other.
+
+## Precision and recall, in plain terms
+
+Precision asks: of the alerts this rule fired, how many were real? If it fired 100 times and 90 were true attacks, precision is 90 percent. Low precision is the false-positive problem, the one that burns out analysts.
+
+Recall asks: of the real attacks that happened, how many did this rule catch? If ten intrusions used this technique and you caught seven, recall is 70 percent. Low recall is the false-negative problem, the one that gets you breached quietly.
+
+You almost never max both. Loosen a rule to catch more attacks and you drag in more junk, so recall climbs and precision drops. Tighten it for clean alerts and you start missing the sneaky variants. The skill is deciding, per detection, which error you can live with.
+
+## Match the response to the signal
+
+Not every detection deserves to page a human. One of the biggest mistakes new detection engineers make is treating "alert" as the only output. Sort your signals into tiers instead.
+
+- High-fidelity, low-volume behavior that almost always means compromise: alert, page someone. Think `lsass` memory being dumped by a non-security process.
+- Suspicious but common enough to be benign: send it to a hunting queue or enrich a case, do not page. Think a rare admin tool running once.
+- Useful only as context: log it, make it searchable, attach it to alerts that fire nearby. Think a new service install on a workstation.
+
+A detection that would be too noisy as a pager alert is often perfectly good as a hunt lead or an enrichment field. The signal is not wasted, you just routed it to where its precision fits.
+
+## Write the filter with the rule
+
+The false positives are not a surprise you discover in production. You can predict most of them the moment you write the logic. Vulnerability scanners look like brute force. Backup agents touch files like ransomware. Your own patch tooling spawns processes like a dropper. Bake those exclusions in from day one.
+
+<CommandCard command='EventCode=4688 NewProcessName="*\\powershell.exe" ParentProcessName="*\\winword.exe" NOT User IN (svc_reporting, svc_macro)' explain="Office spawning PowerShell is the detection. The NOT clause carves out the two service accounts your finance team legitimately uses for report macros, so the rule ships already knowing its own noise instead of paging on it night one." />
+
+<Callout type="tip" title="Tune with a filter, not a delete">
+When a detection is too noisy, resist deleting it. Add a scoped exclusion for the specific benign source and keep the detection alive for everything else. Deleting a rule sets your recall to zero for that technique. Filtering keeps the coverage and just trims the noise.
+</Callout>
+
+<Callout type="security" title="Validate against authorized data only">
+Measuring a detection's precision means replaying it over real logs full of real user activity and credentials. Do that only inside the environment you are cleared to monitor, and handle anything sensitive the results surface under your organization's data rules. Being the person who writes detections is not a license to browse.
+</Callout>
+
+<Quiz
+  id="de-precision-recall"
+  question="A detection catches 9 of 10 real intrusions but also fires on 200 benign events a day. Which metric is the problem?"
+  answer={1}
+  options={[
+    "Recall is too low",
+    "Precision is too low",
+    "Both precision and recall are high",
+    "Neither, this is a healthy detection",
+  ]}
+  explanation="Recall is strong here at 9 of 10 caught. The 200 daily false alarms mean most of what fires is not a real attack, which is low precision. That is the alert-fatigue failure mode, and the fix is a scoped filter, not deleting the rule."
+/>
+
+<Notes />

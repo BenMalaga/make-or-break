@@ -1,0 +1,105 @@
+---
+title: Approaching a Target
+module: ctf-methodology
+moduleTitle: CTF Methodology
+moduleOrder: 7
+moduleIcon: Flag
+order: 1
+summary: A repeatable loop beats guessing. Enumerate, foothold, escalate, flag.
+estimatedMinutes: 16
+objectives:
+  - Run the four-phase loop that roots most boxes
+  - Structure notes so you never lose a finding
+  - Recognize that stuck almost always means under-enumerated
+tags:
+  - methodology
+  - ctf
+  - workflow
+---
+
+A CTF box is not a riddle you crack by inspiration. It is a system, and systems
+give way to process. The players who root machines consistently are not smarter
+than you. They are more methodical. Every target, from an easy warmup to a hard
+insane-rated box, yields to the same loop.
+
+## The loop
+
+Four phases, always in this order:
+
+1. **Enumerate.** Map everything the target exposes: open ports, service
+   versions, web pages, usernames, readable files. You cannot attack what you
+   have not found.
+2. **Foothold.** Turn one finding into code execution. A vulnerable service, a
+   default credential, an unrestricted upload. The goal is a shell as any user,
+   however weak.
+3. **Escalate.** Go from that first low-privilege user to root or SYSTEM.
+   Re-enumerate, this time from the inside.
+4. **Flag.** Collect the proof. Usually `user.txt` in a home directory and
+   `root.txt` in `/root`.
+
+The trap beginners fall into is jumping straight to phase 2, firing exploits at
+the first open port they see. Discipline is doing phase 1 completely before you
+touch phase 2.
+
+## Enumeration is the whole game
+
+Start every box the same way: a full picture of what is listening. A fast port
+sweep tells you what is open, then a targeted version scan tells you what it is.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "export IP=10.10.10.5", comment: "set the target once, reuse everywhere" },
+    { cmd: "nmap -p- --min-rate 1000 $IP", comment: "all 65535 ports, fast, just find what is open" },
+    { cmd: "nmap -sC -sV -p 22,80,445 $IP", comment: "default scripts plus versions on the open ports" },
+  ]}
+/>
+
+<Diagram type="ports" />
+
+## Take notes like it is evidence
+
+The single habit that separates people who finish boxes from people who spin out
+is note-taking. Give every target its own folder before you scan. Log the IP,
+every open port and version, every credential you find, and every command that
+actually worked. When you land a shell three hours in and need that password you
+saw in phase 1, it will be one grep away instead of gone.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "mkdir -p ~/boxes/target/{scans,loot,exploits}", comment: "one home per box" },
+    { cmd: "nmap -sC -sV -p- -oA ~/boxes/target/scans/full $IP", comment: "-oA saves all three output formats" },
+  ]}
+/>
+
+<Callout type="security" title="Stuck means under-enumerated">
+When you hit a wall, resist the urge to hunt for a fancier exploit. Nine times
+out of ten you missed something: a virtual host, a second port, a comment in
+page source, a subdirectory. Go back to phase 1 and look harder.
+</Callout>
+
+<Quiz
+  id="loop-order"
+  question="You just got a low-privilege shell on the box. Which phase are you in, and what comes next?"
+  answer={2}
+  options={[
+    "Enumerate, and next is foothold",
+    "Flag, and you are done",
+    "Foothold complete, and next is escalate by re-enumerating from the inside",
+    "Escalate, and next is enumerate",
+  ]}
+  explanation="Landing any shell completes the foothold phase. Next you escalate, which starts with a fresh round of enumeration from inside the box."
+/>
+
+<Exercise
+  id="notes-first"
+  prompt="Name the nmap flag that saves output in all formats at once so your notes folder captures the scan automatically."
+  answer="-oA"
+  placeholder="e.g. -oX"
+>
+Think about the flag that writes normal, XML, and grepable output together under
+one base filename.
+</Exercise>
+
+<Notes />

@@ -1,0 +1,263 @@
+---
+title: How Web Apps Work
+module: web-and-http
+moduleTitle: Web and HTTP
+moduleOrder: 5
+moduleIcon: Globe
+order: 2
+summary: "Follow a form from the browser to the database and back, and find every place a user's input crosses into the server."
+estimatedMinutes: 16
+prerequisites: ["http-fundamentals"]
+objectives:
+  - Split a web app into a frontend the browser runs and a backend the server runs, and say which side an attacker controls
+  - Trace a form submit from an HTTP request, to a database query, to the response that comes back
+  - Explain what the server does with each request and why it holds no memory of the last one
+  - "Name every place user input crosses into the server: the path, the query string, the body, headers, and cookies"
+  - Say why the client is never a trust boundary and what that forces the server to re-check
+tags:
+  - web
+  - architecture
+  - trust-boundary
+---
+
+The last lesson took an HTTP request apart line by line and showed that curl can
+forge any of it. A request is only a knock at the door, though. Something on the
+other side has to hear it, decide what it means, go find an answer, and knock
+back. This lesson is about that something: the machinery a request lands on, and
+which parts of it a person at a keyboard actually gets to touch.
+
+A web app is not one program. It's a short assembly line, and the interesting
+thing about the line is that it runs across two machines that trust each other
+very differently. Learn where the line between them sits and most web attacks
+stop looking like tricks. They start looking like the obvious thing to try.
+
+## Frontend and backend
+
+The frontend is the code that runs in the browser: the HTML that structures the
+page, the CSS that styles it, and the JavaScript that makes it move. All of it
+arrives as text and runs on the visitor's own machine. The machine and program
+making the request is the <Term id="client">client</Term>, so here the browser
+is the client, and everything it received is now sitting on the client's side.
+
+The backend is the code the browser never sees. It runs on the
+<Term id="server">server</Term>, the machine that sits there waiting for
+requests, written in PHP, Python, Node, Go, or anything else. The rules that
+matter live here: what a thing costs, who is allowed to see it, whether a login
+is real.
+
+The split matters for one reason. The frontend runs on the attacker's hardware.
+Anything the server ships to the browser, the attacker can read, edit, and
+replay. The backend runs on hardware the attacker never logs into. That line,
+between code the attacker runs and code the server runs, is the single most
+important boundary in web security, and every later lesson circles back to it.
+
+## What the server does with a request
+
+The server is a program that never stops running. It holds a socket open on a
+<Term id="port">port</Term> (80 for plain <Term id="http">HTTP</Term>, 443 for
+the encrypted version) and waits. When a request arrives, it reads the first
+line, the method and the path, and hands the request to whichever chunk of code
+is registered for that combination. That chunk is the handler.
+
+Take `GET /products/42`. The server matches `GET` plus `/products/...` to a
+handler, pulls the `42` out of the path, and now has to turn that number into an
+answer. It doesn't have the answer sitting in memory. That's the part beginners
+skip, so slow down on it.
+
+Two more things about that handler are worth pinning down. It runs the same way
+for every visitor, so the code that answers the attacker is the exact code that
+answers a paying customer, and it can't tell them apart by looking. And it treats
+each request as a fresh event. The server does not remember the last request this
+browser sent, or that it sent one at all. Every knock is answered cold, which is
+why an app has to work to remember anyone. Hold that thought; it decides the
+whole next lesson.
+
+## The database behind it
+
+The server forgets almost everything the moment a request finishes. It doesn't
+keep the product list, the user table, or yesterday's orders in memory. Those
+live in a database: a separate program whose whole job is to store data and hand
+pieces of it back on request. Postgres, MySQL, SQLite, and MongoDB are the
+common ones.
+
+The separation is deliberate. Many requests arrive at once, sometimes many
+copies of the server running side by side, and all of them need to agree on the
+same prices and the same account balances. One shared database is the single
+source of truth they all read from and write to, so no single request can wander
+off with its own private copy of reality.
+
+The server asks the database for what it needs with a query, a sentence written
+in a query language. For the relational databases most apps use, that language
+is SQL. The handler for `GET /products/42` builds a query that reads, in plain
+terms, give me the row in `products` where the id is `42`:
+
+```sql
+SELECT name, price, stock FROM products WHERE id = 42;
+```
+
+The database runs that, hands back one row, and the handler shapes the row into
+a response, often JSON, and sends it up to the browser.
+
+Here is the part to hold onto. The `42` in that query did not come from the
+server. It came out of the path, which came from the browser, which is the
+attacker's side of the line. The handler took a value a stranger chose and
+dropped it into a sentence it sends to the database. Nothing bad happens while
+`42` is just a number. The shape is what matters: a whole family of attacks is
+nothing more than choosing that value carefully.
+
+<CommandCard
+  command="curl -s http://shop.example/api/products/42"
+  title="linux"
+  explain="Requests one product by id, the same call the browser makes behind the page. The server reads 42 from the path, queries the database, and returns the row as JSON."
+/>
+
+<ExpectedOutput label="the JSON the server built from one database row">
+```json
+{"id":42,"name":"USB-C cable","price":8.99,"stock":140}
+```
+</ExpectedOutput>
+
+Change the `42` to `43` and the server runs the same query with a different
+number. Nothing stops that, and nothing should, for a public product. The
+question that opens later is what happens when the row belongs to someone else.
+
+<Quiz
+  id="webapp-input-origin"
+  question="The handler for GET /products/42 builds a database query using the number 42. On a security review, why does that 42 deserve a second look?"
+  answer={1}
+  options={[
+    "It does not. The developer hard-coded 42 into the handler.",
+    "The 42 came from the path the browser sent, so a stranger chose it and could send any other value.",
+    "The database generated the 42 and passed it back to the handler.",
+    "The 42 is part of the HTTP version string and cannot be changed.",
+  ]}
+  explanation="The number sits in the path of the request the browser sent, which means whoever holds the browser picked it. The handler dropped a stranger's value straight into a query. That pattern sits under most web bugs, even though a plain 42 does nothing wrong on its own."
+/>
+
+## From a click to a query and back
+
+A form is the everyday way input travels from a person into the backend. Take a
+login form with two fields, a username and a password, and a submit button. When
+the button is clicked, the browser gathers the field values and builds an HTTP
+request. That request carries an address, the <Term id="url">URL</Term> the form
+points at, a method, a set of <Term id="header">header</Term>s that hold
+metadata, and a body, the <Term id="payload">payload</Term> that carries the
+field values:
+
+```
+POST /login HTTP/1.1
+Host: shop.example
+Content-Type: application/x-www-form-urlencoded
+
+user=alice&pass=hunter2
+```
+
+The server's `/login` handler reads `user` and `pass` out of the body, then asks
+the database for the matching account:
+
+```sql
+SELECT id, role, password_hash FROM users WHERE username = 'alice';
+```
+
+It hashes the submitted password and compares it against the stored hash, and
+one of two things happens. On a match, the server replies `302 Found` with a
+`Location` header pointing at the dashboard and a `Set-Cookie` header carrying a
+fresh session value. On no match, it replies `401 Unauthorized`, or re-renders
+the login page with `200 OK` and an error message.
+
+That's the whole loop. A click became a request, the request became a query, the
+query returned a row, the row became a response, and the response became the
+next page. Five hops, two machines, and exactly one of the machines is under the
+attacker's control.
+
+<Quiz
+  id="webapp-302-flow"
+  question="A login handler checks the password, then replies 302 Found with a Location header and a Set-Cookie header. What does that response tell the browser to do next?"
+  answer={1}
+  options={[
+    "Resend the same POST because the server was busy.",
+    "Follow the Location header to a new page, now attaching the cookie the server just set.",
+    "Show the login form again because the password was wrong.",
+    "Load the page from cache without contacting the server.",
+  ]}
+  explanation="302 Found is a redirect. The browser requests whatever the Location header names, and it attaches the freshly set cookie to that request. A wrong password would not redirect. It would return 401 Unauthorized or re-render the form."
+/>
+
+## Where the input gets in
+
+Every hop in that chain is fixed except one: the request. The browser decides
+what goes into it, which means the attacker decides. The set of places a request
+can carry attacker-chosen data into the backend is the app's attack surface, and
+it's smaller and more countable than it first looks:
+
+- The path. `/products/42`, `/users/alice`. Everything after the method.
+- The query string. Everything after the `?` in the URL, like `?sort=price&page=2`.
+- The body. The `name=value` pairs a `POST` carries, or a JSON blob.
+- The headers. `Host`, `User-Agent`, `Referer`, and any custom ones the app reads.
+- The cookies. A <Term id="cookie">cookie</Term> is a small value the browser
+  stores and attaches to every request to a site. The next lesson is about
+  these, but note now that a cookie is just another header the browser sends, so
+  it's just another input the server can wrongly trust.
+
+Mapping those inputs on a target, one endpoint at a time, is
+<Term id="enumeration">enumeration</Term>, and it's most of the early work on any
+web app. Each input is a spot where the server might trust data it should have
+checked. A spot like that is a <Term id="vulnerability">vulnerability</Term>; the
+specific crafted request that abuses it is the <Term id="exploit">exploit</Term>.
+No exploit in this module yet. The point here is the map.
+
+The frontend loves to look like a control. A hidden field holds the price so the
+visitor never sees it. JavaScript refuses to submit until the password is eight
+characters. Both run on the attacker's machine, so both are suggestions. curl
+ignores every one of them and sends whatever the request should say. Any value
+the browser can send, the server has to assume an enemy chose and re-check on its
+own side of the line.
+
+Headers catch people out here, because they feel like they come from the
+browser, not the user. They don't. Every header is just more text in the
+request, and a request built by hand can carry any header with any value. An app
+that decides who you are from a `User-Agent`, or trusts a `Host` line to pick
+which site to serve, is trusting a string a stranger typed. The rule has no
+exceptions: if it arrived in the request, it is input.
+
+<Callout type="security" title="The client is never a trust boundary">
+Frontend checks exist to help honest users fill a form out correctly. They stop
+nobody. The only question that decides whether an app is safe is whether the
+backend independently verifies each value, or whether it trusted what the browser
+sent. If it trusted the browser, the browser lied.
+</Callout>
+
+<Quiz
+  id="webapp-trust-boundary"
+  question="A checkout page keeps the price in a hidden form field and uses JavaScript to block submitting a quantity below 1. Which of those values must the server still verify itself?"
+  answer={2}
+  options={[
+    "Neither, because both checks already ran in the browser.",
+    "Only the quantity, since the price is hidden and cannot be edited.",
+    "Both, because every value the browser sends can be changed before it arrives.",
+    "Neither, as long as the request is sent over HTTPS.",
+  ]}
+  explanation="A hidden field is still ordinary request data, and JavaScript runs on the visitor's own machine, so both the price and the quantity can be rewritten before the request leaves. HTTPS scrambles the data in transit but validates nothing. The server has to look up the real price and re-check the quantity on its own."
+/>
+
+<Exercise title="Map the inputs">
+Pick any request you can read in full. The raw text `curl -v` printed in the
+previous lesson works, or capture a login form's POST the same way. Write down
+every place a value came from your side: the path after the method, each
+`name=value` pair in the query string, each field in the body, and every header
+you set, including any `Cookie` line.
+
+Now mark which of those the server has to re-check before trusting it. The honest
+answer is all of them. That list is the app's attack surface, and it's the same
+list you work through in every web lesson that follows.
+</Exercise>
+
+Look back at the login loop one more time. The server answered a correct password
+with a `Set-Cookie` header, then went straight back to holding no memory of
+anyone. HTTP forgets: the very next request from that same browser arrives as a
+blank stranger unless it carries something that proves who sent it. That
+something is the cookie the server just set, and how an app turns a one-time
+login into a <Term id="session">session</Term> that follows a person around is
+the whole of the next lesson.
+
+<Notes />

@@ -1,0 +1,200 @@
+---
+title: Relationships and Joins
+module: sql-and-databases
+moduleTitle: SQL and Databases
+moduleOrder: 4
+moduleIcon: Database
+order: 4
+summary: "Real data lives in separate tables on purpose; a JOIN matches their keys and pulls one answer from several tables at once."
+estimatedMinutes: 16
+prerequisites: [filtering-and-sorting]
+objectives:
+  - Explain why repeating an author's details on every book row causes update problems
+  - Connect two tables with a foreign key that points at another table's primary key
+  - Write an INNER JOIN that matches rows on a key with SELECT, FROM, JOIN, and ON
+  - Shorten a join with table aliases and know when a LEFT JOIN keeps unmatched rows
+tags:
+  - sql
+  - joins
+---
+
+The last lesson pulled rows out of one table and put them in order: a WHERE clause to keep the books published after 1960, an ORDER BY to sort them by year. Every answer came from a single table. Real questions rarely stay that tidy. Ask for a list of books next to the country each author comes from, and one table cannot answer, because the country was never stored beside the book. It lives with the author, in a different place. Joining is how SQL answers a question whose pieces are spread across tables, and it is the point where the language starts to earn its keep.
+
+## Why one big table goes wrong
+
+Picture a single `books` table that tries to hold everything: the title, the year, and the author's full details on every row.
+
+| id | title | author_name | author_country | year |
+|----|-------|-------------|----------------|------|
+| 1 | A Wizard of Earthsea | Ursula K. Le Guin | USA | 1968 |
+| 2 | The Left Hand of Darkness | Ursula K. Le Guin | USA | 1969 |
+| 3 | Things Fall Apart | Chinua Achebe | Nigeria | 1958 |
+
+Look at rows 1 and 2. Le Guin's name and country are written out twice, and if she had ten books, they would be written out ten times. That repetition is the problem, and it bites in two ways.
+
+The first bite is updates. Say her country was entered wrong and needs fixing. In this design the fix has to touch every single row that mentions her. Ten books means ten edits, and the moment one edit gets missed, the table now claims Le Guin is from two different countries at once. A database that disagrees with itself is worse than no database, because queries trust it.
+
+The second bite is that there is nowhere to record an author who has not published yet. Author details only exist as a side effect of a book row. No book, no author. The data model has quietly decided that authors cannot exist on their own, which is not how the world works.
+
+The fix is to stop repeating and start pointing. Pull the author details into their own table, list each author exactly once, and have each book point at the right author instead of copying the details in. That splits one wide table into two narrow ones that relate to each other. Database people call this design normalization, and the plain version of the idea is simple: each fact gets one home, and everything else refers to that home rather than restating it.
+
+## Two tables and a key that connects them
+
+Here is the same information split into an `authors` table and a slimmer `books` table. Each author appears once. Each book keeps only a reference to its author.
+
+```sql
+CREATE TABLE authors (
+  id      INTEGER PRIMARY KEY,
+  name    TEXT,
+  country TEXT
+);
+
+CREATE TABLE books (
+  id        INTEGER PRIMARY KEY,
+  title     TEXT,
+  author_id INTEGER,
+  year      INTEGER
+);
+```
+
+The `authors` table now holds three people, each on one row:
+
+| id | name | country |
+|----|------|---------|
+| 1 | Ursula K. Le Guin | USA |
+| 2 | Chinua Achebe | Nigeria |
+| 3 | Haruki Murakami | Japan |
+
+And `books` drops the copied author details, keeping a single `author_id` column that names which author wrote it:
+
+| id | title | author_id | year |
+|----|-------|-----------|------|
+| 1 | A Wizard of Earthsea | 1 | 1968 |
+| 2 | The Left Hand of Darkness | 1 | 1969 |
+| 3 | Things Fall Apart | 2 | 1958 |
+| 4 | Kafka on the Shore | 3 | 2002 |
+
+Two words name what is happening here. A primary key is the column that gives every row in a table its own unique label, the way `id` does in both tables. No two authors share an `id`, and no two books do. It is how a single row gets picked out from all the rest.
+
+A foreign key is a column in one table that holds the primary key of a row in another table. Here `books.author_id` is the foreign key: the value `1` in a book row is not the number one in any meaningful sense, it is a pointer that says "the author whose `id` is 1." Book 1 and book 2 both carry `author_id = 1`, so both point at the single Le Guin row. Fix her country once, in that one row, and every book that points at her sees the correction instantly, because the country was never copied into the books to begin with.
+
+That is the whole payoff of splitting the data. One fact lives in one place. The pointer is cheap to store and free to update, and an author can now sit in the `authors` table with no books at all, waiting for a first title.
+
+<Quiz
+  id="joins-why-split"
+  question="The author details are split into their own table and each book stores only an author_id. Le Guin's country was entered wrong. How many rows have to change to fix it, compared with the single-table version that repeated her country on every book row?"
+  answer={2}
+  options={[
+    "The same number in both designs, since the country still appears once per book.",
+    "Zero rows, because SQLite recalculates author details automatically.",
+    "One row in the authors table, versus one row per Le Guin book in the single-table version.",
+    "One row per book in both designs, because author_id copies the country into each book.",
+  ]}
+  explanation="With the split, the country lives on exactly one authors row, so one edit fixes it everywhere the foreign key points. The single-table version repeats the country on every book row, so it needs one edit per book and risks leaving copies disagreeing. author_id is a pointer, not a copy."
+/>
+
+## The join: matching rows on the key
+
+Splitting the data was the setup. Now the question "list each book beside its author's name" needs both tables read together, matched up on the key. That match is what a JOIN does.
+
+```sql
+SELECT books.title, authors.name
+FROM books
+JOIN authors ON books.author_id = authors.id;
+```
+
+Read it in pieces. `FROM books` starts with the books table. `JOIN authors` says to bring in the authors table as well. The `ON books.author_id = authors.id` is the heart of it: for each book, find the author whose `id` equals that book's `author_id`, and stitch the two rows together into one wider row. The `SELECT` then picks which columns from that combined row to show, and because both tables have their own columns, each name is written table-first, as `books.title` and `authors.name`, so there is no confusion about where a column comes from.
+
+A useful way to picture the work: the database walks the books table one row at a time, and for each book it scans the authors table for the row whose `id` matches that book's `author_id`. When it finds one, it lays the book's columns and the author's columns side by side and emits that as a single result row. The stored tables are never altered by any of this. The joined shape exists only for the length of the query, assembled fresh each time it runs.
+
+The result pairs every book with the one author it points at:
+
+| title | name |
+|-------|------|
+| A Wizard of Earthsea | Ursula K. Le Guin |
+| The Left Hand of Darkness | Ursula K. Le Guin |
+| Things Fall Apart | Chinua Achebe |
+| Kafka on the Shore | Haruki Murakami |
+
+Le Guin appears on two rows because two books point at her, and that is correct: the join produces one output row per matching pair, not one per author. This exact form is called an INNER JOIN, and INNER is the important word. It keeps only rows where the match succeeds. A book with an `author_id` that matches no author would simply drop out of the result, and an author with no books would never appear, because nothing on the books side points back at them.
+
+Running it against a real SQLite database prints the same four rows. With column mode and headers turned on, the output looks like this:
+
+<CommandCard command="sqlite3 library.db" title="terminal" explain="Opens the SQLite command tool on a database file named library.db, where the authors and books tables already exist." />
+
+<ExpectedOutput label="running the join">
+```
+title                      name
+-------------------------  -----------------
+A Wizard of Earthsea       Ursula K. Le Guin
+The Left Hand of Darkness  Ursula K. Le Guin
+Things Fall Apart          Chinua Achebe
+Kafka on the Shore         Haruki Murakami
+```
+</ExpectedOutput>
+
+<Quiz
+  id="joins-on-clause"
+  question="In SELECT books.title, authors.name FROM books JOIN authors ON books.author_id = authors.id, what decides which author name lines up with each book title?"
+  answer={1}
+  options={[
+    "The order the rows were inserted into each table.",
+    "The ON condition: a book pairs with the author whose id equals that book's author_id.",
+    "The alphabetical order of the author names.",
+    "A year column that both tables happen to share.",
+  ]}
+  explanation="The ON clause is the rule for matching rows: it pairs a book with the author whose primary key equals that book's foreign key. Insertion order and alphabetical order have no say, and the two tables share no year column. Drop the ON and the match rule is gone, which is a separate kind of trouble."
+/>
+
+## Shorter names with aliases, and one filter on top
+
+Once queries touch two or three tables, writing `books.title` and `authors.country` everywhere gets long. SQL lets each table be given a short alias right after its name in the FROM and JOIN, and the rest of the query uses the alias instead.
+
+```sql
+SELECT b.title, a.name, a.country
+FROM books b
+JOIN authors a ON b.author_id = a.id
+WHERE a.country = 'USA';
+```
+
+`books b` names the books table `b` for the length of this query, and `authors a` names the authors table `a`. From that point on, `b.title` means the same thing `books.title` did, just with less typing. The aliases are not new tables or copies of data. They are nicknames that vanish when the query finishes.
+
+This query also folds in the filtering from the previous lesson. The join stitches books to authors, and then the WHERE clause keeps only the pairs where the author's country is the United States. Joining and filtering compose cleanly: match first, then narrow. The result is two rows, both Le Guin's, since she is the only author from the USA in this data:
+
+| title | name | country |
+|-------|------|---------|
+| A Wizard of Earthsea | Ursula K. Le Guin | USA |
+| The Left Hand of Darkness | Ursula K. Le Guin | USA |
+
+<Callout type="warning" title="Forget the ON and the result explodes">
+Leaving the ON condition off a join is legal SQL, and it does something surprising. With no rule for matching rows, the database pairs every row on the left with every row on the right. Four books joined to three authors with no ON produces twelve rows, most of them nonsense, like A Wizard of Earthsea attributed to Haruki Murakami. The query does not error, so nothing warns that the answer is garbage. Whenever a join returns far more rows than expected, the first thing to check is whether the ON clause is present and actually compares the foreign key to the primary key.
+</Callout>
+
+<Quiz
+  id="joins-aliases"
+  question="A query writes FROM books b JOIN authors a ON b.author_id = a.id. What are b and a?"
+  answer={3}
+  options={[
+    "New copies of the tables, which doubles the stored data.",
+    "The names of the two columns being compared in the join.",
+    "Required keywords that every JOIN statement must include.",
+    "Short aliases for books and authors, so the rest of the query can write b.title instead of books.title.",
+  ]}
+  explanation="An alias is a temporary nickname for a table inside one query, chosen to cut typing. It copies no data and adds no columns, and it is optional. b and a stand in for books and authors; the actual columns being compared are b.author_id and a.id, named after the aliases."
+/>
+
+## When the unmatched rows matter
+
+The INNER JOIN drops rows that fail to match, which is usually what a question wants. Sometimes it is exactly wrong. To list every author including the ones who have not published a book yet, an inner join would silently hide them, because nothing on the books side points back. A LEFT JOIN keeps every row from the left table, the one named first, even when no match exists on the right, and fills the missing right-side columns with NULL, the database's marker for "no value here."
+
+Written as `FROM authors a LEFT JOIN books b ON b.author_id = a.id`, that query returns all three authors, with an author who wrote nothing showing a NULL where a title would go. The choice between the two joins comes down to a single question: should a row survive when it has no partner? INNER says no, LEFT says yes. Reach for the inner join by default, and switch to LEFT only when the unmatched rows are part of the answer.
+
+<Exercise title="Join two tables you build yourself">
+In a SQLite session, create the `authors` and `books` tables from this lesson and insert the three authors and four books shown in the tables above. Then write the inner join that lists each book title next to its author's name, and confirm you get four rows with Le Guin appearing twice.
+
+Next, add a fourth author with no books, for example an author named Octavia Butler with country USA, but insert no book pointing at her. Run your inner join again and notice she does not appear. Now change JOIN to LEFT JOIN and put `authors` first in the FROM, and watch her row show up with NULL where a title would be. That contrast, the same data through two joins, is the fastest way to feel what INNER and LEFT actually do.
+</Exercise>
+
+A join reads across tables without changing a thing in them. The next lesson, changing data, turns to the other half of SQL: INSERT to add rows, UPDATE to edit them, and DELETE to remove them. It also covers the WHERE clause's most dangerous absence, because an UPDATE or DELETE with no WHERE does not touch one row, it touches every row in the table at once.
+
+<Notes />

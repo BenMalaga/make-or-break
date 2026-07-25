@@ -1,0 +1,169 @@
+---
+title: Modern Vector Tiles with MapLibre GL
+module: gis-web-mapping
+moduleTitle: Web Mapping
+moduleOrder: 6
+moduleIcon: Globe
+order: 3
+summary: "Vector tiles send a map's raw shapes instead of finished pictures, so a browser's own graphics processor draws and restyles the map instead of waiting on new images."
+estimatedMinutes: 15
+prerequisites: ["your-first-web-map"]
+objectives:
+  - Explain what a vector tile encodes and how that differs from a raster tile image
+  - Read a MapLibre style's sources and layers and say what job each part does
+  - Assemble a minimal MapLibre GL JS map using a free, public vector style
+  - Decide when vector tiles are worth choosing over the raster tiles from the previous lesson
+tags:
+  - gis
+  - web
+  - maplibre
+---
+
+The previous lesson, building a first web map, loaded a raster basemap into Leaflet: square images, already drawn, stitched together to fill the screen. Zoom in far enough on that map and the street labels turn to mush, because the image was rendered at one size and is now just being stretched. Switch that basemap from a light theme to a dark one and the whole set of images has to be fetched again from scratch. Both of those are ceilings that raster tiles hit by nature, and vector tiles remove them by sending the map's actual data instead of a picture of it.
+
+## What a vector tile actually holds
+
+A raster tile is a finished image, a 256 or 512 pixel square of colored dots that someone else already decided how to draw. A vector tile is not a picture at all. It is a small binary file, usually saved with a `.pbf` extension (short for Protocol Buffers, a compact binary encoding), that lists the actual points, lines, and polygons sitting inside that tile's patch of the world, each carrying its own attributes. A road segment might arrive tagged `highway=primary` with a name and a speed limit. A park boundary might arrive tagged `leisure=park` with a name and nothing else. None of that is baked into pixels. It is still raw, labeled geometry.
+
+Sending shapes instead of pixels moves the drawing work from the map server to the browser. The browser's graphics processor, the GPU, the same chip that draws video games, turns that list of points and lines into pixels on screen, on the fly, every time the map moves. The server's job shrinks down to handing over compact packets of geometry. The browser's job grows to include the actual painting, which is exactly the trade that unlocks everything below.
+
+The tiling scheme underneath stays the same as the previous lesson's raster tiles: a grid of squares indexed by zoom level, then column and row, written `z/x/y`, cut in Web Mercator, EPSG:3857, the same projection that raster basemap used. A vector tile at `10/301/384` covers the identical patch of ground a raster tile at that same `z/x/y` would. It just describes that patch with shapes and labels instead of colored dots.
+
+## Why that trade pays off
+
+Four consequences follow from handing the browser shapes instead of finished images, and each one is a real reason to reach for vector tiles over raster ones.
+
+- **Sharp at any zoom.** The browser draws a road as a line with an actual width, not a resampled photograph, so pushing the zoom past a tile's native resolution never blurs it. The line gets redrawn crisp at whatever zoom the map currently sits at.
+- **Restyling is instant.** Since the browser already holds the shapes, turning every road from gray to orange, or flipping the whole map to a dark theme, is a change to drawing instructions, not a fetch of new tiles. The switch lands in a frame or two, with no network request involved.
+- **Rotation and tilt work.** A raster tile is a flat photograph. Tilt the camera and it looks like a photo glued to a slanted board, streets warping into smears. A vector tile is real geometry in a real coordinate space, so the browser can rotate the whole scene or tilt it into a three dimensional perspective and keep every line and label legible.
+- **Less data for a lot of features.** A tile packed with thousands of small parcel boundaries costs very little as compact geometry. The same patch of ground rendered ahead of time as an image would need far more bytes to keep all those boundaries visible.
+
+None of this makes raster tiles obsolete. It explains why a map that needs to restyle, tilt, or carry a dense dataset reaches for vector tiles instead, a distinction the next few sections build on.
+
+<Quiz
+  id="vector-tiles-restyle"
+  question="A designer wants to switch a live web map from a light theme to a dark theme with no new network request. Which kind of tile makes that possible, and why?"
+  answer={1}
+  options={[
+    "Raster tiles, because the images are already cached in the browser.",
+    "Vector tiles, because the browser already holds the geometry and only needs new drawing instructions to repaint it.",
+    "Neither. Restyling a basemap always requires fetching new tiles from the server.",
+    "Raster tiles, because PNG images can hold more than one color theme in a single file.",
+  ]}
+  explanation="Vector tiles hand the browser real geometry, so a new theme is just a change to how that geometry gets drawn, no new tiles needed. Raster tiles are finished images baked at one particular style, so a new theme means a whole new set of images from the server. Restyling without a refetch is one of the strongest reasons to pick vector tiles."
+/>
+
+## MapLibre GL JS: the fork that kept vector tiles open
+
+Mapbox GL JS was the library that popularized this approach, built by Mapbox starting in the early 2010s and released as free, open source software. In December 2020, Mapbox changed the license on new versions of that library, moving it to proprietary terms tied to a Mapbox account and billing. A group of the library's own contributors, along with outside companies that depended on it, forked the last fully open version and kept developing it under an open license. That fork is MapLibre GL JS, and it is what this lesson builds on: no account, no API key, no billing tied to one vendor.
+
+MapLibre and Mapbox GL JS still share nearly the same programming interface today, since MapLibre grew directly out of that fork. The difference that matters here is that MapLibre stays free and open, with tile sources and hosting a choice left entirely to whoever builds the map, rather than a single company's service.
+
+## A style is JSON: sources and layers
+
+Everything MapLibre draws on screen comes from one JSON document called a style. Two parts of that document do almost all the work.
+
+A **source** says where tile data comes from. It might be a template URL with `{z}`, `{x}`, and `{y}` placeholders that MapLibre fills in as the map moves, or a link to a small JSON document, called a TileJSON, that itself lists that template along with a zoom range and other details. A style can name more than one source, one for a basemap and another for a dataset laid over it.
+
+A **layer** says how to draw one particular kind of feature pulled out of a source. Draw the water features as a filled blue polygon. Draw the road features as a line whose width and color depend on the road's own attributes. Draw the city-name features as text labels. Each layer names the source it reads from, which named group of features inside that source to use (called the `source-layer`), and a paint and layout description of how to render it.
+
+Trimmed down to the smallest useful shape, a style looks like this:
+
+```json
+{
+  "version": 8,
+  "sources": {
+    "basemap": {
+      "type": "vector",
+      "tiles": ["https://example.com/tiles/{z}/{x}/{y}.pbf"],
+      "maxzoom": 14
+    }
+  },
+  "layers": [
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "water",
+      "paint": { "fill-color": "#a0c8f0" }
+    }
+  ]
+}
+```
+
+One source, named `basemap`, pointing at a tile URL template. One layer, named `water`, that draws the `water` group of features out of that source as a light blue fill. A real basemap style stacks dozens of layers this way, water first, then land cover, then roads, then place labels last so text sits above every polygon and line beneath it.
+
+<Quiz
+  id="maplibre-sources-layers"
+  question="In a MapLibre style JSON, what is the actual difference between a source and a layer?"
+  answer={1}
+  options={[
+    "A source always holds vector data and a layer always holds raster data.",
+    "A source says where the tile data comes from, a layer says how to draw one kind of feature pulled from a source.",
+    "A source sets the map's zoom level and a layer sets its center point.",
+    "They are two names for the same setting, kept for compatibility with older style files.",
+  ]}
+  explanation="A source points at the data itself, a tile URL template or a TileJSON. A layer describes how to render one named group of features drawn from a source, its fill color, line width, or label text. Neither one controls zoom or center, those live elsewhere in the style, and sources are not restricted to one data type."
+/>
+
+## Building a minimal map
+
+MapLibre GL JS ships as a script file and a stylesheet, both loadable straight from a CDN with no build tool required to get a first map on screen:
+
+```html
+<link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+<div id="map" style="height: 400px;"></div>
+```
+
+The map itself needs only a few lines of JavaScript, pointing at a free public style that requires no account or key at all:
+
+```javascript
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://demotiles.maplibre.org/style.json',
+  center: [-74.0, 40.7],
+  zoom: 9,
+});
+
+map.on('load', () => {
+  console.log('zoom:', map.getZoom());
+});
+```
+
+<ExpectedOutput label="printed once the style and its first tiles finish loading">
+```
+zoom: 9
+```
+</ExpectedOutput>
+
+`container` names the div the map lives inside. `style` points at that public demo style, the one the MapLibre project itself publishes for exactly this kind of first test. `center` takes a longitude then a latitude, the same lon, lat order every GeoJSON coordinate uses, here sitting over New York City. Once the `load` event fires, meaning the style and its first round of tiles have both arrived, `map.getZoom()` reports the zoom level that was set going in, 9.
+
+<Callout type="info" title="The stylesheet is not optional">
+A page that loads the MapLibre script but skips the CSS file still shows a map, which makes the mistake easy to miss. Without the stylesheet the zoom buttons land in the wrong corner and the attribution text overlaps the map instead of sitting in its own small box. Load both files, in either order, before creating the map, and the layout comes out right the first time.
+</Callout>
+
+## Raster or vector: when the switch is worth it
+
+None of this makes raster tiles the wrong choice for every job. A one-off map with a handful of markers over a basemap that never changes has little to gain from vector tiles. A raster layer in Leaflet is less code, and it renders fine even on a browser with no meaningful graphics processor behind it.
+
+Vector tiles earn their keep once a map needs any of the things raster tiles cannot do cheaply: restyling without a fresh fetch, a day and night toggle or a colorblind-friendly palette swap applied instantly, a tilt or rotation of the whole scene, or a basemap dense enough that shipping it as pre-rendered images would mean a lot of bytes for what is, underneath, a fairly small set of shapes. A full city road and building layer is exactly that dense, frequently restyled case, and it is where vector tiles show their advantage most clearly over the raster approach from the previous lesson.
+
+<Quiz
+  id="vector-vs-raster-choice"
+  question="A map shows a handful of fixed markers over a basemap that never restyles, tilts, or rotates. Which tile approach fits, and why?"
+  answer={1}
+  options={[
+    "Vector tiles, because every current web map should use them regardless of what it actually needs.",
+    "Raster tiles, because the map's needs never touch the reasons vector tiles exist: no restyle, no tilt, no dense frequently redrawn dataset.",
+    "Neither, because Leaflet is unable to load either kind of tile.",
+    "Vector tiles, because they are always smaller in total size than raster tiles no matter the dataset.",
+  ]}
+  explanation="Vector tiles earn their cost when a map restyles without refetching, tilts or rotates, or carries a dataset dense enough that shapes beat pictures for size. A static basemap with a few fixed markers touches none of those, so the simpler raster approach fits fine. Vector tiles are not always smaller, that depends on how dense the data actually is, and Leaflet can load either kind with the right plugin."
+/>
+
+## Vector tiles without a tile server
+
+Serving vector tiles has usually meant running a tile server, a program that slices a large dataset into `z/x/y` tiles on request and keeps running as long as the map needs it. PMTiles removes that requirement. It packs an entire set of vector tiles into a single file with a `.pmtiles` extension, structured so a plain static file host, an object storage bucket, a static site host, anything that can return a byte range from a file, can serve it with no server process running behind it. A small JavaScript library reads that one file directly in the browser and hands MapLibre the tiles it asks for as the map moves.
+
+That combination matters for anyone who wants a fully custom vector basemap without also taking on the job of running infrastructure. The next lesson stays inside the style JSON itself, using data-driven paint expressions so a single road layer can render as a thin gray line at a low zoom and a thick line colored by speed limit once the map zooms into a city.

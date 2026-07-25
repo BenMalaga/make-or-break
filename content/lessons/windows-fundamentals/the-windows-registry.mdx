@@ -1,0 +1,217 @@
+---
+title: The Windows Registry
+module: windows-fundamentals
+moduleTitle: Windows Fundamentals
+moduleOrder: 12
+moduleIcon: AppWindow
+order: 2
+summary: "One hierarchical database holds nearly every setting Windows has: how to read it, and why both attackers and defenders watch it."
+estimatedMinutes: 17
+prerequisites:
+  - windows-architecture
+objectives:
+  - Explain what the registry is and how it replaced scattered configuration files
+  - Navigate the five root keys and say what each one holds
+  - Read keys, values, and value types with reg query and regedit
+  - Describe why the registry is central to both persistence and defensive monitoring
+tags:
+  - windows
+  - registry
+---
+
+The previous lesson described how Windows starts processes, runs services, and
+loads the components that make up a running system. Every one of those choices,
+which service starts at boot, which program opens a .pdf, which driver loads for a
+piece of hardware, has to be recorded somewhere. Windows records almost all of it
+in one place: the registry.
+
+Linux keeps its configuration in hundreds of separate text files under `/etc`.
+Windows took the opposite approach. It put nearly all configuration into a single
+hierarchical database that the operating system, drivers, and applications all
+read from and write to constantly. Understanding that database is not optional
+knowledge. It is where a huge amount of what a system does is actually decided.
+
+## What the registry is
+
+The registry is a tree. It looks and behaves a lot like the folders and files of a
+filesystem, and the comparison is worth holding onto because it makes the whole
+thing legible.
+
+A **key** is like a folder. It has a name, it can contain other keys, and it can
+contain values. `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services` is a key,
+and every service installed on the machine has its own key nested underneath it.
+
+A **value** is like a file inside a folder. It has a name, a type, and data. The
+service key for the Windows Time service, for example, holds a value named `Start`
+whose data is a number that decides whether the service launches at boot, on
+demand, or not at all.
+
+A **hive** is the on-disk file that a section of the tree is loaded from. The tree
+that a user sees in a registry editor is assembled in memory from several hive
+files stored on disk, most of them under `C:\Windows\System32\config`. The word
+matters because when the registry is discussed at the file level, for backup, for
+forensics, or when a section is loaded from another machine's disk, it is the hive
+files that are being handled.
+
+<Callout type="info" title="Why one database instead of many files">
+A single structured store gave Windows fast lookups, a consistent way for any
+program to read and write settings, and per-user separation built in. The cost is
+that one corrupted or misconfigured database can affect the entire system, which
+is exactly why it is worth understanding rather than fearing.
+</Callout>
+
+<Quiz
+  id="reg-key-vs-value"
+  question="Using the filesystem comparison, what is a registry value most like?"
+  answer={2}
+  options={[
+    "A folder that can contain other folders",
+    "The physical disk the data sits on",
+    "A named file inside a folder, holding typed data",
+    "A shortcut that points somewhere else",
+  ]}
+  explanation="A key is like a folder and can contain sub-keys and values. A value is the named, typed piece of data stored inside a key, which makes it the closest match to a file."
+/>
+
+## The five root keys
+
+At the top of the tree sit five root keys, each conventionally shortened to an
+`HK` abbreviation. Two of them are the real stores, and the other three are
+convenience views assembled from parts of the first two.
+
+- **HKEY_LOCAL_MACHINE (HKLM)** holds settings that apply to the whole machine and
+  every user on it: installed services, drivers, hardware, and software installed
+  for all users. This is the one that matters most when reasoning about what a
+  system does as a whole.
+- **HKEY_USERS (HKU)** holds one sub-tree per user account that has a profile on
+  the machine, each keyed by that account's security identifier. Every user's
+  personal settings live under here.
+- **HKEY_CURRENT_USER (HKCU)** is a view that points at the HKU sub-tree of whoever
+  is currently signed in. It exists so a program can read "the current user's
+  settings" without having to look up which account that is.
+- **HKEY_CLASSES_ROOT (HKCR)** is a merged view of machine-wide and per-user file
+  associations and component registrations. It answers "what opens a file of this
+  type, and what components are registered on this system".
+- **HKEY_CURRENT_CONFIG (HKCC)** is a small view onto the current hardware profile.
+
+The distinction between HKLM and HKCU comes up constantly. A setting under HKLM
+affects everyone and normally requires administrator rights to change. The same
+kind of setting under HKCU affects only the current user and can be changed by
+that user without special rights. That single difference, machine-wide versus
+per-user, decides who is allowed to change a great many things on Windows.
+
+<Callout type="security" title="Machine-wide versus per-user is a permission story">
+Because HKLM is shared by everyone, Windows guards it with permissions the same way
+it guards a shared system file. HKCU belongs to one user, so that user controls it.
+The next lesson, on Windows permissions, is what makes that boundary real, and the
+registry is one of the clearest places to see it in action.
+</Callout>
+
+## Keys, values, and their types
+
+A value is not just data, it is typed data, and the type tells a program how to
+read the bytes. A handful of types cover almost everything seen in practice:
+
+- **REG_SZ** is a plain text string, such as a file path or a name.
+- **REG_DWORD** is a 32-bit number, used constantly for flags and modes. The
+  `Start` value on a service is a REG_DWORD where `2` means automatic at boot and
+  `3` means manual.
+- **REG_BINARY** is raw bytes, used when the data has no simpler shape.
+- **REG_MULTI_SZ** is a list of strings.
+- **REG_EXPAND_SZ** is a string containing a variable like `%SystemRoot%` that gets
+  expanded when it is read.
+
+Knowing the type is what turns a wall of registry data into something readable. A
+`Start` value of `2` is meaningless until it is understood as a REG_DWORD whose
+documented meaning is "start this service automatically".
+
+<Quiz
+  id="reg-hklm-hkcu"
+  question="A setting exists under both HKLM and HKCU. What is the practical difference?"
+  answer={1}
+  options={[
+    "The HKCU copy loads faster because it is smaller",
+    "HKLM applies to the whole machine and usually needs admin rights to change; HKCU applies to one user and that user can change it",
+    "HKCU is stored on disk while HKLM is only in memory",
+    "There is no difference; the two are exact copies",
+  ]}
+  explanation="HKLM is machine-wide and guarded like a shared system resource, so changing it normally needs administrator rights. HKCU belongs to the current user, who controls their own copy."
+/>
+
+## Reading the registry
+
+Two tools cover almost all day-to-day work. **regedit** is the graphical editor, a
+tree on the left and the values of the selected key on the right, good for browsing
+and for seeing structure. **reg** is the command-line tool, better for scripting and
+for reading a specific value quickly.
+
+<CommandCard command="reg query HKLM\SYSTEM\CurrentControlSet\Services\W32Time /v Start" title="cmd" explain="Read the Start value of the Windows Time service. HKLM plus the path to the key, then /v names one value." />
+
+<ExpectedOutput label="Roughly what prints">
+```
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time
+    Start    REG_DWORD    0x3
+```
+</ExpectedOutput>
+
+The output shows the full key path, then the value name, its type, and its data.
+`0x3` is hexadecimal for 3, the REG_DWORD meaning "manual start". Reading that one
+line requires everything from the sections above: the key path locates a service,
+the value name picks one setting, and the type tells how to interpret the number.
+
+Adding `/s` to a `reg query` searches a key and everything beneath it, which is how
+a whole branch gets surveyed at once rather than one value at a time.
+
+## Why the registry sits at the center of Windows security
+
+Because the registry decides what runs and how, it is one of the most watched parts
+of the system, by both sides.
+
+There are well-known locations, often called autorun or "Run" keys, that list
+programs Windows launches automatically when the machine starts or a user signs in.
+This is a completely normal mechanism: legitimate software uses it so that an
+updater or a background helper starts on its own. That same convenience is also
+what an attacker who already has access abuses to make sure their program starts
+again after a reboot, which is called persistence. Nothing about the mechanism is
+malicious; what matters is who put an entry there and what it points at.
+
+This is exactly why defenders monitor these locations closely. Security tooling
+watches the common autorun keys and raises an alert when a new entry appears,
+because a new autostart entry that no administrator created is a strong signal
+worth investigating. The registry also records traces of user and system activity
+that matter in forensics, such as recently used files and installed software, which
+is why an investigator examines the hive files from a disk after an incident.
+
+The through-line is simple. The registry is where Windows keeps the decisions that
+govern its own behavior. That makes reading it the fastest way to understand what a
+system is configured to do, which is valuable whether the goal is to defend the
+machine, investigate it, or simply administer it well.
+
+<Quiz
+  id="reg-autorun-monitoring"
+  question="Why do defensive security tools pay close attention to the registry's autorun keys?"
+  answer={0}
+  options={[
+    "A new autostart entry that no administrator created is a strong signal worth investigating",
+    "Autorun keys are the only writable part of the registry",
+    "Reading those keys speeds up the boot process",
+    "The keys store the machine's disk-encryption password in plain text",
+  ]}
+  explanation="Autorun keys legitimately list programs that start automatically, so an unexpected new entry stands out. Monitoring them is a cheap, high-signal way to catch software that arranged to relaunch itself without authorization."
+/>
+
+<Exercise title="Read a real value on a Windows machine">
+On a Windows system you administer, open a command prompt and run
+`reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v ProductName`.
+Note the value name, its type, and its data in the output, then find the same key
+in regedit by expanding the tree down the same path. Seeing one value in both tools
+is the fastest way to connect the command line and the graphical view.
+</Exercise>
+
+The registry gave a tour of where Windows keeps its settings and who is allowed to
+change them, and that question of who is allowed kept coming up: HKLM needs
+administrator rights, HKCU does not. The next lesson, on Windows permissions,
+explains the machinery behind that line, the tokens and access rules that decide
+what any account is actually permitted to do.
+
+<Notes />

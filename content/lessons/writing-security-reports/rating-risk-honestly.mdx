@@ -1,0 +1,70 @@
+---
+title: Rating Risk Honestly
+module: writing-security-reports
+moduleTitle: Writing Security Reports
+moduleOrder: 44
+moduleIcon: NotebookPen
+order: 4
+summary: If every finding is Critical, none of them are. Your severity ratings are only worth what your restraint makes them.
+estimatedMinutes: 18
+objectives:
+  - Read and reason about a CVSS vector instead of copying the base score
+  - Adjust severity for real likelihood and business context, not just the raw metrics
+  - Explain why inflating ratings destroys the credibility of your whole report
+tags:
+  - reporting
+  - cvss
+  - risk
+  - severity
+---
+
+The fastest way to spot a junior report is that everything in it is High or Critical. Reflected XSS rated Critical. A missing HTTP header rated High. When a client sees that, they stop trusting the ratings entirely, and then they cannot tell your real Critical from your reflexive one. Severity is a currency, and printing too much of it makes all of it worthless.
+
+CVSS is the common language for severity, and you should use it, but use it with your eyes open. The base score is a formula over a vector string, and the formula does not know anything about the specific environment you tested.
+
+## Read the vector, do not just copy the number
+
+A CVSS 3.1 base vector is a set of metrics, and reading it tells you more than the single number it produces.
+
+<CommandCard command="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H  =  9.8 Critical" explain="AV:N network reachable, AC:L low complexity, PR:N no privileges needed, UI:N no user interaction, and High impact to confidentiality, integrity, and availability. That combination, remote and unauthenticated with full impact, is what actually earns a 9.8. If any of those drops, the score should too." />
+
+The metrics that move the score most are the ones about how hard the attack is to reach. Attack Vector, Privileges Required, and User Interaction are the difference between a 9.8 and a 6.5. A bug with High confidentiality impact that requires you to already be domain admin (PR:H) is not a 9.8, and the vector will say so if you fill it in honestly instead of reaching for the scariest number.
+
+## Base score is a starting point, context is the finish
+
+CVSS base is deliberately environment-blind. The same flaw can be a real Critical on an internet-facing app and a genuine Low on an internal box that already requires two other compromises to reach. That is what the Environmental and Temporal metrics are for, and it is also just good judgment.
+
+Split it into likelihood and impact and reason about each. Impact is how bad it is if it happens. Likelihood is how plausible it is that someone reaches and triggers it given where it lives and what stands in front of it. An RCE behind three layers of auth, only reachable from a segment you need domain admin to enter, has severe impact and low likelihood, and the honest rating lands in the middle, not at the top.
+
+<CommandBlock
+  title="the same base finding, rated in context"
+  commands={[
+    { cmd: "RCE on the public login page, unauthenticated", comment: "high impact, high likelihood -> Critical, and it is real" },
+    { cmd: "Same RCE, only reachable after full DA compromise", comment: "high impact, low likelihood -> Medium, say why in the finding" },
+  ]}
+/>
+
+When you adjust a rating down from the raw CVSS, write one sentence saying why. "Base CVSS is 9.8, adjusted to Medium because exploitation requires prior domain admin, which itself is Critical finding 1." That sentence is what separates a considered rating from a lazy one, and it is what makes the client trust the numbers you did leave high.
+
+## Not crying wolf is a long game
+
+The value of your Critical rating comes entirely from the fact that you do not hand it out often. A report with two Criticals, both airtight, gets those two things fixed this week. A report with fifteen Criticals gets triaged by an overwhelmed team that picks a few at random and ignores the rest, including the ones that mattered. Restraint is not softness, it is what makes your severe findings act like emergencies.
+
+<Callout type="security" title="Rate the risk that exists, not the risk that sells">
+There is a quiet pressure to inflate severity so the engagement looks worth the money. Resist it. You were authorized to assess the real risk, and a rating you cannot defend from the CVSS vector and the actual environment is a misrepresentation, not a sales tactic. Overstating a finding to justify the invoice erodes the trust that got you hired and, if it drives the client to waste remediation budget on a non-issue, it does real harm. Rate what you can prove.
+</Callout>
+
+<Quiz
+  id="risk-cvss-context"
+  question="A finding has a CVSS 3.1 base score of 9.1, but exploitation is only possible from an internal VLAN that already requires domain admin to reach. How should you rate and present it?"
+  answer={2}
+  options={[
+    "Critical, because the base score is 9.1 and the score is objective",
+    "Informational, since it needs domain admin it is not worth reporting",
+    "Lower than the base score, with a sentence explaining the low likelihood given the access required",
+    "High, and omit the CVSS vector so nobody questions the rating",
+  ]}
+  explanation="CVSS base is environment-blind. Real risk factors in likelihood, and requiring prior domain admin sharply lowers it. Rate it below base and justify the adjustment in one line so the client trusts the number and understands the dependency."
+/>
+
+<Notes />

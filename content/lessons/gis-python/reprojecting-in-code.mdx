@@ -1,0 +1,227 @@
+---
+title: Coordinate Transforms with pyproj and GeoPandas
+module: gis-python
+moduleTitle: GIS Programming with Python
+moduleOrder: 4
+moduleIcon: FileCode
+order: 3
+summary: "Reprojecting is one line in GeoPandas, but skipping it before measuring area or distance turns a real number into a meaningless one."
+estimatedMinutes: 14
+prerequisites: ["shapely-geometry"]
+objectives:
+  - Check a GeoDataFrame's current CRS and reproject it with to_crs() without mutating the original object
+  - Explain why area and distance must be computed in a metric CRS such as a UTM zone, not a geographic CRS or Web Mercator
+  - Compute the correct UTM zone EPSG code from a longitude and a hemisphere
+  - Use a pyproj Transformer to convert raw coordinate pairs between CRSs outside of a GeoDataFrame
+tags:
+  - gis
+  - python
+  - pyproj
+---
+
+The previous lesson built geometries directly with Shapely: a Point for a single location, a LineString for a road, a Polygon for a parcel boundary, and it read `.area` and `.length` straight off the object. Those numbers are real. They are also silently wrong the moment the coordinates behind that geometry are longitude and latitude, because a shape measured in degrees reports its area in square degrees, a unit with no fixed size anywhere on the planet. GeoPandas hands every layer a coordinate reference system, or CRS, and the CRS is what decides whether that arithmetic can be trusted. This lesson is about controlling the CRS from code: checking it, changing it on purpose, and picking the right one before a single measurement gets reported to anyone.
+
+## What CRS a GeoDataFrame is already carrying
+
+Every GeoDataFrame has a `.crs` attribute, and reading it is the first move before doing anything else with a layer that arrived from somewhere else: a downloaded GeoPackage, a colleague's export, an API response saved to disk.
+
+```python
+import geopandas as gpd
+
+parks = gpd.read_file("parks.gpkg")
+print(parks.crs.to_epsg())
+```
+
+<ExpectedOutput label="the EPSG code the file declares, read before any calculation runs">
+```
+4326
+```
+</ExpectedOutput>
+
+`parks.crs` on its own returns a full pyproj CRS object, with its datum, its units, and its name spelled out. `.to_epsg()` collapses that down to the one number most code actually needs to compare against. An EPSG code of 4326 means the geometries are WGS84 longitude and latitude, degrees, no projection applied. Nothing is wrong with a layer arriving that way. GeoJSON files, raw GPS exports, and most web APIs default to exactly this CRS. The problem only shows up once that layer is asked to measure something.
+
+## Reprojecting returns a new object, it does not change the old one
+
+GeoPandas moves a layer into a different CRS with one method, `to_crs()`. Give it a target EPSG code and it runs every coordinate in every geometry through the matching projection formula.
+
+```python
+parks_3857 = parks.to_crs(epsg=3857)
+print(parks.crs.to_epsg())
+print(parks_3857.crs.to_epsg())
+```
+
+<ExpectedOutput label="the original is untouched, the new variable holds the reprojected copy">
+```
+4326
+3857
+```
+</ExpectedOutput>
+
+`parks` still reports 4326 after that call. `to_crs()` does not reproject in place. It builds and returns a brand new GeoDataFrame in the requested CRS and leaves the one it was called on exactly as it found it. Code that calls `parks.to_crs(epsg=3857)` on its own line, without catching the result in a variable, has done nothing at all: the reprojected copy was built, then thrown away immediately, and every line after it is still working against the original degrees. That missed assignment is one of the most common silent bugs in a GeoPandas script, because nothing raises an error. The numbers just quietly stay wrong.
+
+<Callout type="warning" title="A dropped return value looks like nothing happened, because nothing did">
+`gdf.to_crs(epsg=32613)` on its own line changes nothing about `gdf`. The line has to read `gdf = gdf.to_crs(epsg=32613)`, reassigning the name, or the reprojected copy vanishes the moment the line finishes. This is the same rule that governs almost every pandas and GeoPandas method: most of them return a new object instead of mutating the one they were called on, and the calling code is responsible for keeping the result.
+</Callout>
+
+<Quiz
+  id="reproject-to-crs-return-value"
+  question="A script runs gdf.to_crs(epsg=32613) on its own line, without assigning the result to anything, then goes on to compute gdf.area. What CRS is that area actually computed in?"
+  answer={0}
+  options={[
+    "Still the original CRS, because to_crs() returns a new GeoDataFrame instead of changing gdf in place, and the returned copy was never kept.",
+    "EPSG:32613, because to_crs() always reprojects the GeoDataFrame it is called on.",
+    "The script raises an error immediately, since GeoPandas requires the result of to_crs() to be assigned to something.",
+    "A blended CRS somewhere between the original and the target, averaged automatically by GeoPandas.",
+  ]}
+  explanation="to_crs() builds and returns a new GeoDataFrame in the target CRS rather than modifying gdf in place. If that return value is never assigned back to gdf or to a new variable, the reprojected copy is discarded and gdf keeps its original CRS. GeoPandas does not raise an error over this, and there is no such thing as a blended CRS, which is exactly why the mistake is so easy to miss."
+/>
+
+## Meters are not always meters
+
+EPSG:3857, Web Mercator, stores coordinates in meters, which makes it tempting to reach for the moment a distance or an area needs computing. Resist that. Web Mercator exists to keep shapes looking right on a web map, and the price for that is area distortion that grows worse the farther a location sits from the equator. A polygon near the equator reprojected into 3857 measures close to its true area. The same size polygon reprojected into 3857 near, say, Oslo or Anchorage reports an area that is meaningfully inflated, even though every unit involved is technically a meter.
+
+The fix is to reproject into a CRS built to keep local distance honest instead of local shape: a UTM zone for anything at the scale of a city, a county, or a state, or an equal area projection for anything spanning a whole country or continent. Either one earns the name metric CRS in this context, not just measured in meters, but measured in meters that mean what they say at the location actually being measured.
+
+<Quiz
+  id="reproject-web-mercator-area-trap"
+  question="A polygon covering a wildlife reserve near the Arctic Circle is reprojected from EPSG:4326 to EPSG:3857 before its area is computed. The units are meters. Why is the resulting area still not trustworthy?"
+  answer={2}
+  options={[
+    "EPSG:3857 does not actually use meters, so the units are wrong from the start.",
+    "GeoPandas cannot compute area at all on a Web Mercator layer, and silently returns zero instead.",
+    "Web Mercator is a conformal projection that keeps shape correct at the cost of area accuracy, and that distortion grows severe at high latitudes, so its meters do not correspond to real ground distance there.",
+    "The reprojection failed silently because EPSG:3857 only covers longitudes near the prime meridian.",
+  ]}
+  explanation="Web Mercator does use real meters as its unit, and GeoPandas computes area on it without complaint, which is exactly the trap. The projection sacrifices area accuracy to keep shapes and angles correct, and that sacrifice grows worse near the poles, so a real polygon near the Arctic Circle reports an inflated area even though the number is technically in meters. EPSG:3857 covers the whole globe between roughly 85 degrees north and south, not just the area near the prime meridian."
+/>
+
+## Picking a UTM zone from a longitude
+
+A UTM zone is chosen by where the data sits, not by habit or by whatever zone happens to appear first in a dropdown. The Earth is cut into 60 zones, each six degrees of longitude wide, numbered starting at the antimeridian, so a longitude alone is enough to compute which zone it falls in:
+
+```python
+def utm_epsg(lon, lat):
+    zone = int((lon + 180) / 6) + 1
+    return (32600 if lat >= 0 else 32700) + zone
+```
+
+Adding 180 shifts longitude from the -180 to 180 range up to 0 to 360. Dividing by 6 turns that into a zone index, and adding 1 accounts for zones being numbered from 1, not 0. The hemisphere decides the rest: EPSG codes in the 326xx range cover the northern hemisphere UTM zones, and 327xx covers the southern hemisphere. Denver, Colorado sits at roughly -104.95 longitude and 39.7 latitude:
+
+```python
+print(utm_epsg(-104.95, 39.7))
+```
+
+<ExpectedOutput label="the EPSG code for the UTM zone that actually contains Denver">
+```
+32613
+```
+</ExpectedOutput>
+
+EPSG:32613 is WGS84 UTM zone 13 north, and that is a real, checkable code: looking it up at epsg.io shows a narrow strip of the western United States, Denver included. This small function beats memorizing zone numbers for the handful of places a project happens to touch, and it scales cleanly to a script processing sites scattered across a whole continent, each one landing wherever its own coordinates put it.
+
+## Transforming raw coordinates without a GeoDataFrame
+
+Not every coordinate a program touches lives inside a GeoDataFrame. A geocoding API hands back a single longitude and latitude. A sensor logs one raw reading at a time. For exactly this case, pyproj offers a `Transformer`, built once and reused for every point that needs converting, without the overhead of wrapping a single coordinate pair into a full GeoDataFrame just to reproject it.
+
+```python
+from pyproj import Transformer
+
+to_utm = Transformer.from_crs("EPSG:4326", "EPSG:32613", always_xy=True)
+x, y = to_utm.transform(-104.95, 39.70)
+print(round(x), round(y))
+```
+
+Running this prints two large numbers, something like 504300 and 4394800: meters east of the zone's own origin, and meters north of the equator. Both numbers only mean something once the zone and the hemisphere behind EPSG:32613 are known.
+
+`always_xy=True` matters more than it looks like it should. Leave it out, and `Transformer` follows the axis order the EPSG registry itself defines for a CRS. EPSG:4326's official registry order is latitude first, then longitude, the reverse of the longitude, latitude order that every GeoJSON file, every Shapely geometry, and most of the rest of the Python geospatial stack actually uses. Skip `always_xy` and a call meant to transform `(lon, lat)` silently transforms `(lat, lon)` instead, handing back a point that is not an error. It is just wrong, sometimes by a whole continent.
+
+<Quiz
+  id="reproject-transformer-always-xy"
+  question="A pyproj Transformer is built with Transformer.from_crs(&quot;EPSG:4326&quot;, &quot;EPSG:32613&quot;), leaving out always_xy, then called as transform(-104.95, 39.70), intending to pass longitude then latitude. What actually happens?"
+  answer={1}
+  options={[
+    "pyproj raises an error immediately, because always_xy is a required argument with no default.",
+    "pyproj follows EPSG:4326's own registry-defined axis order, latitude first, so it treats -104.95 as a latitude and 39.70 as a longitude, producing a wrongly placed point with no error raised.",
+    "The transform runs correctly regardless, since pyproj always assumes longitude first no matter what CRS is involved.",
+    "The output coordinates come back in EPSG:4326 instead of EPSG:32613.",
+  ]}
+  explanation="always_xy defaults to False rather than being required, and leaving it out means pyproj honors the axis order EPSG:4326 defines for itself, latitude before longitude, the opposite of the longitude, latitude order Shapely and GeoJSON use. The call still runs and returns numbers, just for the wrong point, which is exactly what makes this mistake easy to miss. The output CRS is still EPSG:32613, that part is unaffected."
+/>
+
+## A worked example: wrong area, right area
+
+Put all of this together on one polygon. Here is a rough rectangle over central Denver, built straight from longitude and latitude:
+
+```python
+import geopandas as gpd
+from shapely.geometry import Polygon
+
+box = Polygon([
+    (-105.05, 39.60), (-104.85, 39.60),
+    (-104.85, 39.80), (-105.05, 39.80),
+])
+site = gpd.GeoDataFrame({"name": ["proposed_site"]}, geometry=[box], crs="EPSG:4326")
+
+print(site.crs.to_epsg())
+print(site.area)
+```
+
+<ExpectedOutput label="area computed while the polygon is still in degrees">
+```
+4326
+0    0.04
+dtype: float64
+```
+</ExpectedOutput>
+
+0.04 square degrees. That number is exact, and it is also useless, since a square degree has no fixed size on Earth: it shrinks the closer a polygon sits to a pole. Reproject into the UTM zone `utm_epsg()` already picked out for this longitude, then check the area again:
+
+```python
+site_utm = site.to_crs(epsg=32613)
+print(site_utm.crs.to_epsg())
+print((site_utm.area / 1_000_000).round(1))
+```
+
+<ExpectedOutput label="the same polygon, now in square meters, converted to square kilometers for readability">
+```
+32613
+0    379.3
+dtype: float64
+```
+</ExpectedOutput>
+
+Same four corners, same shape, one reprojection between the two results. The first number cannot be handed to anyone. The second one can: about 379 square kilometers, a real figure an analyst could put in a report, compare against a zoning limit, or hand to a survey crew. The gap between 0.04 and 379.3 is not rounding error. It is the entire reason a metric CRS is not optional before a measurement like this runs.
+
+<CommandCard command="python3 area_check.py" title="terminal" explain="Runs the saved script and prints the degree-based area, the chosen UTM zone, and the correct area in square kilometers." />
+
+<Exercise title="Reproject a polygon and compare the areas">
+Save this into a file named `area_check.py`:
+
+```python
+import geopandas as gpd
+from shapely.geometry import Polygon
+
+box = Polygon([
+    (-118.30, 34.00), (-118.20, 34.00),
+    (-118.20, 34.10), (-118.30, 34.10),
+])
+site = gpd.GeoDataFrame({"name": ["los_angeles_site"]}, geometry=[box], crs="EPSG:4326")
+
+def utm_epsg(lon, lat):
+    zone = int((lon + 180) / 6) + 1
+    return (32600 if lat >= 0 else 32700) + zone
+
+epsg = utm_epsg(-118.25, 34.05)
+site_utm = site.to_crs(epsg=epsg)
+
+print("degrees:", site.area.iloc[0])
+print("utm epsg:", epsg)
+print("square km:", round(site_utm.area.iloc[0] / 1_000_000, 1))
+```
+
+Run it with `python3 area_check.py` and guess which UTM zone Los Angeles lands in before the script prints it. Then change the box's coordinates to a site much closer to the equator, near Quito, Ecuador, and run it again. The square degree number barely moves, since the box is the same size in degrees either time, but the real area in square kilometers does move, because a degree of longitude covers more ground near the equator than it does at 34 degrees north.
+</Exercise>
+
+Checking a CRS, reprojecting on purpose, and picking a zone that actually fits the data are three lines of code now instead of three separate research problems. The next lesson puts a reprojected layer to work joining it against a second one by location instead of by a shared column, and that join only behaves once both layers agree on a single CRS, which is exactly what this lesson just made routine.
+
+<Notes />

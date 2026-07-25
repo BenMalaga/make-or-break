@@ -1,0 +1,178 @@
+---
+title: Rasters in Python with rasterio
+module: gis-python
+moduleTitle: GIS Programming with Python
+moduleOrder: 4
+moduleIcon: FileCode
+order: 5
+summary: "rasterio opens a raster file and hands the pixel data back as a NumPy array, so an analyst can slice, sample, and do math on a satellite image with ordinary array code."
+estimatedMinutes: 15
+prerequisites: ["spatial-joins-in-python"]
+objectives:
+  - Open a raster with rasterio and read a single band into a NumPy array
+  - Read a dataset's core properties, band count, dimensions, CRS, transform, and nodata value, and explain what each one means
+  - Read a smaller window from a large raster instead of loading the whole file into memory, and sample values at specific point coordinates
+  - Compute a band math index like NDVI directly on the arrays a raster read produces
+tags:
+  - gis
+  - python
+  - rasterio
+---
+
+Every GeoDataFrame in the last few lessons stored discrete things: a point, a line, a polygon, each with its own boundary. A satellite image has no boundaries to draw. It is a grid of numbers, one value per cell, covering a rectangle of the Earth at some fixed resolution. GeoPandas has no idea what to do with that shape of data, because a grid is not a table of geometries. The library built for grids is called rasterio, and it treats a raster file almost exactly the way NumPy treats an array, because under the surface, that is exactly what it is.
+
+## Opening a file without loading it
+
+A raster file, usually a GeoTIFF with a `.tif` extension, can be a few kilobytes or several gigabytes. rasterio does not read the whole thing into memory just to answer "how big is this and what CRS is it in." Opening a dataset with `rasterio.open()` inside a `with` block gives a handle to the file's metadata immediately, and pixel data only gets pulled in when something explicitly asks to read it.
+
+```python
+import rasterio
+
+with rasterio.open("elevation.tif") as dataset:
+    print(dataset.count, dataset.width, dataset.height)
+    print(dataset.crs)
+```
+
+<ExpectedOutput label="band count, then width and height in pixels, then the CRS">
+```
+1 3601 3601
+EPSG:4326
+```
+</ExpectedOutput>
+
+`dataset.count` is the number of bands stored in the file. A single elevation raster usually has one band, a plain grayscale value per cell. A satellite scene might carry four or more: red, green, blue, and near-infrared, each its own band stacked in the same file. `dataset.width` and `dataset.height` are the grid's size in pixels, columns and rows, not meters or degrees. `dataset.crs` reports the coordinate reference system the same way GeoPandas does, and it matters just as much here. A raster in EPSG:4326 has cells that are a fixed size in degrees of longitude and latitude, which are not the same physical distance everywhere on Earth. A raster reprojected into a local UTM zone has cells that are a fixed size in meters, which is usually what an analyst wants before measuring area or distance on the grid.
+
+Reading a band pulls the pixel values out as a NumPy array, and the whole point of rasterio is that this array behaves like any other NumPy array from there on.
+
+```python
+import rasterio
+
+with rasterio.open("elevation.tif") as dataset:
+    band1 = dataset.read(1)
+    print(type(band1), band1.shape, band1.dtype)
+    print(band1.min(), band1.max())
+```
+
+<ExpectedOutput label="a NumPy array, its shape as rows by columns, its dtype, then min and max elevation">
+```
+<class 'numpy.ndarray'> (3601, 3601) int16
+-11 2402
+```
+</ExpectedOutput>
+
+Band numbering starts at 1, not 0, because that is the convention GDAL uses underneath rasterio, and it is one of the few places rasterio breaks from Python's usual zero-based counting. The returned array has shape `(height, width)`, rows first, which matches how NumPy indexes any 2D array: `band1[row, col]`. The `min()` and `max()` calls are plain NumPy methods, nothing raster-specific about them. This is the payoff of the design. Learning NumPy once means an analyst already knows how to slice a raster, mask it, average it, or reshape it, because a band is just an array like any other.
+
+Two more properties round out what a dataset reports before any pixels move. `dataset.transform` is an affine transform, a small set of six numbers that maps a pixel's row and column to real-world coordinates. Without it, an array of elevation numbers has no idea where on Earth it sits, only that it is 3601 by 3601 cells. The transform is what lets rasterio answer "what coordinate is pixel (100, 250)" or the reverse, "which pixel covers this coordinate." `dataset.nodata` is the value, often something like -9999 or a masked value, that a sensor or a processing pipeline uses to mark a cell with no real reading: a cloud-covered pixel, a gap in a scan, an area outside a sensor's swath. An analyst has to know which value means "nothing here" before running any math on the grid, because a stray -9999 silently averaged into real elevation numbers wrecks a result quietly, with no error and no warning.
+
+<Callout type="info" title="A raster's transform is the pixel-to-ground dictionary">
+The transform is what makes a grid of numbers a map instead of just a grid. `dataset.transform` returns an Affine object, and multiplying it by a `(col, row)` pair gives back an `(x, y)` ground coordinate in the dataset's CRS. rasterio also exposes this as `dataset.xy(row, col)`, which is usually the more readable way to ask the same question. Skipping this step and treating pixel indices as coordinates is a common beginner mistake, and it produces numbers that look plausible but point at the wrong place on Earth.
+</Callout>
+
+<Quiz
+  id="rasterio-band-vs-array"
+  question="A file has four bands. After running dataset.read(2), what does the result actually represent?"
+  answer={1}
+  options={[
+    "A GeoDataFrame with one row per pixel in the second band",
+    "A 2D NumPy array holding every pixel value from the second band, indexed as rows and columns",
+    "A single number, the average value across all four bands",
+    "A list of the four bands, with the second one first",
+  ]}
+  explanation="dataset.read(n) pulls one band out as a 2D NumPy array shaped (height, width), with band numbering starting at 1. It is not a GeoDataFrame, since rasters have no geometry column, it is not an average, and read(2) returns only that one band, not all four reordered."
+/>
+
+## Reading a piece instead of the whole file
+
+A satellite scene covering a whole state can run into the tens of gigabytes. Pulling that entire array into memory just to look at one county is wasteful, and on a laptop it may simply fail. rasterio can read a rectangular chunk of a file, called a **window**, without ever touching the bytes outside it. A window is defined in pixel coordinates: a column offset, a row offset, a width, and a height.
+
+```python
+import rasterio
+from rasterio.windows import Window
+
+with rasterio.open("scene.tif") as dataset:
+    chunk = dataset.read(1, window=Window(col_off=1000, row_off=500, width=256, height=256))
+    print(chunk.shape)
+```
+
+<ExpectedOutput label="a 256 by 256 array, the size of the requested window, not the whole file">
+```
+(256, 256)
+```
+</ExpectedOutput>
+
+This is not a convenience feature bolted on top of a full read. GeoTIFF files store their pixels in internal tiles, small blocks the format is built around, and a windowed read asks the underlying GDAL library for only the tiles that overlap the requested rectangle. A file built as a **Cloud Optimized GeoTIFF**, usually shortened to COG, takes this further by organizing those tiles with an index at the front of the file and by storing lower-resolution overviews alongside the full-resolution data. A windowed read against a COG sitting on a remote server, an S3 bucket for instance, pulls only the relevant bytes over the network instead of downloading the entire multi-gigabyte file first. The same `window=` argument works whether the file is local or remote, so nothing about the code changes, only how much data crosses the wire.
+
+Sometimes the question is not "give me this rectangle" but "what is the elevation at this exact spot." `dataset.sample()` takes a list of `(x, y)` coordinates in the dataset's CRS and, for each one, returns the pixel values at whichever cell contains that point. It is a generator, so wrapping it in `list()` pulls out the actual results.
+
+```python
+import rasterio
+
+with rasterio.open("elevation.tif") as dataset:
+    points = [(-105.2705, 40.0150), (-105.30, 40.02)]
+    values = list(dataset.sample(points))
+    print(values)
+```
+
+<ExpectedOutput label="one array of band values per input point, in the same order">
+```
+[array([1655], dtype=int16), array([1701], dtype=int16)]
+```
+</ExpectedOutput>
+
+Each result is a small array, one entry per band, because `sample()` was built to work on multi-band files too. For a single-band elevation raster that array holds one number: the elevation at that coordinate. This is the pattern behind a huge amount of real work, checking a rainfall grid at a set of weather stations, pulling an elevation at every point along a hiking trail, matching a satellite reading to a list of field survey locations. The coordinates supplied to `sample()` must be in the same CRS as the raster, the same rule that governs every other spatial operation covered so far, and a mismatch there returns numbers that look fine and point at the wrong ground entirely.
+
+<Quiz
+  id="rasterio-window-purpose"
+  question="Why would an analyst read a raster with a window instead of dataset.read(1) on the whole file?"
+  answer={0}
+  options={[
+    "To pull only a rectangular chunk of pixels into memory, which matters on large files and lets a Cloud Optimized GeoTIFF fetch just the needed bytes over a network",
+    "Because dataset.read(1) only works on files smaller than 100 megabytes",
+    "Windows change the raster's CRS to match the window's coordinates",
+    "A window is required before dataset.sample() will run on any file",
+  ]}
+  explanation="A window limits the read to a chosen rectangle of pixels, which keeps memory use down on huge files and lets a COG on a remote server transfer only the relevant tiles. There is no file size cutoff for a plain read, a window does not touch the CRS, and sample() works on its own without any window being set first."
+/>
+
+## Doing math on the array
+
+Because a band is just a NumPy array, ordinary array arithmetic is the whole toolkit for combining bands. The most common example in remote sensing is the **Normalized Difference Vegetation Index**, or NDVI, a simple formula that highlights healthy plant growth using two bands most satellites already carry: red light and near-infrared light. Healthy vegetation reflects a lot of near-infrared and absorbs most red, so the difference between the two, scaled by their sum, comes out high wherever plants are thriving and low or negative over bare ground, water, or pavement.
+
+```python
+import numpy as np
+import rasterio
+
+with rasterio.open("scene.tif") as dataset:
+    red = dataset.read(3).astype("float32")
+    nir = dataset.read(4).astype("float32")
+
+with np.errstate(divide="ignore", invalid="ignore"):
+    ndvi = (nir - red) / (nir + red)
+
+print(ndvi.shape, ndvi.dtype)
+print(np.nanmin(ndvi), np.nanmax(ndvi))
+```
+
+<ExpectedOutput label="the NDVI array's shape and dtype, then its lowest and highest values, roughly between -1 and 1">
+```
+(2000, 2000) float32
+-0.42 0.81
+```
+</ExpectedOutput>
+
+Two things in that code are doing real work beyond the formula itself. Both bands get cast to `float32` before the subtraction, because the raw pixel values usually arrive as integers, and integer division in a formula like this would truncate results to whole numbers, throwing away the entire point of the index. The `np.errstate` block quiets a warning that fires whenever `nir + red` lands on exactly zero, which happens at nodata pixels or masked edges of a scene, producing a division by zero. Silencing the warning does not fix the bad pixel, it just stops it from cluttering the output. A careful version of this calculation would mask out `dataset.nodata` values on both bands before doing the division, so the zero-division cells never make it into a plotted map. That is one line of extra code, `np.where(red == dataset.nodata, np.nan, red)` on each band, and it is the difference between a clean NDVI map and one with speckled garbage values along its edges.
+
+This is the shape of nearly all raster analysis. Read the needed bands as arrays, apply array math, and the result is another array in the same grid, ready to be written back out to a new GeoTIFF with `rasterio.open(path, "w", **profile)` using the same transform and CRS as the source. The geometry model changed completely between the last few lessons and this one, points and polygons on one side, a fixed grid on the other, but the tool for exploring it turned out to be the same array library used for anything else in Python.
+
+<Quiz
+  id="rasterio-ndvi-cast"
+  question="In the NDVI example, why are the red and near-infrared bands cast to float32 with .astype before the subtraction?"
+  answer={2}
+  options={[
+    "float32 is required by rasterio before any band can be read at all",
+    "Casting to float32 automatically removes nodata pixels from the array",
+    "The raw bands are usually integers, and integer division would truncate the NDVI result to whole numbers, destroying the formula's output",
+    "float32 makes the array display coordinates instead of pixel values",
+  ]}
+  explanation="Raw band values typically arrive as integer types, and dividing integers in this formula would truncate results toward whole numbers, which for an index meant to range between -1 and 1 would erase almost all of the signal. Casting to float32 first keeps the division meaningful. rasterio reads integer bands fine on their own, casting does not touch nodata, and it has nothing to do with coordinates."
+/>

@@ -1,0 +1,229 @@
+---
+title: "Sharing Data: WMS, WFS, and OGC APIs"
+module: gis-web-mapping
+moduleTitle: Web Mapping
+moduleOrder: 6
+moduleIcon: Globe
+order: 4
+summary: "A server can hand a web map either a picture of the data or the data itself, and the standard chosen decides which one arrives."
+estimatedMinutes: 13
+prerequisites: ["vector-tiles-and-maplibre"]
+objectives:
+  - Explain the difference between a server that returns a rendered image and one that returns raw features
+  - Describe what WMS, WFS, and WMTS each request and each return
+  - Read a GetMap and a GetFeature request well enough to tell which is which
+  - Choose between a WMS layer, a WFS layer, and an OGC API Features endpoint for a given task
+tags:
+  - gis
+  - web
+  - ogc
+---
+
+The previous lesson loaded vector tiles into MapLibre GL and let the browser draw roads and parcels
+from small chunks of geometry. Those tiles came from somewhere: a tile server that had already sliced
+a dataset into a pyramid of `.pbf` files at every zoom level. That is one way for a server to share
+spatial data. It is not the only way, and it is not even the oldest way. Long before vector tiles,
+GIS servers were already answering requests over the web, and the rules for those requests were
+written down by a standards body so that a map built in one piece of software could talk to a server
+built by someone else entirely.
+
+That body is the OGC, the Open Geospatial Consortium, a group of government agencies, companies, and
+universities that publishes specifications for exactly this kind of interoperability. An OGC standard
+does not care whether the client is QGIS, a phone app, or a Python script. It only cares that the
+client sends a request shaped a certain way and the server answers with a response shaped a certain
+way. Three of these standards show up constantly in web mapping: WMS, WFS, and WMTS. A newer family,
+the OGC API suite, is replacing all three with something friendlier. Knowing what each one hands back
+is the difference between picking the right tool in five seconds and spending an afternoon confused
+about why a map layer cannot be queried.
+
+## WMS: the server sends back a picture
+
+A Web Map Service, WMS, does one job. A client asks it for a map of a certain area at a certain size,
+and the server renders that map on its own hardware and sends back an image. PNG or JPEG, flattened,
+done. The client never receives a single coordinate or a single attribute value. It receives pixels,
+the same as if someone had taken a screenshot of the server's own map and mailed it over.
+
+The request that makes this happen is called GetMap, and it is just a URL with query parameters. A
+real one (illustrative, the domain is a placeholder) looks like this:
+
+```
+https://gis.example.gov/geoserver/wms?
+  SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap
+  &LAYERS=parks:city_parks
+  &BBOX=-74.05,40.68,-73.90,40.80
+  &CRS=EPSG:4326
+  &WIDTH=800&HEIGHT=600
+  &FORMAT=image/png
+```
+
+Every piece of that URL earns its place. `LAYERS` names which dataset the server should draw.
+`BBOX` is the bounding box, the rectangle of the world to render, given as the two corner coordinates.
+`CRS` says what coordinate reference system those numbers are in, here EPSG 4326, ordinary
+longitude and latitude. `WIDTH` and `HEIGHT` set the pixel size of the image coming back, and
+`FORMAT` picks PNG so the empty areas around the parks stay transparent instead of turning white. The
+server takes all of that, draws the parks layer styled however it wants, and streams back one image.
+
+That image drops straight onto a map the same way any raster tile does. In MapLibre GL or Leaflet, a
+WMS layer is a raster source, no different in principle from the satellite basemap under a vector
+overlay:
+
+```javascript
+map.addSource("parks-wms", {
+  type: "raster",
+  tiles: [
+    "https://gis.example.gov/geoserver/wms?service=WMS&version=1.3.0" +
+      "&request=GetMap&layers=parks:city_parks&bbox={bbox-epsg-3857}" +
+      "&width=256&height=256&srs=EPSG:3857&format=image/png&transparent=true",
+  ],
+  tileSize: 256,
+});
+map.addLayer({ id: "parks", type: "raster", source: "parks-wms" });
+```
+
+Note the `{bbox-epsg-3857}` placeholder. MapLibre fills that in per tile, requesting a fresh GetMap
+image for each 256 by 256 square as the map pans and zooms, in Web Mercator, EPSG 3857, the
+projection almost every web basemap uses. The server is doing real work on every request: querying
+its data, styling it, rendering it, and throwing the pixels away once they are sent. Nothing about
+that image can be clicked to reveal a park's name, because a name was never in the response.
+
+<Callout type="info" title="A picture cannot be queried">
+A WMS image looks exactly like a normal map layer, which is exactly the trap. A parcel boundary drawn
+by WMS looks identical to one drawn from real GeoJSON, but clicking it returns nothing, because the
+browser is holding a photograph, not data. If a layer needs to answer "what is this feature" on
+click, WMS is the wrong service to reach for.
+</Callout>
+
+<Quiz
+  id="wms-returns-pixels"
+  question="A map calls a WMS GetMap request for a river layer. What does the response contain?"
+  answer={2}
+  options={[
+    "A GeoJSON file with the river's geometry and attribute table",
+    "A list of coordinate pairs the browser can style however it likes",
+    "A rendered image of the rivers, already drawn and colored by the server",
+    "A vector tile in the .pbf format used by MapLibre",
+  ]}
+  explanation="WMS always answers with a finished image, PNG or JPEG, that the server rendered itself. The client gets pixels, not the underlying geometry or attributes, which is why a WMS layer cannot be clicked to reveal feature details. The other three answers describe formats WMS never returns."
+/>
+
+## WFS: the server sends back the actual features
+
+A Web Feature Service, WFS, solves the exact problem WMS cannot. Instead of asking for a picture, the
+client asks for the features themselves, meaning the geometry and the attribute rows behind them, and
+the server sends those back as structured data. GeoJSON is the common modern response format, though
+WFS predates GeoJSON and can also answer in GML, an older XML-based geometry format. Either way, the
+client ends up holding real coordinates and real columns, not a flattened image.
+
+The matching request is called GetFeature:
+
+```
+https://gis.example.gov/geoserver/wfs?
+  SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature
+  &TYPENAMES=parks:city_parks
+  &OUTPUTFORMAT=application/json
+  &BBOX=-74.05,40.68,-73.90,40.80
+```
+
+Compare that to the GetMap request above. Same layer, same bounding box, but the request name and the
+output format have both changed, and that single difference changes everything about what arrives. A
+GetFeature response is a real GeoJSON `FeatureCollection`, each feature carrying its own polygon and
+its own attribute values, ready for the client to parse, style per feature, and let a user click:
+
+```javascript
+const response = await fetch(
+  "https://gis.example.gov/geoserver/wfs?service=WFS&version=2.0.0" +
+    "&request=GetFeature&typeNames=parks:city_parks&outputFormat=application/json"
+);
+const parks = await response.json();
+map.addSource("parks-wfs", { type: "geojson", data: parks });
+map.addLayer({
+  id: "parks-fill",
+  type: "fill",
+  source: "parks-wfs",
+  paint: { "fill-color": "#2e7d32", "fill-opacity": 0.4 },
+});
+```
+
+Because the client now holds real geometry, it can filter parks by acreage before drawing them, color
+each one by a maintenance budget column, or hand the whole set to a spatial library for an area
+calculation. None of that was possible with the WMS image. The tradeoff is size and load: a WFS
+response for a large area can be a heavy download, and unlike a pre-rendered image, the client's own
+browser has to style thousands of polygons itself. WMS is cheap for the client and expensive for the
+server's renderer. WFS is the reverse.
+
+<Quiz
+  id="wms-vs-wfs-getmap-getfeature"
+  question="A developer needs a park layer where clicking a polygon shows its name and acreage from the attribute table. Which service and request fits?"
+  answer={1}
+  options={[
+    "WMS with a GetMap request, since WMS is the standard for polygon layers",
+    "WFS with a GetFeature request, since it returns the geometry and attributes the client can query",
+    "WMTS, since it always returns clickable vector tiles",
+    "Either service works identically once the image is added to the map",
+  ]}
+  explanation="Click behavior needs real feature data in the browser, which only a GetFeature request from a WFS provides. A WMS GetMap response is a flattened image with no attributes attached, so nothing about a click could ever reach the acreage column. WMTS returns pre-rendered tiles, images again, not features."
+/>
+
+## WMTS and the OGC API family
+
+A Web Map Tile Service, WMTS, sits between the two. It answers with images, the same as WMS, but
+those images are not rendered fresh for an arbitrary bounding box. They are pulled from a
+pre-computed pyramid of tiles at fixed zoom levels and fixed grid positions, precisely the XYZ scheme
+the previous lesson used for vector tiles, except the tiles here are raster images and the request
+format is standardized by OGC rather than being the informal `{z}/{x}/{y}` convention most raster
+basemaps use. A server offering WMTS has already rendered every tile in advance, so a request for one
+is a cheap file lookup rather than a fresh drawing job, which is why WMTS scales to far more
+simultaneous users than WMS ever could.
+
+All three of these standards, WMS, WFS, and WMTS, share one inconvenient trait: they were designed in
+the era of XML, and their requests and responses can carry a lot of that XML baggage even when the
+useful payload is small. The OGC has spent the last several years replacing them with the OGC API
+family, most relevantly OGC API Features. It does the same job as WFS, handing back real features,
+but through a plain REST interface with JSON on both ends, no XML request syntax to memorize and no
+capabilities document to parse just to learn what layers exist. A client lists the available
+collections with a single GET to a `/collections` path, then reads one of them with a GET to
+`/collections/{name}/items`, and gets a GeoJSON `FeatureCollection` back, structured exactly the way a
+modern web developer already expects an API to behave.
+
+<Callout type="warning" title="Old and new standards both still show up">
+Government GIS portals, especially at the state and federal level, still run plenty of WMS and WFS
+endpoints built years ago, and they are not going away soon. OGC API Features is where new services
+are heading, but reading an unfamiliar data portal often means recognizing the older XML-flavored
+request styles too. Both are worth being able to read.
+</Callout>
+
+## Choosing the right one
+
+The choice usually falls out of the question being asked. A basemap layer that only needs to look
+right, like a hillshade or an aerial photo backdrop with no interactivity planned, is a fine candidate
+for WMS or, better, WMTS if the server offers it, since the tiles are cached and fast. A layer that a
+user needs to click, filter, or run any analysis against needs WFS or OGC API Features, because
+analysis requires geometry and attributes in hand, not a picture of them. Vector tiles, from the
+previous lesson, cover a lot of the same ground WFS does for very large datasets, trading a bit of
+per-feature detail for a format built to stream smoothly at every zoom level.
+
+None of this requires writing an HTTP client from scratch to use day to day. QGIS adds a WMS, WFS, or
+OGC API Features layer through its own connection dialog, no different from adding a local file, and
+handles the request formatting behind the scenes. On the web, Leaflet and MapLibre GL both accept a
+WMS endpoint as a raster tile source, exactly as shown above, and a WFS or OGC API Features endpoint
+just needs a `fetch` call into a GeoJSON source, since GeoJSON is GeoJSON regardless of which service
+produced it. The standards exist so that none of that plumbing has to be reinvented for every server a
+project happens to talk to.
+
+<Quiz
+  id="ogc-api-features-vs-wfs"
+  question="What is the main practical difference between OGC API Features and the older WFS standard?"
+  answer={0}
+  options={[
+    "OGC API Features uses plain REST endpoints and JSON, while WFS is built around XML request parameters and capabilities documents",
+    "OGC API Features returns rendered images, while WFS returns raw geometry",
+    "WFS can only be used from QGIS, while OGC API Features only works in a browser",
+    "OGC API Features has no concept of a bounding box, while WFS requires one",
+  ]}
+  explanation="Both standards return features, geometry plus attributes, but OGC API Features does it through a REST and JSON interface that a web developer already knows how to call, replacing the XML-heavy request syntax and capabilities documents WFS relies on. Image responses describe WMS, not either feature service, and both standards are usable from QGIS or the web."
+/>
+
+A map that only shows a picture and a map that hands over real, queryable features are doing
+fundamentally different jobs, even when they look the same on screen. The next lesson turns to
+PostGIS, the database that usually sits behind a WFS or OGC API Features endpoint, storing the
+geometry that gets served out whenever a GetFeature request or a `/items` call comes in.

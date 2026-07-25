@@ -1,0 +1,179 @@
+---
+title: Running Vulnerable Apps in Docker
+module: docker-and-containers
+moduleTitle: Docker and Containers
+moduleOrder: 14
+moduleIcon: Container
+order: 4
+summary: "Publish a broken-on-purpose app so it can be reached, wall it off from everything it could hurt, and reset it to a clean state in seconds."
+estimatedMinutes: 16
+prerequisites: ["what-containers-are","images-and-dockerfiles","docker-compose"]
+objectives:
+  - Explain how publishing a port reaches a container, and why the host IP in -p decides who else can reach it
+  - Wall a target off with an internal network so a popped app cannot pivot to the LAN or phone home
+  - Reset a target to pristine state using the image's read-only layers, and clean up what Docker leaves behind
+  - "Name the failure modes that bite beginners: a 0.0.0.0 bind, Docker bypassing the host firewall, and volumes that outlive the container"
+tags:
+  - docker
+  - targets
+  - lab
+  - practice
+---
+
+docker-compose closed with `docker compose up` standing a whole stack on its own network in a single command. That same machinery, a published port, a private network, and a one-line teardown, is what turns an ordinary laptop into a safe place to attack software that was broken on purpose.
+
+A practice target is an application shipped with real, exploitable flaws left in on purpose, so people can learn to find and exploit them without breaking into anything they don't own. OWASP Juice Shop is the standard first one: a working web store seeded with dozens of genuine vulnerabilities. It ships as an image, `bkimminich/juice-shop`, so a single `docker run` pulls it from the registry and starts it.
+
+Running software that is broken on purpose creates two separate risks, and they point in opposite directions. Anything that can reach the target can attack it, so the target must not be reachable from the wider network. And the target can reach out: a container gets network access by default, so a target that gets popped, or an image that was malicious to begin with, can turn around and hit everything the host can hit. The rest of this lesson is the three levers that bound both.
+
+## Publishing a port so the target can be reached
+
+A container runs in its own network namespace, one of the kernel features from lesson one. Inside that namespace it has its own interface and its own address, typically something like `172.17.0.2` on Docker's private `docker0` bridge. That address means nothing to a browser running on the host. It sits on an isolated bridge that host processes have no route to. For a service inside the container to answer anything outside it, the port has to be published.
+
+The `ports` key in a compose file did this in the last lesson. `docker run` does it with `-p`, and underneath the flag is a rewrite rule. When the daemon publishes container port 3000 on host port 3000, it writes a destination-NAT rule into the host's iptables: traffic arriving at host port 3000 gets its destination rewritten to `172.17.0.2:3000` and forwarded into the container's namespace. A small helper process, docker-proxy, backs up the same mapping for local connections. The container never learns any of this happened.
+
+The full form of the flag is `[hostIP:]hostPort:containerPort`, and the host IP at the front is the part that decides who can reach the mapping. It is also the part people leave off.
+
+Leave it off and the daemon binds `0.0.0.0`, meaning every interface at once: loopback, the Wi-Fi address, the ethernet address, all of them. On a shared network that publishes the deliberately vulnerable app to the whole room. Write `127.0.0.1` in front and the rule matches only traffic that arrived on loopback, so a browser on the same host reaches `http://127.0.0.1:3000` and a machine one seat over on the same LAN gets nothing.
+
+<CommandCard
+  command="docker run --rm -d --name juice-shop -p 127.0.0.1:3000:3000 bkimminich/juice-shop"
+  title="linux"
+  explain="--rm deletes the container when it stops, -d runs it in the background, --name labels it. The 127.0.0.1 in front of the port is the whole difference between reachable-from-this-host and reachable-from-the-room."
+/>
+
+The mapping is worth confirming rather than trusting, because the cost of getting it wrong is a live vulnerable app on the LAN. `docker port` prints exactly what the daemon bound.
+
+<CommandCard
+  command="docker port juice-shop"
+  title="linux"
+  explain="Reads back the published mappings for a running container. The address on the right is what the rule actually binds to."
+/>
+
+<ExpectedOutput label="docker port on a target bound to loopback">
+```
+3000/tcp -> 127.0.0.1:3000
+```
+</ExpectedOutput>
+
+The `127.0.0.1` on the right is the proof. If that column read `0.0.0.0`, the app would be answering on every interface the host owns.
+
+Here is the failure mode nobody mentions until it burns them. On a Linux host running the ufw firewall, a rule like `ufw deny 3000` looks like it closes the port. It does not close a published Docker port. The daemon inserts its forwarding rules into iptables chains that ufw does not manage, and those rules are consulted before ufw's, so a `0.0.0.0` publish stays reachable from the LAN with the deny rule sitting right there doing nothing. Binding to `127.0.0.1` sidesteps the whole problem, because the NAT rule never matches traffic that arrived from another machine in the first place. This behavior is long-standing and documented, and it has exposed more lab targets than any exploit has.
+
+<Quiz
+  id="target-publish-scope"
+  question="A target is started with -p 3000:3000 (no host IP) on a laptop joined to a cafe's Wi-Fi, and the laptop runs ufw with 'ufw deny 3000' set. Who can reach the vulnerable app?"
+  answer={2}
+  options={[
+    "Only the laptop itself, because 3000:3000 always means loopback",
+    "Nobody, because ufw is denying port 3000",
+    "Any device on the cafe network, because a bare -p binds 0.0.0.0 and Docker's rules bypass ufw",
+    "Only devices the router explicitly forwards to",
+  ]}
+  explanation="Omitting the host IP binds 0.0.0.0, publishing the app on the Wi-Fi interface, not just loopback. And Docker's iptables rules are evaluated before ufw's, so the deny rule never fires. Both mistakes stack into a vulnerable app open to the room."
+/>
+
+## Keeping the target from reaching back
+
+Publishing controls who reaches in. It does nothing about the target reaching out, and by default a container reaches out freely. On the default bridge network the daemon masquerades the container's outbound traffic, rewriting its source so replies find their way back, which means the target can talk to the LAN, the router, and the internet exactly as the host can. For ordinary software that is a convenience. For software built to be exploited it is a liability: code that lands execution inside the target can scan the internal network from it, reach the router's admin page, or ship data out. A malicious image does not even need to be attacked first. It can call home the instant it starts.
+
+Three levers cut the outbound path, tightest first.
+
+`--network none` gives the container no interface at all except loopback. Nothing in, nothing out. This is the right setting for examining something actively hostile, a suspicious binary pulled off a target, where the plan is to `docker exec` a shell into the container rather than reach it over a network. The cost is that with no interface there is nothing for a published port to bind to, so a web app run this way cannot be browsed.
+
+An internal network sits in the middle and is the workhorse for a lab. `docker network create --internal labnet` builds a bridge with no gateway to the outside world. Containers attached to it talk to each other by name, and none of them has a route to the LAN or the internet. This is the compose pattern from the last lesson applied for safety: put the target and a container full of tools on the same internal network, and drive the target from the tools container. The target answers the tools and can call nowhere else.
+
+<CommandCard
+  command="docker network create --internal labnet"
+  title="linux"
+  explain="Creates a bridge network with no gateway. Containers on it reach each other and nothing beyond, so a target attached here cannot pivot outward."
+/>
+
+<CommandCard
+  command="docker run --rm -d --name juice-shop --network labnet bkimminich/juice-shop"
+  title="linux"
+  explain="The same target on the sealed network. No -p here on purpose: reach it from another container on labnet by the name juice-shop, not from the host."
+/>
+
+Loopback publishing on the default bridge, the very first command in this lesson, is the loosest of the three and the most common. `-p 127.0.0.1:3000:3000` keeps the target off the LAN and lets a local browser open it, but it leaves the target's outbound path wide open. That is a fair trade for a mainstream target like Juice Shop from a known publisher. It is the wrong trade for an image pulled from a stranger, where the sealed internal network earns its keep.
+
+<Callout type="info" title="The surprising default runs the other way">
+Reaching a container from outside is opt-in: nothing answers on the host until a port is published. Reaching out of a container is opt-out: a fresh container has a route to the internet the moment it starts. Beginners guard the first direction and forget the second, which is exactly backwards from where the risk sits with a target.
+</Callout>
+
+<Quiz
+  id="target-outbound"
+  question="A target is run with '-p 127.0.0.1:8080:80' on the default bridge network. An attacker gains code execution inside it. What can that code reach?"
+  answer={1}
+  options={[
+    "Nothing outside the container, because loopback publishing seals it both ways",
+    "The host's LAN and the internet, because the default bridge gives a container outbound access",
+    "Only the host, because published ports define the container's entire network",
+    "Only other containers, never the physical network",
+  ]}
+  explanation="Loopback publishing limits inbound to the local host, but it says nothing about outbound. On the default bridge the container is masqueraded onto the network and can reach the LAN and the internet. Cutting that path takes --network none or an --internal network."
+/>
+
+## Resetting and tearing down
+
+The reason a container beats a hand-built virtual machine for drilling the same bug ten times is the reset, and the reset comes straight from how images are built. Lesson two established that an image is a stack of read-only layers. When a container starts, the daemon adds one thin writable layer on top, and every file the running app changes lands in that layer and nowhere else. Remove the container and the writable layer goes with it. The next `docker run` starts from the untouched image again. No uninstall, no snapshot to roll back to.
+
+`--rm` automates the removal. The daemon deletes the container the moment it stops, along with any anonymous volumes it created for itself. Leaving `--rm` off keeps the stopped container around; `docker ps -a` lists it, and a stop-then-remove clears it by hand.
+
+<CommandCard
+  command="docker ps"
+  title="linux"
+  explain="Lists running containers. The NAMES column is what the stop and remove commands take, and the PORTS column shows the binding one more time."
+/>
+
+<ExpectedOutput label="docker ps while the loopback-bound target runs, columns trimmed">
+```
+CONTAINER ID   IMAGE                   STATUS         PORTS                      NAMES
+b3c1f2a4d5e6   bkimminich/juice-shop   Up 9 seconds   127.0.0.1:3000->3000/tcp   juice-shop
+```
+</ExpectedOutput>
+
+<CommandCard
+  command="docker stop juice-shop && docker rm juice-shop"
+  title="linux"
+  explain="Stops the container, then removes it and its writable layer. A container run with --rm skips this step by doing both automatically when it exits."
+/>
+
+There is one place the reset quietly fails, and it catches people who trust `--rm` too far. Not every file a container writes lives in the writable layer. If the image declares a volume, or the run mounted a named volume with `-v data:/var/lib/mysql`, that data sits in a volume, and removing the container does not touch it. Recreate the container and yesterday's database is still there, which reads exactly like the reset did not work. `docker volume ls` shows the volumes that survived, and `docker volume rm` clears them. A DVWA target backed by MySQL is the usual place this bites, because its database is the one thing built to persist.
+
+At the end of a session, the images and stray networks pile up. `docker system prune` removes stopped containers, unused networks, and dangling build leftovers. Adding `-a` also removes every image not currently tied to a container, which frees real disk space at the price of re-pulling next time. Adding `--volumes` takes the volumes too. Each flag deletes more, so the command rewards knowing which one is in play.
+
+<CommandCard
+  command="docker system prune -a"
+  title="linux"
+  explain="Removes stopped containers, unused networks, and every image not attached to a container. It reclaims real space and forces a re-pull later, so it is a deliberate end-of-day command, not a reflex."
+/>
+
+<Quiz
+  id="target-volume-reset"
+  question="A DVWA target's login state is stored in a named MySQL volume. Someone runs 'docker rm dvwa', starts a fresh container from the same image, and finds the old accounts still there. Why?"
+  answer={3}
+  options={[
+    "docker rm does not actually remove containers, only stops them",
+    "The image itself was permanently modified by the first run",
+    "The writable layer is shared between all containers from one image",
+    "docker rm removes the container and its writable layer, but a named volume lives outside both and survives",
+  ]}
+  explanation="The reset only covers the container's writable layer. Data written to a named volume sits outside the container entirely, so removing the container leaves it intact. Clearing it takes docker volume rm, not docker rm."
+/>
+
+<Callout type="security" title="Only against what is yours to break">
+A deliberately vulnerable app is legal and smart to stand up. The techniques it teaches are not legal to point at systems owned by someone else. Keep every target bound to loopback or an internal network, so an attack can't leak onto a network that isn't the lab, and keep the practice on local instances or authorized ranges like Hack The Box and TryHackMe.
+</Callout>
+
+<Exercise title="Stand one up, prove it's contained, tear it down">
+On a machine with Docker installed, run `docker run --rm -d --name juice-shop -p 127.0.0.1:3000:3000 bkimminich/juice-shop`, then run `docker port juice-shop` and confirm the mapping reads `127.0.0.1:3000`, not `0.0.0.0`.
+
+From a second device on the same network, try to open `http://<the-first-machine-ip>:3000`. It should fail to connect. That failure is the loopback bind doing its job. Now open `http://127.0.0.1:3000` on the machine itself: the app loads.
+
+Tear it down with `docker stop juice-shop`. Because it ran with `--rm`, `docker ps -a` should not list it afterward. Run `docker volume ls` and note whether anything was left behind. Nothing should be, and knowing how to check is the point.
+</Exercise>
+
+Loopback binds, internal networks, and a clean teardown keep the target's blast radius on the network small. None of it says anything about whether the container itself holds. The isolation here assumes the wall between container and host stays up, and that assumption is exactly what the next lesson, container-security, takes apart: why a container is not a security boundary, what privileged mode and the mounted Docker socket hand away, and how root inside a container relates to root outside it.
+
+<Notes />

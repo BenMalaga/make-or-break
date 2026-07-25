@@ -1,0 +1,18 @@
+{
+  "slug": "linux-plus",
+  "code": "XK0-005",
+  "name": "CompTIA Linux+",
+  "vendor": "CompTIA",
+  "description": "Validates the hands-on Linux administration that underpins most of security work: managing systems, securing them, scripting, working with containers, and troubleshooting when it breaks.",
+  "passScore": 75,
+  "examMinutes": 90,
+  "questionCount": 90,
+  "icon": "Terminal",
+  "order": 7,
+  "domains": [
+    { "number": 1, "name": "System Management", "weight": 32 },
+    { "number": 2, "name": "Security", "weight": 21 },
+    { "number": 3, "name": "Scripting, Containers, and Automation", "weight": 19 },
+    { "number": 4, "name": "Troubleshooting", "weight": 28 }
+  ]
+}

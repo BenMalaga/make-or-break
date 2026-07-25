@@ -1,0 +1,374 @@
+---
+title: Python Crash Course for Hackers
+module: python-for-security
+moduleTitle: Python for Security
+moduleOrder: 13
+moduleIcon: FileCode
+order: 1
+summary: "The interpreter, variables, the three shapes of data, loops, functions, and how to read a traceback when a script breaks."
+estimatedMinutes: 16
+prerequisites: []
+objectives:
+  - Explain what the Python interpreter does with a script file, one line at a time
+  - Store data in variables and name the four basic types, int, float, str, and bool
+  - Move data between the three shapes tooling leans on, strings, lists, and dicts
+  - Steer a script with conditionals and for loops, and package logic in a function
+  - Read a traceback from the bottom up to find what broke and where
+tags:
+  - python
+  - scripting
+  - fundamentals
+---
+
+A file lands on disk: `hosts.txt`, four thousand hostnames, one per line,
+scraped out of a certificate transparency log. The job is to throw away the
+blank lines, keep only the names ending in a target domain, and print what is
+left in sorted order. By hand that is an afternoon of scrolling and copy-paste,
+plus a guaranteed mistake somewhere around line 1,900. A short Python script
+does the same work in the time it takes to press Enter.
+
+That gap is the whole reason this module exists. nmap, ffuf, and Burp already do
+the heavy jobs. Python is for the seams between them: the moment a tool prints
+4,000 lines and only 40 matter, or two tools need the output of one reshaped
+before the other will read it. Filling those seams is most of what tooling
+actually is.
+
+This lesson is the language itself, starting from the first line of code anyone
+has ever written. No programming is assumed. Every later lesson in the module
+stands on what is here.
+
+## The interpreter reads the file top to bottom
+
+Python is an interpreted language. A program called the interpreter reads a text
+file of instructions and carries them out one at a time, in order, from the top.
+There is no separate build step and no compiled program to run afterward. The
+file is plain text with a `.py` extension, and it is called a script.
+
+Here is a two-line script:
+
+```python
+print("recon starting")
+print(1 + 1)
+```
+
+`print` writes its argument to the terminal. The interpreter runs line 1, which
+puts the text on screen, then runs line 2, which first computes `1 + 1` down to
+`2` and prints that.
+
+<CommandCard
+  command="python3 recon.py"
+  title="linux"
+  explain="Hands the file recon.py to the Python 3 interpreter, which runs it start to finish."
+/>
+
+<ExpectedOutput label="running the two-line script">
+```
+recon starting
+2
+```
+</ExpectedOutput>
+
+Order is the whole game. Line 2 cannot run before line 1, and nothing runs in
+parallel. The interpreter is a machine that does exactly one thing at a time and
+never guesses.
+
+<Callout type="info" title="python3, not python">
+On most systems the command is `python3`. Plain `python` is either missing or
+points at the long-dead Python 2, whose syntax differs enough to break these
+scripts. When a tutorial elsewhere says `python`, read it as `python3`.
+</Callout>
+
+<Quiz
+  id="py-interpreter-order"
+  question="A .py file has print('a') on line 1 and print(1 + 1) on line 2. What does the interpreter do when the file runs?"
+  answer={1}
+  options={[
+    "Reads the whole file, then runs line 2 first because math finishes faster than text",
+    "Carries out each line in order from the top, printing 'a' then 2",
+    "Compiles the file into a separate program that a person then runs by hand",
+    "Runs both lines at once and prints whichever finishes first",
+  ]}
+  explanation="The interpreter executes statements top to bottom, one at a time. Line 1 prints 'a', then line 2 computes 1 + 1 and prints 2. There is no separate compile step and nothing here runs in parallel."
+/>
+
+## Variables hold values, and values have types
+
+A variable is a name bound to a value. The line `target = "10.10.10.1"` tells
+the interpreter to store the text `10.10.10.1` and label it `target`. From that
+point on, wherever `target` appears, the interpreter substitutes the stored
+value. The `=` is assignment, not equality. It means "put the thing on the right
+into the name on the left," and it always reads right to left.
+
+```python
+target = "10.10.10.1"
+port = 8080
+open_count = 0
+is_up = True
+```
+
+Every value has a type, and the type decides what the value can do. Four types
+carry almost everything in early scripts:
+
+- `str`, a string: text, always inside quotes. `"10.10.10.1"` is a string even
+  though it looks like a number.
+- `int`, an integer: a whole number, no quotes, like `8080`.
+- `float`, a decimal number, like `0.5`.
+- `bool`, a boolean: exactly `True` or `False`, the two answers to a yes-or-no
+  question.
+
+The type is never declared. The interpreter reads the value and picks. The
+built-in `type()` reports what it chose:
+
+```python
+type("10.10.10.1")   # <class 'str'>
+type(8080)           # <class 'int'>
+type(True)           # <class 'bool'>
+```
+
+This matters more than it looks. `"8080"` and `8080` are different values, a
+string and an integer, and the interpreter treats them as unrelated. A port read
+out of a file arrives as a string and often has to be pushed through `int(...)`
+before any math or comparison works. Feeding a string where a number belongs, or
+the reverse, is one of the most common reasons a first script falls over.
+
+## Strings, lists, and dicts, the three shapes
+
+Almost every script moves data between three containers. A hostname is a string.
+A set of ports is a list. A parsed HTTP header is a dict. Getting fluent at
+reshaping data between those three is most of the practical skill.
+
+Strings carry methods, small built-in operations called with a dot after the
+value. Three of them earn their place immediately:
+
+```python
+"  admin\n".strip()   # "admin"
+"a,b,c".split(",")    # ['a', 'b', 'c']
+"NGINX".lower()       # "nginx"
+```
+
+`.strip()` removes surrounding whitespace, including the newline character `\n`
+that every line pulled from a file drags along behind it. `.split(",")` cuts a
+string into a list at each comma. `.lower()` forces lowercase, which is how a
+comparison gets made without caring about capitalization.
+
+f-strings build a new string by dropping values into a template. An `f` in front
+of the opening quote turns `{name}` into the value of `name`:
+
+```python
+target = "10.10.10.1"
+port = 8080
+url = f"http://{target}:{port}/login"   # "http://10.10.10.1:8080/login"
+```
+
+That is how commands and URLs get assembled, instead of gluing quotes and plus
+signs together by hand.
+
+A list is an ordered sequence, written in square brackets, and position counts
+from zero:
+
+```python
+ports = [22, 80, 443, 8080]
+ports[0]             # 22, the first item
+len(ports)           # 4
+ports.append(3306)   # ports is now [22, 80, 443, 8080, 3306]
+```
+
+Order is kept and duplicates are allowed. A list is the right shape for "a bunch
+of the same kind of thing": ports, hostnames, lines from a wordlist.
+
+A dict (dictionary) stores pairs. A key points to a value, written in curly
+braces, and lookup happens by key rather than by position:
+
+```python
+headers = {"Server": "nginx", "Content-Type": "text/html"}
+headers["Server"]    # "nginx"
+```
+
+A dict is the right shape for labeled data, which is most of what tools return.
+An HTTP response, a parsed JSON body, a config file: all dicts. Asking a dict for
+a key it does not have is an error, and that exact error closes this lesson.
+
+<Quiz
+  id="py-three-shapes"
+  question="A tool returns an HTTP response as named fields: Server is nginx, Content-Type is text/html. Which shape fits, and how is a field read back?"
+  answer={2}
+  options={[
+    "A list, read by position like data[0]",
+    "A string, split with .split() on every lookup",
+    "A dict, read by key like data['Server']",
+    "A bool, since each field is either present or missing",
+  ]}
+  explanation="Labeled data, a name pointing to a value, is a dict. Lookup is by key, headers['Server'], not by numeric position. A list would force remembering that Server happens to be item 0, which breaks the moment the order changes."
+/>
+
+## Deciding and repeating
+
+Two constructs turn a flat list of statements into real logic.
+
+A conditional runs a block only when a test passes. `if`, optional `elif`
+(else-if), optional `else`:
+
+```python
+if port == 443:
+    print("https")
+elif port == 80:
+    print("http")
+else:
+    print("unknown service")
+```
+
+`==` is the equality test, two equals signs, and it is a different thing from
+`=`, the single-sign assignment. The test produces a bool, and the block runs
+when that bool is `True`.
+
+Indentation is not decoration. Python decides what belongs to the `if` by the
+leading whitespace alone. Everything indented under a line belongs to it, and
+the first line that dedents is back outside. Most code indents with four spaces.
+
+<Callout type="warning" title="Whitespace changes the meaning">
+Python has no curly braces or `end` keyword marking where a block stops. The
+indentation is the structure. Mixing tabs with spaces, or indenting inconsistently,
+either changes which lines run inside a loop or stops the file from parsing at all
+with an `IndentationError`. Pick spaces and stay with them.
+</Callout>
+
+A loop repeats a block once per item. `for` walks through a list:
+
+```python
+for port in [22, 80, 443]:
+    print(f"checking {port}")
+```
+
+The variable `port` takes each value in turn, `22`, then `80`, then `443`, and
+the indented body runs three times. This is the entire reason to write a script
+instead of working by hand. The same three lines handle three ports or three
+thousand.
+
+The two combine constantly. Open a file, and for each line, decide whether it is
+worth keeping:
+
+```python
+with open("hosts.txt") as f:
+    for line in f:
+        host = line.strip()
+        if host.endswith(".target.com"):
+            print(host)
+```
+
+That is the afternoon-of-scrolling job from the opening, in five lines.
+`open("hosts.txt")` hands back the file, the `with ... as f` wrapper makes sure
+it gets closed again once the block finishes, `for line in f` walks the file one
+line at a time, `.strip()` cleans the newline off each line, and the `if` keeps
+only the matches.
+
+## Functions and imports
+
+A function is a named, reusable block. Define it once with `def`, then call it
+by name as many times as needed. It takes inputs, called parameters, and hands
+back a result with `return`:
+
+```python
+def build_url(target, port):
+    return f"http://{target}:{port}/"
+
+build_url("10.10.10.1", 8080)   # "http://10.10.10.1:8080/"
+```
+
+`build_url` packages one idea, assemble a URL, behind a name. Anywhere a URL is
+needed, one call produces it, and a change to the format happens in one place
+instead of twenty scattered copies.
+
+Not every capability ships inside the language. An import pulls in code someone
+else already wrote, grouped into a module. The standard library that comes with
+Python covers most early needs:
+
+```python
+import socket
+socket.gethostbyname("example.com")   # returns the current IP for that name
+```
+
+`import socket` makes the `socket` module available, and `socket.gethostbyname`
+then resolves a hostname into an IP the way a DNS lookup does. The exact address
+that comes back depends on the host and changes over time, so it is not a fixed
+value. The shape is the lesson: `import` a module, then reach into it with a dot.
+
+<Quiz
+  id="py-return-vs-print"
+  question="Inside a function, what is the difference between return value and print(value)?"
+  answer={1}
+  options={[
+    "Nothing, both hand the value back to whatever called the function",
+    "return hands the value back to the caller to store or use further; print only shows it on the terminal and the caller gets nothing back",
+    "print is faster, and return works only for numbers",
+    "return shows the value on the terminal, and print stores it in a variable",
+  ]}
+  explanation="return is how a function gives a result back to the code that called it, so url = build_url(...) can capture it. print only writes to the terminal. A function that prints but never returns hands back nothing a later line can use."
+/>
+
+## When it breaks, read the traceback
+
+Every beginner script crashes, and Python is unusually helpful about why. When a
+line fails, the interpreter stops on the spot and prints a traceback: a block of
+text naming what went wrong and where.
+
+Take a script with a typo, `taget` where `target` was meant:
+
+```python
+target = "10.10.10.1"
+print(taget)
+```
+
+Running it prints:
+
+<ExpectedOutput label="a NameError traceback">
+```
+Traceback (most recent call last):
+  File "recon.py", line 2, in <module>
+    print(taget)
+          ^^^^^
+NameError: name 'taget' is not defined. Did you mean: 'target'?
+```
+</ExpectedOutput>
+
+The trick is to read it from the bottom up. The last line is the verdict: the
+type of error, `NameError`, and the detail, that the name `taget` was used but
+never defined. Modern Python even guesses the fix, `Did you mean: 'target'?`,
+because a very similar name exists nearby. The line above the verdict points at
+the exact spot, `line 2`, quotes the offending code, and underlines the guilty
+token with carets. The top line, "most recent call last," only starts to matter
+once functions call other functions and the trace grows; for a flat script the
+bottom two lines are the entire story.
+
+<Callout type="tip" title="Bottom line first, every time">
+The reflex worth building on day one is to jump straight to the last line of any
+traceback. It names the error type and the reason in plain language. Everything
+above it is just the trail of where that error happened. Reading top to bottom
+wastes the most useful sentence by burying it.
+</Callout>
+
+<Exercise title="Break it on purpose">
+On any machine with Python 3 installed, save two lines to a file called
+`recon.py`: `target = "scanme.nmap.org"` on the first line and `print(target)`
+on the second. Run it with `python3 recon.py` and confirm it prints the
+hostname.
+
+Now introduce a typo. Change the second line to `print(taget)` and run it again.
+Read the traceback from the bottom up. The last line names the error and guesses
+the fix.
+
+Fix the typo, and while the file is open, add a `for` loop that prints each port
+in `[80, 443, 8080]` on its own line. Then break the loop on purpose by removing
+the indentation on its body, run it, and read the `IndentationError`. Seeing
+both errors once, deliberately, makes them instant to recognize later.
+</Exercise>
+
+Variables, the four types, the three shapes, conditionals, loops, functions,
+imports, and a traceback: that is the language in one pass. What none of it does
+yet is reach across a network. The next lesson, http-with-python, brings in the
+requests library to send GET and POST requests, read status codes and headers,
+attach query parameters, carry cookies through a session, and parse a JSON
+response back into the dicts and lists from this lesson. It builds directly on
+the Web and HTTP vocabulary, and turns these fundamentals into a script that
+actually talks to a target.
+
+<Notes />

@@ -1,0 +1,65 @@
+---
+title: The Hunting Mindset
+module: threat-hunting
+moduleTitle: Threat Hunting
+moduleOrder: 26
+moduleIcon: Footprints
+order: 1
+summary: Your alerts fire on what someone already knew to look for. Hunting is the search for everything they didn't.
+estimatedMinutes: 16
+objectives:
+  - Adopt the assume-breach posture that drives real hunting
+  - Distinguish hunting from alert triage and know when each applies
+  - Pick a starting hunt from crown-jewel assets and attacker goals
+tags:
+  - threat-hunting
+  - blue-team
+  - assume-breach
+  - detection
+---
+
+Your SIEM has 4,000 detection rules and none of them fired last night. That does not mean nothing happened. It means nothing happened that someone, somewhere, already wrote a rule for. Threat hunting starts from the opposite assumption: the attacker is already inside, your tooling missed them, and it is your job to go find the evidence by hand.
+
+That single flip in posture is the whole discipline. Alert triage waits for the machine to raise its hand. Hunting assumes the machine is blind to this particular adversary and goes looking anyway.
+
+## Assume breach, then act like it
+
+"Assume breach" is not pessimism for its own sake. It is a working method. You stop asking "did we get compromised" and start asking "given that we are compromised, where would the evidence be, and have I looked there yet." The question is always answerable. The first one just makes you feel productive while you wait.
+
+Concretely, that means you pick a technique an attacker would use, decide what trace it leaves, and go read that trace across your fleet. Not one host. The fleet. An attacker who owns one box owns it quietly, so a single-host view tells you nothing about whether the pattern repeats where you are not looking.
+
+## Hunting is not triage
+
+Keep these two jobs separate in your head or you will do both badly. Triage is reactive, time-boxed, and scoped to a single alert: something fired, you decide if it is real, you close or escalate. Hunting is proactive and open-ended: no alert exists, you form a theory, and you go prove or kill it.
+
+The reason detections miss is baked into how they are built. A rule encodes a known-bad pattern from a past incident or a public report. Novel tradecraft, a living-off-the-land trick using `certutil` or `wmic`, or a slow campaign that stays under every threshold slides right through. Hunting is how those get caught, and every good hunt that finds something should end by becoming a new detection so the machine catches it next time.
+
+<Callout type="security" title="You are hunting on real production data">
+Hunting means querying logs full of employee activity, customer records, and business secrets. Access those systems only with explicit authorization for your own environment, log your own queries, and never pull data outside the scope you were given. The same telemetry that catches an intruder is a privacy liability if you treat it carelessly.
+</Callout>
+
+## Start where the attacker wants to be
+
+Do not hunt randomly. Start from what an adversary is actually after and work backward to the telemetry. Domain admin credentials, the code-signing key, the customer database, the finance mailbox. Those are the crown jewels, and any real intrusion eventually reaches toward one of them.
+
+Pick one. Ask what an attacker would have to do to reach it, what that action looks like in your logs, and whether you can see it at all. If the answer to that last part is "we don't collect that," you just found a visibility gap, and a gap is a finding too. Half of early hunting is discovering how blind you actually are.
+
+<Quiz
+  id="hunt-mindset-vs-triage"
+  question="What most clearly separates threat hunting from alert triage?"
+  answer={2}
+  options={[
+    "Hunting uses more expensive tools than triage",
+    "Triage requires authorization and hunting does not",
+    "Hunting starts with a human hypothesis and no alert, while triage reacts to an alert the tooling already raised",
+    "Hunting only looks at a single host at a time",
+  ]}
+  explanation="Triage is reactive and scoped to an alert the system produced. Hunting is proactive: you assume a breach the tooling missed, form a theory, and search for evidence that no rule fired on."
+/>
+
+<Exercise
+  id="hunt-mindset-crown-jewels"
+  prompt="Name one crown-jewel asset in an environment you are authorized to test. Write one sentence describing what an attacker would have to do to reach it, and one log source that would show that action. If no such log exists, say so plainly. That is your first visibility gap."
+/>
+
+<Notes />

@@ -1,0 +1,130 @@
+[
+  {
+    "domain": 1,
+    "question": "A ransomware infection encrypts a hospital's patient records so that clinicians can no longer open them, although the attacker never reads or alters the underlying data. Which element of the CIA triad is most directly harmed by this incident?",
+    "options": ["Availability", "Confidentiality", "Integrity", "Non-repudiation"],
+    "correct": [0],
+    "explanation": "Availability means authorized users can access information and systems when they need them. Encrypting files so legitimate staff cannot reach them is a classic availability attack. Confidentiality would be harmed by disclosure and integrity by unauthorized alteration, neither of which is described here.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A data center is valued at 2,000,000 dollars. A flood is expected to destroy 25 percent of that value when it occurs, and historical records show a flood of this severity happens roughly once every 20 years. Using quantitative risk analysis, what is the annualized loss expectancy (ALE)?",
+    "options": ["25,000 dollars", "500,000 dollars", "100,000 dollars", "10,000 dollars"],
+    "correct": [0],
+    "explanation": "Single loss expectancy equals asset value times exposure factor, or 2,000,000 times 0.25, which is 500,000 dollars. The annualized rate of occurrence for a once-in-20-years event is 0.05. ALE equals SLE times ARO, or 500,000 times 0.05, which is 25,000 dollars.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "When calculating single loss expectancy (SLE) in a quantitative risk assessment, which two values are multiplied together? (Choose two.)",
+    "options": ["Asset value", "Exposure factor", "Annualized rate of occurrence", "Annualized loss expectancy"],
+    "correct": [0, 1],
+    "explanation": "SLE equals asset value multiplied by the exposure factor, where the exposure factor is the percentage of the asset lost in a single event. The annualized rate of occurrence is later multiplied by SLE to produce the annualized loss expectancy, so ARO and ALE are not part of the SLE calculation itself.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "The (ISC)2 Code of Ethics contains four canons. When two canons appear to conflict in a given situation, how should a CISSP resolve the conflict?",
+    "options": ["Apply the canons in the order they are listed, giving the first canon precedence", "Choose whichever canon best protects the member's employer", "Consult a manager and follow that person's instruction regardless of the canons", "Treat all four canons as equal and pick the outcome that is least costly"],
+    "correct": [0],
+    "explanation": "The canons are meant to be applied in order, and the first canon, protect society, the common good, necessary public trust and confidence, and the infrastructure, takes precedence over the ones that follow. Employer interest or personal cost does not override the ordering of the canons.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "A company's leadership formally documents that management has continuously reviewed audit reports, funded controls, and monitored the security program over time. Which concept does this ongoing, continuous activity best demonstrate?",
+    "options": ["Due diligence", "Due care", "Separation of duties", "Least privilege"],
+    "correct": [0],
+    "explanation": "Due diligence is the ongoing practice of investigating, monitoring, and maintaining awareness of risks and controls. Due care is the act of taking reasonable steps to protect assets, often summarized as doing something about what due diligence uncovered. The other two options are access control principles, not governance concepts.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An organization decides to purchase a cyber-insurance policy so that a third party absorbs the financial impact of a major breach. Which risk treatment strategy does buying insurance represent?",
+    "options": ["Risk transfer", "Risk avoidance", "Risk acceptance", "Risk mitigation"],
+    "correct": [0],
+    "explanation": "Risk transfer, sometimes called risk assignment, shifts the financial consequences of a risk to another party such as an insurer. Avoidance eliminates the activity that creates the risk, acceptance means living with the exposure, and mitigation reduces likelihood or impact through controls.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "After a company deploys firewalls, encryption, and monitoring, some exposure still remains that it chooses to live with. What is the name for the risk that remains after controls have been applied?",
+    "options": ["Residual risk", "Inherent risk", "Total risk", "Secondary risk"],
+    "correct": [0],
+    "explanation": "Residual risk is what is left after safeguards and countermeasures have been implemented. Total or inherent risk is the exposure before any controls are applied. Secondary risk is a new risk introduced by a response to another risk, which is not what this question describes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "In a security documentation hierarchy, which two document types are mandatory and enforceable rather than optional recommendations? (Choose two.)",
+    "options": ["Standard", "Baseline", "Guideline", "White paper"],
+    "correct": [0, 1],
+    "explanation": "Standards and baselines are mandatory. Standards specify required technologies or configurations, and baselines define a minimum required level of protection. Guidelines are discretionary suggestions of best practice, and a white paper is not part of the policy framework at all.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "During business continuity planning, a business impact analysis (BIA) establishes the maximum length of time a critical business process can be unavailable before the organization suffers unacceptable harm. Which metric captures this value?",
+    "options": ["Maximum tolerable downtime (MTD)", "Recovery point objective (RPO)", "Mean time between failures (MTBF)", "Annualized rate of occurrence (ARO)"],
+    "correct": [0],
+    "explanation": "Maximum tolerable downtime, also called maximum tolerable period of disruption, is the total time a process can be down before the damage becomes unacceptable. RPO measures tolerable data loss, MTBF is a reliability measure, and ARO is a risk-frequency figure.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A recovery point objective (RPO) of four hours has been set for a transactional database. What does this RPO value specify?",
+    "options": ["The maximum amount of data, measured in time, the organization can afford to lose in a disruption", "The maximum time allowed to restore the database to service", "The average time between hardware failures for the storage array", "The point at which senior management must declare a disaster"],
+    "correct": [0],
+    "explanation": "The recovery point objective defines how much data loss is acceptable, expressed as a time window, and it therefore drives backup and replication frequency. The time allowed to restore service is the recovery time objective, which is a distinct metric.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Under the European Union General Data Protection Regulation (GDPR), a company determines the purposes and means of processing personal data, while a separate cloud vendor only stores and processes that data on the company's documented instructions. What are the correct GDPR roles for these two parties?",
+    "options": ["The company is the data controller and the vendor is the data processor", "The company is the data processor and the vendor is the data controller", "Both parties are joint data controllers", "Both parties are data processors reporting to a supervisory authority"],
+    "correct": [0],
+    "explanation": "Under GDPR, the controller determines why and how personal data is processed, and the processor acts on the controller's instructions. The company setting the purposes is the controller, and the vendor acting on instructions is the processor. GDPR places primary accountability on the controller.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A beverage company keeps its secret formula confidential indefinitely and protects it through nondisclosure agreements and access restrictions rather than public registration. Which form of intellectual property protection does this approach represent?",
+    "options": ["Trade secret", "Patent", "Copyright", "Trademark"],
+    "correct": [0],
+    "explanation": "A trade secret protects confidential business information that provides competitive advantage and lasts as long as secrecy is maintained. A patent requires public disclosure in exchange for a limited monopoly, copyright protects original expression, and a trademark protects brand identifiers.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "In a well-governed security program, who holds ultimate accountability for the organization's risk decisions and for the success or failure of the information security program?",
+    "options": ["Senior management", "The information security officer", "The internal audit team", "The system administrators"],
+    "correct": [0],
+    "explanation": "Senior or executive management is ultimately accountable for risk and for the security program, because it owns the organization's assets on behalf of shareholders and sets the risk appetite. Security officers, auditors, and administrators execute or evaluate the program, but accountability cannot be delegated away from leadership.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A risk team gathers a panel of subject-matter experts and collects their judgments anonymously across several iterative rounds, feeding back aggregated results each round to build consensus without any expert dominating the discussion. Which risk assessment technique is being used?",
+    "options": ["The Delphi technique", "Quantitative ALE calculation", "Failure modes and effects analysis", "A penetration test"],
+    "correct": [0],
+    "explanation": "The Delphi technique is a qualitative, consensus-building method that uses anonymous, iterative expert input to reduce bias and the influence of dominant voices. Quantitative ALE relies on numeric values, FMEA analyzes component failures, and a penetration test is a technical assessment, not a consensus method.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "A security team is designing its people program and needs to distinguish three levels of the learning continuum. Which description correctly matches security awareness as opposed to training or education?",
+    "options": ["Awareness changes attitudes and reinforces good habits so users recognize and respond to security concerns", "Awareness teaches a specific skill so staff can perform a defined job task", "Awareness is a formal, degree-level program that builds deep expertise over years", "Awareness is a technical control that blocks phishing emails automatically"],
+    "correct": [0],
+    "explanation": "Awareness is designed to change behavior and reinforce good security habits so users recognize and appropriately respond to concerns. Training builds specific job skills, and education is the broad, long-term development of expertise. Awareness is a human program, not an automated technical control.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Following a breach, plaintiffs argue that the company's executives failed to act as a reasonably careful organization would have, given known risks, and should therefore be held liable. Which legal concept underpins this argument that management can be found negligent?",
+    "options": ["The prudent person rule and a failure to exercise due care", "Strict liability regardless of conduct", "The exclusionary rule", "Sovereign immunity"],
+    "correct": [0],
+    "explanation": "The prudent person rule holds decision makers to the standard of what a reasonable and careful person would do in similar circumstances. Failing to meet that standard of due care can constitute negligence and downstream liability. The other options are unrelated legal doctrines from criminal procedure and government immunity.",
+    "difficulty": "HARD"
+  }
+]

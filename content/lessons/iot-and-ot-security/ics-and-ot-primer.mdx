@@ -1,0 +1,61 @@
+---
+title: ICS and OT Primer
+module: iot-and-ot-security
+moduleTitle: IoT and OT Security
+moduleOrder: 40
+moduleIcon: Factory
+order: 4
+summary: On a plant floor your IT instincts are dangerous. A stray nmap can halt a PLC, and a PLC halting can stop production or trip a safety system.
+estimatedMinutes: 20
+objectives:
+  - Name the core OT components and the protocols that connect them
+  - Explain the Purdue model and why OT flips the CIA triad
+  - Describe why an aggressive scan is a real safety hazard on an OT network
+tags:
+  - ics
+  - ot
+  - plc
+  - scada
+  - modbus
+---
+
+Run a full nmap sweep on a corporate LAN and the worst case is a noisy alert. Run the same sweep against a plant floor and you can freeze a controller that runs a physical process, which means a valve does not close or a pump does not stop. Operational technology is not IT with older hardware. It is a different discipline with a different threat model, and treating it like a data center is how people get hurt.
+
+## What is actually on the floor
+
+A **PLC**, a programmable logic controller, is the box that reads sensors and drives actuators. It runs ladder logic on a hard real-time loop, opening valves, spinning motors, and holding a tank at temperature. It is small, it is old, and it has almost no security built in because it was designed for an isolated network.
+
+**SCADA** is the supervisory layer sitting above the PLCs: the HMI screens an operator watches, the historian logging every reading, the software that lets a human see and steer the process. RTUs extend the reach out to remote sites, and a DCS is the same idea packaged for one large plant.
+
+The protocols tying it together were built for trust, not security. Modbus, the most common, runs on TCP port 502 with no authentication and no encryption. Anyone who can reach the controller can send it function codes: read a register, or write one and change the process. DNP3, EtherNet/IP, Profinet, and Siemens S7comm all carry the same original sin. They assume the network is friendly.
+
+## The Purdue model
+
+OT networks are supposed to be layered, and the reference for that layering is the Purdue model. Level 0 is the physical field devices, sensors and actuators. Level 1 is the controllers, the PLCs. Level 2 is the local SCADA and HMI. Level 3 is site operations. Level 3.5 is a DMZ, and levels 4 and 5 are enterprise IT and the internet.
+
+The whole point is that traffic should not jump straight from the internet to a PLC. The DMZ at 3.5 is the chokepoint. When an OT breach happens, it is usually because that separation was never really built, and an engineering laptop or a flat network let an attacker walk from email straight to the controllers.
+
+## Why OT is its own world
+
+IT ranks confidentiality first. OT flips the triad and puts availability at the top, because the process cannot stop. That single inversion explains most of the strange decisions you see. A Windows XP HMI stays unpatched for a decade because taking it down to update it means shutting the line. A twenty-year device lifespan is normal. You cannot just reboot to try again.
+
+The consequences are physical and public. Stuxnet made Iranian centrifuges tear themselves apart. TRITON went after a safety instrumented system, the last line that prevents an explosion. Industroyer cut power in Ukraine. The 2021 Oldsmar water plant incident showed an operator watching the setpoint for a chemical get dragged upward on screen. These are not data breaches. They move matter.
+
+<Callout type="security" title="Never scan a live OT network without a signed plan">
+An aggressive nmap, a vulnerability scanner, or a Modbus write against production gear can halt a PLC or trip a safety system, and that translates directly to stopped production or a physical hazard. OT testing happens only inside a written authorization with a scheduled maintenance window and the process owner in the room. To practice safely, build a lab: OpenPLC for a soft controller, the GRFICS simulator for a full process, and the Conpot honeypot to see what ICS protocols look like on the wire.
+</Callout>
+
+<Quiz
+  id="ot-cia-flip"
+  question="Why does an unpatched Windows XP HMI often stay in production for years on an OT network?"
+  answer={2}
+  options={[
+    "OT devices cannot run modern operating systems at all",
+    "Confidentiality is the top priority, so patching is skipped to hide the system",
+    "Availability outranks everything, and patching would require stopping a process that is not allowed to stop",
+    "HMIs are air-gapped, so patches are impossible to deliver",
+  ]}
+  explanation="OT inverts the CIA triad to put availability first. Taking an HMI offline to patch means interrupting a running physical process, which the operation will not tolerate, so legacy systems persist far longer than they would in IT."
+/>
+
+<Notes />

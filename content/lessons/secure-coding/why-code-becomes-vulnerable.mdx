@@ -1,0 +1,77 @@
+---
+title: Why Code Becomes Vulnerable
+module: secure-coding
+moduleTitle: Secure Coding
+moduleOrder: 38
+moduleIcon: ShieldCheck
+order: 1
+summary: A bug turns into a vulnerability the moment untrusted data reaches a dangerous sink.
+estimatedMinutes: 16
+objectives:
+  - Map the trust boundaries in a piece of code
+  - Trace attacker-controlled input from source to sink
+  - Tell an exploitable vulnerability apart from a plain bug
+tags:
+  - secure-coding
+  - trust-boundaries
+  - appsec
+  - fundamentals
+---
+
+A function that reverses a string cannot hurt anyone. The same function becomes a vulnerability the second it decides who gets to read a file. Nothing about the code changed. What changed is where the data came from and what the code does next.
+
+That gap is where security lives. Most vulnerabilities are not exotic. They are ordinary code doing exactly what it was told, using input the author assumed would be well behaved.
+
+## Trust boundaries
+
+A trust boundary is a line in your system where data crosses from something you do not control into something you do. Every HTTP request crosses one. So does every uploaded file, every environment variable an operator sets, every row a different service wrote into your shared database.
+
+On one side of that line sits data you cannot trust. On the other side sits code that acts on it. The whole discipline of secure coding is knowing exactly where those lines are and refusing to let raw input walk across them.
+
+The boundaries that bite are the ones people forget they have. A filename pulled from an S3 event. A JWT claim you decoded but never verified. A config value read from a table that a lower-privileged service can write to. A webhook body from a partner you called "trusted" in a meeting. If you did not produce and check the value yourself, it is across a boundary, and it is hostile until proven otherwise.
+
+## Source, flow, sink
+
+Every static analyzer thinks in three words: source, flow, sink. The source is where untrusted data enters. The sink is code that does something dangerous with it: runs a query, spawns a process, writes a file, renders HTML, deserializes an object. The flow is the path between them. A vulnerability is a flow from a source to a sink with nothing safe in the middle.
+
+Look at this:
+
+```python
+filename = request.args.get("file")
+return open("/var/uploads/" + filename).read()
+```
+
+Source is `request.args`. Sink is `open()`. There is no boundary check between them, so `file=../../etc/passwd` walks straight out of the uploads directory and reads whatever the process can. SQL injection, command injection, and SSRF all share this exact shape: untrusted string, dangerous sink, nothing enforced in between.
+
+<Callout type="security" title="Map boundaries only in code you own">
+Tracing source-to-sink flows is a skill you practice on your own applications or on code you are explicitly authorized to review. Probing a third party's app to hunt these flows without written permission is unauthorized access in most jurisdictions. The technique is neutral. The target is what makes it legal or not.
+</Callout>
+
+## A bug is not always a vulnerability
+
+Not every bug is exploitable, and treating them as equal wastes your time. An off-by-one that only ever runs over trusted internal data is a correctness bug you fix on your own schedule. Feed that same buffer a length taken from the network and it is a memory-corruption vulnerability that ships tonight.
+
+The difference is reachability. Can an attacker actually drive input into the dangerous code? If yes, it is a vulnerability and the fix has a deadline. If the dangerous path can only be reached by data you fully control, it is a bug, and you prioritize it like any other. Knowing which one you are looking at is half of security review.
+
+<Quiz
+  id="whyvuln-boundary"
+  question="Which of these is the trust boundary in a webhook handler that parses a JSON body and writes a field into your database?"
+  answer={2}
+  options={[
+    "The database write, because writes are risky",
+    "The JSON parsing, because parsers crash",
+    "The incoming request body, because it comes from a system you do not control",
+    "There is no boundary if the sender is a known partner",
+  ]}
+  explanation="The boundary is where external data enters. A known partner is still an external source you did not produce or verify, so the request body is untrusted until you validate it."
+/>
+
+<Exercise
+  id="whyvuln-sink"
+  prompt="In the path-traversal example, name the sink: the single function call that turns untrusted input into a dangerous action."
+  answer="open"
+>
+Ask which call does something with real consequences using the attacker's string. It is the file read.
+</Exercise>
+
+<Notes />

@@ -1,0 +1,72 @@
+---
+title: Dependency Risk
+module: supply-chain-security
+moduleTitle: Software Supply Chain Security
+moduleOrder: 52
+moduleIcon: Truck
+order: 2
+summary: Your app is maybe 5 percent your code. The other 95 percent is packages you never read, pulled by packages you never chose.
+estimatedMinutes: 20
+objectives:
+  - Trace how transitive dependencies pull in code you never approved
+  - Recognize typosquatting and dependency-confusion attacks
+  - Audit a project for known-vulnerable libraries with real tooling
+tags:
+  - dependencies
+  - typosquatting
+  - npm
+  - dependency-confusion
+---
+
+Run `npm install express` and you did not add one dependency. You added express, and the fifty-odd packages express depends on, and the packages those depend on, all the way down. Your `node_modules` folder ends up with hundreds of packages from hundreds of maintainers you have never heard of, each running with the same privileges as your own code. That is the risk in one sentence: you audited your code, and your code is the small part.
+
+The dependency you name is the one you think about. The dependencies it drags in are the transitive ones, and they are where the trouble lives. In 2018 the popular `event-stream` package quietly added a new dependency, `flatmap-stream`, after a maintainer handed the project to a stranger who volunteered. That new dep contained code that targeted a specific bitcoin wallet app. Millions of installs, and almost nobody noticed because nobody reads the deps of their deps.
+
+## Three ways a package turns hostile
+
+Typosquatting is the dumbest and it still works. An attacker publishes `python-requests` or `reqeusts` or `crossenv` next to the real `requests` and `cross-env`, and waits for a tired developer to fat-finger the install. The malicious `crossenv` package on npm did exactly this, stealing environment variables (which is to say, your secrets) on install.
+
+Account takeover is the second. A maintainer reuses a password, gets phished, or lets a token leak, and the attacker pushes a poisoned version to a package millions already trust. The `ua-parser-js` compromise in 2021 shipped a crypto miner and a credential stealer through a hijacked maintainer account. No typo required, the victims already depended on the real thing.
+
+Dependency confusion is the clever one, and it earned Alex Birsan bug bounties at Apple, Microsoft, and more in 2021. If your build pulls an internal package named `acme-utils` from a private registry, an attacker publishes a package with that same name on the public npm registry at a higher version number. Many default resolvers prefer the higher version and reach out to the public registry, so the build downloads and runs the attacker's `acme-utils` instead of yours.
+
+<CommandBlock
+  title="see what you actually depend on"
+  commands={[
+    { cmd: "npm ls --all", comment: "print the full transitive tree, not just direct deps" },
+    { cmd: "npm audit", comment: "match your lockfile against the advisory database" },
+    { cmd: "pip install pip-audit && pip-audit", comment: "same idea for Python projects" },
+  ]}
+/>
+
+<ExpectedOutput label="npm audit, trimmed">
+# npm audit report
+
+minimist  <1.2.6
+Severity: critical
+Prototype Pollution in minimist - GHSA-xvch-5gv4-984h
+fix available via `npm audit fix`
+</ExpectedOutput>
+
+## Known-vulnerable is its own category
+
+Most dependency risk is not a planted backdoor. It is a library with a public CVE that you never upgraded. Log4Shell (CVE-2021-44228) was a logging library that half the internet already shipped. The fix was not detection wizardry, it was knowing you had log4j and bumping the version. That is boring, and boring is what saves you.
+
+<Callout type="security" title="Audit your own tree, and dispose of malicious packages carefully">
+Run these audits against repos you own or are cleared to assess. If you go looking at a known-malicious package to understand it, do it in a throwaway VM or container with no real secrets and no network path to anything you care about, and never run its install scripts on your host. Reading the source of a hostile package is fine. Letting its `postinstall` hook run on your laptop is how you become the incident.
+</Callout>
+
+Pin your versions with a committed lockfile so a rebuild cannot silently pull a new release. Set your resolver to prefer your private registry for internal names, which shuts down dependency confusion. And treat `npm audit` output as a work item, not a wall of noise you scroll past. The critical one in the pile is the one that ends up in the writeup.
+
+<Exercise
+  id="depconf-registry"
+  prompt="Your build pulls an internal package by name from a public registry with no scope or private-registry preference set. What class of supply chain attack is this exposed to?"
+  answer="dependency confusion"
+  placeholder="name the attack class"
+>
+Think about what happens when someone publishes a package with your internal
+name, at a higher version, on the public registry. Which one does the resolver
+grab?
+</Exercise>
+
+<Notes />

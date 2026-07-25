@@ -1,0 +1,42 @@
+---
+title: Sum of the Small Primes
+summary: Add up every prime number below 100.
+track: make
+category: code
+difficulty: EASY
+tags: [primes, sums, loops]
+daily: true
+answer: 1060
+answerType: number
+starterLang: python
+starter: |
+  # Goal: sum every prime number below 100 and print the total.
+
+  def is_prime(n):
+      if n < 2:
+          return False
+      i = 2
+      while i * i <= n:
+          if n % i == 0:
+              return False
+          i += 1
+      return True
+
+  total = 0
+  for n in range(2, 100):
+      # add n to total when it is prime
+      pass
+
+  print(total)
+hints:
+  - Below 100 means n from 2 up to 99. Do not include 100 itself.
+  - Reuse the is_prime check, add each prime to a running total.
+---
+
+There are 25 prime numbers below 100. This challenge asks for their sum.
+
+Loop over every number from 2 up to 99, test each one for primality, and add the
+primes together. Print the total, then submit it.
+
+It is a small enough range that you can even sanity-check the first few by hand:
+2 + 3 + 5 + 7 + 11 is 28, and it climbs from there.

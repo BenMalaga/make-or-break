@@ -1,0 +1,73 @@
+---
+title: Identity in the Cloud
+module: cloud-security-fundamentals
+moduleTitle: Cloud Security Fundamentals
+moduleOrder: 29
+moduleIcon: Cloud
+order: 2
+summary: There is no firewall to breach anymore, just a key that says yes.
+estimatedMinutes: 20
+objectives:
+  - Explain why IAM is the real perimeter in cloud
+  - Tell a user apart from a role and know when each is used
+  - Read a policy well enough to spot a dangerous grant
+tags:
+  - cloud
+  - iam
+  - identity
+  - aws
+  - roles
+---
+
+In an on-prem network you break in by getting past the firewall. In the cloud there is no wall to get past. Every API call to AWS, Azure, or GCP hits the same public endpoint whether it comes from the CEO's laptop or a script in Belarus. The only thing standing between an attacker and your data is whether the request is signed with a credential that IAM will honor. That is it. Identity is the perimeter.
+
+This flips how you think about attack and defense. A leaked access key is not "a step toward" compromise. In many tenants it is compromise, full stop. The 2019 Capital One breach ran on a single over-privileged role that a server was allowed to assume. No malware, no zero-day. Just a permission that said yes when it should have said no.
+
+## Users versus roles, and why the difference matters
+
+An IAM **user** is a permanent identity with long-lived credentials: a password for the console, or an access key ID and secret for the API. It represents a person or, worse, a service that someone hardcoded a key into. Those keys sit in files, in environment variables, in Git history. They do not rotate on their own. When you find `AKIA...` in a repo, that is a user's key, and it works until someone notices.
+
+An IAM **role** has no permanent credentials. You assume it, and you get back temporary credentials that expire in an hour or so. An EC2 instance assumes a role through its instance profile. A Lambda function runs as a role. A user in one account assumes a role in another to cross the boundary. Because the credentials are short-lived, a stolen role token is a smaller fire than a stolen user key, but only if the role is not absurdly over-permissioned.
+
+The move you want is roles over users everywhere. Users with static keys are the thing that leaks. Roles hand out credentials that die on their own.
+
+<Callout type="info" title="Where the temporary keys come from">
+Roles issue credentials through STS, the Security Token Service. When an EC2 box assumes its role, it fetches those keys from the instance metadata endpoint at 169.254.169.254. That address matters more than it looks, and it comes up again the moment you learn about SSRF against cloud workloads.
+</Callout>
+
+## Reading a policy without falling asleep
+
+IAM policies are JSON. Three fields carry the weight: `Effect` (Allow or Deny), `Action` (what API calls), and `Resource` (on what). The one that should make you sit up is a wildcard in both:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "*",
+  "Resource": "*"
+}
+```
+
+That is administrator access. Attached to a role that a web server can assume, it means an SSRF bug on that server is game over for the whole account. Real policies are rarely this blatant, but the pattern to hunt for is the same: broad `Action`, broad `Resource`, attached to something reachable.
+
+Two actions deserve special fear because they let an identity grant itself more power. `iam:PassRole` lets a principal hand a role to a service. `iam:CreatePolicyVersion` and friends let it rewrite its own permissions. Privilege escalation in cloud is usually not an exploit. It is a chain of "this identity is allowed to modify identity."
+
+<Callout type="security" title="Enumerate only what you are cleared to touch">
+Tools like `pacu`, `enumerate-iam`, and `aws iam simulate-principal-policy` will map every permission a set of keys holds. Run them against your own lab account, CloudGoat, or a client tenant you are contracted for. Enumerating permissions on someone else's account with keys you found is unauthorized access, and cloud logs it all.
+</Callout>
+
+Start any assessment by asking one question of every credential: who can this become, and what can they touch? Answer that and you have the tenant's whole attack surface.
+
+<Quiz
+  id="csf-user-vs-role"
+  question="You find hardcoded AWS credentials starting with AKIA in a public GitHub repo. What kind of identity do they belong to, and why is that worse than a role's credentials?"
+  answer={2}
+  options={[
+    "A role, and it is fine because the keys expire in an hour",
+    "A role, and it is worse because roles are always admin",
+    "An IAM user, and it is worse because the keys are long-lived and do not rotate on their own",
+    "Neither, AKIA prefixes are not real credentials",
+  ]}
+  explanation="AKIA-prefixed keys are long-lived IAM user access keys. Unlike a role's temporary STS credentials, they stay valid until a human revokes them, so a leak in Git history can work for months."
+/>
+
+<Notes />

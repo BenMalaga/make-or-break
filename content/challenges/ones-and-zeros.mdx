@@ -1,0 +1,37 @@
+---
+title: Ones and Zeros
+summary: Turn the binary back into text to recover the flag.
+track: break
+category: misc
+difficulty: EASY
+tags: [binary, encoding, ascii]
+daily: true
+answer: "MOB{binary_is_base_two}"
+answerType: flag
+starterLang: python
+starter: |
+  # Each group of 8 bits is one character. Convert each group back to text.
+  bits = "01001101 01001111 01000010 01111011 01100010 01101001 01101110 01100001 01110010 01111001 01011111 01101001 01110011 01011111 01100010 01100001 01110011 01100101 01011111 01110100 01110111 01101111 01111101"
+
+  flag = "".join(chr(int(group, 2)) for group in bits.split())
+  print(flag)
+hints:
+  - Computers store text as numbers. Each character here is one byte, written as 8 binary digits.
+  - Split on the spaces to get 23 groups of 8 bits, then read each group as a base-2 number.
+  - That number is a character code. Turn each code into its character with chr(), then join them.
+---
+
+Computers do not store letters. They store numbers, and binary is just those
+numbers written in base 2, using only the digits 0 and 1. A single character of
+text fits in one byte, which is 8 binary digits.
+
+Below is a flag, one character per group, each character written as 8 bits:
+
+```
+01001101 01001111 01000010 01111011 01100010 01101001 01101110 01100001 01110010 01111001 01011111 01101001 01110011 01011111 01100010 01100001 01110011 01100101 01011111 01110100 01110111 01101111 01111101
+```
+
+There are 23 groups. Read each 8-bit group as a base-2 number, which gives you a
+character code, then turn that code back into its character. Join the characters
+in order and you get a flag in the form `MOB{...}`. Run the starter code, read
+the result, and submit the flag exactly as it reads.

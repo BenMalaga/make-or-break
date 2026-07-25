@@ -1,0 +1,120 @@
+---
+title: Network Automation and Infrastructure as Code
+module: networking-deep-dive
+moduleTitle: Networking Deep Dive
+moduleOrder: 2
+moduleIcon: Waypoints
+order: 5
+summary: "Real networks aren't run by typing into one device at a time anymore; they're described in code, reviewed, and applied by a program."
+estimatedMinutes: 16
+prerequisites:
+  - ipv6-and-the-modern-internet
+objectives:
+  - Explain why manual, per-device CLI configuration fails once a network passes a few dozen devices
+  - Describe how a program reads and pushes network state through an API instead of a terminal session
+  - Distinguish imperative automation scripts from declarative infrastructure as code
+  - Define idempotence and explain why it is what makes declarative automation safe to run repeatedly
+tags:
+  - automation
+  - iac
+---
+
+Every device in this module got configured the same way: someone (or some lesson) worked out the right settings and pictured typing them into one router or one switch at a time. The IPv6 lesson right before this one had a device carrying two addresses, one v4 and one v6, and both got assigned by hand, one interface at a time, one command at a time. That is how this whole module taught networking, and it is a completely reasonable way to learn what a route, a VLAN, a NAT rule, or an IPv6 prefix actually does. It is not how networks with any real size get run. This lesson is about the gap between the two, and about what a network engineer's actual job looks like once the network stops fitting on one screen.
+
+## Hand configuration breaks the moment scale shows up
+
+Picture a company with 300 switches spread across a dozen buildings, and picture a security policy that requires every one of them to trust a new NTP server. The hand-configuration version of that task is: open a terminal session to switch one, type the command, confirm it took, close the session, open a session to switch two, type the same command, confirm, close, and repeat two hundred and ninety-eight more times. Even at a brisk two minutes per device, that is ten hours of typing the identical line into slightly different prompts. Ten hours is optimistic, because nobody stays perfectly consistent for two hundred and ninety-eight repetitions of the same task.
+
+The realistic failure mode is not that the engineer refuses to do it. It is that somewhere around device 140, a command gets typed with a typo, or gets typed into the wrong device because two SSH sessions are open side by side, or gets skipped because a phone call interrupts the sequence and the engineer loses count. A single misplaced character in an access-list line or a route statement does not politely fail; it can drop a production link, block legitimate traffic, or open a hole that a scanner finds within the hour. Multiply that risk by three hundred devices and the question stops being whether a mistake happens and becomes when.
+
+There is a second problem that has nothing to do with typos: the record. After a hand-typed change, the only evidence it happened lives in that device's running configuration and maybe a line in a change ticket that says "updated NTP servers." Nothing captures why the change happened, who approved it, or what the configuration looked like the week before. If a switch six months later behaves strangely and someone suspects that NTP change, tracing it back means logging into each device and comparing configs by eye, or trusting whatever notes survived. Compare that to a line of code sitting in a commit with a message, an author, a date, and a diff showing exactly what changed. One of those is an audit trail. The other is a rumor.
+
+Scale is really the whole argument. A home network with one router does not need any of this; typing a few settings by hand is faster than writing a script to do it once. The moment a network engineer is responsible for dozens of devices, then hundreds, then the automated pipelines and cloud infrastructure of a company running at real traffic volumes, hand configuration stops being merely slow and starts being the biggest source of outages and security gaps in the whole operation. Multiple postmortems at large providers over the years trace straight back to one engineer typing one command into one box that should have gone through a reviewed, automated change instead.
+
+<Quiz
+  id="scale-problem"
+  question="A team manages 40 switches by hand and it works fine. The company then acquires two more sites, bringing the total to 260 switches. What is the most accurate description of what changes?"
+  answer={1}
+  options={[
+    "Nothing changes meaningfully; typing commands into 260 devices is just six times the work of 40, handled the same way",
+    "The failure mode shifts from occasional slowness to near-certain inconsistency and undocumented changes, because no person reliably repeats an identical task hundreds of times without drift",
+    "The switches automatically begin accepting configuration pushes once the network passes 250 devices",
+    "Hand configuration becomes impossible outright, since CLI sessions cannot be opened past a device count of 200"
+  ]}
+  explanation="The problem with manual configuration is not raw time, it is that consistency degrades as repetition count rises. A person can type one command correctly. Typing the identical command correctly two hundred and sixty times, across different sessions and different days, with a full audit trail of why, is a different kind of task that manual work does not do reliably. Nothing technical caps CLI sessions at 200, and nothing automatic kicks in on its own."
+/>
+
+## Modern devices expose an API; a program talks to that instead of a terminal
+
+The shift that fixes the scale problem is not a new protocol for moving packets. It is a change in how a network engineer interacts with a device in the first place. A CLI session over SSH is built for a human: it prints prompts, accepts one line at a time, and expects a person reading the screen to decide what comes next. Most modern network devices, from cloud-managed switches to carrier-grade routers, also expose a structured interface meant for a program to call directly: a REST API that accepts and returns JSON over HTTPS, or NETCONF/RESTCONF running over SSH or HTTPS with data modeled in YANG, or increasingly a gRPC interface built for high-volume streaming telemetry and configuration. Where the CLI hands back text meant for eyes, these interfaces hand back structured data meant for code: a JSON object with a device's interface list, its up or down state, and its address, instead of a paragraph of text a script would have to parse and hope never changes format.
+
+Once a device exposes an API like that, a script can do in a fraction of a second what a person spent two minutes typing. A Python script can open one connection, ask a router for its full interface table, get back structured data, and move to the next device before a human would have finished logging in. For devices that only expose a traditional CLI and no API, there are libraries built to bridge that gap safely: Netmiko wraps SSH sessions to hundreds of vendor CLIs behind one consistent Python interface, handling prompts and login sequences so the script does not have to guess. Nornir sits a layer above that, running the same task in parallel against an inventory of devices instead of one at a time, so a change that would take ten hours sequentially finishes in minutes. Ansible takes a different angle: instead of writing a script that issues commands step by step, an engineer writes a playbook, a YAML file describing the desired configuration, and Ansible's modules figure out what commands make a given device match that description. All three tools exist because the underlying shift is the same: state gets read and pushed by a program, and a person reviews what the program is about to do before it runs, rather than typing each change live against a production device.
+
+This is also where the two tracks on this platform stop being separate. Reading device state through an API and writing a script to change three hundred devices safely is not a networking skill layered on top of programming; it is programming, full stop, applied to a network. A network engineer who can read a JSON response, write a loop, and call a library is not doing something adjacent to development work. They are doing development work, on infrastructure instead of on a web application.
+
+<Quiz
+  id="api-vs-cli"
+  question="Why does a Python script calling a device's REST API scale to hundreds of devices in a way that opening SSH sessions by hand does not?"
+  answer={0}
+  options={[
+    "The API returns structured, predictable data a program can parse directly, and the same script logic can run against every device in an inventory automatically instead of a person retyping commands for each one",
+    "REST APIs use a faster physical transport than SSH, so each individual command completes in less time",
+    "SSH sessions are limited to one device per network, while REST APIs can address unlimited devices from a single IP",
+    "CLI commands stop working correctly once a network exceeds about 50 devices"
+  ]}
+  explanation="The advantage is not transport speed or some device limit on SSH, it is that structured, machine-readable responses let one piece of script logic apply identically across an entire inventory without a human re-typing or re-reading anything for each device. Netmiko and Nornir exist specifically to give CLI-only devices that same scriptable, repeatable treatment when no API is available."
+/>
+
+## Infrastructure as code turns configuration into a file that gets reviewed before it runs
+
+A script that logs into three hundred devices and issues commands is a real improvement over typing by hand, but it is still, at its core, a list of steps: do this, then this, then this. That style is called imperative automation, and it has a weakness. If the script gets interrupted halfway through, or if someone runs it twice by accident, nobody can be fully sure what state the network ends up in without checking every device by hand again, which defeats a good chunk of the point.
+
+Infrastructure as code takes a different stance. Instead of writing the steps to reach a configuration, an engineer writes a file describing the configuration itself, the desired end state, in a structured, human-readable format like YAML or a tool's own configuration language. A separate tool reads that file and takes whatever actions are needed to make the real network match it, whatever the current state happens to be. The file lives in a version control system exactly like application code does, meaning it goes through a pull request, a colleague reviews the diff before it merges, and the history of every change to the network sits in the same Git log this platform's Version Control module already covers. Terraform is the tool most widely used for this in cloud networking: an engineer describes a virtual private cloud, its subnets, its routing rules, and its security groups in text files, and Terraform figures out the sequence of API calls needed to create, modify, or remove real cloud resources so that reality matches the file.
+
+Here is a short illustrative snippet, trimmed down to the shape of the idea rather than a full working example:
+
+```hcl
+resource "aws_subnet" "app_tier" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.4.0/24"
+  availability_zone = "us-east-1a"
+  tags = {
+    Name = "app-tier"
+  }
+}
+```
+
+Nobody logged into a cloud console and clicked through a wizard to make this subnet exist. An engineer wrote this block, a teammate reviewed it in a pull request the same way they would review a change to a web application's source code, and once it merged, Terraform read the file and made an API call to create exactly that subnet with exactly that address range. If someone later needs to know why 10.0.4.0/24 exists and when it was added, the answer is one `git log` away, with a commit message and an author attached, not a guess based on who was on call that week.
+
+The declarative style also answers the question a script cannot: what happens on a second run? A file describing a subnet with a given CIDR block, applied a second time when that subnet already exists exactly as described, produces zero changes. The tool compares the desired state in the file against the real state it can observe, sees they already match, and does nothing. That property, where applying the same desired-state file any number of times produces the same result as applying it once, is called idempotence, and it is the single property that makes this whole approach trustworthy at scale. Without it, running an automation job twice by accident, which happens constantly in real operations, could double-create resources or throw errors on things that already exist. With it, running the job again is not just safe, it is the standard way to check that reality still matches the file, and a whole environment can be torn down and rebuilt from the same files with confidence that the result will look the same as it did the first time.
+
+<Callout type="warning" title="Idempotence has to be earned, not assumed">
+Declarative tools like Terraform and Ansible are built to be idempotent, but a badly written module or playbook can still break that guarantee, for instance a script step that appends a line to a config file instead of ensuring that line exists exactly once. Run it twice and the file now has two identical lines, which is not the same state as running it once. Before trusting any automation to run unattended or on a schedule, run it twice in a row against the same target and confirm the second run reports no changes. If it does not, the automation is imperative in disguise, no matter what language it is written in.
+</Callout>
+
+## Why this is the whole job now, not an add-on to it
+
+None of this replaces understanding what a routing table does, what a VLAN separates, or why a NAT device rewrites an address. Every concept from earlier in this module still has to be true on the device the automation is pushing to; a script that pushes the wrong subnet mask breaks a network exactly as fast as a person typing it wrong would. What changes is the mechanism, not the underlying knowledge. A modern network engineer is expected to read a routing table the way this module taught, and also read a YAML file describing forty of them, and know that the second is how the first gets applied consistently across a real company's infrastructure.
+
+The CLI has not gone away, and it will not. Console access to a single device during an outage, when nothing else is reachable, is still done by hand, and a good engineer still needs to read a device's running configuration fluently. What has changed is that the CLI is no longer where a network engineer spends most of a working week. Most of that week now looks like reading a pull request that changes a Terraform file, checking whether an Ansible playbook's idempotence holds, or writing a short Python script against a device's API to pull data across an entire fleet at once. That is a genuinely different skill set than the one implied by "learn the commands," and it is why this lesson exists at the boundary of this platform's two tracks rather than tucked entirely inside one of them.
+
+<Exercise title="Spot the imperative script hiding inside a declarative claim">
+Write two or three sentences describing a small automation task for a network, such as adding a new VLAN across five switches. First describe it the imperative way, as a numbered list of steps a script would execute in order. Then rewrite the same task the declarative way, as a short description of the desired end state a file would capture, with no steps at all, just the outcome. Compare the two and note which one still makes sense if it runs twice in a row without checking first.
+</Exercise>
+
+<Quiz
+  id="idempotence-check"
+  question="An Ansible playbook is run against a router that already has the exact VLAN configuration the playbook describes. What should a genuinely idempotent run report?"
+  answer={3}
+  options={[
+    "An error, since the VLAN already exists and cannot be created twice",
+    "The VLAN gets deleted and recreated to guarantee a clean state",
+    "A warning that the playbook should not be run more than once per device",
+    "No changes made, because the router's real state already matches the desired state in the playbook"
+  ]}
+  explanation="Idempotence means applying the same desired-state description repeatedly produces the same result as applying it once. If the real device already matches the file, a correctly idempotent tool compares the two, finds no difference, and reports zero changes rather than erroring, deleting anything, or refusing to proceed."
+/>
+
+This closes out Networking Deep Dive, and the honest summary of everything in it is that a router, a switch, a NAT boundary, and an IPv6 prefix are only half the picture without the code that describes, deploys, and audits them at real scale. The other half is exactly what this lesson pointed at: Python scripts calling device APIs, YAML files describing desired state, and Git tracking every change the way software has been tracked for years. That is also precisely where the Make track's Programming path picks up, starting with Python and Git, the two tools this lesson leaned on the whole way through. The Build tab is where that gets hands-on: writing and running real code instead of reading about what it would do.
+
+<Notes />

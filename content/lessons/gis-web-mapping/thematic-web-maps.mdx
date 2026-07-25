@@ -1,0 +1,291 @@
+---
+title: Choropleths, Popups, and Interaction
+module: gis-web-mapping
+moduleTitle: Web Mapping
+moduleOrder: 6
+moduleIcon: Globe
+order: 5
+summary: "A web map earns its keep when color and click both carry meaning: shading polygons by a real rate and letting a viewer tap one for the number behind it."
+estimatedMinutes: 14
+prerequisites: ["web-map-services"]
+objectives:
+  - Build a choropleth map that shades polygons by a data value instead of a fixed color
+  - Choose a classification method (equal interval, quantile, or natural breaks) and explain how the wrong one misleads
+  - Normalize a raw count into a rate before mapping it, and pick a sequential or diverging color scheme that stays colorblind safe
+  - Add a popup or hover tooltip to a Leaflet map using a getColor function driven by a GeoJSON property
+---
+
+The previous lesson got tiles and vector layers onto a page. A map that only shows
+where things are, roads here, parks there, is useful, but it does not yet say
+anything about how much of something exists in each place. A **choropleth** is the
+map that does: a set of polygons, usually administrative areas like census tracts,
+counties, or countries, each filled with a color drawn from a value in its data.
+Darker for more, lighter for less, or some other scale the mapmaker chooses. It is
+the single most common way a web map turns raw numbers into a shape a viewer can
+read at a glance.
+
+That last phrase, "a shape a viewer can read at a glance," is also where choropleths
+go wrong most often. The colors on the map are doing an argument's worth of work,
+and every choice behind them, what value gets mapped, how it gets split into color
+bins, which colors get used, can push the same data toward a true story or a
+misleading one. This lesson works through those choices in order, because getting
+them right is most of what separates a map that informs from a map that just
+looks impressive.
+
+## Mapping a rate, not a raw count
+
+Start with the value itself. A common first mistake is coloring counties by their
+total population and calling it a population density map. Los Angeles County has
+about ten million people. Wyoming's Teton County has about twenty-three thousand.
+Shade counties by that raw count and the map is really just a map of which counties
+are large or urban, which was already obvious. The interesting question, how
+crowded is a place, needs a rate: population divided by land area, which gives
+people per square kilometer. Divide by the right base and small, dense counties
+finally get to look dense.
+
+This same trap shows up constantly outside population. Total cases of a disease
+by county mostly just tracks which counties have more people in them. Cases per
+100,000 residents tracks the actual rate of illness, and it is the number that
+usually matters. Total votes for a candidate by precinct tracks precinct size.
+Vote share, the percentage, tracks preference. The rule holds across all of them:
+before a value goes on a choropleth, ask what it would need to be divided by to
+mean the same thing in a big area and a small one. If the answer is population,
+land area, or households, divide first.
+
+<Callout type="info" title="Counts describe totals, rates describe intensity">
+A raw count answers "how many." A rate answers "how much, relative to the size of
+the place." A choropleth is built to compare areas of different sizes against each
+other, so it almost always needs the second kind of number. Mapping a count as if
+it were a rate is one of the most common ways a technically accurate map still
+tells a false story.
+</Callout>
+
+## Splitting the data into color bins
+
+Once the right value is in hand, mapping tracts by their exact population density
+is impractical. Density values are continuous and nearly every tract has a
+slightly different number, so the map would need one color per tract, which
+defeats the purpose of a legend. Instead, the range of values gets split into a
+handful of bins, maybe five or six, and every tract in a bin gets the same color.
+That splitting step is called **classification**, and the method chosen changes
+which tracts land in which bin, sometimes dramatically.
+
+**Equal interval** classification splits the range of values into bins of equal
+width. If density ranges from 0 to 10,000 people per square kilometer across five
+bins, each bin covers exactly 2,000. This method is easy to explain and the
+legend reads cleanly, but it falls apart when the data is skewed, which most
+real-world data is. A handful of dense urban tracts stretch the top of the range
+so far that nearly every other tract crowds into the single lowest bin, and the
+map ends up looking almost solid one color with a few bright outliers.
+
+**Quantile** classification instead splits the data so that each bin holds the
+same number of features. With five bins and one hundred tracts, each bin gets
+twenty tracts, regardless of how close or far apart their values are. This
+guarantees a map with visual variety, since every color appears the same number
+of times, but it can force genuinely similar values into different bins right at
+a cutoff, and it can hide a real gap in the data by smearing colors evenly across
+it anyway.
+
+**Natural breaks**, often called **Jenks** after the method's author, looks at the
+actual distribution of the data and places bin edges where the values naturally
+cluster and gap. It tends to produce the most honest looking picture of skewed
+data like income or density, because it respects where the real breaks in the
+numbers fall instead of forcing an even width or an even count. The tradeoff is
+that the bin edges are less intuitive to describe and can shift noticeably if a
+few extreme values are added or removed from the dataset.
+
+None of the three is universally correct. The trap is picking whichever one
+happens to produce the most dramatic looking map and treating that as the neutral
+choice. A city government trying to justify a policy by highlighting a handful of
+red tracts, and an activist trying to downplay the same data, could both reach for
+different classification methods on the identical numbers and each produce a map
+that looks convincing. Reporting the classification method and the bin edges next
+to the map, in the legend or the caption, is what keeps a choropleth honest rather
+than persuasive.
+
+<Quiz
+  id="classification-skewed-data"
+  question="A dataset of neighborhood income has a few very wealthy outliers and a large cluster of similar middle incomes. An equal interval classification is applied. What is the likely result?"
+  answer={1}
+  options={[
+    "The map will look identical to a quantile classification, since both split the same data.",
+    "Almost every neighborhood lands in the lowest bin because the outliers stretch the bin width, hiding real differences among the middle cluster.",
+    "The outliers will be automatically excluded from the map.",
+    "Equal interval always produces the most accurate picture of skewed data.",
+  ]}
+  explanation="Equal interval divides the full range into same-width bins. A few extreme high values stretch that range, so the bins covering the middle cluster become very wide and swallow nearly everyone into one color. Natural breaks handles this kind of skew far better, and quantile would spread the same data differently, so the map would not look identical."
+/>
+
+## Color that means something, and still works for everyone
+
+Classification decides which polygons share a bin. Color decides how clearly that
+grouping reads on screen. Two families of color scheme cover most choropleths.
+
+A **sequential** scheme runs from a light shade to a dark shade of one hue, like
+pale yellow through deep green. It fits any value that runs from low to high with
+no meaningful midpoint: population density, rainfall, or median age. The eye reads
+"darker means more" without needing a second look at the legend.
+
+A **diverging** scheme uses two contrasting hues that meet at a neutral color in
+the middle, like red through white through blue. It fits a value with a genuine
+zero point or a genuine midpoint the reader needs to see, such as a change in
+population from ten years ago (negative growth in red, positive in blue, no
+change in white) or a vote margin split between two candidates. Using a
+sequential scheme on this kind of data hides the sign of the value; using a
+diverging scheme on plain density data invents a midpoint that does not exist and
+confuses the reader about what the color break in the middle is supposed to mean.
+
+**ColorBrewer**, a set of color palettes designed specifically for maps by
+cartographer Cynthia Brewer, is the standard place to pull both kinds of scheme
+from rather than picking hex codes by eye. Its sequential and diverging sets are
+tested to hold their ordering under grayscale printing and under the common forms
+of color blindness, and most mapping libraries, including QGIS's own style panel
+and the Python library used for the code below, ship ColorBrewer's palettes by
+name. Red-green pairings are the one combination to avoid outright, since they
+collapse into a single indistinguishable band for the most common form of color
+blindness. A ColorBrewer diverging scheme like the red-to-blue one above sidesteps
+that problem by design.
+
+Whatever scheme gets chosen, a **legend** is not optional. A map with unlabeled
+colored polygons asks the viewer to guess what dark green means, which defeats
+the entire point of classifying the data in the first place. Every choropleth
+needs a legend that shows each color next to the value range it represents, using
+the same bin edges the classification produced.
+
+<Quiz
+  id="sequential-vs-diverging"
+  question="A map needs to show the change in a neighborhood's population over the last decade, where some places grew and some shrank. Which color scheme fits, and why?"
+  answer={2}
+  options={[
+    "A sequential scheme, because population is always a positive number.",
+    "A red-green diverging scheme, since red and green are the most familiar way to show good and bad.",
+    "A diverging scheme with a neutral color at zero, since the data has growth on one side and decline on the other.",
+    "It does not matter, since any color scheme conveys the same information.",
+  ]}
+  explanation="Change in population has a genuine zero point, with growth on one side and decline on the other, which is exactly what a diverging scheme is built to show clearly. A sequential scheme would hide whether a neighborhood grew or shrank, showing only the size of the change. Red-green pairings should be avoided because they are unreadable to the most common form of color blindness, so a scheme with a colorblind-safe pair like red to blue is a better pick."
+/>
+
+## Turning a static shading into an interactive one
+
+Everything above works the same whether the map is a printed page or a browser
+tab. The web adds one more layer that print cannot: a viewer can point at a
+specific polygon and ask what it is. A **popup** answers that question in a small
+box anchored to a click. A **tooltip** answers it on hover, without needing a
+click at all, which is faster for scanning several tracts in a row but does not
+work on a touchscreen the way a tap does. Either one turns a color the viewer
+already sees into an exact number they can check, which matters most for values
+near a bin edge, where two tracts might look almost the same shade but sit on
+opposite sides of a class break.
+
+A common second behavior is **highlighting**: when the pointer enters a polygon,
+its outline thickens or its fill brightens, so the exact shape under the cursor
+is unambiguous even in a dense cluster of small tracts. None of this changes the
+underlying classification or colors. It is a layer of feedback on top of a map
+that would already work without it, which is exactly why it is worth adding after
+the choropleth itself is correct, not before.
+
+Building this in Leaflet, the mapping library introduced in the previous lesson,
+starts with the same GeoJSON layer already used for vector data, but adds a
+**style function** that Leaflet calls once per feature. That function reads a
+property off the feature and returns a color for it, which is the whole trick
+behind a choropleth in code:
+
+```javascript
+function getColor(density) {
+  // density is people per square kilometer
+  return density > 1000 ? "#08519c" :
+         density > 500  ? "#3182bd" :
+         density > 200  ? "#6baed6" :
+         density > 50   ? "#bdd7e7" :
+                           "#eff3ff";
+}
+
+function style(feature) {
+  return {
+    fillColor: getColor(feature.properties.density),
+    weight: 1,
+    color: "#555",
+    fillOpacity: 0.8,
+  };
+}
+```
+
+The `getColor` function is the classification and the color scheme, written out
+as code instead of drawn on a legend by hand. Each `density > N` check is one bin
+edge, in this case chosen by hand to match a natural breaks result run earlier in
+a GIS tool; the five hex colors are a ColorBrewer sequential blue scheme, light
+for low density, dark for high. Attaching `style` to a GeoJSON layer applies it
+to every polygon:
+
+```javascript
+const tracts = L.geoJSON(tractData, { style: style }).addTo(map);
+```
+
+Popups and highlighting hang off Leaflet's per-feature callback, `onEachFeature`,
+which runs once for every polygon as the layer is built and gets a chance to wire
+up its own events:
+
+```javascript
+function onEachFeature(feature, layer) {
+  const props = feature.properties;
+  layer.bindPopup(
+    "<strong>" + props.name + "</strong><br>" +
+    props.density.toFixed(1) + " people per sq km"
+  );
+
+  layer.on("mouseover", function () {
+    layer.setStyle({ weight: 3, color: "#000" });
+  });
+  layer.on("mouseout", function () {
+    tracts.resetStyle(layer);
+  });
+}
+
+L.geoJSON(tractData, { style: style, onEachFeature: onEachFeature }).addTo(map);
+```
+
+`bindPopup` attaches the small HTML box that opens on click, built here from the
+tract's name and its exact density, rounded to one decimal place with
+`toFixed(1)`. The two `layer.on` calls are the highlight: entering the polygon
+thickens its border to three pixels and turns it black, and leaving it calls
+`tracts.resetStyle`, which puts the original `style` function's output back. A
+viewer scanning the map now gets three things at once from one dataset: a color
+that shows the classification at a glance, a border that confirms exactly which
+shape the pointer is over, and a popup with the real number the color was only
+ever standing in for.
+
+<ExpectedOutput label="what appears when a tract is clicked on the rendered map">
+```
+Census Tract 4021.02
+812.4 people per sq km
+```
+</ExpectedOutput>
+
+That popup content is the payoff for the whole lesson. The map led with a color a
+viewer could read in half a second, classified honestly, scaled to a rate instead
+of a raw count, drawn from a palette that still works for a colorblind viewer.
+The click confirms the exact number behind that color, so nobody has to trust the
+shading on faith. A choropleth that cannot back up its colors with real numbers on
+demand is a chart pretending to be a map.
+
+<Quiz
+  id="leaflet-getcolor-purpose"
+  question="In the Leaflet code above, what is the getColor function actually doing?"
+  answer={0}
+  options={[
+    "Implementing the classification bins and color scheme in code, returning one color for each range of density values.",
+    "Fetching the tract boundaries from a web map service over the network.",
+    "Converting the GeoJSON coordinates from EPSG:4326 into Web Mercator for display.",
+    "Generating a popup showing the tract name and density on hover.",
+  ]}
+  explanation="getColor takes a single density value and returns the fill color for whichever bin it falls into, which is the classification and color scheme expressed as code rather than a legend. It has nothing to do with fetching data or reprojecting coordinates, and the popup content is built separately inside onEachFeature, not inside getColor."
+/>
+
+A map built this way still rests on the same layer model and tile stack from the
+previous lesson. What changes is that the polygons are no longer just shapes with
+a fixed outline. They are carrying a value, showing it through color, and handing
+over the exact number the moment a viewer asks for it by clicking or hovering.
+The next lesson in this module moves from a single static choropleth to a map
+that filters and updates as a viewer changes what they are looking for, so the
+classification and color choices made here need to keep working as the data
+underneath them changes too.

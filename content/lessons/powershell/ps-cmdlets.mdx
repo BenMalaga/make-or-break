@@ -1,0 +1,151 @@
+---
+title: "Cmdlets, Parameters, and Getting Help"
+module: powershell
+moduleTitle: PowerShell
+moduleOrder: 1
+moduleIcon: Terminal
+order: 2
+summary: "A cmdlet by itself is rarely enough; parameters tell it what to act on, and Get-Command and Get-Help make the whole cmdlet library explorable without leaving the shell."
+estimatedMinutes: 14
+prerequisites: ["what-is-powershell"]
+objectives:
+  - Read and write a cmdlet call with named parameters in the -Name value form
+  - Tell the difference between a named parameter and a positional one, and know when each is used
+  - Name the common aliases that shorten familiar cmdlets, and explain what an alias actually is
+  - Use Get-Command and Get-Help to find and understand a cmdlet without searching the web
+tags:
+  - powershell
+  - cmdlets
+  - basics
+---
+
+The previous lesson established the shape of a cmdlet: a verb, a hyphen, a noun. `Get-ChildItem` reads as "get the items that are children of a location." That name alone says what the cmdlet does. It does not say which location. For that, a cmdlet takes parameters, and learning to read and write those parameters is what turns "PowerShell has commands with sensible names" into "PowerShell can actually be told what to do."
+
+## Parameters tell a cmdlet what to act on
+
+A parameter is written as a hyphen, the parameter's name, a space, and the value being supplied. `Get-ChildItem -Path .` calls `Get-ChildItem` with a `Path` parameter set to `.`, which stands for the current folder. Change the value and the same cmdlet points somewhere else: `Get-ChildItem -Path C:\Projects` lists a specific folder on a Windows machine instead. The parameter name and its value travel together, and most cmdlets accept several parameters on one line, each introduced the same way.
+
+This is worth slowing down on, because it is the single most common shape a PowerShell line takes. A cmdlet without a hint about what to act on either falls back to a sensible default, the way `Get-ChildItem` alone lists the current folder, or it needs a parameter spelled out to know what to do. `Get-Process -Name pwsh` narrows a process listing down to just the process named `pwsh`. `Get-Content -Path notes.txt` reads one specific file instead of guessing which file was meant.
+
+Parameter names are not secret or memorized by trial and error. They show up in a cmdlet's own documentation, which the next section covers, and the shell itself will often complete them. Typing a hyphen after a cmdlet name and pressing Tab cycles through the parameters that cmdlet actually supports, which turns a fuzzy memory of a parameter name into an exact one without opening a browser.
+
+## Named parameters versus positional ones
+
+Every parameter used so far has been named: `-Path`, `-Name`. That form is explicit. Anyone reading the line later knows exactly what each value means, because the parameter name says so. But PowerShell also lets many parameters be supplied without their name at all, relying on position instead. Each cmdlet declares which of its parameters, if any, can be filled in this positional way, and in what order.
+
+`Get-ChildItem` treats its first unnamed value as the path, so `Get-ChildItem .` and `Get-ChildItem -Path .` do the same thing. The cmdlet was written knowing that "which folder" is almost always the first thing someone wants to say, so it lets that value skip the parameter name. Not every parameter gets this treatment. A cmdlet with several parameters usually only makes the one or two most common ones positional, and the rest still require their names spelled out.
+
+The trade-off is readability against speed. A positional call is shorter to type at an interactive prompt, where the person typing it already knows what the value means. A named call reads clearly on its own, which matters the moment a line gets saved into a script and read again weeks later, by someone else or by the same person who has since forgotten the context. Scripts meant to last lean toward named parameters. A quick one-off line typed once and thrown away can reasonably skip the name.
+
+<Callout type="info" title="How to tell if a parameter can be positional">
+`Get-Help <cmdlet> -Full` lists every parameter along with a `Position` value. A parameter marked `Named` has no position and must always be written with its `-Name`. One marked `0`, `1`, and so on can be supplied in that slot without a name at all. This is not a guess, it is written down for every cmdlet.
+</Callout>
+
+<Quiz
+  id="ps-named-vs-positional"
+  question="Get-ChildItem -Path . and Get-ChildItem . both list the current folder. Why does the second version work without writing -Path?"
+  answer={1}
+  options={[
+    "PowerShell ignores parameter names entirely and always guesses based on the value's type.",
+    "Get-ChildItem declares Path as a positional parameter, so its first unnamed value is understood to be the path.",
+    "The dot by itself is a separate cmdlet that means the current folder.",
+    "Positional parameters only work inside scripts, never at an interactive prompt.",
+  ]}
+  explanation="Get-ChildItem was written with Path as a positional parameter, meaning its first slot, so a bare value in that position is treated as the path with no name required. PowerShell does not ignore names in general, the dot is just a value meaning the current folder, and positional parameters work the same at a prompt as inside a script."
+/>
+
+## Aliases: the shell already speaks a familiar dialect
+
+PowerShell ships with a set of aliases, alternate short names that point at the same cmdlet. This exists on purpose, because a lot of people arrive at PowerShell already knowing another shell, and forcing them to relearn every command name before typing anything useful is a bad first impression. `ls` and `dir` both run `Get-ChildItem`. `cat` runs `Get-Content`. `pwd` runs `Get-Location`, printing the current folder's full path. Typing `gci` instead of `Get-ChildItem` works too, since `gci` is PowerShell's own built-in short alias for it, not borrowed from anywhere else.
+
+An alias is not a separate command with its own behavior. It is a second name registered for the exact same cmdlet, so `ls -Path .` and `Get-ChildItem -Path .` run identical code and produce identical results. Nothing is faster or slower, and nothing behaves differently. The alias is purely a shorter or more familiar way to say the same thing.
+
+This matters on Linux and macOS, where a real `ls` binary already exists on the machine outside PowerShell entirely. Inside `pwsh`, typing `ls` still resolves to the `ls` alias first, which runs `Get-ChildItem`, not the system's separate `ls` program. The two produce different-looking output, since one prints plain text and the other prints PowerShell objects formatted into a table, so a person switching between a plain Bash prompt and a `pwsh` prompt on the same machine is not actually running the same tool under the same short name, even though both answer to `ls`.
+
+`Get-Alias` shows what a given short name actually points to. `Get-Alias ls` reports that `ls` is an alias for `Get-ChildItem`, which is a useful habit the first time an unfamiliar short name shows up in someone else's script and it is not obvious what it really runs.
+
+Aliases earn their keep at an interactive prompt, where typing three characters instead of thirteen adds up over a long session. They cost something in a script meant for someone else to read later. `gci` means nothing to a beginner who has not yet learned it is short for `Get-ChildItem`, while the full name explains itself. A reasonable habit is aliases while exploring, full cmdlet names once a line is worth saving.
+
+## Finding cmdlets without leaving the shell
+
+Nobody memorizes every cmdlet PowerShell ships with, and nobody needs to. `Get-Command` lists what is installed, and on its own the list is enormous, so it is almost always filtered. `Get-Command -Verb Get` narrows the list down to every cmdlet that retrieves something, since `Get` is an approved verb and every cmdlet using it follows the same naming rule from the previous lesson. `Get-Command -Noun Process` narrows the other direction, showing every cmdlet that acts on a process, which turns up `Get-Process`, `Stop-Process`, and any others built around that noun.
+
+Once a cmdlet's name is known, `Get-Help` explains what it does. `Get-Help Get-ChildItem` prints a short description, its syntax, and its full parameter list, the exact reference that says whether a given parameter is positional. Adding `-Examples` narrows that same help down to worked sample calls, which is often the fastest way to see a cmdlet used correctly: `Get-Help Get-ChildItem -Examples`. Adding `-Full` instead prints everything at once, description, every parameter with its type and position, and the examples, which is the version worth reaching for when a quick glance at `-Examples` does not answer the question.
+
+These two cmdlets, plus tab completion at the prompt, cover most of what a search engine would otherwise be asked to do. Typing a partial cmdlet name and pressing Tab cycles through the matching cmdlet names one by one, and doing the same after a hyphen inside a cmdlet's parameters cycles through that cmdlet's own parameter names. A person who is unsure whether a cmdlet is called `Get-ChildItem` or `Get-Child-Items` can type `Get-Chi` and let Tab settle the question instead of guessing.
+
+<Quiz
+  id="ps-discovery-cmdlets"
+  question="Which pair of cmdlets is the right combination for finding an unfamiliar cmdlet by what it does, then learning exactly how to call it?"
+  answer={0}
+  options={[
+    "Get-Command to search by verb or noun, then Get-Help to see its syntax and examples.",
+    "Get-Content to search cmdlet names, then Get-Process to see its syntax.",
+    "Get-Date to list every cmdlet installed, then Get-Location to see examples.",
+    "Get-Help to search by verb or noun, then Get-Command to see examples.",
+  ]}
+  explanation="Get-Command is the search tool, filterable by -Verb or -Noun to narrow a huge list down to what is relevant, and Get-Help is the reference for one specific cmdlet once its name is known, including its -Examples. Get-Content, Get-Process, Get-Date, and Get-Location are all real cmdlets, just not the ones built for searching or documenting other cmdlets."
+/>
+
+## Trying the pieces in a real session
+
+A few of the cmdlets mentioned so far are safe to run and only read information, never change anything, which makes them good first calls to try. `Get-Date` reports the current date and time:
+
+```powershell
+Get-Date
+```
+
+<ExpectedOutput label="the current date and time, so the exact values change every time this runs">
+```
+Thursday, July 24, 2026 3:41:07 PM
+```
+</ExpectedOutput>
+
+`Get-Location` reports the current folder as a full path, the same information `pwd` gives in other shells:
+
+```powershell
+Get-Location
+```
+
+<ExpectedOutput label="the folder the shell is currently in; the exact path depends on where it runs">
+```
+Path
+----
+/home/user/projects
+```
+</ExpectedOutput>
+
+`Get-ChildItem` lists what is inside the current folder, and its output is a set of objects with real properties, matching what the previous lesson covered about the pipeline. Called with its positional parameter, no `-Path` needed since a bare dot is the first slot:
+
+```powershell
+Get-ChildItem .
+```
+
+<ExpectedOutput label="one row per item in the folder; exact contents depend on what is there">
+```
+    Directory: /home/user/projects
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d----          7/20/2026  9:14 AM                 scripts
+-a---          7/22/2026  4:02 PM            1204  notes.txt
+-a---          7/23/2026 11:47 AM            389   todo.txt
+```
+</ExpectedOutput>
+
+The same call written with the alias and the named parameter spelled out, `gci -Path .`, produces the identical listing, since `gci` is only another name for `Get-ChildItem` and `-Path .` is only the named form of the same positional value already tried above. Both lines exist to make the same point from two directions: the parameter is what matters, and the cmdlet's name, whether full or aliased, is just the label attached to it.
+
+<Quiz
+  id="ps-alias-identity"
+  question="A script contains the line gci -Path C:\\Logs. What does this actually run?"
+  answer={3}
+  options={[
+    "A lightweight version of Get-ChildItem with fewer features, meant for scripts only.",
+    "A separate cmdlet named gci that happens to behave similarly to Get-ChildItem.",
+    "Nothing valid, since aliases cannot be combined with named parameters.",
+    "The exact same Get-ChildItem cmdlet, since gci is only a registered short name for it, with Path supplied by name.",
+  ]}
+  explanation="An alias is a second registered name for the same cmdlet, not a lighter or different implementation, so gci -Path C:\\Logs runs precisely what Get-ChildItem -Path C:\\Logs would run. Aliases combine with named parameters without any restriction, which this line demonstrates directly."
+/>
+
+A practice PowerShell in the Build tab of this platform runs the common subset covered here, including `Get-Date`, `Get-ChildItem`, `Get-Location`, and the aliases pointing at them, so the syntax in this lesson can be typed and checked immediately rather than only read. It is a practice environment built for learning the language, not a full Windows install, so some cmdlets that show up in real administration work are out of scope for it. The next lesson picks up variables and the types PowerShell stores in them, building on the `$name = "Ada"` style of assignment the first lesson introduced, now with the parameter and discovery habits from this one in hand.

@@ -1,0 +1,91 @@
+---
+title: Profiling People
+module: osint
+moduleTitle: Open Source Intelligence
+moduleOrder: 21
+moduleIcon: Eye
+order: 2
+summary: One username unspools into a whole person. Here is how you pull the thread.
+estimatedMinutes: 17
+objectives:
+  - Pivot from a single username or email to accounts across platforms
+  - Check breach exposure without paying for shady lookup sites
+  - Build an employee footprint that feeds a phishing pretext
+tags:
+  - osint
+  - people
+  - breaches
+  - social-media
+---
+
+Give me one email address and I can usually reconstruct a decent slice of someone's online life inside an hour. The reason is that people reuse handles. The gamer tag from 2011 is the GitHub username in 2024 is the Reddit account where they complained about their employer's VPN last month. Humans are consistent, and consistency is a footprint.
+
+On an engagement you rarely start from nothing. You start from a corporate email format, `first.last@company.com`, harvested from a data breach or the company's own site. From there you fan out.
+
+## Pivot on the username
+
+The fastest first move is checking which platforms a handle exists on. Sherlock is the tool people reach for, and it is fast enough to be a reflex.
+
+<CommandCard command="sherlock jsmith" explain="Checks a username against hundreds of sites and prints only the accounts that exist. Run it against the local part of a target email or a handle you already found." />
+
+Sherlock reports false positives on sites that return 200 for any username, so treat every hit as a lead to verify by hand, not a fact. Open the profile. Confirm it's the same person by matching a photo, a bio, a location, or a writing style. One confirmed cross-platform account often leaks a real name, a city, or a second email.
+
+## Turn names into email addresses
+
+When you have a real name and a domain but no address, guess the format and verify. Companies use a handful of patterns: `first.last`, `flast`, `firstl`, `first`. theHarvester and hunter-style logic will surface the format if even one address is already public.
+
+<CommandBlock
+  commands={[
+    { cmd: "theHarvester -d company.com -b bing -l 200", comment: "Pull public emails and names tied to the domain" },
+    { cmd: "theHarvester -d company.com -b crtsh", comment: "Certificate transparency often reveals hostnames and, indirectly, the org structure" },
+  ]}
+/>
+
+Once you know the format is `flast@company.com`, you can generate the full employee list from any roster of names you scraped off LinkedIn. That list is the raw material for a phishing campaign or a password-spray target set.
+
+## Check breach exposure the honest way
+
+Have I Been Pwned tells you which breaches an address appeared in, for free, without handing you plaintext passwords. Use its API rather than the paid "lookup" sites that are half scam.
+
+<CommandCard command={`curl -s -H "hibp-api-key: $HIBP_KEY" "https://haveibeenpwned.com/api/v3/breachedaccount/target@company.com"`} explain="Returns the named breaches an address was seen in. It confirms exposure and password-reuse risk, and it never returns the actual password." />
+
+A hit tells you the account was exposed and where. That matters for two reasons. It signals the person reuses services carelessly, and the named breach tells you roughly how old any leaked credential would be. Old credentials still work more often than they should.
+
+<Callout type="warning" title="Do not go near the raw dumps">
+Downloading breach corpuses full of plaintext passwords and testing them against a
+live target is unauthorized access, full stop, even if the data is floating on a
+forum. On an engagement, note the exposure as a finding and let your rules of
+engagement decide whether credential testing is in scope.
+</Callout>
+
+## Read the social footprint for a pretext
+
+The goal of people-profiling is rarely the person for their own sake. It's the pretext: the believable story you'll use to get a click or a callback. LinkedIn tells you who reports to whom, so you know whose name a fake email should spoof. A tweet about a conference tells you where they are this week. A GitHub commit history tells you what stack they touch, which makes a fake "your build is failing" email land.
+
+<Callout type="security" title="Authorization first, always">
+Profiling real people is intrusive by nature. Do it only against named targets inside
+a signed scope, keep the collected personal data locked to the engagement, and delete
+it when the engagement closes. This is a technique for authorized red teams, not for
+prying into people you have no agreement to test.
+</Callout>
+
+<Exercise
+  id="osint-email-format"
+  prompt="You scraped a LinkedIn roster with 40 employee names. From a leaked forum post you know one address is j.doe@acme.io for an employee named Jane Doe. What is the email format, and how do you turn your 40 names into a spray-ready list?"
+  answer="The format is first-initial dot last, so flast becomes first.last: jane.doe -> j.doe is actually first-initial.last (j.doe). Apply the same rule to all 40 names (e.g. Sam Ellis -> s.ellis@acme.io) to generate the address list. Verify a few against theHarvester or MX/SMTP responses before trusting the whole set."
+/>
+
+<Quiz
+  id="osint-sherlock-truth"
+  question="Sherlock reports that the username 'jsmith' exists on 30 sites. What is the right next step?"
+  answer={1}
+  options={[
+    "Treat all 30 as confirmed accounts for the same person",
+    "Open each hit and verify it is the same individual before trusting it",
+    "Report the count as a finding without checking",
+    "Assume the person uses the same password everywhere",
+  ]}
+  explanation="Sherlock produces false positives on sites that return success for any username. Each hit is a lead you confirm by hand, matching photos, bios, or location, before treating it as the same person."
+/>
+
+<Notes />

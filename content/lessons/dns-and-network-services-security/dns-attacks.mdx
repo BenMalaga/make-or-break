@@ -1,0 +1,80 @@
+---
+title: DNS Attacks
+module: dns-and-network-services-security
+moduleTitle: DNS and Network Services Security
+moduleOrder: 51
+moduleIcon: Waypoints
+order: 2
+summary: A protocol built on trust, running over UDP, caching everything. Attackers noticed.
+estimatedMinutes: 18
+objectives:
+  - Explain cache poisoning and why the Kaminsky attack rattled the internet
+  - Recognize DNS tunneling as a covert channel in packet captures
+  - Tell hijacking apart from spoofing and know where each lands in the stack
+tags:
+  - dns
+  - spoofing
+  - tunneling
+  - hijacking
+---
+
+DNS was designed in an era when the people on the network were assumed to be friendly. It runs mostly over UDP, it caches aggressively, and until recently it did nothing to prove an answer came from who it claimed. Every one of those traits is a lever, and understanding how they get pulled is how you learn to spot the attacks in a capture or a log.
+
+You are not learning these to run them blind. You are learning them so that when a resolver starts answering for domains it should not, or a host beacons out on port 53 all night, you know what you are looking at.
+
+## Cache poisoning
+
+The play is simple: convince a recursive resolver to cache a false answer, and everyone behind that resolver goes where you want. Point `login.bank.com` at your box instead of the real one, and you harvest whatever lands.
+
+The old attack raced the real authoritative server. A resolver's query has a 16-bit transaction ID and a source port; if you flood it with forged replies guessing that ID before the legit reply arrives, one guess sticks and gets cached. Dan Kaminsky's 2008 work made this brutal by attacking made-up subdomains in a loop, so the attacker got near-unlimited fresh races instead of one shot per TTL. The fix that shipped fast was **source-port randomization**, which widened the number an attacker has to guess from 16 bits to roughly 32.
+
+<Callout type="security" title="Poisoning is disruptive, so keep it in the lab">
+Cache poisoning redirects real users and can break a resolver for everyone behind it. Reproduce it against a resolver you control, on an isolated segment, in something like a home lab or a purpose-built range. Never rehearse this against a shared or production resolver, authorization or not, because the collateral hits people who were never in scope.
+</Callout>
+
+## DNS tunneling
+
+Here is the uncomfortable part: almost every network lets DNS out. Firewalls that block everything else still forward port 53 so name resolution works. Attackers turned that into a data pipe.
+
+Tunneling encodes data inside DNS queries and responses. The client stuffs bytes into a hostname like `a8f3d2.tunnel.attacker.com` and sends the query. The attacker's authoritative server for `tunnel.attacker.com` decodes it and replies with more data in a TXT or CNAME record. It is slow and loud if you are watching, but it slips past egress filters that trust DNS. Tools like `iodine` and `dnscat2` build a full C2 channel this way.
+
+<CommandBlock
+  title="analyst@soc: what tunneling looks like from the defender seat"
+  commands={[
+    { cmd: "tshark -r capture.pcap -Y 'dns' -T fields -e dns.qry.name", comment: "pull every queried name and eyeball the length and entropy" },
+    { cmd: "sort names.txt | uniq -c | sort -rn | head", comment: "one domain with thousands of unique random subdomains is the tell" },
+  ]}
+/>
+
+Long, high-entropy hostnames under a single second-level domain, at high volume, is the signature. Humans do not query `x7f2a9b1c4e8.evil.com`. Software exfiltrating over DNS does.
+
+## Hijacking is a different animal
+
+Poisoning corrupts a cache. **Hijacking** changes where resolution is answered from in the first place, and it usually happens off the wire entirely.
+
+Registrar hijacking means someone logs into the domain's control panel, often through a phished or reused password, and repoints the NS records to their own servers. Now they are authoritative for the whole domain and every visitor gets attacker-chosen answers. Router or resolver hijacking swaps the DNS server addresses a network hands out over DHCP, so clients ask a malicious resolver without knowing it. Same outcome, wrong answers, but the root cause is an account or a device, not a packet race.
+
+That distinction matters when you respond. A poisoned cache clears on TTL expiry or a flush. A hijacked registrar account stays hijacked until someone regains control of it.
+
+<Quiz
+  id="dns-tunnel-signature"
+  question="A single second-level domain shows thousands of unique, random-looking subdomain queries over one night. What is the most likely explanation?"
+  answer={2}
+  options={[
+    "Normal browser prefetching",
+    "A misconfigured NTP client",
+    "DNS tunneling used for exfiltration or C2",
+    "Source-port randomization",
+  ]}
+  explanation="High-entropy, high-volume unique subdomains under one domain is the classic tunneling fingerprint. The data is encoded into the query names, so each request looks like random text no human would type."
+/>
+
+<Exercise
+  id="dns-hijack-vs-poison"
+  prompt="A domain's NS records now point at servers the owner never configured, and flushing every resolver cache changes nothing. Poisoning or hijacking, and why?"
+  answer="Hijacking, because the authoritative delegation itself was changed at the registrar, so cache flushes cannot fix it; the wrong answer is now coming from the source of truth."
+>
+Ask yourself where the false answer originates. A cache flush only helps if the lie lived in a cache.
+</Exercise>
+
+<Notes />

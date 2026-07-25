@@ -1,0 +1,270 @@
+---
+title: "Repeating with Loops"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 7
+summary: "A for loop repeats a fixed number of times over a range or a sequence, and a while loop repeats for as long as a condition holds, with break and continue changing how a single pass ends."
+estimatedMinutes: 14
+prerequisites: ["python-if-else"]
+objectives:
+  - Write a for loop over range() and predict exactly which numbers it visits, including why the stop value never appears
+  - Loop directly over the characters of a string without tracking a position by hand
+  - Write a while loop whose condition is rechecked before every pass, and update a variable so the loop actually ends
+  - Use break to leave a loop early and continue to skip to the next pass, and spot the infinite loop trap before it hangs a program
+tags:
+  - python
+  - loops
+  - iteration
+---
+
+The previous lesson ended with an if/elif/else chain that ran exactly once: check a score, pick a branch, print a letter grade, done. That covers a decision, but it does not cover repetition. Printing a countdown from ten, checking every item in an order, retrying a login three times: none of that fits into a chain that only ever runs once through. A program that needs to do the same kind of thing over and over needs a different tool, one that runs a block of code again and again instead of just once. Python has two of them, and the previous lesson already named the one built for conditions that keep getting rechecked: the `while` loop. The other, the `for` loop, is usually the simpler starting point, so it comes first here.
+
+## Repeating a fixed number of times: the for loop
+
+A `for` loop runs a block of code once for every item in a sequence, using a loop variable that takes on each item in turn. The simplest sequence to loop over is one Python builds on demand: `range()`. Calling `range(5)` produces the numbers 0, 1, 2, 3, and 4, five values in total, and a `for` loop can walk through them one at a time:
+
+```python
+for i in range(5):
+    print(i)
+```
+
+<ExpectedOutput label="five passes through the loop, one number per line">
+```
+0
+1
+2
+3
+4
+```
+</ExpectedOutput>
+
+Read `for i in range(5):` as: for each number that `range(5)` produces, store it in `i`, then run the indented block below. On the first pass `i` is 0, on the second it is 1, and so on through 4. Once `range(5)` runs out of numbers, the loop stops on its own and the program moves to whatever comes after it. Nobody has to count the passes or write five separate `print` calls. The loop variable, `i` here, is just a name, chosen the same way any variable name is chosen. Short names like `i`, `j`, or `n` are common for loop counters because the variable usually only exists for the lifetime of the loop.
+
+Notice `range(5)` produced five numbers starting at 0, not five numbers starting at 1, and it stopped at 4, not 5. That is not an off-by-one accident. It is how `range()` is defined, and it matters enough to look at directly.
+
+## Controlling the count: range's start, stop, and step
+
+Calling `range()` with a single number, like `range(5)`, always starts at 0 and stops one short of that number. `range()` also accepts two or three numbers: a start, a stop, and a step, written `range(start, stop, step)`. The start is the first value produced, the stop is the value the loop counts up to but never reaches, and the step is how much each value increases by, defaulting to 1 when left out.
+
+```python
+for i in range(2, 12, 2):
+    print(i)
+```
+
+<ExpectedOutput label="starts at 2, climbs by 2, stops before reaching 12">
+```
+2
+4
+6
+8
+10
+```
+</ExpectedOutput>
+
+The sequence starts at 2, adds 2 each pass, and stops the moment the next value would reach or pass 12. That next value would have been 12, so 12 never appears, even though it is the number written as the stop. This is the same rule that made `range(5)` stop at 4 instead of 5: the stop value marks the boundary the sequence does not cross, not a value it includes. Reading `range(2, 12, 2)` as "start at 2, stop before 12, count by 2" gets the sequence right every time, while reading the stop as "the last number produced" gets it wrong.
+
+The step can also be negative, which counts downward instead of upward. `range(5, 0, -1)` starts at 5, subtracts 1 each pass, and stops before reaching 0, producing 5, 4, 3, 2, 1, exactly the shape of a countdown. A negative step needs a stop value lower than the start, since counting down toward a higher number would never fire at all and the loop would simply produce nothing.
+
+<Quiz
+  id="range-stop-exclusive"
+  question="A program runs for i in range(3, 9, 2): print(i). Which numbers print, and why does 9 never appear?"
+  answer={1}
+  options={[
+    "3, 5, 7, 9 all print, because range counts up to and including the stop value.",
+    "3, 5, 7 print, because range stops the moment the next value would reach or pass the stop value of 9, even though 9 fits the step pattern.",
+    "Only 3 prints, because range produces just one value whenever a step argument is given.",
+    "3, 5, 7, 9, 11 print, because a step of 2 continues past the stop value until an even number is reached.",
+  ]}
+  explanation="Starting at 3 and adding 2 each time gives 3, 5, 7, and the next value would be 9, which is not allowed since the stop value is a boundary range never reaches. Range does not include the stop even when the step would land exactly on it, it does not cut off after one value, and it never continues past the stop looking for a particular kind of number."
+/>
+
+## Looping over a string one character at a time
+
+`range()` is not the only thing a `for` loop can walk through. A `for` loop can iterate directly over any sequence, and a string is a sequence of characters, so looping over a string hands back one character per pass without any index or `range()` at all:
+
+```python
+word = "python"
+for letter in word:
+    print(letter)
+```
+
+<ExpectedOutput label="one character per line, in order">
+```
+p
+y
+t
+h
+o
+n
+```
+</ExpectedOutput>
+
+`for letter in word:` reads as: for each character in the string `word`, store it in `letter`, then run the block. There is no counting involved and no need to know how long the string is ahead of time. This is often cleaner than looping over `range(len(word))` and reading `word[i]` inside the loop, a pattern that shows up in other languages and sometimes gets carried into Python out of habit. When the loop only needs each character itself and never needs to know its position, looping straight over the string is the more direct move.
+
+A loop like this is also how a program counts things about a string without a library. Counting vowels, for instance, walks every letter once and keeps a running tally of the ones that match:
+
+```python
+word = "python"
+vowel_count = 0
+for letter in word:
+    if letter in "aeiou":
+        vowel_count += 1
+print(vowel_count)
+```
+
+<ExpectedOutput label="one match, for the letter o">
+```
+1
+```
+</ExpectedOutput>
+
+`letter in "aeiou"` checks whether the current character is one of the five vowels, reusing the `in` operator from checking dict membership, here checking membership in a string instead. `vowel_count += 1` is shorthand for `vowel_count = vowel_count + 1`, adding one to the running total each time the check passes. By the time the loop finishes all six letters of `"python"`, only the `o` matched, so the total lands on 1.
+
+## The while loop: repeating while a condition holds
+
+A `for` loop is the right tool when the number of passes is already known, or comes from something Python can count, like a range or a string's length. Plenty of repetition does not fit that shape. A login should keep asking for a password until one is correct, however many tries that takes. A game loop should keep running until the player quits. Neither of those has a fixed number of passes decided in advance. The tool for that shape is the `while` loop, which repeats a block for as long as a condition stays `True`, rechecking that condition before every single pass.
+
+```python
+count = 5
+while count > 0:
+    print(count)
+    count -= 1
+print("liftoff")
+```
+
+<ExpectedOutput label="the condition is checked again after every pass, until it turns False">
+```
+5
+4
+3
+2
+1
+liftoff
+```
+</ExpectedOutput>
+
+Python checks `count > 0` before the first pass. Since `count` is 5, the condition is `True`, so the block runs: it prints 5, then subtracts 1 from `count`, leaving it at 4. Then Python checks the condition again, not just once at the start. It stays `True` for 4, 3, 2, and 1, running the block each time and printing each value before decreasing it further. Once `count` reaches 0, `count > 0` is `False`, the loop stops, and Python moves on to `print("liftoff")`, which sits outside the loop and only runs after the loop is done.
+
+The line `count -= 1` is not optional decoration. It is the entire reason the loop ends at all. A `while` loop only stops when its condition becomes `False`, and nothing makes a condition become `False` on its own. Something inside the loop body has to change the value the condition is testing. Leave that line out, and `count` stays 5 forever, `count > 0` stays `True` forever, and the loop never ends. That failure mode comes back in a few paragraphs, because it is common enough to deserve its own name.
+
+<Quiz
+  id="for-vs-while-choice"
+  question="A program needs to keep asking a user to enter a number until they type one that is positive, with no way to know in advance how many attempts that will take. Which loop fits, and why?"
+  answer={0}
+  options={[
+    "A while loop, because the number of repeats is not known ahead of time and depends on a condition that keeps getting rechecked.",
+    "A for loop over range(10), because ten attempts is a reasonable guess at how many tries it will take.",
+    "Either one works identically, since for and while always produce the same result no matter what they loop over.",
+    "Neither loop fits, since Python has no way to repeat something until user input satisfies a condition.",
+  ]}
+  explanation="A while loop is built for exactly this shape: repeat until a condition is met, with no fixed count decided beforehand. A for loop over a guessed range would either cut a user off too early or run extra empty passes past when they succeed, and for and while are not interchangeable since one counts a known sequence and the other rechecks a condition. Python handles conditional retries like this constantly, so the last option is simply wrong."
+/>
+
+## Ending a pass early: break and continue
+
+Sometimes a loop needs to stop before its natural end, or skip the rest of one pass without skipping the whole loop. Python has a keyword for each case. `break` exits the loop immediately, no matter what the loop's own condition says, and the program continues with whatever comes right after the loop. `continue` skips the rest of the current pass and jumps straight to the next one, without leaving the loop.
+
+```python
+for number in range(1, 11):
+    if number == 7:
+        break
+    if number % 2 == 0:
+        continue
+    print(number)
+```
+
+<ExpectedOutput label="even numbers are skipped, and the loop stops entirely once it hits 7">
+```
+1
+3
+5
+```
+</ExpectedOutput>
+
+The loop walks numbers 1 through 10. On each pass it first checks `number == 7`; as long as that is `False`, it moves to the next check, `number % 2 == 0`, using the modulo operator from the previous lesson to test evenness. When a number is even, `continue` fires and the rest of that pass, including the `print`, never runs; the loop just moves to the next number. That is why 2, 4, and 6 never appear even though the loop passes through them. When `number` finally reaches 7, the first check, `number == 7`, is `True`, so `break` fires and the loop stops completely, right there. Numbers 8, 9, and 10 are never even looked at, which is the difference between `break` and `continue`: `continue` skips one pass and keeps looping, `break` ends the whole loop on the spot.
+
+<Quiz
+  id="break-vs-continue"
+  question="A loop walks through the numbers 1 to 10. On a multiple of 5, it runs continue instead of break. What happens to the numbers after that multiple of 5?"
+  answer={1}
+  options={[
+    "The loop stops immediately at the first multiple of 5, and no later numbers are processed at all.",
+    "Only that one number is skipped. The loop moves on and keeps checking every number after it.",
+    "The loop restarts from 1 every time it reaches a multiple of 5.",
+    "continue and break behave identically in Python, so the result is the same either way.",
+  ]}
+  explanation="continue skips just the current pass and lets the loop keep going with the next value, so numbers after a multiple of 5 are still checked normally. Stopping entirely, or restarting from the beginning, describes something other than continue, and continue is not interchangeable with break, since break would end the loop right there instead of moving past one number."
+/>
+
+## The infinite loop trap
+
+A `while` loop's condition is only as good as the thing that changes it. The classic mistake is writing a condition that depends on a variable, then never updating that variable inside the loop body, or updating the wrong one. The condition checks the exact same thing every single pass, so it never turns `False`, and the loop runs forever.
+
+```python
+# This never stops. Do not run it without a plan to interrupt it.
+count = 0
+while count < 5:
+    print("still going")
+```
+
+Every pass prints `"still going"` and checks `count < 5` again. Since nothing inside the loop ever touches `count`, it stays 0 forever, `0 < 5` is always `True`, and the program never reaches whatever code comes after the loop. In a real terminal this floods the screen until the process is killed by hand, and in the browser-based Build tab it will need to be stopped rather than left running.
+
+<Callout type="warning" title="A while loop needs something inside it that moves toward False">
+Before running any while loop, it is worth checking one thing: does the loop body actually change the value the condition tests, and does that change move it toward making the condition False eventually? A countdown that subtracts 1 each pass satisfies this. A loop that checks a variable but never touches it does not, and neither does a loop that updates the wrong variable by mistake, like incrementing a counter that the condition never looks at. `break` is the other safety valve: a loop written as `while True:` never turns False on its own by design, so it depends entirely on a `break` somewhere inside it to end at all.
+</Callout>
+
+<Quiz
+  id="infinite-loop-trap"
+  question="A program runs: count = 0, then while count < 5: print(count). What happens, and why?"
+  answer={2}
+  options={[
+    "It prints 0 through 4 and stops, because a while loop automatically halts after five passes.",
+    "It raises an error right away, since count is read inside the loop before being changed.",
+    "It prints 0 over and over without ever stopping, because nothing inside the loop changes count, so count < 5 stays True forever.",
+    "It prints nothing at all, because count starts at 0 instead of 1.",
+  ]}
+  explanation="Nothing in the loop body updates count, so the condition count < 5 checks the same unchanged value on every pass and never becomes False. A while loop has no built-in pass limit, reading a variable does not raise an error, and count starting at 0 does not stop it from printing; it is exactly why the first print succeeds and every one after it does too."
+/>
+
+## A worked example: summing one through one hundred
+
+Loops earn their keep on totals. Adding a hundred numbers by writing a hundred lines of code would be absurd, but a loop with a running total, an accumulator variable that starts at zero and grows by one term each pass, handles it in four lines regardless of how large the range gets:
+
+```python
+total = 0
+for n in range(1, 101):
+    total += n
+print(total)
+```
+
+<ExpectedOutput label="every integer from 1 through 100 added into one running total">
+```
+5050
+```
+</ExpectedOutput>
+
+`total` starts at 0 before the loop begins. `range(1, 101)` produces 1, 2, 3, all the way through 100, stopping before 101 the same way `range(2, 12, 2)` stopped before 12 earlier in this lesson. Each pass adds the current value of `n` into `total` with `total += n`, so after the first pass `total` is 1, after the second it is 3, after the third it is 6, and so on, until the hundredth pass leaves `total` at 5050. Changing `range(1, 101)` to `range(1, 11)` would sum 1 through 10 instead and print 55, with no other line needing to change at all. That is the payoff of writing the total as a loop instead of a fixed list of additions: the same four lines handle ten numbers or ten million.
+
+<CommandCard command="python3 sum_range.py" title="terminal" explain="Runs the code saved in sum_range.py from top to bottom and prints whatever it prints." />
+
+<Exercise title="Sum a range chosen at runtime">
+Save this into a file named `sum_range.py`:
+
+```python
+limit = int(input("Sum every number from 1 through: "))
+
+total = 0
+for n in range(1, limit + 1):
+    total += n
+
+print(f"The sum from 1 to {limit} is {total}")
+```
+
+Run it with `python3 sum_range.py` in the Build tab and enter 10. Confirm the total is 55 before checking. Then run it again with 100 and expect 5050. Notice the range is written as `range(1, limit + 1)` rather than `range(1, limit)`: without the plus one, the loop would stop short and never add the last number at all. Finally, change the loop to a `while` loop that does the same sum using a counter variable that starts at 1 and increases by 1 each pass, stopping once it passes `limit`.
+</Exercise>
+
+Loops repeat a block, but every pass so far has run the same handful of lines written directly at the point they get used. The next lesson introduces functions: a way to name a block of code once, hand it inputs, and call it by that name from anywhere in a program, so the same logic never has to be typed out twice.
+
+<Notes />

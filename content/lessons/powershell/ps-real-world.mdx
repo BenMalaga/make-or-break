@@ -1,0 +1,259 @@
+---
+title: "Automating a Real Task"
+module: powershell
+moduleTitle: PowerShell
+moduleOrder: 1
+moduleIcon: Terminal
+order: 8
+summary: "A single PowerShell script pulls variables, an array, the pipeline, and a function together to turn a batch of raw numbers into a scored, threshold-checked report."
+estimatedMinutes: 15
+prerequisites: ["ps-functions"]
+objectives:
+  - Use Measure-Object in a pipeline to compute the count, sum, and average of a collection in one step
+  - Use Where-Object to filter a collection down to the items that clear a threshold, then read the result's Count
+  - Add an if/elseif/else chain that turns a computed average into a plain-language verdict
+  - Wrap variables, the pipeline, and a decision into a single reusable function, then read the finished script end to end
+tags:
+  - powershell
+  - automation
+  - capstone
+---
+
+The last lesson wrapped a block of logic into a function: a named piece of script that runs the same way every time it is called instead of being retyped by hand. On its own, a function is just tidy code. Its payoff shows up the moment it gets fed with everything else this module has built: variables holding a value, an array holding a batch of them, the pipeline moving that batch through cmdlets, and if/elseif/else deciding what the result means.
+
+This lesson puts all four pieces into one script. The task is an ordinary one: a batch of scores or readings comes in, and something needs to report how many there are, what they add up to, what the average is, and how many clear a minimum bar. A teacher does this after every quiz. A monitoring system does it after every batch of sensor readings. Doing it by hand once is fine. Doing it every week by hand is exactly the kind of repeated, mechanical work a short script should be doing instead.
+
+## Starting with a batch of numbers
+
+Every real script starts with real data, and here that data is an array, the ordered collection covered two lessons back that holds more than one value under a single name.
+
+```powershell
+$scores = 60, 72, 88, 92, 78
+$scores.Count
+```
+
+<ExpectedOutput label="five scores stored in one array">
+```
+5
+```
+</ExpectedOutput>
+
+Five numbers, one variable. `.Count` already showed up when arrays were introduced, and it means the same thing here: how many items sit in the collection. That count is the first line of the eventual report, and it came for free from a property PowerShell already tracks.
+
+## Measuring the batch with Measure-Object
+
+Counting is one question. Adding the numbers up and averaging them is another, and writing a loop to do it by hand works but reads like busywork PowerShell should be handling. `Measure-Object` is the cmdlet built for exactly this. Piped a collection, it walks every item and reports back numbers about the whole batch, as long as it is told which numbers to compute.
+
+```powershell
+$scores = 60, 72, 88, 92, 78
+$stats = $scores | Measure-Object -Sum -Average
+$stats.Sum
+$stats.Average
+```
+
+<ExpectedOutput label="Measure-Object totals and averages the pipeline in one pass">
+```
+390
+78
+```
+</ExpectedOutput>
+
+`Measure-Object` on its own only counts. Adding `-Sum` tells it to also total the values, and `-Average` tells it to divide that total by the count. The result is not plain text, it is an object with `Count`, `Sum`, and `Average` as real properties, which is why `$stats.Sum` and `$stats.Average` read cleanly off it instead of requiring any text parsing. Storing the result in `$stats` matters too: without a variable to hold it, the object would print once and be gone, and the average would have to be recomputed for every later step that needed it.
+
+<Quiz
+  id="ps-measure-switches"
+  question="Running $scores | Measure-Object with no switches at all reports back a Count property but leaves Sum and Average empty. Why?"
+  answer={1}
+  options={[
+    "Because Measure-Object can only work on arrays that hold exactly five items.",
+    "Because Sum and Average have to be requested explicitly with -Sum and -Average; by default Measure-Object only counts.",
+    "Because the values in $scores are stored as text instead of numbers.",
+    "Because Measure-Object always sorts an array before it is able to total it.",
+  ]}
+  explanation="Measure-Object counts by default and only adds the Sum, Average, Maximum, or Minimum properties when the matching switch is passed. The array size and the value types are not the issue here, and Measure-Object does not need to sort anything to add numbers together."
+/>
+
+## Filtering with Where-Object and counting who clears the bar
+
+A count, a sum, and an average describe the whole batch. Plenty of real questions are narrower than that: not "what's the average," but "how many of these actually passed." That calls for `Where-Object`, the cmdlet that keeps only the items in a collection that satisfy a condition written inside a script block, the `{ }` that follows it. Inside that block, `$_` stands for whichever item is currently being tested.
+
+```powershell
+$scores = 60, 72, 88, 92, 78
+$threshold = 75
+$passing = $scores | Where-Object { $_ -ge $threshold }
+$passing
+$passing.Count
+```
+
+<ExpectedOutput label="only the scores at or above 75 survive the filter">
+```
+88
+92
+78
+3
+```
+</ExpectedOutput>
+
+`$_ -ge $threshold` reads as "is the current item greater than or equal to the threshold." Three of the five scores pass that test, in the order they originally appeared, and `$passing` holds only those three. From there `.Count` answers the narrower question directly: three out of five cleared the bar. Nothing here required a separate loop or a manual tally variable. The pipeline did the sorting into keep-or-drop, and `.Count` did the counting, the same property that already worked on `$scores` itself.
+
+## Turning the numbers into a decision
+
+A report that only prints numbers still leaves someone doing the interpreting by hand. The last piece is a decision: given the average, what does this batch deserve to be called. That is exactly what if/elseif/else is for, and it slots in directly on top of `$stats.Average`.
+
+```powershell
+$scores = 60, 72, 88, 92, 78
+$stats = $scores | Measure-Object -Average
+if ($stats.Average -ge 85) {
+    $verdict = "strong batch"
+} elseif ($stats.Average -ge 65) {
+    $verdict = "passing batch"
+} else {
+    $verdict = "needs attention"
+}
+$verdict
+```
+
+<ExpectedOutput label="an average of 78 lands in the middle branch">
+```
+passing batch
+```
+</ExpectedOutput>
+
+PowerShell checks each condition from top to bottom and runs the body of the first one that is true, then skips every branch after it. An average of 78 fails the first check, since 78 is not at or above 85, so PowerShell moves to the `elseif`. There, 78 is at or above 65, so `$verdict` is set to `"passing batch"` and the `else` never runs at all. Order matters here in a way it would not if every branch tested for an exact match instead of a range.
+
+<Quiz
+  id="ps-if-order"
+  question="In the if/elseif chain above, why does the check for 85 come before the check for 65 instead of the other way around?"
+  answer={1}
+  options={[
+    "PowerShell requires elseif branches to be written from the highest number to the lowest.",
+    "If the 65 check ran first, an average of 90 would also satisfy it and stop there, since PowerShell runs the first true branch and skips the rest.",
+    "The order makes no difference; PowerShell evaluates every branch and picks whichever one fits best.",
+    "The order only changes how fast the script runs, not which branch executes.",
+  ]}
+  explanation="PowerShell stops at the first condition that evaluates to true. An average of 90 is also -ge 65, so if that check came first it would catch strong batches too and the 85 branch would never be reached. There is no ordering rule enforced by the language itself and every branch is not evaluated, only checked in sequence until one passes."
+/>
+
+<Callout type="info" title="What the practice PowerShell actually runs">
+The Build tab's practice PowerShell runs a common subset of the real language in the browser: variables, arrays, the pipeline, cmdlets like Measure-Object and Where-Object, if/elseif/else, and functions. It is a practice environment, not a full Windows install, so it is a fair place to try every example in this lesson, but a handful of niche PowerShell features will only exist on a real Windows or pwsh install.
+</Callout>
+
+## Wrapping it in a function
+
+Every piece so far only works on the one array typed into it. A function is what turns a one-off script into something reusable: a named block that takes the data and the threshold as parameters instead of having them hardcoded, so it can run on any batch handed to it later without a single line changing.
+
+```powershell
+function Get-ScoreSummary {
+    param($Scores, $Threshold)
+
+    $stats = $Scores | Measure-Object -Sum -Average
+    $passing = $Scores | Where-Object { $_ -ge $Threshold }
+
+    if ($stats.Average -ge 85) {
+        $verdict = "strong batch"
+    } elseif ($stats.Average -ge 65) {
+        $verdict = "passing batch"
+    } else {
+        $verdict = "needs attention"
+    }
+
+    Write-Output "Count: $($stats.Count)"
+    Write-Output "Sum: $($stats.Sum)"
+    Write-Output "Average: $($stats.Average)"
+    Write-Output "Passing (>= $Threshold): $($passing.Count)"
+    Write-Output "Verdict: $verdict"
+}
+```
+
+Nothing inside this function is new. It is the same `Measure-Object` call, the same `Where-Object` filter, and the same if/elseif/else chain from the sections above, just reading `$Scores` and `$Threshold` instead of the hardcoded `$scores` and `$threshold` from before. `param($Scores, $Threshold)` is what makes that swap possible: it declares the two values the function expects, in order, so calling `Get-ScoreSummary $scores 75` hands the array in as `$Scores` and `75` in as `$Threshold` for that one run, then forgets them the moment the function finishes.
+
+<Quiz
+  id="ps-function-reuse"
+  question="Get-ScoreSummary hardcodes nothing about which scores or which threshold to use. What does that buy over the earlier, unwrapped version of the same logic?"
+  answer={0}
+  options={[
+    "The same function can be called again on a different array and a different threshold without changing anything inside it.",
+    "It makes the script run faster, since functions execute before regular commands.",
+    "It removes the need for Measure-Object, since functions calculate sums and averages on their own.",
+    "It lets the script skip defining $Scores and $Threshold before calling the function.",
+  ]}
+  explanation="Wrapping the logic in a function with parameters is what makes it reusable: the same Get-ScoreSummary can run on next week's scores and a different passing bar with no edits, since the data comes in through param() instead of being written into the body. It has nothing to do with execution speed, it still relies on Measure-Object internally, and the values still have to be supplied, just as arguments instead of hardcoded lines."
+/>
+
+## The whole script, start to finish
+
+Put together, the function definition, the data, and the call that runs it all form one short script that does the entire report in a single line at the bottom:
+
+```powershell
+function Get-ScoreSummary {
+    param($Scores, $Threshold)
+
+    $stats = $Scores | Measure-Object -Sum -Average
+    $passing = $Scores | Where-Object { $_ -ge $Threshold }
+
+    if ($stats.Average -ge 85) {
+        $verdict = "strong batch"
+    } elseif ($stats.Average -ge 65) {
+        $verdict = "passing batch"
+    } else {
+        $verdict = "needs attention"
+    }
+
+    Write-Output "Count: $($stats.Count)"
+    Write-Output "Sum: $($stats.Sum)"
+    Write-Output "Average: $($stats.Average)"
+    Write-Output "Passing (>= $Threshold): $($passing.Count)"
+    Write-Output "Verdict: $verdict"
+}
+
+$scores = 60, 72, 88, 92, 78
+Get-ScoreSummary $scores 75
+```
+
+<ExpectedOutput label="one function call produces the full report">
+```
+Count: 5
+Sum: 390
+Average: 78
+Passing (>= 75): 3
+Verdict: passing batch
+```
+</ExpectedOutput>
+
+Every line in that output traces back to a cmdlet or a control structure covered earlier in the module. `Count` and `Sum` and `Average` came from `Measure-Object`. The passing count came from `Where-Object` and the same `.Count` property that already worked on a plain array. The verdict came from if/elseif/else reading a number nobody typed by hand, since `Measure-Object` computed it. None of that is special to scores. Swap the five numbers for a different set of readings, change 75 to a different cutoff, and the same function produces a correct report on the new batch, because the logic was written against `$Scores` and `$Threshold`, not against these five particular numbers.
+
+<Exercise title="Run the score summary and push on it">
+Save the full script above into a file named `scores.ps1` and run it in the Build tab. Confirm the output matches what is shown here, then make two changes and predict the result before running again each time. First, change the threshold from 75 to 90 and guess how the passing count and the verdict will move before checking. Second, add a sixth score to the array, something well below 60, and predict what happens to the average and to the verdict category before running it.
+</Exercise>
+
+## The same shape, aimed at real system data
+
+Scores were a convenient stand-in, typed in by hand so the numbers stay easy to check. The exact same pattern, cmdlet for data, pipeline stage to filter or sort, cmdlet to trim the list down, works just as well on data nobody typed, like the processes currently running on a machine. `Get-Process` hands back a process object for each running program, and each one carries a `Name`, an `Id`, and a `CPU` figure as real properties, the same shape `Measure-Object` and `Where-Object` already know how to read.
+
+```powershell
+Get-Process | Sort-Object CPU -Descending | Select-Object -First 3
+```
+
+<ExpectedOutput label="the three processes using the most CPU right now, heaviest first">
+```
+Name : chrome
+Id   : 3391
+CPU  : 143.7
+Name : code
+Id   : 2210
+CPU  : 88.2
+Name : explorer
+Id   : 900
+CPU  : 22
+```
+</ExpectedOutput>
+
+`Sort-Object CPU -Descending` orders every process by its `CPU` property, heaviest first, and `Select-Object -First 3` keeps only the top three off that sorted list. An administrator checking why a machine feels slow runs almost this exact line. Nothing about it is new: it is a pipeline of cmdlets reading named properties, the same habit this whole lesson has been building, aimed at a different source of objects.
+
+## Where PowerShell goes from here
+
+This script is small enough to read in one sitting, but the shape of it, data in variables, a pipeline doing the transforming, a decision at the end, a function making it reusable, is the shape of almost every real PowerShell script, just scaled up. A script managing a hundred servers instead of five scores still boils down to the same pattern: gather data, filter and measure it, decide something, report it.
+
+From here, PowerShell scales out in a few directions. A **module** is a packaged collection of functions like `Get-ScoreSummary`, saved so any script on the same machine can call them without redefining them each time, which is how real automation avoids copy-pasting the same function into a dozen files. **PowerShell remoting**, built around `Invoke-Command`, runs a script block on another machine over the network instead of only the local one, which is how one administrator manages a fleet of servers instead of walking to each one. And **Azure PowerShell** applies the exact same verb-noun cmdlets and pipeline to cloud infrastructure, so creating a virtual machine or reading a cloud resource's settings looks like any other `Get-` or `New-` command, just aimed at the cloud instead of a local disk.
+
+None of those need to be learned before they are needed. What carries forward is everything this script leaned on: cmdlets that hand back real objects, a pipeline that filters and measures without ever touching raw text, and a function that turns one good script into something worth running again.

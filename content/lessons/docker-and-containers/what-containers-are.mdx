@@ -1,0 +1,330 @@
+---
+title: What Containers Actually Are
+module: docker-and-containers
+moduleTitle: Docker and Containers
+moduleOrder: 14
+moduleIcon: Container
+order: 1
+summary: "A container is an ordinary Linux process the kernel fenced off, not a tiny virtual machine, and Docker is the tool that runs it."
+estimatedMinutes: 16
+prerequisites: []
+objectives:
+  - Say what problem containers solve and why the same code runs on one machine and breaks on another
+  - Tell a container from a virtual machine by what each one virtualizes and shares
+  - Explain namespaces and cgroups in plain language, and which one hides resources versus limits them
+  - Walk a container through its lifecycle from created to running to stopped to removed
+  - Run, list, stop, and remove a container with docker run, ps, stop, and rm
+tags:
+  - docker
+  - containers
+  - namespaces
+  - cgroups
+---
+
+A script runs cleanly on the laptop it was written on. Someone copies it to a
+server, runs it, and it dies on the first line: the server has an older language
+runtime, one library is missing, and a config file the script expected in `/etc`
+was never put there. Not one character of the code changed. The machine
+underneath it did. That gap, between "runs on the machine it was built on" and
+"runs anywhere else," is the exact problem containers exist to close.
+
+## A program is never just its code
+
+A program depends on far more than the lines a person wrote. It needs a specific
+interpreter or runtime, specific versions of the libraries it calls, specific
+files sitting in specific paths, and a set of environment variables that point at
+all of it. The machine it was built on had every one of those pieces lined up.
+The next machine has different versions of some, missing versions of others, and
+its own idea of where files belong. When it breaks, nothing is wrong with the
+code. The world around the code moved.
+
+The old fix was to ship the whole machine. Build a virtual machine, a complete
+simulated computer running its own operating system, with the right libraries
+baked in, then copy that around. It works, and it is enormous. A virtual machine
+carries a full operating system, gigabytes of it, and takes tens of seconds to
+boot.
+
+A container solves the same problem with almost none of the weight. It bundles
+the program together with the exact libraries, files, and settings it needs into
+one unit that runs the same on any machine with a container runtime installed.
+The program stops depending on whatever happens to be installed underneath it,
+because it brings its own copy of everything it touches.
+
+Here is the part that trips everyone up. A container is not a small computer and
+not a small virtual machine. It is an ordinary process, the same kind of process
+as any other program running on the host, using the host's own kernel, the core
+of the operating system that manages memory, processes, and hardware. What turns
+that process into a container is that the kernel has been told to fence it off:
+give it its own view of the filesystem, its own list of processes, its own
+network, and a hard cap on how much CPU and memory it may take. Strip the fencing
+away and what is left is just a process.
+
+## Containers are not virtual machines
+
+The two look similar from the outside and are built on completely different
+ideas, so the confusion is worth killing directly.
+
+A virtual machine virtualizes hardware. A piece of software called a hypervisor
+presents fake hardware to a guest: a fake CPU, a fake disk, a fake network card.
+On top of that fake hardware a whole second operating system boots, with its own
+kernel, its own startup sequence, its own everything. A virtual machine is a
+computer running inside a computer. That is why it is slow to start and heavy to
+store. It really is booting an entire operating system.
+
+A container virtualizes the view, not the hardware. There is no fake hardware and
+no second kernel. The container uses the host's kernel directly. Starting a
+container is just starting a process, which is why it happens in milliseconds
+instead of seconds.
+
+That single difference, shared kernel versus its own kernel, drives every
+trade-off:
+
+| | Container | Virtual machine |
+|---|---|---|
+| What it virtualizes | The operating system view | The hardware |
+| Kernel | Shared with the host | Its own, separate |
+| Start time | Milliseconds | Tens of seconds |
+| Size on disk | Megabytes | Gigabytes |
+| Isolation | Kernel-enforced, weaker | Hardware-enforced, stronger |
+
+The last row is the catch. Because a container shares the host kernel, a bug in
+that kernel can be a way out of the container and onto the host, which is called
+a container escape. A virtual machine, with its own kernel and a hardware
+boundary underneath, contains that same bug. Speed and size favor containers.
+Strong isolation favors virtual machines.
+
+<Callout type="security" title="Shared kernel, shared blast radius">
+Only run containers built from images that are trusted, on machines that are
+authorized to use. A container shares the host kernel, so a hostile image plus a
+kernel or misconfiguration bug can reach the host itself. Detonate unknown or
+malicious samples in a throwaway virtual machine, not in a bare container on a
+working machine.
+</Callout>
+
+<Quiz
+  id="container-vs-vm"
+  question="A container and a virtual machine both isolate a program, but they do it differently. What does a container share with the host that a virtual machine does not?"
+  answer={1}
+  options={[
+    "The CPU, which a virtual machine has to emulate in software",
+    "The kernel, since a container runs on the host's kernel while a virtual machine boots its own",
+    "The filesystem, which a virtual machine keeps completely separate",
+    "Nothing; both boot a full second operating system",
+  ]}
+  explanation="A virtual machine virtualizes hardware and boots its own kernel under a hypervisor. A container shares the host kernel and only isolates the process's view of the system. That one difference is why a container starts in milliseconds and a virtual machine in seconds, and why the container's isolation is weaker."
+/>
+
+## Two kernel features do all the work
+
+The fencing has two halves, and they are separate Linux kernel features. One
+controls what a process can see. The other controls what it can use. Together
+they are the whole trick.
+
+The first is namespaces. A namespace takes one global thing the kernel manages
+and hands a process its own private copy of it. Linux has several, each hiding a
+different slice of the system:
+
+- The PID namespace gives the process its own process tree, the list of running
+  processes and their parent-child links. The first process inside becomes PID 1,
+  the process ID the kernel reserves for the very first process, and it cannot see
+  any of the host's processes. As far as it knows, it is alone on the machine.
+- The mount namespace gives it its own filesystem layout. This is how a container
+  has a completely different `/`, its own `/etc`, and its own libraries.
+- The network namespace gives it its own network interfaces, routing table, and
+  ports. A container can listen on port 80 while the host uses port 80 for
+  something else.
+- The UTS namespace lets it set its own hostname.
+- The user namespace maps user IDs, so a process running as root, the
+  all-powerful administrator identity, inside the container can map to an ordinary
+  unprivileged user outside it.
+
+None of that limits anything. A namespace hides the rest of the system; it does
+nothing to stop the process from consuming the whole machine. A process alone in
+its own PID namespace can still fork copies of itself until the host runs out of
+memory.
+
+Limiting is the job of the second feature: cgroups, short for control groups. A
+cgroup caps what a group of processes may use: how much CPU, how much memory, how
+many processes it may spawn, how much disk I/O. When a container is started with
+`docker run --memory=256m`, Docker writes that ceiling into the container's memory
+cgroup. If the process inside pushes past 256 MB, the kernel kills a process
+inside the container, not on the host. The same kernel code enforces the limits
+that keep background services on any Linux machine from starving each other.
+
+A container, then, is a normal process wrapped in namespaces and clamped by a
+cgroup. Nothing more exotic than that. It can even be built by hand, with no
+Docker involved, using the `unshare` command, which starts a process in fresh
+namespaces.
+
+<CommandCard
+  command="unshare --pid --fork --mount-proc bash"
+  title="linux"
+  explain="Starts a bash shell in a new PID namespace with its own view of process information. Run as root. Inside that shell, the process list is empty except for the shell itself."
+/>
+
+<ExpectedOutput label="ps aux run inside the unshared shell">
+```
+USER   PID %CPU %MEM    VSZ   RSS TTY   STAT START   TIME COMMAND
+root     1  0.0  0.0   7372  3684 pts/0 S    12:31   0:00 bash
+root    10  0.0  0.0   9524  3072 pts/0 R+   12:31   0:00 ps aux
+```
+</ExpectedOutput>
+
+Two lines. The shell is PID 1, and the only other process visible is the `ps`
+command listing them. Every other process on the host is still running; the new
+PID namespace just hides them. That single command is the core of a container.
+Everything Docker adds on top is convenience: an image to fill the mount
+namespace, networking, and lifecycle management.
+
+<Quiz
+  id="namespaces-vs-cgroups"
+  question="A process has been placed in its own PID and mount namespaces, but no cgroup limits were set on it. What can it still do to the host?"
+  answer={2}
+  options={[
+    "Read the host's full list of running processes",
+    "See the host's real root filesystem",
+    "Consume all of the host's memory and CPU",
+    "Nothing; its namespaces already cap what it can use",
+  ]}
+  explanation="Namespaces control what a process can see, not how much it can use. The PID and mount namespaces hide the host's processes and filesystem, but with no cgroup nothing caps memory or CPU, so the process can still starve the host. Hiding and limiting are two separate jobs, done by two separate features."
+/>
+
+## A container has a lifecycle
+
+Docker is the tool most people use to set up those namespaces and cgroups, fill
+the filesystem from an image (the packaged, read-only starting filesystem a
+container is created from), and manage what happens after. That last part is the
+lifecycle, and understanding it removes most beginner confusion.
+
+A container moves through a few states. It is created, meaning set up but not
+started. It is running while its main process is alive. It is stopped, or exited,
+once that process has ended but the container still exists on disk. And it is
+removed once it is deleted for good. Four commands map onto those transitions.
+
+`docker run` takes an image and does two things at once: it creates a container
+from that image and starts it.
+
+<CommandCard
+  command="docker run -d --name web -p 8080:80 nginx"
+  title="linux"
+  explain="Runs the nginx web server image. -d detaches it to the background, --name gives it a readable name, and -p 8080:80 forwards traffic arriving at the host on port 8080 to port 80 inside the container. It prints the new container's long ID."
+/>
+
+Here is the single most important fact about the lifecycle, and the one that
+makes new users think Docker is broken. A container lives exactly as long as its
+main process. That main process is PID 1 inside the container. When it exits, the
+container stops. A container is not an always-on box sitting there waiting; it is
+a wrapper around one process, and it dies the moment that process does.
+
+Watch it happen with the demo image `hello-world`, whose only job is to print a
+message and exit.
+
+<CommandCard
+  command="docker run hello-world"
+  title="linux"
+  explain="Downloads a tiny demo image if it is not already present, runs it, and the container's one process prints a message and exits."
+/>
+
+<ExpectedOutput label="docker run hello-world, output trimmed">
+```
+Unable to find image 'hello-world:latest' locally
+latest: Pulling from library/hello-world
+Status: Downloaded newer image for hello-world:latest
+
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+```
+</ExpectedOutput>
+
+The container ran, printed, and its main process exited, so the container stopped
+immediately. That is correct behavior, not a failure. The one-off program had
+nothing left to do.
+
+`docker ps` lists the containers that are currently running. Stopped ones do not
+appear, which is exactly why the hello-world container seems to vanish. Adding
+`-a` lists all of them, running and stopped alike.
+
+<CommandCard
+  command="docker ps -a"
+  title="linux"
+  explain="Lists every container, including stopped ones. Without -a it shows only the running ones. The container IDs and the auto-generated names shown here differ on every machine."
+/>
+
+<ExpectedOutput label="docker ps -a with one running and one exited container">
+```
+CONTAINER ID   IMAGE         COMMAND                  CREATED         STATUS                     PORTS                    NAMES
+7f3a2b1c0d9e   nginx         "/docker-entrypoint.…"   2 minutes ago   Up 2 minutes               0.0.0.0:8080->80/tcp     web
+3d9e8f7a6b5c   hello-world   "/hello"                 5 minutes ago   Exited (0) 5 minutes ago                            zen_torvalds
+```
+</ExpectedOutput>
+
+The `STATUS` column is the lifecycle made visible. `Up 2 minutes` means running.
+`Exited (0)` means the main process ended, and the `0` is its exit code, the same
+success-or-failure number any Linux program returns when it finishes. A nonzero
+code there is the first thing to check when a container will not stay up.
+
+`docker stop` ends a running container. It sends the main process a polite
+request to shut down, the SIGTERM signal, waits ten seconds by default, and if the
+process is still alive it forces the issue with SIGKILL. The container moves to
+stopped, but it is not gone.
+
+<CommandCard
+  command="docker stop web"
+  title="linux"
+  explain="Stops the container named web and prints its name back. The container still exists on disk in a stopped state; it still holds its name and its data."
+/>
+
+A stopped container still occupies disk and still owns its name. Starting a second
+container with the same `--name web` fails until the first one is removed.
+`docker rm` deletes a stopped container for good.
+
+<CommandCard
+  command="docker rm web"
+  title="linux"
+  explain="Removes the stopped container named web permanently and prints its name. A container that is still running is refused; stop it first, or force removal with -f."
+/>
+
+For throwaway containers, `docker run --rm` deletes the container automatically the
+instant its process exits, so nothing piles up. That flag is worth reaching for by
+default on anything meant to run once.
+
+<Quiz
+  id="container-lifecycle"
+  question="A container is started from an image whose only program prints one line and exits. A few seconds later, docker ps shows nothing. What happened?"
+  answer={2}
+  options={[
+    "Docker crashed and lost the container",
+    "The container is still running but stays hidden until it is restarted",
+    "The main process exited, so the container stopped; docker ps -a would still list it as Exited",
+    "The image was too small to keep a container alive",
+  ]}
+  explanation="A container lives exactly as long as its main process, PID 1 inside it. When that process exits, the container stops. It is not gone: docker ps hides stopped containers, but docker ps -a still lists it with an Exited status until docker rm removes it."
+/>
+
+<Exercise title="Walk a container through its whole life">
+On a machine with Docker installed, run `docker run -d --name web -p 8080:80
+nginx`. It prints a long ID and returns immediately, because `-d` sent it to the
+background.
+
+Now run `docker ps`. The web container is there, with a `STATUS` of `Up`. Open
+`http://localhost:8080` in a browser, or run `curl localhost:8080`, and the nginx
+welcome page comes back, because the process inside is genuinely serving.
+
+Run `docker stop web`, then `docker ps`. The container is gone from the list. Run
+`docker ps -a` and it reappears with an `Exited` status. It was never deleted,
+only stopped.
+
+Finish with `docker rm web`, then `docker ps -a` one more time. Now it is truly
+gone. Created, running, stopped, removed: you just drove a container through every
+state it has.
+</Exercise>
+
+Every `docker run` in this lesson started from an image, `nginx` and
+`hello-world`, and the image did most of the real work while getting almost no
+explanation. Where those images come from, what they are made of, and how to
+build one from scratch is the whole of the next lesson, images and
+Dockerfiles. It covers how an image differs from a container, why images are
+built in stacked layers, the Dockerfile instructions that describe them, and how
+`docker build` and `docker pull` move them between machines.
+
+<Notes />

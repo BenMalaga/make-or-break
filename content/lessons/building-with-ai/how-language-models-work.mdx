@@ -1,0 +1,282 @@
+---
+title: How Language Models Work
+module: building-with-ai
+moduleTitle: Building with AI
+moduleOrder: 3
+moduleIcon: Brain
+order: 1
+summary: "A large language model does one thing: guess the next token. Everything a chatbot appears to do is built on that single trick."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - Explain what a large language model is and the single operation it performs
+  - Define a token and predict roughly how a sentence splits into tokens
+  - Describe the context window and why a model re-reads the whole conversation on every step
+  - Outline how training turns huge amounts of text into next-token prediction
+  - "Name the honest limits: no memory between calls, confident wrong answers, and no real understanding"
+tags:
+  - ai
+  - llm
+---
+
+Someone types a question into a chatbot and the reply appears a little at a time,
+left to right, as if an invisible hand were typing it live. That streaming is not
+a stage effect. It is the model working the only way it can, producing one small
+piece of text, then the next, then the next, each piece chosen from everything
+written so far.
+
+A large language model does exactly one thing. It guesses what comes next. Every
+trick a chatbot seems to pull, answering a question, translating, writing code,
+arguing a point, is that single operation run in a loop. This lesson takes the
+trick apart, because once the mechanism is clear the tool stops looking like magic
+and starts looking like something that can be aimed.
+
+## The one thing a model does
+
+Start with the word model, since it gets thrown around loosely. A model is a
+mathematical function with a huge pile of adjustable numbers inside it. Text goes
+in, a prediction comes out, and those numbers are what decide the prediction. A
+large language model is a model whose input and output are both text. The large
+part refers to the count of the adjustable numbers, now in the billions, and to
+the mountain of text the model learned from.
+
+The single operation is this. Given a stretch of text, the model predicts which
+token is most likely to come next. Then it adds that token to the text and
+predicts again, reading the slightly longer text back in as the new input. It
+repeats until it decides to stop. Producing output one step at a time and feeding
+each step back in has a name: autoregressive generation.
+
+A concrete pass makes it plain. Feed the model the text `The capital of France
+is`. It does not look up France in a table of countries. It produces a score for
+every token it knows, a number for how likely each one is to come next, and the
+token ` Paris` lands near the top. The model picks a token, appends it, and now
+the input is `The capital of France is Paris`, which it reads back in to choose
+the token after that.
+
+It does not always take the single highest-scoring token. A setting called
+temperature controls how much randomness goes into the pick. Low temperature
+makes the model almost always take the top choice, which reads as focused and a
+little repetitive. Higher temperature lets it reach for less likely tokens, which
+reads as more varied and more prone to going off the rails. This randomness is why
+the same prompt can produce a different answer twice in a row.
+
+<Quiz
+  id="llm-next-token"
+  question="A model is partway through writing a sentence and has produced the text 'The capital of France is'. What does it actually compute next?"
+  answer={1}
+  options={[
+    "It looks up 'France' in a stored table of countries and returns the matching capital.",
+    "It produces a likelihood score for every token in its vocabulary, then picks one to add to the text.",
+    "It plans the entire rest of the sentence first, then writes it all at once.",
+    "It searches the internet for the answer and pastes it in.",
+  ]}
+  explanation="The model computes a probability across its whole vocabulary for what comes next, samples one token, appends it, and repeats. There is no lookup table and no upfront plan for the full sentence, just one token at a time."
+/>
+
+## What a token is
+
+Notice that the last section kept saying token, not word and not letter. The
+distinction is not fussy. It is how the whole system reads. A token is a chunk of
+text: often a whole common word, sometimes a piece of a longer word, sometimes a
+space plus a word, sometimes a lone punctuation mark. Before a model sees any
+text, the text is broken into tokens, a step called tokenization, and each token
+is swapped for a number, an ID drawn from a fixed vocabulary of roughly one
+hundred thousand tokens.
+
+Watching it happen removes the mystery. The library below is tiktoken, the
+open-source tokenizer for OpenAI's GPT models, and `cl100k_base` is the specific
+vocabulary the GPT-4 family uses. This code splits one sentence and prints the
+pieces.
+
+```python
+import tiktoken
+
+enc = tiktoken.get_encoding("cl100k_base")
+text = "The model predicts the next token."
+ids = enc.encode(text)
+pieces = [enc.decode([i]) for i in ids]
+
+print(pieces)
+print(len(ids), "tokens")
+```
+
+<CommandCard
+  command="python3 tokens.py"
+  title="terminal"
+  explain="Runs the tokenizer over one sentence, prints the pieces it split into, then prints how many tokens that came to."
+/>
+
+<ExpectedOutput label="running the tokenizer on one sentence">
+```
+['The', ' model', ' predicts', ' the', ' next', ' token', '.']
+7 tokens
+```
+</ExpectedOutput>
+
+Read the pieces slowly, because each oddity is teaching something. `The` at the
+start and ` the` in the middle are two different tokens, since the second one
+carries a leading space; the model folds a space into the token that follows it.
+The everyday words `model`, `next`, and `token` are each a single token. The
+period is its own token. And a longer or rarer word gets no special treatment, it
+just splits: run the word `Tokenization` through the same code and it comes apart
+into `Token` and `ization`.
+
+Why chop text up this way instead of feeding whole words or single letters? A
+fixed vocabulary of word pieces can represent any text at all, including typos,
+names, code, and other languages, by falling back to smaller pieces when a word is
+rare, while still spending just one token on the common words that fill most
+writing. A whole-word vocabulary chokes on anything unusual. Letter-by-letter
+would make every input enormous and slow.
+
+Two practical numbers fall out of this. In English, one token runs about four
+characters, or roughly three quarters of a word, so a 1,000-word essay lands on
+the order of 1,300 tokens; other languages can cost far more tokens for the same
+meaning. And a token ID is not fed to the model as a bare number. It is first
+turned into a list of numbers called an embedding, which places the token as a
+point in a space where related meanings sit near each other. Embeddings are how
+raw numbers come to stand for meaning, and a later skill builds directly on them.
+
+<Quiz
+  id="llm-tokens"
+  question="The word 'Tokenization' becomes the two tokens 'Token' and 'ization', while ' the' with a leading space is a single token. What does this show about how a model reads text?"
+  answer={2}
+  options={[
+    "Every word is always exactly one token.",
+    "The model reads one letter at a time and groups them as it goes.",
+    "Text is split into tokens from a fixed vocabulary before the model sees it, and a token can be a whole word, a word piece, or carry a leading space.",
+    "Spaces are stripped out before the model reads anything.",
+  ]}
+  explanation="Tokenization happens first, against a fixed vocabulary. A common word is usually one token, a rare or long word splits into pieces, and a leading space is part of the token that follows it. The model never sees the raw letters directly."
+/>
+
+## The context window
+
+A model cannot take in unlimited text. The run of tokens it can hold and work on
+at once is the context window, measured in tokens: the maximum number the model
+can read in and generate in a single pass, input and output counted together.
+Current models range from tens of thousands of tokens to well over a million.
+Those figures climb every year, so treat any specific number as a snapshot, not a
+constant.
+
+The window is the model's entire world for one request. There is no notepad off to
+the side, no long-term store it quietly consults. Whatever sits in the window is
+everything the model can use, and whatever falls outside it might as well not
+exist. Asking a model about a long document means the document has to fit in the
+window as tokens; past the limit, something gets cut.
+
+One more consequence sets up the limits later in this lesson. Every single time the
+model produces a token, it reads the whole window again from the beginning. It is
+not remembering the sentence it wrote a moment ago the way a person holds a
+thought. Those earlier tokens are literally part of the input on every step. The
+model keeps no state between steps except the growing text itself.
+
+## How training turns text into prediction
+
+The natural question is where the ability to predict a good next token comes from.
+It is learned, in a process worth sketching even in rough form. Real training has
+more moving parts than this, and treating it as two clean phases is a
+simplification, but the shape is right.
+
+Phase one is pretraining. The model starts with its billions of numbers set to
+random values, so its early predictions are noise. It is then fed an enormous
+amount of text, trillions of tokens pulled from books, code, and web pages. At
+every position in all that text, the model predicts the next token, its guess is
+compared against the token that actually came next, and every one of its numbers is
+nudged a tiny amount in the direction that would have made the true token more
+likely. That nudging, repeated across trillions of examples, is the training. The
+method has a name, gradient descent, carried out by a procedure called
+backpropagation, but the idea underneath is just guess, check, adjust, on a
+colossal scale.
+
+What comes out is worth stating flatly, because it clears up a lot of confusion.
+The model ends as a fixed set of numbers that captures patterns in text: grammar,
+common turns of phrase, the shape of a valid function, facts that showed up over
+and over. There is no database inside it and no stored copy of the training text.
+When a model reliably states that water boils at 100 degrees Celsius, that is a
+pattern baked into the numbers because it appeared so often, not a fact the model
+looked up.
+
+Two things follow. Once training ends, the numbers are frozen, which fixes a
+knowledge cutoff: the model knows nothing that happened after its training data was
+gathered, and nothing about the specific person it is about to talk to. And
+pretraining alone yields a model that continues text, not one that answers a
+question helpfully. A second phase, post-training, uses example conversations and
+human ratings to steer the model toward following instructions and being useful;
+the common technique is called reinforcement learning from human feedback, or
+RLHF.
+
+<Quiz
+  id="llm-training"
+  question="During training, a model is shown passages, asked to predict the next token, and its internal numbers are nudged based on how wrong each guess was. What does the model end up being?"
+  answer={3}
+  options={[
+    "A searchable database holding every sentence it was trained on.",
+    "A live connection to the training data that it can query later.",
+    "A memory of each user it will eventually talk to.",
+    "A frozen set of numbers that captures patterns in text, with no stored lookup table of facts inside.",
+  ]}
+  explanation="Training leaves the model as a fixed set of numbers that encode statistical patterns. It holds no copy of the training text and no fact table. A reliably-repeated fact is a strong pattern in the numbers, not a record it retrieves."
+/>
+
+## What a model cannot do
+
+Three limits catch beginners hardest, and all three fall straight out of the
+mechanism above.
+
+A model has no memory between calls. Programs talk to a model through an API, an
+application programming interface, which is just an agreed way for one program to
+send a request to another and get a response back; the program sends text and
+receives generated tokens. Each call stands completely alone. The model carries
+nothing over from the previous one. A chat that seems to remember what was said ten
+messages ago works because the application resends the entire conversation as part
+of every new request. Clear that history and the memory is gone, because there was
+never any memory in the model to begin with.
+
+A model can be confidently wrong. When a model produces fluent, plausible text that
+happens to be false, that is called a hallucination, and it is not a glitch, it is
+the mechanism showing through. The model predicts likely tokens, not true ones, and
+a fabricated citation or a made-up function name can be built from exactly the same
+likely tokens as a real one. Nothing inside checks a claim against the world. The
+wrong answer arrives with the same calm confidence as a right one, which is what
+makes it dangerous.
+
+A model does not truly understand in the human sense. It has learned patterns in
+text, not the things the text points at; it has processed the word Paris millions
+of times and has never seen a city. Whether that adds up to a kind of understanding
+is a genuine debate among researchers, and this lesson will not settle it. For
+anyone building on top of these models, the useful stance is the cautious one:
+treat the output as a statistically likely continuation of the input, not as
+knowledge the model checked and stands behind.
+
+<Callout type="warning" title="Plausible is not the same as correct">
+A model will invent a citation, a quote, an API function, or a court case with
+total fluency, because a fake one is assembled from the same likely tokens as a
+real one. Anything a model states that carries real consequences, a fact, a
+number, a name, a command to run, gets checked against a source that is not the
+model. Fluency is not evidence.
+</Callout>
+
+<Exercise title="Predict like a model">
+Read this half-sentence and, before reading on, say the single word most likely to
+finish it: "I poured myself a cup of ___." Most people land on coffee or tea almost
+instantly. That fast, near-automatic guess from context is the whole job a model
+does, except it does it for every token, across a vocabulary of a hundred thousand
+options.
+
+Now try one with no obvious answer: "The meeting is scheduled for ___." Several
+words fit and none dominates. That spread is what high randomness feels like from
+the inside, and it is why a model given an open-ended prompt can answer differently
+each time.
+
+If a computer with Python is within reach, install the tokenizer with `pip install
+tiktoken`, paste a sentence of your own into the script above, and count the
+tokens. Try a rare last name, a URL, and a short line of code, and watch how each
+one splits into more pieces than a plain English word.
+</Exercise>
+
+That last limit is the opening for everything that follows. A model outputs the
+most likely continuation of its input, so the way to get a reliable answer is to
+build an input whose most likely continuation is the answer wanted. Shaping that
+input on purpose is prompt engineering, and it is the next lesson.
+
+<Notes />

@@ -1,0 +1,109 @@
+---
+title: The Incident Response Lifecycle
+module: incident-response
+moduleTitle: Incident Response
+moduleOrder: 23
+moduleIcon: Siren
+order: 1
+summary: Six phases that turn a 2am panic into a repeatable process.
+estimatedMinutes: 15
+objectives:
+  - Name the six phases of the incident response lifecycle and what each one produces
+  - Explain why preparation and lessons learned bookend the loop
+  - Open a clean case folder and timeline before you touch any evidence
+tags:
+  - incident-response
+  - ir
+  - lifecycle
+---
+
+A user forwards you an email at 2am. Their laptop is acting weird, a finance
+approval went out that nobody remembers sending, and three machines are now
+beaconing to an IP in a country you do not do business with. Start clicking
+around without a plan and you will tip off the attacker, trample the evidence,
+and still not know how deep it goes.
+
+The fix is a lifecycle you run the same way every time, whether it is one
+phishing click or a full ransomware detonation. SANS calls it **PICERL**. NIST
+SP 800-61 folds the same work into four phases, but the six-step breakdown maps
+cleaner to what your hands actually do.
+
+## The six phases
+
+**Preparation** is everything you do before the pager goes off: the runbook, the
+contact list, tested backups, logging that is actually turned on and retained.
+This is the only phase you control the clock on, so it is where most of the real
+win lives. An org with no preparation does not respond to incidents, it reacts to
+them.
+
+**Identification** is confirming that an event is actually an incident, not a
+false positive, and figuring out its scope. One alert is an event. An attacker
+with valid credentials moving between hosts is an incident. Getting this call
+right and fast is the next lesson.
+
+**Containment** stops the bleeding. You isolate the affected hosts so the
+attacker cannot spread or exfiltrate more, while being careful not to destroy the
+volatile evidence sitting in RAM. Short-term containment buys you minutes,
+long-term containment (rebuilt segments, rotated credentials) buys you the rest
+of the response.
+
+**Eradication** removes the attacker's foothold: the malware, the web shell, the
+rogue account, the persistence mechanism. If you skip straight here without
+understanding how they got in, they walk right back through the same door.
+
+**Recovery** brings clean systems back into production and watches them closely.
+You restore from known-good backups, validate the host is actually clean, and
+monitor for the attacker trying to return. Rushing recovery is how a
+one-weekend incident becomes a three-week one.
+
+**Lessons learned** closes the loop within about two weeks while memory is fresh.
+What worked, what was slow, what detection gap let this happen, and which of
+those fixes feeds straight back into preparation. Skip this and you will
+respond to the identical incident next quarter.
+
+## Start the case before you start the work
+
+The first thing you create is not a fix, it is a record. Open a case folder and
+lock the clock to UTC so every artifact you collect lines up on one timeline.
+
+<CommandBlock
+  title="analyst@ir-jumpbox"
+  commands={[
+    { cmd: "date -u +\"%Y-%m-%dT%H:%M:%SZ\"", comment: "note the incident open time in UTC, always UTC" },
+    { cmd: "mkdir -p ~/cases/INC-2026-0042/{evidence,notes,timeline}", comment: "one folder per incident, structured from minute one" },
+    { cmd: "echo \"$(date -u +%FT%TZ) case opened, source: user report of finance fraud\" >> ~/cases/INC-2026-0042/timeline/timeline.log", comment: "first timeline entry" },
+  ]}
+/>
+
+Every action you take from here gets a timestamped line in that log. When the
+report comes due, or when legal asks what you touched and when, that file is the
+difference between a defensible response and a guess.
+
+<Callout type="info" title="PICERL vs NIST">
+NIST SP 800-61 lists four phases: Preparation, Detection and Analysis,
+Containment/Eradication/Recovery, and Post-Incident Activity. It is the same
+work. Pick whichever vocabulary your team documents in and stay consistent, the
+map matters less than everyone running the same route.
+</Callout>
+
+<Callout type="security" title="Stay inside your authority">
+Responding to an incident is not a license to touch anything you want. Isolate,
+image, and investigate only the systems inside the scope your organization or
+client authorized. Reaching into a system you were not cleared for turns a
+responder into a second incident.
+</Callout>
+
+<Quiz
+  id="ir-lifecycle-order"
+  question="An attacker still has an active web shell on a server. You restore the box from a backup taken during the compromise and put it back online. Which phase did you get wrong?"
+  answer={1}
+  options={[
+    "Identification, because you never confirmed the incident",
+    "Eradication, because the foothold was never removed and the backup is dirty",
+    "Preparation, because backups existed at all",
+    "Lessons learned, because it happened too early",
+  ]}
+  explanation="Recovering from a backup taken while the attacker was inside just reinstalls the compromise. Eradication has to remove the foothold and you have to validate the restore point is actually clean before recovery."
+/>
+
+<Notes />

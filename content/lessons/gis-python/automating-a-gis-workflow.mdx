@@ -1,0 +1,172 @@
+---
+title: Scripting a Real GIS Pipeline End to End
+module: gis-python
+moduleTitle: GIS Programming with Python
+moduleOrder: 4
+moduleIcon: FileCode
+order: 6
+summary: "A real GIS pipeline chains reprojection, buffering, a spatial join, and a summary into one script that reads two GeoPackages and writes a GeoPackage plus a CSV."
+estimatedMinutes: 16
+prerequisites: ["reading-rasters-with-rasterio"]
+objectives:
+  - Explain why a scripted pipeline beats running the same GIS tools by hand through a menu
+  - Structure a script into small functions, a main block, and progress messages that show where a long run is
+  - Chain reprojection, a buffer, a spatial join, and a groupby summary into one repeatable pipeline
+  - Write a script's spatial result to a GeoPackage and its summary table to a CSV in the same run
+tags:
+  - gis
+  - python
+  - automation
+---
+
+The rasterio lesson opened a single elevation file and read one band. The spatial join lesson matched bus stops to census tracts and stopped there. Each of those examples worked in isolation: a few lines of code, one narrow question, data that had already been reprojected and cleaned before the example ever touched it. Real GIS work rarely shows up that tidy. A city engineer who wants to know which parcels sit outside fire hydrant range has to load two layers from two different sources, get them onto the same footing, run several operations in the right order, and hand back both a spatial layer and a plain table a manager can open without installing anything. That whole chain, start to finish, in one script that runs the same way every time it is asked to, is the actual job most GIS programming exists to do.
+
+## Why a script beats a sequence of clicks
+
+Every operation in this lesson has a matching menu item in a desktop GIS. Reprojecting is Vector, Reproject Layer. Buffering is Vector, Geoprocessing, Buffer. A spatial join is Vector, Data Management, Join Attributes by Location. An analyst could click through all four, in order, on today's data, and get today's answer. The trouble starts the moment that answer needs to be produced again.
+
+A script is the record of exactly what happened. Every parameter, the buffer radius, the CRS chosen, the join predicate, sits in a text file instead of a memory of which dropdown was picked last Tuesday. That file can be checked into version control, so a change to the buffer distance shows up as a one-line diff with a name attached, not a silent edit nobody can trace. It can be handed to a colleague who runs it without needing to be told which six menus to visit in which order. Most of all, it can be pointed at next month's hydrant export and next month's parcel export and produce the same report without a single click, because the new data has the same shape as the old data, and the script never cared about the specific numbers inside it, only the columns and the geometry.
+
+This is not a claim that clicking through a GIS is wrong. Exploring an unfamiliar dataset, deciding whether a buffer of 150 meters or 200 meters looks right on a map, is often faster by eye. The line worth drawing is between exploration and production. Once the steps are settled and the same analysis needs to run again on new data, that analysis belongs in a script.
+
+<Quiz
+  id="pipeline-script-vs-clicking"
+  question="A city runs the same 'parcels within 150 meters of a hydrant' analysis every quarter as new hydrant data arrives. What is the strongest reason to script this instead of repeating the same menu clicks in QGIS each time?"
+  answer={1}
+  options={[
+    "QGIS cannot buffer a layer or run a spatial join, only Python can do that",
+    "The script is a documented, repeatable record of every parameter, so the same analysis runs unchanged on new data without anyone remembering which menus to click",
+    "Scripts always run faster than any desktop GIS tool, regardless of data size",
+    "A script is required because GeoPackage files cannot be opened in a desktop GIS",
+  ]}
+  explanation="The real advantage is reproducibility: the parameters live in a file that can be versioned, reviewed, and rerun exactly, instead of a sequence of clicks someone has to remember. QGIS can do every one of these operations through its menus, speed is not guaranteed either way, and GeoPackage opens fine in a desktop GIS, so the other options do not hold up."
+/>
+
+## Shaping the script: functions, a main block, and progress
+
+A pipeline with five or six steps reads badly as one long block of code. Splitting it into small functions, each doing one clearly named thing, load the data, reproject it, buffer it, join it, summarize it, means each piece can be read, tested, and fixed on its own without wading through the whole file to find the one line that changed. A function called `buffer_hydrants` says exactly what it does before anyone reads its body.
+
+Below those functions sits a `main` function that calls them in order, and beneath that, the line `if __name__ == "__main__":` followed by a call to `main()`. That guard is a Python idiom that means "only run this when the file is executed directly, not when something else imports it." It is what turns a pile of functions into a script someone can actually run from a terminal.
+
+The last habit worth building in is printing progress as each step finishes. A pipeline that reads two files, reprojects them, buffers one, joins them, and writes two outputs can take anywhere from a second to several minutes depending on how many features it is chewing through. A silent script that hangs for two minutes looks identical whether it is working normally or stuck in an infinite loop. A script that prints a short line after each stage, how many hydrants loaded, how many parcels came back uncovered, turns a black box into something a person can watch and trust, and gives an obvious place to look when a run produces a number that seems wrong.
+
+## The question this pipeline answers
+
+The scenario: a fire department wants to know which parcels in a city are not within reach of a hydrant. The standard rule of thumb many departments follow is that a hydrant should sit within about 150 meters of any structure it is expected to protect. Turning that rule into a spatial question means drawing a circle of that radius around every hydrant, a **buffer**, and asking which parcels fall entirely outside every one of those circles.
+
+Two files come in: `hydrants.gpkg`, a points layer with one row per hydrant, and `parcels.gpkg`, a polygons layer with one row per property, carrying a `zoning` column among its attributes. Both need to land on the same coordinate reference system before any distance math means anything, since a 150 meter circle is only 150 meters if the units are actually meters. From there the pipeline buffers the hydrants, joins the parcels against those buffers, keeps only the parcels that matched nothing, and counts how many of those uncovered parcels fall in each zoning category.
+
+## The full script
+
+```python
+import geopandas as gpd
+
+
+def load_layers(hydrants_path, parcels_path):
+    hydrants = gpd.read_file(hydrants_path)
+    parcels = gpd.read_file(parcels_path)
+    print(f"loaded {len(hydrants)} hydrants and {len(parcels)} parcels")
+    return hydrants, parcels
+
+
+def to_common_crs(hydrants, parcels, epsg):
+    hydrants = hydrants.to_crs(epsg=epsg)
+    parcels = parcels.to_crs(epsg=epsg)
+    print(f"reprojected both layers to EPSG:{epsg}")
+    return hydrants, parcels
+
+
+def buffer_hydrants(hydrants, radius_m):
+    buffered = hydrants.copy()
+    buffered["geometry"] = buffered.geometry.buffer(radius_m)
+    print(f"buffered {len(buffered)} hydrants by {radius_m} m")
+    return buffered
+
+
+def find_uncovered_parcels(parcels, buffered_hydrants):
+    joined = gpd.sjoin(parcels, buffered_hydrants, how="left", predicate="intersects")
+    uncovered = joined[joined["index_right"].isna()].copy()
+    uncovered = uncovered.drop(columns=["index_right"])
+    print(f"{len(uncovered)} of {len(parcels)} parcels have no hydrant within range")
+    return uncovered
+
+
+def summarize_by_zoning(uncovered):
+    summary = (
+        uncovered.groupby("zoning")
+        .size()
+        .reset_index(name="uncovered_count")
+        .sort_values("uncovered_count", ascending=False)
+    )
+    return summary
+
+
+def main():
+    hydrants, parcels = load_layers("hydrants.gpkg", "parcels.gpkg")
+    hydrants, parcels = to_common_crs(hydrants, parcels, epsg=32618)
+    buffered = buffer_hydrants(hydrants, radius_m=150)
+    uncovered = find_uncovered_parcels(parcels, buffered)
+    summary = summarize_by_zoning(uncovered)
+
+    uncovered.to_file("uncovered_parcels.gpkg", driver="GPKG")
+    summary.to_csv("coverage_summary.csv", index=False)
+    print("wrote uncovered_parcels.gpkg and coverage_summary.csv")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+<ExpectedOutput label="one printed line per stage, ending with the two files written">
+```
+loaded 8412 hydrants and 15230 parcels
+reprojected both layers to EPSG:32618
+buffered 8412 hydrants by 150 m
+2196 of 15230 parcels have no hydrant within range
+wrote uncovered_parcels.gpkg and coverage_summary.csv
+```
+</ExpectedOutput>
+
+Every line of output there maps to one function, in the order `main` calls them. That mapping is exactly the point. Anyone reading the printed log, including the person who wrote it a year earlier and forgot the details, can tell which stage produced which number without opening the code at all.
+
+Look at `find_uncovered_parcels` closely, since it is where the actual question gets answered. `gpd.sjoin` runs with `how="left"`, which keeps every parcel regardless of whether it matched a hydrant buffer, exactly the choice covered in the spatial joins lesson for a case where the unmatched rows are the ones that matter. `predicate="intersects"` asks whether each parcel's shape overlaps any buffer circle at all, even partially, which is the right test here since a parcel only slightly inside a hydrant's range is still covered. After the join, `joined["index_right"].isna()` filters down to only the rows where no buffer matched, which is pandas's way of asking "which rows came back with a blank." That filter step, keeping the rows that failed to match rather than the ones that succeeded, is what turns a general join into an answer to this specific question.
+
+<Quiz
+  id="pipeline-order-of-operations"
+  question="In the script, why does to_common_crs run before buffer_hydrants rather than after?"
+  answer={0}
+  options={[
+    "The buffer radius is given in meters, so the hydrants need to already be in a metric CRS or the 150 unit circle would not represent 150 meters on the ground",
+    "GeoPandas refuses to buffer a layer unless it has already been joined to another layer first",
+    "Reprojecting after buffering would delete the geometry column entirely",
+    "The order does not matter, buffer_hydrants would work identically either way",
+  ]}
+  explanation="A buffer of 150 units only means 150 meters if the layer's CRS actually measures in meters, so reprojecting to a metric CRS has to happen before the buffer call for the radius to mean what the code intends. GeoPandas can buffer a layer with no join at all, reprojecting does not touch the geometry column's existence, and swapping the order would silently produce a buffer of 150 degrees instead of 150 meters, which is a very different shape."
+/>
+
+## Writing two outputs from one run
+
+The script ends by writing two different files, and that split is deliberate rather than incidental. `uncovered.to_file("uncovered_parcels.gpkg", driver="GPKG")` writes the full spatial result, every uncovered parcel's geometry and attributes, into a **GeoPackage**, a single-file spatial format any desktop GIS can open directly. That file is for whoever needs to see the shapes: a planner who wants to draw the uncovered parcels on a map next to the hydrant network and eyeball where the gaps cluster.
+
+`summary.to_csv("coverage_summary.csv", index=False)` writes the much smaller `summary` table, zoning categories and their uncovered counts, as a plain CSV with no geometry column at all, because a CSV cannot hold geometry and does not need to here. That file is for whoever just wants the numbers: a fire chief who wants to open a spreadsheet and see that residential zoning has 340 uncovered parcels while industrial has 12, without installing any GIS software to read it. Writing both from the same script means the map and the table can never drift out of sync with each other, since they came from the same run against the same input files.
+
+<Callout type="info" title="Pick the output format for who reads it next, not out of habit">
+A spatial file and a plain table answer different questions for different people. Someone who needs to see where the problem sits on the ground needs the GeoPackage. Someone who needs a count to put in a memo needs the CSV. Writing only one of the two forces one of those readers to convert the file themselves, or worse, to open a GIS just to read three numbers off a table.
+</Callout>
+
+<Quiz
+  id="pipeline-gpkg-vs-csv"
+  question="Why does the pipeline write uncovered_parcels.gpkg (with geometry) and coverage_summary.csv (without geometry) instead of writing everything to one CSV?"
+  answer={2}
+  options={[
+    "CSV files cannot store numbers, only text, so the counts would be unreadable",
+    "GeoPackage is required by law for any file a government agency produces",
+    "The GeoPackage preserves each parcel's shape for mapping, while the CSV gives a geometry-free table for anyone who only needs the counts",
+    "Writing two files is a performance optimization that makes the script run faster",
+  ]}
+  explanation="The two formats serve two different readers: the GeoPackage carries geometry for anyone mapping the uncovered parcels, and the CSV strips geometry down to a plain summary table for anyone who just wants the counts. CSV handles numbers fine, no such legal requirement exists, and the split is about audience, not runtime speed."
+/>
+
+This shape, load, reproject, buffer, join, filter, summarize, write, comes up under different names depending on who is hiring. Some job postings call it a GIS analyst role, others call it a geospatial data engineer, and a growing number just call it a GIS developer: someone whose actual output is not a map but a script that produces the map, the table, and the report on demand, and keeps producing them correctly after the underlying data changes shape six months later. The tools in this script, GeoPandas doing the reprojecting, buffering, and joining, are the same tools from every earlier lesson in this module. What makes this a pipeline instead of a demo is the discipline of wrapping them in functions, running them from one main block, and writing both a spatial result and a plain one at the end.
+
+The next module moves this same kind of question out of a Python script and into the database itself, writing spatial SQL directly against PostGIS instead of loading files with GeoPandas. The ideas carry over completely: the same buffer, the same join, the same filter, expressed as SQL that runs where the data already lives.

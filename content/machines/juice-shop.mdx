@@ -1,0 +1,80 @@
+---
+name: Juice Shop
+tagline: OWASP's deliberately broken web shop. A perfect first target.
+description: A modern, deliberately insecure web application maintained by OWASP. It covers the entire OWASP Top 10 with dozens of challenges, from trivial to brutal.
+difficulty: EASY
+os: LINUX
+targetType: DOCKER
+tags:
+  - web
+  - owasp
+  - injection
+  - xss
+points: 20
+docker:
+  image: bkimminich/juice-shop
+  run: docker run --rm -p 3000:3000 bkimminich/juice-shop
+  port: 3000
+  httpPath: /
+flags:
+  - type: USER
+    label: Score Board
+    value: MOB{score_board_is_the_map}
+    points: 10
+  - type: ROOT
+    label: Admin access
+    value: MOB{admin_is_just_a_query_away}
+    points: 20
+hints:
+  - title: Where do I even start?
+    body: Every Juice Shop challenge is tracked on a hidden Score Board. Finding it is the first challenge. Think about routes the UI does not link to but the single-page app still knows about.
+    cost: 0
+  - title: Finding the Score Board
+    body: The app is an Angular SPA. Its routes are defined in the JavaScript bundle. Open the main.js file from the network tab and search it for the string score-board. Then browse to that route directly.
+    cost: 5
+  - title: User proof token
+    body: Once the Score Board loads at /#/score-board, you have completed the first objective. Submit MOB{score_board_is_the_map}
+    cost: 10
+  - title: Toward admin
+    body: The login form talks to /rest/user/login. Classic authentication bypass via SQL injection lives here. Try an email of admin' plus a SQL comment, with any password.
+    cost: 10
+  - title: Root proof token
+    body: An email value of admin'-- (with a trailing space after the dashes) logs you in as the administrator. Once you are admin, submit MOB{admin_is_just_a_query_away}
+    cost: 15
+tasks:
+  - title: Stand up the container and reach the app
+    description: Run the docker command and load http://localhost:3000
+  - title: Find the hidden Score Board
+    description: Discover the route the UI does not advertise
+  - title: Bypass authentication as admin
+    description: Log in as the administrator without the password
+---
+
+## About this target
+
+Juice Shop is the most popular deliberately insecure web application in the
+world, maintained by OWASP. It is a real Angular and Node application with a
+SQLite backend, seeded with dozens of vulnerabilities that map to the OWASP Top
+10. It is the ideal place to build web instincts.
+
+Your two objectives here: **find the hidden Score Board** (user), then **log in
+as the administrator** by abusing the login query (root).
+
+<Callout type="security" title="Authorized target only">
+You are running this container on your own machine. That is the only reason it
+is legal to attack it. Never point these techniques at an application you do not
+own or have written permission to test.
+</Callout>
+
+<Callout type="info" title="How flags work on Phase A machines">
+Docker and bring-your-own-VM boxes use proof tokens revealed through the hints
+once you have genuinely completed the objective. Capture a flag by doing the
+work, then submitting the token. Phase B hosted machines will issue real
+per-instance flags planted on the target.
+</Callout>
+
+## Getting reachable
+
+Spin the container up, confirm the shop loads in your browser, then work the
+objectives below. Use the hints if you stall; each one costs a few points, so
+try on your own first.

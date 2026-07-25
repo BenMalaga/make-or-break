@@ -1,0 +1,114 @@
+[
+  {
+    "domain": 3,
+    "question": "An engineer adds an inbound rule to a security group to allow HTTPS from the internet but adds no matching outbound rule. Users can still complete requests to the instance. Why does the response traffic succeed?",
+    "options": ["Security groups are stateless, so a hidden default outbound rule is created automatically", "Security groups are stateful, so return traffic for an allowed inbound flow is permitted regardless of outbound rules", "The network ACL for the subnet automatically mirrors the security group inbound rule", "The VPC route table rewrites the response to use an implicit allow-all path"],
+    "correct": [1],
+    "explanation": "Security groups are stateful. When an inbound flow is allowed, the response traffic is automatically permitted even if no outbound rule matches, and vice versa. Network ACLs, by contrast, are stateless and must have explicit rules for both directions. No hidden outbound rule is created and route tables do not evaluate connection state.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A company runs application servers in a private subnet that must download OS patches from the internet but must never receive unsolicited inbound connections. Which VPC component provides this outbound-only internet access for IPv4 traffic?",
+    "options": ["An internet gateway attached directly to the private subnet route table", "A NAT gateway in a public subnet, with the private subnet routing 0.0.0.0/0 to it", "An egress-only internet gateway referenced from the private subnet", "A VPC peering connection to a shared services VPC"],
+    "correct": [1],
+    "explanation": "A NAT gateway placed in a public subnet lets instances in private subnets initiate outbound IPv4 connections while blocking inbound connections initiated from the internet. The private subnet route table sends 0.0.0.0/0 to the NAT gateway. An egress-only internet gateway provides the equivalent function but only for IPv6, not IPv4.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A security team blocks a specific attacker IP by adding a DENY rule to a subnet network ACL, but the attacker's return traffic on high-numbered ephemeral ports is still being dropped for legitimate users. What is the most likely cause?",
+    "options": ["The network ACL is stateful and caches the denied connection", "The inbound and outbound ephemeral port ranges (for example 1024-65535) were not explicitly allowed, because NACLs are stateless", "Security groups override the NACL evaluation order", "The DENY rule was placed with a higher rule number than the ALLOW rule"],
+    "correct": [1],
+    "explanation": "Network ACLs are stateless, so response traffic must be explicitly allowed in the opposite direction, typically on the ephemeral port range (1024-65535 for Linux). If those ephemeral ports are not allowed outbound and inbound, legitimate return traffic is dropped. Security groups do not override NACLs; the two are evaluated independently.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An architect wants web-tier instances to reach app-tier instances without hard-coding IP ranges, so that scaling either tier requires no rule changes. What is the most maintainable way to author the app tier's inbound rule?",
+    "options": ["Allow the CIDR block of the web subnet as the source", "Reference the web tier's security group ID as the source in the app tier's security group rule", "Add each web instance's private IP as a separate rule", "Use a network ACL that lists the web tier IP addresses"],
+    "correct": [1],
+    "explanation": "A security group rule can reference another security group as its source. Any instance associated with the web tier security group is then automatically allowed, regardless of its IP, so scaling requires no rule edits. Referencing CIDR blocks or individual IPs is brittle and breaks as instances are added or replaced.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A workload in a private subnet with no internet access must call Amazon S3 and Amazon DynamoDB privately, and the team wants to avoid per-hour endpoint charges and ENIs. Which VPC endpoint type supports these two services? (Choose two.)",
+    "options": ["Gateway VPC endpoint for Amazon S3", "Gateway VPC endpoint for Amazon DynamoDB", "Interface VPC endpoint for Amazon S3 over PrivateLink billed per hour", "Gateway VPC endpoint for AWS Systems Manager"],
+    "correct": [0, 1],
+    "explanation": "Gateway VPC endpoints are supported only for Amazon S3 and Amazon DynamoDB. They add a route in the subnet route table, use no ENI, and carry no hourly or data processing charge. Interface endpoints (PrivateLink) exist for S3 but are billed per hour, and Systems Manager is only reachable through interface endpoints, not gateway endpoints.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A public-facing application behind an Application Load Balancer is being hit by a Layer 7 HTTP flood from many source IPs, degrading availability. Which AWS WAF capability most directly mitigates this?",
+    "options": ["A rate-based rule that blocks source IPs exceeding a request threshold over the evaluation window", "A geo-match rule that allows all countries", "Enabling only AWS Shield Standard on the load balancer", "A managed rule group for SQL injection signatures"],
+    "correct": [0],
+    "explanation": "An AWS WAF rate-based rule tracks the request rate per source IP over a rolling five-minute window and blocks IPs that exceed the configured threshold, which is the direct control for HTTP floods. Shield Standard mitigates network and transport layer attacks automatically but not application-layer floods, and a SQL injection rule group targets a different threat.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A company wants DDoS cost protection, 24/7 access to the AWS Shield Response Team, and AWS WAF included at no additional cost for its protected internet-facing resources. Which service tier meets all of these requirements?",
+    "options": ["AWS Shield Standard, which is automatically enabled for all customers", "AWS Shield Advanced, a paid subscription", "Amazon GuardDuty with the network monitoring feature", "AWS WAF Bot Control managed rule group"],
+    "correct": [1],
+    "explanation": "AWS Shield Advanced is the paid tier that adds DDoS cost protection (credits for scaling charges caused by an attack), 24/7 access to the Shield Response Team, enhanced Layer 3 through 7 protections, and AWS WAF at no additional cost on protected resources. Shield Standard is free but does not include those features, and GuardDuty is a threat-detection service.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A security team must centrally filter and log all outbound traffic from many VPCs, allowing egress only to an approved list of domains such as *.amazonaws.com and blocking everything else. Which managed service is purpose-built for this stateful, domain-based egress filtering?",
+    "options": ["AWS Network Firewall with a stateful rule group that allows the approved domains", "Security groups applied to the NAT gateway", "A network ACL denying all outbound traffic except port 443", "Amazon Route 53 public hosted zones"],
+    "correct": [0],
+    "explanation": "AWS Network Firewall is a managed, stateful firewall that supports domain name filtering (via Suricata-compatible rules), full traffic logging, and centralized deployment across VPCs, typically in an inspection VPC. Security groups and NACLs filter by IP, port, and protocol only and cannot match on domain names, and they cannot be attached to a NAT gateway.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "Content is served through Amazon CloudFront from an S3 origin. The team must ensure objects can be retrieved only through CloudFront and never by requesting the S3 bucket URL directly. What is the AWS-recommended configuration?",
+    "options": ["Make the S3 bucket public and rely on CloudFront caching", "Enable Origin Access Control (OAC) on the distribution and add a bucket policy that allows only the CloudFront service principal", "Put the bucket behind a security group that allows only CloudFront IP ranges", "Enable S3 Transfer Acceleration on the bucket"],
+    "correct": [1],
+    "explanation": "Origin Access Control (OAC), the successor to Origin Access Identity, signs requests from CloudFront to the S3 origin. A bucket policy then grants access only to the CloudFront service principal (scoped by the distribution ARN), so direct requests to the bucket are denied. S3 buckets cannot be protected by security groups, and making the bucket public defeats the requirement.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A company must insert a third-party virtual firewall appliance inline to inspect traffic entering and leaving several VPCs, without changing application routing logic or the appliance's IP. Which AWS load balancing service is designed to transparently insert such appliances using the GENEVE protocol?",
+    "options": ["Application Load Balancer", "Network Load Balancer", "Gateway Load Balancer", "Classic Load Balancer"],
+    "correct": [2],
+    "explanation": "Gateway Load Balancer (GWLB) is built to deploy, scale, and manage third-party virtual appliances such as firewalls and IDS/IPS. It uses the GENEVE protocol on port 6081 to encapsulate traffic and forward it transparently to appliance fleets, preserving the original packet. ALB and NLB balance application and connection traffic but do not provide transparent appliance insertion.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A team wants to attach an AWS WAF web ACL to filter Layer 7 traffic. To which of the following resources can a WAF web ACL NOT be associated directly?",
+    "options": ["An Amazon CloudFront distribution", "An Application Load Balancer", "An Amazon API Gateway REST API stage", "A Network Load Balancer"],
+    "correct": [3],
+    "explanation": "AWS WAF web ACLs attach to CloudFront distributions, Application Load Balancers, API Gateway REST API stages, AppSync GraphQL APIs, Amazon Cognito user pools, App Runner services, and Verified Access instances. A Network Load Balancer operates at Layer 4 and cannot have a WAF web ACL associated with it, so Layer 7 filtering must occur upstream.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Malware on internal hosts is suspected of exfiltrating data by encoding it into DNS queries to attacker-controlled domains. The team wants to inspect and block outbound DNS queries by domain across the VPC. Which service should they use?",
+    "options": ["Amazon Route 53 Resolver DNS Firewall", "AWS WAF with a DNS managed rule group", "Amazon GuardDuty S3 protection", "A security group rule blocking UDP port 53"],
+    "correct": [0],
+    "explanation": "Route 53 Resolver DNS Firewall filters outbound DNS queries made through the VPC resolver, letting you block or allow specific domains and use managed domain lists to stop DNS-based exfiltration and tunneling. AWS WAF inspects HTTP(S), not DNS. Blocking port 53 outright would break legitimate resolution and cannot filter by domain.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A security team needs to enforce a baseline AWS WAF rule set and a common security group policy across dozens of accounts in AWS Organizations, and automatically apply them to newly created resources. Which service centrally manages these protections org-wide?",
+    "options": ["AWS Firewall Manager", "AWS WAF configured separately in each account", "Amazon Inspector", "AWS Trusted Advisor"],
+    "correct": [0],
+    "explanation": "AWS Firewall Manager centrally configures and enforces AWS WAF rules, Shield Advanced protections, security group policies, Network Firewall, and DNS Firewall across all accounts in an AWS Organization, and automatically applies them to new resources. It requires AWS Organizations, a designated administrator account, and AWS Config enabled. Configuring WAF per account does not scale and lacks automatic enforcement.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "To reduce network attack surface, a company wants administrators to get interactive shell access to EC2 instances in private subnets without opening inbound port 22, running a bastion host, or managing SSH keys. Which approach achieves this?",
+    "options": ["Open port 22 only to the corporate IP range on the instance security group", "Use AWS Systems Manager Session Manager with the SSM Agent and IAM permissions", "Deploy a bastion host in a public subnet with an elastic IP", "Enable EC2 Instance Connect over the public internet gateway"],
+    "correct": [1],
+    "explanation": "Systems Manager Session Manager provides browser or CLI shell access to instances through the SSM Agent making an outbound connection to the Systems Manager endpoints, gated by IAM. No inbound ports, bastion host, or SSH keys are required, and sessions can be logged to CloudWatch Logs or S3. Opening port 22 or running a bastion still exposes inbound network surface.",
+    "difficulty": "MEDIUM"
+  }
+]

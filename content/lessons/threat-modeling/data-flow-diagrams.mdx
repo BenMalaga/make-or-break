@@ -1,0 +1,63 @@
+---
+title: Data Flow Diagrams
+module: threat-modeling
+moduleTitle: Threat Modeling
+moduleOrder: 43
+moduleIcon: Workflow
+order: 3
+summary: You cannot threaten a system you cannot see. Draw the data, then draw the fences.
+estimatedMinutes: 17
+objectives:
+  - Draw a DFD using the five standard element types
+  - Place trust boundaries where control of the data changes hands
+  - Use the boundaries to aim your threat questions at the right arrows
+tags:
+  - threat-modeling
+  - dfd
+  - trust-boundaries
+  - diagrams
+---
+
+Ask two engineers to threat model a checkout flow from memory and you get two different systems. One forgot the payment webhook. The other did not know the app talks straight to the database from a Lambda. You cannot find threats in a system nobody has drawn, because half the attack surface is the part everyone assumed someone else knew about. The diagram is not busywork. It is the shared reality you argue against.
+
+The tool for that is a data flow diagram, a DFD. Not UML, not a sequence chart. A picture of how data moves and who touches it on the way.
+
+## Five shapes, and only five
+
+A DFD uses a tiny vocabulary on purpose. More shapes means more debate about notation and less about threats.
+
+External entities are the things you do not control that talk to your system: a browser, a mobile app, a third-party API, a human. Draw them as rectangles. They sit at the edges because they are where data enters and leaves.
+
+Processes are code that does something to data: a web server, an auth service, a Lambda, a cron job. Circles. Every process is a place logic runs, which means every process is a place logic can be abused.
+
+Data stores are where data rests: a Postgres table, an S3 bucket, a Redis cache, a file on disk. Two parallel lines. Stores do not act, they hold, which makes them targets for reading and tampering rather than spoofing.
+
+Data flows are the arrows connecting all of it, labeled with what actually moves: "login credentials," "signed JWT," "raw SQL." Label them honestly. "Data" is a useless label; "plaintext password over HTTP" tells you the threat before you even ask.
+
+The fifth element is the one that does the real work, and it gets its own section.
+
+## Trust boundaries are the whole game
+
+A trust boundary is a line you draw wherever data crosses from something you trust less to something you trust more, or where two components run under different privilege, ownership, or control. Draw them as dashed lines cutting across the flows.
+
+The browser-to-server hop is a boundary: everything on the client is attacker-controlled, so any flow crossing that line carries data you did not write. The server-to-database hop is a boundary if the DB trusts the app to have already done authorization. The line between your code and a third-party API is a boundary in both directions. Process-to-process across a network segment, user space to kernel, one tenant to another in a multi-tenant store: all boundaries.
+
+Here is why they matter more than the boxes. Threats cluster on the arrows that cross boundaries. A data flow that stays entirely inside one trust zone is low-drama. A flow crossing a boundary is where spoofing, tampering, and disclosure actually happen, because that is where control changes hands. Mark the boundaries and you have marked exactly where to point STRIDE.
+
+<CommandCard command="Every input crossing a trust boundary is untrusted until validated on the trusting side of that line." explain="This is the rule the whole diagram exists to enforce. Client-side validation is a UX nicety, not a control, because the client sits on the far side of a boundary. If the arrow crosses a dashed line, the receiving process re-checks everything, no exceptions." />
+
+Keep the diagram at one altitude. A first pass shows the major processes and stores on one page. If a single box hides scary complexity, like an auth service that talks to three identity providers, that box earns its own zoomed-in DFD later. Do not cram it all onto one canvas; you will draw a hairball nobody reads.
+
+<Callout type="security" title="Diagram what you are cleared to diagram">
+A finished DFD with trust boundaries is a precise map of where a system is soft, which is genuinely sensitive. Build these for systems you own or are engaged to assess, store them where your team keeps other security artifacts, and do not go mapping a company's internal architecture without a scope that says you can. The map helps defenders because defenders are the ones holding it.
+</Callout>
+
+<Exercise
+  id="dfd-boundary-placement"
+  prompt="In a web app, a React front-end in the browser sends a login form to an API server, which reads a users table in Postgres. Name the two trust boundaries you would draw as dashed lines."
+  answer="browser to API server, and API server to database"
+>
+The browser is fully attacker-controlled, so the browser-to-API hop is a boundary and every field it sends must be revalidated server-side. The API-to-database hop is the second boundary, since the database trusts the app to have already authenticated and authorized the request.
+</Exercise>
+
+<Notes />

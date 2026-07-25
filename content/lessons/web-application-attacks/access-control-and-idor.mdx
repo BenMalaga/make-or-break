@@ -1,0 +1,142 @@
+---
+title: Access Control and IDOR
+module: web-application-attacks
+moduleTitle: Web Application Attacks
+moduleOrder: 15
+moduleIcon: Crosshair
+order: 8
+summary: Change one id from 1004 to 1003 and read another user's data, because the server checked login but never ownership.
+estimatedMinutes: 18
+objectives:
+  - Tell authentication apart from authorization and explain why the second check slips
+  - Find IDOR by swapping an object reference the server never verifies for ownership
+  - Distinguish horizontal from vertical escalation, and forced browsing from mass assignment
+  - Defend access control by enforcing server-side authorization, denying by default, and checking ownership
+prerequisites:
+  - attacking-authentication
+tags:
+  - web
+  - access-control
+  - idor
+  - privilege-escalation
+---
+
+Attacking authentication settled one question: once the login flow accepts a credential, the app believes it knows who is on the other end of the session. Access control is the next question, and a different one. Knowing who someone is decides nothing about what they may touch. This is exactly where that second check goes missing.
+
+A logged-in customer opens `/account/invoice?id=1004`. That invoice is theirs. Change the number to `1003`, resend the request, and another customer's invoice renders in full. No payload, no encoding, no clever trick. The server confirmed a valid session and then handed over whatever record the number pointed at, without ever asking whether that record belonged to the account making the request.
+
+That gap sits at the top of the list. Broken access control is the number-one entry on the OWASP Top 10, and it is the most common serious flaw in production web applications. The reason it stays there is dull. Authorization is per-object and per-action, so one missing check on a single endpoint out of hundreds is enough, and nothing about the app looks broken until someone tries the door.
+
+Two words get blurred together and they should not be. Authentication answers who a user is. Authorization answers what that user is allowed to do. The previous lesson went after the first. Access control is the second, and applications tend to build the first with care and treat the second as an afterthought. They gate the front door with a login, then leave every internal door unlocked, trusting that a user only ever clicks the links the interface chose to show.
+
+<Quiz
+  id="access-control-and-idor-authn-vs-authz"
+  question="An app verifies the session cookie on every request to /transactions?account=NNNN and returns whatever account the number names. What is the real failure?"
+  answer={1}
+  options={[
+    "Authentication is broken because the session cookie can be forged",
+    "Authorization is missing because the server never checks the account belongs to the session",
+    "The session should time out faster to limit the exposure window",
+    "The account number should be encrypted while it moves over the network"
+  ]}
+  explanation="The cookie is valid and the user really is logged in, so authentication worked. The server just never asks whether account NNNN belongs to that session. That missing ownership check is broken authorization, not a login problem."
+/>
+
+## IDOR: swap the reference
+
+Any value that names a specific record is a candidate. A numeric id in the query string, an `account_id` in a POST body, a filename in a download link, a UUID buried in a JSON field. The test is the same every time. Change the reference to one that belongs to another user and read what comes back.
+
+<CommandBlock
+  title="tamper with object references (against a lab you control)"
+  commands={[
+    { cmd: "GET /api/user/1003/profile", comment: "session is user 1004; does 1003's profile load?" },
+    { cmd: "POST /invoice  {\"account_id\": 1003}", comment: "swap the id in the body, not only the URL" },
+    { cmd: "GET /download?file=../../users/bob/report.pdf", comment: "reference-based access to another user's file" }
+  ]}
+/>
+
+An Insecure Direct Object Reference, IDOR for short, is what the swap uncovers. The server exposes an internal key and trusts the client to only ask for keys it owns. Sequential integers make the attack trivial: increment the id, iterate, and scrape every record in the table. The invoice example is one request. A short loop is the whole customer list.
+
+References hide in more places than the URL bar. An id rides in a JSON body, in a custom header like `X-Account-Id`, in a hidden form field, in a cookie, in one entry of a batch request that carries several ids at once. Each one is a place the server has to re-check ownership. A single endpoint that reads the id and skips the check is the entire bug.
+
+Random identifiers raise the cost but do not close the hole. A UUID cannot be guessed by counting, yet UUIDs leak constantly. They show up in a share-link feature, an autocomplete response, an email notification, a second endpoint that lists them for a different purpose. A hard-to-guess reference is still just a reference. Treating it as a secret confuses obscurity with a permission check, and the two are not the same control.
+
+The direction of the swap matters, and it has names. Reading a peer's invoice is horizontal privilege escalation: same privilege level, different owner, one customer reaching another customer's data. Turning a normal account into an administrator is vertical privilege escalation: same person, higher privilege, a user reaching functions meant for staff. IDOR is usually the horizontal kind. The vertical kind shows up next, in the endpoints the interface tries to hide.
+
+<Quiz
+  id="access-control-and-idor-horizontal-vs-vertical"
+  question="A support agent changes ?ticket=5001 to ?ticket=5002 and reads a different customer's ticket while staying at the same permission level. Which term fits?"
+  answer={1}
+  options={[
+    "Vertical privilege escalation, because the agent gained new powers",
+    "Horizontal privilege escalation, because the agent reached a peer's data at the same level",
+    "Forced browsing, because a hidden admin route was requested by hand",
+    "Mass assignment, because an extra field was bound onto the record"
+  ]}
+  explanation="Same privilege level, different owner. Reaching another user's data at your own tier is horizontal escalation. Gaining a higher role would be vertical; neither forced browsing nor mass assignment describes reading a peer's record by id."
+/>
+
+## Function-level access control
+
+IDOR is about data that should stay unread. The mirror image is actions that should stay unavailable. Administrative pages and privileged endpoints routinely hide the button from a normal account's screen and then never verify the role on the server. The link disappears from the menu. The route behind it answers anyone who asks.
+
+Requesting a hidden route by hand is forced browsing, and it is how missing function-level access control gets found. A low-privilege session sends a request straight at `/admin`, `/admin/users`, or `/api/admin/deleteUser` instead of clicking through the interface. If the admin dashboard renders for an ordinary account, the only protection in place was a hidden link, and a hidden link protects nothing. The server has to answer with `403 Forbidden`, not with the page.
+
+<CommandCard command="curl -H 'Cookie: session=LOW_PRIV_TOKEN' http://localhost:3000/admin/users" explain="Sends an ordinary user's session straight at an admin route on a lab host. A user list instead of a 403 means function-level access control is missing and a normal account can reach privileged functionality." />
+
+The check can be missing on the method rather than the path. An app that blocks `GET /api/order/9` for the wrong user might still honor `PUT /api/order/9` or `DELETE /api/order/9`, because someone guarded the read and forgot the write. Test each method the endpoint accepts, not just the one the interface uses.
+
+## Mass assignment
+
+Some escalations need no hidden route at all. A registration or profile-update endpoint accepts a JSON body and binds every field it finds onto the user object, including fields the form never rendered. Add `"role": "admin"` to the body and, if the binder trusts extra keys, the account is now an administrator. This is mass assignment, sometimes called autobinding or over-posting. Frameworks that map request bodies to models by field name make it a default hazard rather than a rare one.
+
+The same misplaced trust turns up in adjacent flows. A password-reset endpoint keyed only on a user id, with no check that the id matches the session, lets an attacker reset an administrator's password. An admin-only create-user route reachable from a normal session lets an attacker mint a privileged account outright. Each is one absent server-side check standing between a regular user and full control.
+
+None of this announces itself. Broken access control returns a `200 OK` and the data, not a stack trace, which is why automated scanners walk right past it. A scanner sees a valid page and moves on. A human with two accounts, replaying one account's requests through the other's session, spots the record that should have been refused and was not.
+
+<Quiz
+  id="access-control-and-idor-mass-assignment"
+  question="A profile-update endpoint copies every field in the JSON body onto the user record. An attacker adds a field the form never rendered and gains admin. What is this called?"
+  answer={2}
+  options={[
+    "Insecure direct object reference, because an id was changed",
+    "Forced browsing, because a hidden route was requested",
+    "Mass assignment, because the binder trusted an extra field the form never sent",
+    "Horizontal privilege escalation, because a peer account was reached"
+  ]}
+  explanation="The endpoint auto-binds unexpected fields from the request body onto the model, so an attacker sets role themselves. That is mass assignment. No id was swapped and no hidden route was browsed; the extra trusted field is the whole flaw."
+/>
+
+## Building the check that was missing
+
+Defense is not a trick, it is a discipline applied everywhere. Every fix below is the same idea from a different angle: the server decides authorization, for every object and every action, on every request.
+
+Enforce authorization on the server. The browser is attacker-controlled, so a rule that lives only in client code or a hidden menu is not a rule at all. The server makes the decision for each request it answers, because the request is the one thing an attacker cannot route around.
+
+Deny by default. A route with no explicit rule should refuse, not allow. Default-open access control means every new endpoint a developer forgets to guard ships wide open, and forgetting is the normal failure mode. Default-closed turns that same mistake into a locked-out user filing a ticket, which is the safe direction to fail.
+
+Check ownership, not just a valid session. The invoice bug passed authentication and still leaked data. The right question is not whether this request is logged in, it is whether this record belongs to the account making the request. That check reads the owner from the object and compares it to the session identity, and it belongs on every object lookup, not a chosen few.
+
+Derive identity from the session, never from the request body. If an endpoint reads a `user_id` field the client sent and acts on it, the client controls whose data gets touched, which is the whole bug restated. The account making the request is already established by the authenticated session, so the server reads it from there and ignores any id the body offers. A payment endpoint that trusts a body-supplied account id is a transfer waiting to be redirected.
+
+Watch for enumeration while the check does its work. A single account walking `1001`, `1002`, `1003` in seconds, or a burst of `403` responses from one session, is a strong signal that someone is testing references by hand. Denying the request is the fix; logging and alerting on the pattern is how the attempt gets noticed before it becomes a breach report.
+
+Do not let a reference double as a permission. Unguessable identifiers are worthwhile as one layer, and predictable sequential ids are worth avoiding because they make scraping effortless. Neither replaces the ownership check. A random id with no server-side authorization is still an IDOR waiting for the id to leak.
+
+Never trust the interface to hide anything. Removing a button, greying out a menu, or omitting a link changes what a normal user sees and nothing about what an endpoint accepts. Every route the UI hides is a route someone will request directly.
+
+<Callout type="security" title="Authorized targets only">
+Changing an id to read a record that is not yours is unauthorized access on any system you do not own or have written permission to test. The ease of the bug does not make it legal, and a 200 response is not consent. Keep every experiment on your own lab: PortSwigger's access-control labs, OWASP Juice Shop, or DVWA. Test only what you are cleared to test.
+</Callout>
+
+<Exercise title="Find one IDOR and one function-level gap with two accounts">
+Spin up a lab you control, such as OWASP Juice Shop or a PortSwigger access-control lab. Register two separate accounts, and if the lab supports roles, make one a normal user and one an admin.
+
+Log in as the low-privilege account and note every id you see: your user id, an order id, a basket id, a filename. Then replay a request that fetched one of your own records, but swap the id to a value that belongs to the other account. Watch the response. A record that loads when it should have returned a 403 is your IDOR.
+
+Now try the vertical direction. While still holding the low-privilege session, request an admin-only route directly instead of clicking to it. If the admin view renders for your ordinary account, you have found missing function-level access control. Write down which check the server skipped in each case: ownership for the first, role for the second.
+</Exercise>
+
+These are the primitives. A missing ownership check, a hidden route that still answers, a binder that trusts an extra field. The Advanced Web Attacks module takes them further, chaining a broken authorization boundary into deeper attacks where one weak check becomes the pivot for everything sitting behind it.
+
+<Notes />

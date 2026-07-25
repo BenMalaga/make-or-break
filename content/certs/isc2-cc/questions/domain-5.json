@@ -1,0 +1,314 @@
+[
+  {
+    "domain": 5,
+    "question": "What is the primary purpose of data classification?",
+    "options": [
+      "To assign a level of sensitivity to data so appropriate handling and protection can be applied",
+      "To compress data so it takes up less storage space",
+      "To permanently delete data that is no longer needed",
+      "To create daily backups of every file on the network"
+    ],
+    "correct": [0],
+    "explanation": "Classification labels data by sensitivity (for example public, internal, confidential) so the right controls are applied to each level. Compression and backup are storage functions, not classification, and deletion is a later disposal step, not the point of classifying.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "Which cryptographic method uses a single shared secret key for both encryption and decryption?",
+    "options": [
+      "Symmetric encryption",
+      "Asymmetric encryption",
+      "Hashing",
+      "Digital signatures"
+    ],
+    "correct": [0],
+    "explanation": "Symmetric encryption (for example AES) uses one shared key for both encrypting and decrypting. Asymmetric encryption uses a public and private key pair, hashing is one-way and has no decryption key, and digital signatures are built on asymmetric keys.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A hash function is used mainly to provide which security property?",
+    "options": [
+      "Integrity, by detecting whether data has been altered",
+      "Confidentiality, by hiding the contents of a message",
+      "Availability, by keeping systems online",
+      "Faster transmission of large files"
+    ],
+    "correct": [0],
+    "explanation": "A hash produces a fixed-length value that changes if even one bit of the input changes, so it verifies integrity. It does not conceal data (confidentiality), keep systems running (availability), or speed up transmission.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "To send a confidential message using asymmetric encryption, which key does the sender use to encrypt it?",
+    "options": [
+      "The recipient's public key",
+      "The recipient's private key",
+      "The sender's own private key",
+      "A password chosen by the sender"
+    ],
+    "correct": [0],
+    "explanation": "Encrypting with the recipient's public key means only the recipient's matching private key can decrypt it, protecting confidentiality. The recipient's private key is secret and never shared, and encrypting with the sender's private key would be a signature, not confidential delivery.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "In the data lifecycle, what does the term data at rest describe?",
+    "options": [
+      "Data stored on a disk, drive, or other media and not currently moving",
+      "Data actively moving across a network",
+      "Data currently loaded in memory and being processed",
+      "Data that has been permanently destroyed"
+    ],
+    "correct": [0],
+    "explanation": "Data at rest is stored data sitting on media such as a hard drive, SSD, or backup tape. Data in transit is moving across a network, data in use is being processed in memory, and destroyed data has left the lifecycle entirely.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "Encrypting information before it travels across the internet primarily protects data in which state?",
+    "options": [
+      "Data in transit",
+      "Data at rest",
+      "Data in use",
+      "Data in destruction"
+    ],
+    "correct": [0],
+    "explanation": "Encryption applied while data moves over a network protects data in transit, for example using TLS. Data at rest is protected by storage encryption, data in use is being processed in memory, and destruction is the disposal phase.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "Which method most reliably makes the data on a hard drive unrecoverable before the drive is thrown away?",
+    "options": [
+      "Physically destroying or shredding the drive",
+      "Deleting the files and emptying the recycle bin",
+      "Performing a quick reformat of the drive",
+      "Renaming the sensitive files and folders"
+    ],
+    "correct": [0],
+    "explanation": "Physical destruction (shredding, crushing, or degaussing magnetic media) makes recovery infeasible. Deleting files, quick reformatting, and renaming leave the underlying data recoverable with common tools.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Which two actions are acceptable methods for sanitizing media before disposal? (Choose two.)",
+    "options": [
+      "Degaussing magnetic media",
+      "Physically shredding the drive",
+      "Deleting files to the recycle bin",
+      "Renaming the files before disposal"
+    ],
+    "correct": [0, 1],
+    "explanation": "Degaussing scrambles the magnetic fields on tapes and hard drives, and shredding physically destroys the media, both of which prevent recovery. Deleting to the recycle bin and renaming files leave the data intact and recoverable.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "What is the purpose of a security baseline when hardening systems?",
+    "options": [
+      "A minimum acceptable set of security configurations that every system of that type must meet",
+      "The maximum performance setting a system can run at",
+      "A complete backup image kept for disaster recovery",
+      "A list of every user account on the network"
+    ],
+    "correct": [0],
+    "explanation": "A baseline defines the minimum secure configuration that systems must conform to, giving a consistent starting point to measure against. It is not a performance limit, a backup image, or an account inventory.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Patch management primarily reduces risk by doing what?",
+    "options": [
+      "Removing known vulnerabilities by applying vendor fixes to software",
+      "Adding new user-facing features to applications",
+      "Increasing the amount of available disk storage",
+      "Encrypting the contents of the hard drive"
+    ],
+    "correct": [0],
+    "explanation": "Patches close known security holes, so applying them promptly lowers the chance those flaws are exploited. New features, added storage, and encryption are not the security purpose of patching.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "What is the best practice for applying a new patch in a production environment?",
+    "options": [
+      "Test the patch in a non-production environment before deploying it widely",
+      "Apply it to every production system immediately with no testing",
+      "Wait at least one year before applying any patch",
+      "Apply patches only to workstations and never to servers"
+    ],
+    "correct": [0],
+    "explanation": "Testing in a staging or lab environment first catches patches that break functionality before they reach production. Immediate untested rollout risks outages, waiting a year leaves systems exposed, and skipping servers ignores critical assets.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "Which of the following is an example of system hardening?",
+    "options": [
+      "Disabling unnecessary services, ports, and default accounts",
+      "Installing additional games to keep users engaged",
+      "Sharing the administrator password among all staff",
+      "Turning off the host firewall to simplify connections"
+    ],
+    "correct": [0],
+    "explanation": "Hardening reduces the attack surface by removing or disabling things that are not needed, such as unused services, ports, and default accounts. The other options add risk rather than reduce it.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "What does an Acceptable Use Policy (AUP) define?",
+    "options": [
+      "How employees are permitted to use organizational systems and resources",
+      "Which encryption algorithm the company must use for backups",
+      "The physical location of the organization's data center",
+      "The pricing terms of a vendor contract"
+    ],
+    "correct": [0],
+    "explanation": "An AUP sets the rules for how staff may use company systems, networks, and data, and what is prohibited. Encryption choices, facility locations, and vendor pricing are governed by other documents.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A Bring Your Own Device (BYOD) policy primarily addresses which situation?",
+    "options": [
+      "Employees using personal devices to access organizational resources",
+      "Physical access to the building after hours",
+      "How invoices from suppliers are paid",
+      "Only the licensing of desktop software"
+    ],
+    "correct": [0],
+    "explanation": "A BYOD policy governs the security requirements when personal phones, tablets, or laptops connect to company data and systems. Building access, supplier payments, and software licensing are covered by separate policies.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "What is the main goal of security awareness training?",
+    "options": [
+      "To reduce human-related security risk by educating users about threats and safe behavior",
+      "To replace the need for technical controls such as firewalls",
+      "To eliminate the requirement to patch systems",
+      "To increase the organization's network bandwidth"
+    ],
+    "correct": [0],
+    "explanation": "Awareness training reduces risk from human error by teaching users to recognize threats like phishing and to follow good practices. It complements, but does not replace, technical controls or patching, and it has nothing to do with bandwidth.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "Phishing is best described as which of the following?",
+    "options": [
+      "Fraudulent messages that trick users into revealing information or clicking malicious links",
+      "A hardware device that filters network traffic",
+      "A tool that automatically installs software patches",
+      "An algorithm used to encrypt stored files"
+    ],
+    "correct": [0],
+    "explanation": "Phishing uses deceptive emails or messages to lure people into giving up credentials, sending money, or opening malicious content. A firewall filters traffic, patch tools apply updates, and encryption algorithms protect data, none of which describe phishing.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Which scenario is an example of social engineering?",
+    "options": [
+      "An attacker calls an employee pretending to be IT support to obtain a password",
+      "An attacker runs software that tries millions of passwords automatically",
+      "An attacker injects malicious SQL into a web form",
+      "An attacker floods a server with traffic to take it offline"
+    ],
+    "correct": [0],
+    "explanation": "Social engineering manipulates people through deception, such as impersonating IT support to extract credentials. Brute-force password guessing, SQL injection, and traffic flooding are technical attacks that target systems, not human trust.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Which two are strong password practices? (Choose two.)",
+    "options": [
+      "Use a long, unique passphrase for each account",
+      "Enable multi-factor authentication where available",
+      "Reuse the same password across many sites for convenience",
+      "Write the password on a sticky note attached to the monitor"
+    ],
+    "correct": [0, 1],
+    "explanation": "Long unique passphrases and multi-factor authentication both strongly protect accounts. Reusing one password means a single breach compromises many accounts, and a sticky note exposes the credential to anyone nearby.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "What does a data retention policy define?",
+    "options": [
+      "How long different types of data must be kept before they are disposed of",
+      "The length of the encryption key used on backups",
+      "The physical layout of the network cabling",
+      "The color coding used on printed labels"
+    ],
+    "correct": [0],
+    "explanation": "A retention policy specifies how long each data type is stored before secure disposal, often to meet legal or business requirements. Key length, cabling layout, and label colors are unrelated to retention.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Configuration management supports security primarily by doing what?",
+    "options": [
+      "Maintaining known, consistent, and approved system configurations over time",
+      "Increasing the minimum length of user passwords",
+      "Encrypting all outbound email automatically",
+      "Blocking phishing messages at the mail gateway"
+    ],
+    "correct": [0],
+    "explanation": "Configuration management keeps systems in a known, approved state and tracks changes, which prevents drift into insecure settings. Password rules, email encryption, and phishing filters are separate controls.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Which encryption approach is commonly used to securely exchange a symmetric session key between two parties?",
+    "options": [
+      "Asymmetric encryption",
+      "Hashing",
+      "Steganography",
+      "Sending the key in plaintext"
+    ],
+    "correct": [0],
+    "explanation": "Asymmetric encryption lets one party encrypt a session key with the recipient's public key so only the recipient can recover it, solving the key distribution problem. Hashing is one-way, steganography just hides data, and plaintext transmission exposes the key.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "Data labeling, or marking, primarily serves what purpose?",
+    "options": [
+      "To indicate a data item's classification and required handling to users and systems",
+      "To improve how well the file compresses",
+      "To speed up the processor when the file is opened",
+      "To automatically encrypt the file when it is saved"
+    ],
+    "correct": [0],
+    "explanation": "Labels communicate the classification level so people and automated controls know how to handle the data. Labeling does not compress, speed up processing, or by itself encrypt the file.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Non-repudiation, the assurance that a sender cannot deny having sent a message, is best supported by which mechanism?",
+    "options": [
+      "Digital signatures",
+      "Symmetric encryption used on its own",
+      "Data compression",
+      "Physical destruction of the media"
+    ],
+    "correct": [0],
+    "explanation": "A digital signature is created with the sender's private key, which only that sender holds, so it ties the message to them and provides non-repudiation. Shared symmetric keys cannot prove which party acted, and compression and destruction are unrelated.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "Why does an organization maintain a change management policy?",
+    "options": [
+      "To ensure changes are reviewed, approved, tested, and documented before implementation",
+      "To prevent any changes from ever being made to systems",
+      "To automatically delete data older than one year",
+      "To train employees specifically on spotting phishing"
+    ],
+    "correct": [0],
+    "explanation": "Change management provides a controlled process so changes are assessed and recorded, reducing the chance of outages or new vulnerabilities. It does not freeze all change, handle data deletion, or serve as phishing training.",
+    "difficulty": "EASY"
+  }
+]

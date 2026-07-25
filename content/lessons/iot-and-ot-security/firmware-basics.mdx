@@ -1,0 +1,84 @@
+---
+title: Firmware Basics
+module: iot-and-ot-security
+moduleTitle: IoT and OT Security
+moduleOrder: 40
+moduleIcon: Factory
+order: 2
+summary: Get the firmware image, carve out the filesystem, then grep for the secrets the vendor forgot were in there.
+estimatedMinutes: 20
+objectives:
+  - Identify structures inside a firmware image with binwalk and entropy analysis
+  - Extract the root filesystem and browse it like a live box
+  - Find hardcoded credentials, keys, and startup logic in an unpacked image
+tags:
+  - iot
+  - firmware
+  - binwalk
+  - reverse-engineering
+---
+
+The firmware is where the device keeps its secrets, and most of them are sitting in plaintext on a filesystem you can mount. Once you have the image, the workflow barely changes from one device to the next: figure out what is inside it, carve out the root filesystem, then read the same handful of files that always give things away.
+
+Getting the image is the part that varies. Easiest is a vendor download, since plenty of manufacturers post update files right on their support pages. If not, you pull it off the SPI flash chip with a clip and a programmer, or you capture an over-the-air update in transit. Assume you have a `.bin` on your bench and go from there.
+
+## See what is inside
+
+`binwalk` scans the image for known signatures: bootloaders, kernels, compressed blobs, and filesystems. It is the first thing you run on any unknown firmware, every time.
+
+<CommandBlock
+  title="analyst@kali"
+  commands={[
+    { cmd: "binwalk firmware.bin", comment: "list every recognized structure and its offset" },
+    { cmd: "binwalk -E firmware.bin", comment: "entropy scan: flat high entropy means encrypted or compressed" },
+    { cmd: "binwalk --extract --matryoshka firmware.bin", comment: "carve and recursively unpack everything it finds" },
+  ]}
+/>
+
+<ExpectedOutput label="A typical signature scan">
+```
+DECIMAL       HEXADECIMAL     DESCRIPTION
+------------------------------------------------------------
+0             0x0             uImage header, ... Linux kernel
+1310720       0x140000        Squashfs filesystem, little endian, ...
+```
+</ExpectedOutput>
+
+That squashfs line is the prize. It is the root filesystem, and everything the device runs lives inside it.
+
+The entropy scan tells you whether it is worth continuing. A graph that pins near 1.0 with no structure usually means the vendor encrypted the image, and you are looking at a harder problem: finding the decryption key in the bootloader or on the chip. Varied entropy with clear low-entropy regions means readable data is in there waiting.
+
+## Crack open the filesystem
+
+`binwalk -e` drops the extracted contents in a `_firmware.bin.extracted` folder. If the squashfs is a vendor-mangled variant that standard tools choke on, reach for `sasquatch`. For JFFS2 images use `jefferson`, and when binwalk misses things entirely, `unblob` often carves cleaner.
+
+Once the rootfs is unpacked, treat it like a box you just landed on. The files that pay off are always the same ones.
+
+<CommandBlock
+  title="analyst@kali"
+  commands={[
+    { cmd: "cat etc/shadow etc/passwd", comment: "hashed or sometimes plaintext accounts, including hidden root logins" },
+    { cmd: "grep -rniE 'password|passwd|api[_-]?key|secret|token' .", comment: "hardcoded credentials across the whole tree" },
+    { cmd: "find . -name '*.pem' -o -name '*.key' -o -name '*.crt'", comment: "private keys and certs, often shared across the entire product line" },
+    { cmd: "ls -la etc/init.d etc/rc.d", comment: "startup scripts show what services launch and how" },
+  ]}
+/>
+
+A shared TLS private key is the classic finding here. Vendors bake one key into every unit, so pulling it from a single device you own lets you impersonate or decrypt traffic for the whole fleet. Backdoor accounts in `/etc/passwd`, telnet started unconditionally in `rc.local`, and Wi-Fi credentials left in a config default are all routine.
+
+If you want to see the web interface behave without the hardware in front of you, emulate it. `firmadyne` and the `EMUX` toolkit run the extracted image under QEMU so you can hit the config pages and fuzz them from your host.
+
+<Callout type="security" title="Analyze firmware you are cleared to touch">
+Owning the device is not the same as being licensed to reverse its firmware. Vendor terms, the DMCA, and copyright all bear on this. Work on hardware you bought for the purpose, images the vendor published, or targets named in your engagement scope. Do not pull and dissect firmware from a device you do not own or have written permission to test.
+</Callout>
+
+<Exercise
+  id="firmware-first-command"
+  prompt="You just downloaded router_v2.bin from a vendor site and have no idea what is inside. What is the first command you run to map its contents?"
+  answer="binwalk router_v2.bin"
+  placeholder="command here"
+>
+binwalk scans for known signatures and prints the offset of each structure it recognizes, including the filesystem you will extract next. It is the standard first move on any unknown image.
+</Exercise>
+
+<Notes />

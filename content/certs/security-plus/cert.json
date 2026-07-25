@@ -1,0 +1,19 @@
+{
+  "slug": "security-plus",
+  "code": "SY0-701",
+  "name": "CompTIA Security+",
+  "vendor": "CompTIA",
+  "description": "The industry-standard entry point into cybersecurity. Validates the baseline skills to assess security posture, monitor and secure environments, identify threats, and operate with awareness of governance and compliance.",
+  "passScore": 75,
+  "examMinutes": 90,
+  "questionCount": 90,
+  "icon": "ShieldCheck",
+  "order": 1,
+  "domains": [
+    { "number": 1, "name": "General Security Concepts", "weight": 12 },
+    { "number": 2, "name": "Threats, Vulnerabilities, and Mitigations", "weight": 22 },
+    { "number": 3, "name": "Security Architecture", "weight": 18 },
+    { "number": 4, "name": "Security Operations", "weight": 28 },
+    { "number": 5, "name": "Security Program Management and Oversight", "weight": 20 }
+  ]
+}

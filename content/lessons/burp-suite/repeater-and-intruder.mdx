@@ -1,0 +1,72 @@
+---
+title: Repeater and Intruder
+module: burp-suite
+moduleTitle: Burp Suite
+moduleOrder: 16
+moduleIcon: Bug
+order: 2
+summary: Hand-edit one request until it breaks, then fuzz that spot across a wordlist.
+estimatedMinutes: 18
+objectives:
+  - Send a request to Repeater and tamper it by hand
+  - Compare responses one variable at a time
+  - Set Intruder positions and pick the right attack type
+tags:
+  - web
+  - burp
+  - fuzzing
+---
+
+You spot a request in HTTP history: a POST to `/api/order` carrying `qty=1&price=1999`. The browser will never let you touch that price. Burp will. Right-click the request and pick **Send to Repeater**, or select it and hit Ctrl+R.
+
+## Repeater: the manual workbench
+
+Switch to the Repeater tab. The left pane is the request, fully editable. Change `price=1999` to `price=1` and send with Ctrl+Space, or just click **Send**. The response lands on the right. Did the server accept the tampered price, or did it validate server-side and reject it? That one comparison is the whole game: change a single field, resend, read the response, learn what the server actually trusts versus what it only checked in the browser.
+
+Repeater keeps every request you send to it as a numbered tab. Rename them (double-click the tab) so you're not hunting through "1, 2, 3, 4" an hour later. Each tab remembers its own request and last response, so you can bounce between three endpoints without losing your place.
+
+<Callout type="tip" title="One variable per send">
+Change exactly one thing between sends. Flip the id, or the role, or add a quote, never two at once. When the response changes you want to know precisely which edit caused it. Testers waste hours chasing a result they can no longer reproduce because they changed three fields in one shot.
+</Callout>
+
+## Intruder: the same idea, automated
+
+Repeater is one request at a time. When you want to throw a thousand values at one spot, that's Intruder. Send the request over with Ctrl+I or right-click **Send to Intruder**.
+
+Open Intruder > Positions. Burp auto-marks candidate spots with `§` markers. Clear them all with **Clear §**, then highlight just the value you want to fuzz and click **Add §**. Now only that field varies.
+
+### Pick the attack type deliberately
+
+There are four, and choosing wrong wastes real time:
+
+- **Sniper**: one payload set, one position at a time. The default and the one you'll use most. Fuzz a single parameter through a wordlist.
+- **Battering ram**: one payload set, the same value dropped into every marked position at once. Rare.
+- **Pitchfork**: multiple sets in lockstep. First payload of set 1 pairs with first of set 2, second with second, and so on. Good for a list of `username:password` pairs you already matched up.
+- **Cluster bomb**: multiple sets, every combination. Every username against every password. This is your credential brute force.
+
+### Load payloads and fire
+
+Go to the Payloads tab. Paste a simple list, load a wordlist off disk (Kali keeps plenty under `/usr/share/seclists/`), or use a generator like Numbers 1 to 500 for an IDOR sweep. Click **Start attack**, then sort the results table by Status code and Length. An outlier row, a 200 in a sea of 403s, or a response 400 bytes longer than the rest, is usually your hit.
+
+<Callout type="warning" title="Community Intruder is throttled on purpose">
+Burp Community rate-limits Intruder to roughly one request per second with a forced delay. Fine for a 50-item proof of concept, useless for a real 100k brute force. For volume, reach for `ffuf` or `wfuzz` on the command line, both free and far faster. Pro removes the throttle.
+</Callout>
+
+<Callout type="security" title="Authorized targets only">
+Repeater tampering and Intruder fuzzing send crafted, unusual traffic that can create records, lock accounts, or trip alerts. Run them only against systems you are explicitly authorized to test.
+</Callout>
+
+<Quiz
+  id="intruder-attack-type"
+  question="You have one list of usernames and a separate list of passwords, and you want to try every username against every password. Which Intruder attack type?"
+  answer={3}
+  options={[
+    "Sniper",
+    "Battering ram",
+    "Pitchfork",
+    "Cluster bomb",
+  ]}
+  explanation="Cluster bomb runs every combination of two payload sets, which is exactly a full username-by-password credential sweep. Pitchfork would only pair them in lockstep, position by position."
+/>
+
+<Notes />

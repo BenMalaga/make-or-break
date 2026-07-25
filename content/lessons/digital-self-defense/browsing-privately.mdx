@@ -1,0 +1,121 @@
+---
+title: Browsing Privately
+module: digital-self-defense
+moduleTitle: Digital Self-Defense
+moduleOrder: 6
+moduleIcon: EyeOff
+order: 5
+summary: A padlock in the address bar proves the connection is encrypted, not that the page is private, and most of what watches a browser never touches the connection at all.
+estimatedMinutes: 16
+objectives:
+  - Explain what HTTPS encrypts and what it still reveals to the network
+  - Describe how cookies, third-party trackers, and browser fingerprinting identify a browser
+  - State honestly what a VPN and Tor each do and do not protect
+  - Match a tool to the specific privacy goal it actually serves
+tags:
+  - privacy
+  - tracking
+  - vpn
+prerequisites: ["your-data-trail"]
+---
+
+The data trail lesson split the record into what a person types and what a system quietly logs. The typed half is the memorable one: accounts, forms, posts. It is also the smaller half. A large part of the trail is generated passively, with no keystrokes at all, in the second or two a page takes to load. Browsing is where the trail widens fastest, because every page a browser opens is an invitation for other parties to watch. This lesson is about how that watching works and which defenses actually narrow it.
+
+## The padlock is smaller than it looks
+
+The padlock icon means the connection uses HTTPS, and HTTPS does one specific job well. It encrypts the traffic between the browser and the server, so anyone sitting in the middle, the coffee-shop Wi-Fi, the internet provider, a snooper on the same network, cannot read the contents. They cannot see the article text, the password typed into a login form, the message being sent, or the exact page path inside a site.
+
+Two things sit outside that protection. The first is which site the browser is talking to. The domain name still leaks, through the DNS lookup that happens before the connection and through a field called SNI that the browser sends in the clear to set up the encryption. So the provider learns that a person visited a specific news site or a specific health forum, just not which page on it. That distinction matters less than the padlock suggests, because the destination alone is often the sensitive part.
+
+The second thing HTTPS says nothing about is what the site itself does once the data arrives. Encryption in transit does not stop the site from logging, profiling, or selling what it receives. A phishing page can carry a perfectly valid padlock, because the padlock certifies an encrypted pipe, not an honest owner. HTTPS is table stakes, not privacy.
+
+<Callout type="info" title="The padlock certifies transport, not trust">
+A green padlock answers one question: is the connection to this server encrypted and going to the domain shown. It does not answer whether the site is legitimate, whether the owner is honest, or whether the data will be kept private after it lands. Treat the padlock as the floor, present on almost every site now, not as a safety rating.
+</Callout>
+
+<Quiz
+  id="browsing-privately-https-scope"
+  question="A person reads an article on a health forum over HTTPS while on public Wi-Fi. What can the Wi-Fi network operator still learn?"
+  answer={1}
+  options={[
+    "The full text of the article they read",
+    "That they connected to that forum's domain, but not the specific page or its contents",
+    "Nothing at all, because HTTPS hides the entire connection",
+    "Their forum password in plain text",
+  ]}
+  explanation="HTTPS encrypts the page contents and the exact path, so the article text and password are hidden. The domain still leaks through DNS and the SNI field, so the network sees which site was visited but not which page."
+/>
+
+## Cookies, trackers, and the fingerprint
+
+Loading one ordinary news page can fire off requests to thirty or forty other companies, and most of them exist to identify the browser. They do it three ways.
+
+Cookies are small files a site stores in the browser to recognize it later. First-party cookies, set by the site in the address bar, are the useful kind: they keep someone logged in and remember a cart. Third-party cookies are set by a different domain whose script the page embedded, usually an ad or analytics network. Because the same network sits on thousands of sites, its cookie follows a browser from site to site and stitches the separate visits into one profile. Browsers are phasing third-party cookies out, which pushes trackers toward the other two methods.
+
+Third-party trackers are the scripts, pixels, and embedded buttons that do the profiling. A single invisible one-pixel image, a share button, or an analytics tag reports back that this browser loaded this page at this time. The page author often did not write these; they arrived bundled with an ad network or a free analytics tool, and they phone a different company than the one in the address bar.
+
+Browser fingerprinting is the quiet one, because it needs no stored file at all. A browser volunteers dozens of details to every site: screen resolution, operating system, language, timezone, installed fonts, and the exact way the graphics hardware draws a hidden test image (the canvas and WebGL techniques). Any one detail is common. The combination is often unique enough to single out one browser among millions, and it survives clearing cookies and opening a private window. This is why "delete my cookies" is only a partial defense: the file is gone, but the browser looks the same on its next visit.
+
+<Quiz
+  id="browsing-privately-fingerprint"
+  question="Someone clears all cookies and opens a private browsing window, then revisits a site that tracks by fingerprint. What is the likely result?"
+  answer={0}
+  options={[
+    "The site can often still recognize the same browser from its combination of attributes",
+    "The fingerprint is wiped along with the cookies",
+    "Private mode sends a legal signal that blocks all tracking",
+    "The site permanently loses every way of identifying the browser",
+  ]}
+  explanation="A fingerprint is built from attributes the browser reveals on every visit, not from a stored file. Clearing cookies and using private mode removes the cookie but leaves the fingerprint largely intact, so the same browser can be recognized again."
+/>
+
+## Tools that earn their place
+
+The most effective single install is uBlock Origin, a free and open-source content blocker. It works from lists of known tracker and ad domains and stops those requests before they load, so the tracker script never runs and the profile never gets its data point. It speeds up pages and cuts bandwidth as a side effect. One caveat: Google Chrome's newer extension rules limit how blockers work, so the full-strength version lives on Firefox while Chrome users get the lighter uBlock Origin Lite. Stacking a dozen redundant privacy add-ons is a mistake, because each one adds fingerprinting surface without adding much protection.
+
+The browser itself is a real choice. Mozilla Firefox ships Enhanced Tracking Protection on by default and accepts the full uBlock Origin. Brave blocks trackers and ads out of the box and randomizes some fingerprint signals. Both are free, both are reasonable defaults, and either beats a stock browser signed into an advertising account. Google Chrome is fast and defends well against malware, but it is built by an advertising company, and its privacy defaults reflect who pays for it.
+
+For search, DuckDuckGo does not build a profile from queries and does not follow the searcher across the web the way a signed-in search account does. The limit is real and worth stating plainly: DuckDuckGo still sees each query typed into it, and its results are drawn partly from Bing. It removes the cross-site profile, not the fact of searching.
+
+Isolation habits close a gap the blockers leave open. Firefox Multi-Account Containers keeps a logged-in identity, say a Google or Facebook account, sealed in its own colored tab group, so that company's trackers on unrelated sites cannot tie the general browsing back to the logged-in name. A simpler version of the same idea: keep one browser or profile for logged-in accounts and a separate one for open searching and reading.
+
+## The honest account of a VPN
+
+A VPN, a virtual private network, builds an encrypted tunnel from a device to a server the VPN company runs, and traffic reaches the wider internet from that server. Two real things change. Sites see the VPN server's IP address and rough location instead of the user's own, and the local network plus the internet provider can no longer see which sites are being visited. On untrusted Wi-Fi, an airport or a hotel lobby, that second effect is genuinely useful.
+
+What a VPN does is move trust, not remove it. The provider now sees exactly what the internet provider used to see: every destination, tied to a paying account. "No-logs" is a promise, not a mechanism, and a provider that keeps logs, or is compelled to start, can hand over or sell the very record the VPN was supposed to hide. Free VPNs are the sharpest version of this problem, because the common way to fund a free VPN is to sell the traffic data it carries. A VPN also does nothing about the tracking already described: sites still fingerprint the browser, cookies still work, and logging into an account announces exactly who is behind the new IP address. A VPN is not anonymity. It is a change of which party gets to watch, worth making only when the new watcher, an audited provider such as Mullvad, IVPN, or Proton VPN, is more trustworthy than the old one, or when the goal is simply to hide destinations on a network that cannot be trusted.
+
+<Callout type="warning" title="A VPN swaps the watcher, it does not remove one">
+The threat model decides whether that swap is a win. Against a snooper on shared Wi-Fi, or against an ISP that sells browsing history, routing through a reputable provider is a clear gain. Against a site that fingerprints, or against a court order served on the provider, the VPN adds nothing and may add a false sense of cover. A provider earns the switch when its incentives and audits are better than the network being escaped, not because its marketing says "anonymous."
+</Callout>
+
+<Quiz
+  id="browsing-privately-vpn-truth"
+  question="What does turning on a reputable VPN actually change?"
+  answer={1}
+  options={[
+    "It makes the user anonymous online",
+    "It hides browsing destinations from the local network and ISP and hides the user's IP from sites, while shifting that visibility to the VPN provider",
+    "It stops websites from fingerprinting the browser",
+    "It deletes the tracking cookies already stored in the browser",
+  ]}
+  explanation="A VPN encrypts traffic to its server and presents that server's IP to sites, so the local network and ISP lose sight of destinations and sites lose the real IP. That visibility moves to the provider. It does not stop fingerprinting, clear cookies, or grant anonymity."
+/>
+
+## Tor, and when it is the right tool
+
+Genuine anonymity of origin is a different tool: the Tor Browser. It wraps traffic in layers and bounces it through three volunteer-run relays, and no single relay knows both who the user is and what they are visiting. The entry relay sees the user but not the destination. The exit relay sees the destination but not the user. That structure is what a single VPN server cannot offer, because that one server sees both ends of the connection.
+
+Tor is good at hiding where a connection comes from, and at making its users hard to fingerprint, because Tor Browser is tuned so that every user looks nearly identical. The trade-offs are real and worth respecting. It is slow, since traffic takes a three-hop detour around the world. Some sites block Tor traffic outright or bury it in CAPTCHAs. The exit relay can read anything not already encrypted, so HTTPS still matters on top of it. And Tor protects the network path, not the person's behavior: signing into a real-name account, or filling in a home address, deanonymizes the session no matter how many relays it crossed. Tor is the right tool when the origin of a connection genuinely must stay hidden, for a journalist protecting a source, a researcher on a sensitive topic, or someone under surveillance, and the wrong tool for shaving a second off a video load.
+
+## Match the tool to the goal
+
+The common mistake is installing all of it at once, which is slower, more fragile, and no safer. Effort should track the real goal. To cut everyday tracking, uBlock Origin on Firefox or Brave, with DuckDuckGo as the search engine, handles most of it for free. To keep a local network or provider from seeing destinations, especially on public Wi-Fi, a reputable audited VPN fits the job. To hide the origin of a connection when that truly matters, Tor is the one honest answer, with its speed cost accepted on purpose. Each layer above the first buys a narrower kind of protection at a real cost, so the layers a person adds should stop at the point where the threat they are answering stops.
+
+<Exercise title="Count who is watching one page load">
+Open a normal browser and install uBlock Origin from your browser's official add-on store, using Firefox if you want the full-strength version. Before you visit anything heavy, click the uBlock icon and note that its counter reads zero. Now load a mainstream news homepage. Watch the counter jump: on many news sites it will block thirty or more requests to other domains, each one a tracker or ad that would otherwise have run in your browser. Click the icon again and read the list of domains it stopped, and notice how few of them are the site you actually opened. Then, to see the part a blocker cannot fix, visit coveryourtracks.eff.org and run its test. It will report how unique your browser's fingerprint is even with cookies disabled. Leave uBlock Origin on afterward. The point of the exercise is to make the invisible traffic visible, and the tool stays useful once the demo is over.
+</Exercise>
+
+The browser is only one surface, though. The same trail runs through the device the browser lives on and the messages it sends, and both leak in ways no content blocker ever touches. That is the next lesson: securing the devices and the messages themselves.
+
+<Notes />

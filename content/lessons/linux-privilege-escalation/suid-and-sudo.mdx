@@ -1,0 +1,112 @@
+---
+title: SUID Binaries and Sudo
+module: linux-privilege-escalation
+moduleTitle: Linux Privilege Escalation
+moduleOrder: 18
+moduleIcon: ArrowUpFromLine
+order: 2
+summary: Misconfigured sudo and set-uid programs hand you root faster than any exploit.
+estimatedMinutes: 18
+objectives:
+  - Read sudo -l output and spot the abusable entries
+  - Find SUID binaries and match them against GTFOBins
+  - Escalate through a set-uid program that lets you run a shell
+tags:
+  - privesc
+  - suid
+  - sudo
+  - gtfobins
+---
+
+Two misconfigurations account for more Linux root shells than every kernel bug
+combined: a sloppy `sudo` rule and a dangerous SUID binary. Both come down to the
+same idea. A program runs with more privilege than you have, and it will do
+something on your behalf that it should not.
+
+## Start with sudo -l
+
+`sudo -l` lists what your user is allowed to run through sudo, and whether it
+needs a password. Any entry marked `NOPASSWD` is a gift, because you do not even
+need the account's password to use it.
+
+<CommandCard command="sudo -l" title="user@target" explain="Lists the commands this user may run as root (or another user). Read every line; one abusable binary is enough." />
+
+<ExpectedOutput label="An entry you can abuse">
+```
+User bob may run the following commands on target:
+    (root) NOPASSWD: /usr/bin/find
+```
+</ExpectedOutput>
+
+That `find` line is game over. `find` has a `-exec` flag, and if you can run it
+as root, you can make it spawn a root shell.
+
+<CommandCard command="sudo find . -exec /bin/sh \; -quit" title="user@target" explain="find runs the -exec command as root, so /bin/sh drops you into a root shell. -quit stops after the first match." />
+
+## Find SUID binaries
+
+An SUID binary runs as its owner no matter who launches it. When that owner is
+root, the binary is a potential path up. Search the whole filesystem for the
+set-uid bit.
+
+<CommandCard command="find / -perm -4000 -type f 2>/dev/null" title="user@target" explain="-perm -4000 matches the SUID bit. The 2>/dev/null hides the permission-denied noise so you see only the hits." />
+
+You will get a normal set of system binaries (`passwd`, `mount`, `sudo`) plus,
+if you are lucky, something out of place: `nmap`, `vim`, `python3`, a custom
+company tool. The out-of-place ones are where you look first.
+
+## GTFOBins is the lookup table
+
+You do not memorize how to abuse each binary. You look it up. GTFOBins
+(gtfobins.github.io) catalogs exactly which binaries can break out to a shell,
+read files, or escalate, and gives you the one-liner for each. Search the binary
+name, pick the SUID or sudo section, paste the command.
+
+For example, if `less` is SUID root, opening a file and then running a shell
+command from inside `less` gives you root:
+
+<CommandBlock
+  title="user@target"
+  commands={[
+    { cmd: "less /etc/profile", comment: "open any file in the SUID pager" },
+    { cmd: "!/bin/sh", comment: "run a shell from inside less, now as root" },
+  ]}
+/>
+
+<Callout type="security" title="Only on boxes you are cleared to test">
+SUID abuse and sudo escalation are for machines you own or are explicitly scoped
+to attack. On a real engagement, note the vulnerable binary in your report; do
+not go rooting production because you can.
+</Callout>
+
+<Callout type="warning" title="LD_PRELOAD and env_keep">
+If sudo -l shows `env_keep+=LD_PRELOAD`, you can compile a tiny shared object
+that runs your code and force any allowed sudo command to load it as root. It is
+a classic and it still shows up. When you see preserved environment variables in
+a sudo rule, that is a flashing sign worth chasing.
+</Callout>
+
+<Quiz
+  id="suid-find"
+  question="Which command lists SUID binaries across the whole filesystem?"
+  answer={1}
+  options={[
+    "find / -type f -name '*.suid'",
+    "find / -perm -4000 -type f 2>/dev/null",
+    "ls -laR / | grep root",
+    "sudo find / -writable",
+  ]}
+  explanation="The SUID bit is octal 4000, so -perm -4000 matches any file with it set. Redirecting stderr hides the permission-denied clutter."
+/>
+
+<Exercise
+  id="gtfobins-lookup"
+  prompt="You find that /usr/bin/vim.basic is SUID root. What single site tells you the exact command to escalate?"
+  answer="GTFOBins"
+>
+GTFOBins (gtfobins.github.io). Search the binary, open the SUID section, and it
+gives you the breakout one-liner, for vim that is running :!/bin/sh or the -c
+shell escape from the SUID context.
+</Exercise>
+
+<Notes />

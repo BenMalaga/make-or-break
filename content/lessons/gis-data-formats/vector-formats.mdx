@@ -1,0 +1,273 @@
+---
+title: "Vector Formats: Shapefile, GeoJSON, and GeoPackage"
+module: gis-data-formats
+moduleTitle: Spatial Data and Formats
+moduleOrder: 2
+moduleIcon: Database
+order: 1
+summary: "Three vector formats dominate real GIS work, and picking wrong costs an analyst broken field names, silent data loss, or a folder of five files where one should do."
+estimatedMinutes: 14
+prerequisites: ["scale-and-data-quality"]
+objectives:
+  - Explain why a Shapefile is really a set of separate files and name its real limits
+  - Read and write a small GeoJSON file and say why it always uses WGS84 coordinates
+  - Describe what makes GeoPackage a single-file, multi-layer replacement for the Shapefile
+  - Choose the right vector format for a web map, a field survey, and a long-term archive
+---
+
+A county planning office emails a parcel dataset to a contractor. The zip file
+unpacks into five files that all share the name `parcels`, and if any one of
+them goes missing, the whole dataset stops opening. That is not a packaging
+mistake. That is a Shapefile, and this is the format that a huge share of the
+world's vector data still ships in, three decades after it was designed.
+
+The previous lesson covered scale and data quality: how coarse or fine a
+dataset is, and how much an analyst can trust what is inside it. This lesson
+covers the container those records travel in. A perfectly accurate polygon can
+still cause a project to fail if it arrives in a format that drops a field
+name, caps out at two gigabytes, or cannot hold a null value where a null
+belongs. The format is not a footnote. It shapes what the data can say.
+
+## The Shapefile is not one file
+
+A Shapefile, despite the singular name, is a small bundle of files that all
+share a base name and must all sit in the same folder for the data to open at
+all. The three files that are always required are:
+
+- `.shp`, which stores the geometry: the points, lines, or polygons themselves.
+- `.shx`, an index file that lets software jump to a given feature's geometry
+  without scanning the whole `.shp` file from the start.
+- `.dbf`, a dBASE table that stores the attributes, meaning every column of
+  descriptive data attached to each feature.
+
+A fourth file, `.prj`, is not strictly required but should always be present.
+It is a small text file naming the coordinate reference system the geometry
+was recorded in. Without it, software has no way to know whether a pair of
+numbers means feet from a state grid origin or degrees of longitude and
+latitude, and a rename or a copy that leaves `.prj` behind is a common way
+project data quietly loses its spatial meaning. A working Shapefile can carry
+several more optional files (`.cpg` for text encoding, `.sbn` and `.sbx` for a
+spatial index some software builds), but `.shp`, `.shx`, and `.dbf` are the
+floor.
+
+<Callout type="info" title="Delete one file, lose the dataset">
+A Shapefile with only its `.shp` file left, the `.shx` and `.dbf` having been
+deleted or left behind in a move, will not open in most software at all, or
+will open with no attributes attached to any shape. This is the single most
+common way a Shapefile gets damaged: someone copies what looks like one file
+and leaves three siblings behind.
+</Callout>
+
+The format dates to 1998, designed by the company that makes ArcGIS, and it
+carries real limits that a modern format would not accept:
+
+- **Field names cap at 10 characters.** A column meant to be named
+  `population_estimate` gets truncated to something like `POPULATIO`, and two
+  differently named columns that happen to share their first 10 characters
+  can collide and overwrite one another on export.
+- **The whole file caps at 2 gigabytes.** A dataset with millions of detailed
+  polygons, a full building footprint layer for a large city for instance,
+  can hit that ceiling and simply refuse to grow further.
+- **One geometry type per file.** A single Shapefile can hold only points, only
+  lines, or only polygons, never a mix. A dataset with both fire hydrants
+  (points) and fire districts (polygons) needs two separate Shapefiles, even
+  though a single GIS project will draw them together.
+- **No true null values.** A missing number in the `.dbf` table is usually
+  stored as a zero or an empty string rather than an actual absence, so an
+  analyst averaging a column with missing entries can accidentally average in
+  a pile of zeros that were never meant to be data at all.
+
+None of this makes the Shapefile useless. Most GIS software still reads and
+writes it without complaint, government agencies still publish enormous
+amounts of open data in it, and for a quick one-off export it works fine. The
+trouble shows up on anything that will be reused, renamed, or built on later.
+
+<Quiz
+  id="vector-shapefile-files"
+  question="A colleague sends a single .shp file by email, saying it is the parcel data. What is the most likely problem when it is opened?"
+  answer={2}
+  options={[
+    "Nothing, a .shp file is fully self-contained and opens on its own.",
+    "The geometry will be corrupted because .shp files cannot survive being emailed.",
+    "The shapes may open with no attribute data, or fail to open, because the .shx and .dbf files that a Shapefile depends on were left behind.",
+    "The file will open but every coordinate will be shifted by a fixed offset.",
+  ]}
+  explanation="A Shapefile is a bundle of at least three files, .shp, .shx, and .dbf, that all have to travel together. Sending only the .shp strands the geometry without its index or its attribute table, so most software either refuses to open it or opens it with the shapes present and every attribute column missing. Email and file transfer do not corrupt geometry on their own, and there is no automatic coordinate shift involved."
+/>
+
+## GeoJSON: data a person can read
+
+GeoJSON takes the opposite approach. It is plain text, built on the same JSON
+syntax used by countless web APIs, and a single `.geojson` file holds both the
+geometry and the attributes together in one place. An analyst can open it in
+any text editor and read the coordinates directly, which is not true of a
+Shapefile's binary `.shp` file.
+
+Here is a complete, valid GeoJSON file describing one point, a coffee shop,
+with two attributes:
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.4194, 37.7749]
+      },
+      "properties": {
+        "name": "Corner Cafe",
+        "seats": 12
+      }
+    }
+  ]
+}
+```
+
+A `FeatureCollection` is the outer wrapper, a list of one or more `Feature`
+objects. Each `Feature` pairs a `geometry` with a `properties` object, which is
+exactly the geometry-plus-attributes pairing from the first lesson in this
+module, just spelled out in JSON instead of split across a `.shp` and a
+`.dbf`. The coordinate order matters and it surprises people the first time
+they see it: longitude first, then latitude, the reverse of how people
+usually say a location out loud. That point above sits at roughly 37.77
+degrees north and 122.42 degrees west, in San Francisco, even though the
+longitude number comes first in the array.
+
+GeoJSON also makes an assumption that a Shapefile never does: every
+coordinate in a GeoJSON file is assumed to be in WGS84, the standard
+longitude and latitude system with the EPSG code 4326. There is no equivalent
+of the `.prj` file, because the format does not support any other coordinate
+system by default. That is a feature, not a gap. A GeoJSON file never leaves
+an analyst guessing what the numbers mean, which is exactly what makes it so
+easy to hand off to a web map. MapLibre GL and most other JavaScript mapping
+libraries read GeoJSON directly with no conversion step, because the browser
+already expects that WGS84 assumption.
+
+That same plain-text simplicity is also GeoJSON's weak spot at scale. A file
+with a million detailed polygons written out as human-readable numbers is
+far larger, byte for byte, than the same data packed into a binary format,
+and a browser or script has to parse the whole text file into memory before
+it can draw a single shape. GeoJSON is the right shape for a few thousand
+features headed to a web map or a small API response. It is the wrong shape
+for a county's entire parcel layer.
+
+<Quiz
+  id="vector-geojson-order"
+  question="A GeoJSON point has the coordinates [-87.6298, 41.8781]. What place does this most likely represent?"
+  answer={0}
+  options={[
+    "A point near 41.88 degrees north latitude and 87.63 degrees west longitude, since GeoJSON always lists longitude first.",
+    "A point near 87.63 degrees north latitude and 41.88 degrees west longitude, since GeoJSON lists latitude first.",
+    "It cannot represent a real place, since GeoJSON coordinates are always positive.",
+    "It depends on the file's .prj setting, which GeoJSON stores separately.",
+  ]}
+  explanation="GeoJSON coordinates are always written longitude, then latitude, which reverses the usual spoken order. So -87.6298 is the longitude, near 87.63 degrees west, and 41.8781 is the latitude, near 41.88 degrees north (this happens to be Chicago). GeoJSON coordinates can be negative for west longitudes and south latitudes, and the format has no .prj file at all because it always assumes WGS84."
+/>
+
+## GeoPackage: one file, no asterisks
+
+GeoPackage, with the extension `.gpkg`, is the format most working GIS
+practitioners now reach for by default when a Shapefile would have been the
+old answer. Underneath, a GeoPackage is a single SQLite database file, the
+same lightweight database engine that powers countless mobile apps and
+browsers. That single-file design solves the Shapefile's "which files do I
+need" problem outright: one `.gpkg` file, however large, is the whole
+dataset, coordinate system included.
+
+A GeoPackage carries none of the Shapefile's caps. Field names can be as long
+and descriptive as needed. There is no practical file size ceiling in
+ordinary use. Null values are stored as real nulls, distinguishable from a
+zero or an empty string. Most importantly, a single `.gpkg` file can hold
+many layers at once: points, lines, and polygons, each with its own
+attribute schema, all living in the same file the way tables live in the
+same database. The hydrants-and-districts problem that forced two separate
+Shapefiles becomes two layers in one GeoPackage, opened together with a
+single file path.
+
+This is where the saying in the field comes from: friends do not let friends
+use Shapefiles for new work. It is not that the Shapefile stopped working. It
+is that GeoPackage does everything it does, plus multiple layers, real
+nulls, no field name truncation, and a coordinate system that travels
+embedded in the file instead of in a companion `.prj` that can go missing.
+QGIS, the open-source desktop GIS most of this track uses, defaults to
+GeoPackage for new layers for exactly this reason.
+
+<Quiz
+  id="vector-gpkg-vs-shp"
+  question="A team is building a new dataset with a hydrants layer (points) and a fire-district layer (polygons) that will be edited for years. Which format avoids forcing them into two separate files with truncated field names?"
+  answer={1}
+  options={[
+    "Shapefile, because .shp files can hold mixed geometry types as long as the .dbf is shared.",
+    "GeoPackage, because a single .gpkg file can hold multiple layers with full-length field names and no file-count fragility.",
+    "GeoJSON, because it has no field name limit and compresses large datasets automatically.",
+    "There is no difference, all three formats handle multi-layer, long-term datasets the same way.",
+  ]}
+  explanation="GeoPackage stores multiple layers, each with its own schema, inside one SQLite file, with none of the Shapefile's 10-character field name cap or its dependency on several files staying together. A Shapefile cannot mix point and polygon geometry in one file at all. GeoJSON has no field length limit either, but it is plain text with no native multi-layer structure and no compression, so it is a poor fit for a large, long-lived dataset."
+/>
+
+## Matching the format to the job
+
+None of these three formats is simply better than the others in every case.
+Each earns its place for a different kind of work.
+
+A Shapefile is worth reaching for when a target system demands it and
+nothing else, which still happens with some older government portals and
+legacy desktop tools, or when receiving a one-off download from a source
+that only offers that format. It is rarely the right choice to create on
+purpose for new data.
+
+GeoJSON is the natural choice any time data is headed to a web map, a
+JavaScript application, or a lightweight API response, where its plain text
+and guaranteed WGS84 coordinates mean no conversion step stands between the
+file and the browser. It also shines for a quick manual edit or for
+sharing a small dataset where a human should be able to open the file and
+read exactly what is in it.
+
+GeoPackage is the right default for nearly everything else: a working
+project file in QGIS, a delivered dataset meant to last, an archive that
+needs to hold several related layers together, or any dataset large enough
+that a Shapefile's caps become a real risk rather than a theoretical one.
+
+## Looking inside a file without opening a GIS program
+
+Before trusting any vector file, it helps to inspect it from the command
+line rather than assume. `ogrinfo`, part of the open-source GDAL library
+that underlies QGIS and most other GIS software, reports a file's layers,
+geometry type, coordinate system, and feature count without loading a full
+graphical program:
+
+```bash
+ogrinfo -so parcels.gpkg parcels
+```
+
+<ExpectedOutput label="a summary of one layer inside a GeoPackage">
+```
+INFO: Open of `parcels.gpkg'
+      using driver `GPKG' successful.
+
+Layer name: parcels
+Geometry: Polygon
+Feature Count: 48213
+Extent: (-122.519, 37.708) - (-122.357, 37.833)
+Layer SRS WKT:
+GEOGCS["WGS 84", ...]
+parcel_id: String (36.0)
+owner_name: String (80.0)
+assessed_value: Real (12.2)
+```
+</ExpectedOutput>
+
+The `-so` flag asks for a summary only, skipping a listing of every single
+feature. That output answers the questions an analyst should ask of any new
+file before working with it: what geometry type it holds, how many features
+are inside, what area it covers, what coordinate system it uses, and what
+columns exist with what data types. Running this one command on an unknown
+file, whether it is a `.gpkg`, a `.shp`, or a `.geojson`, is a cheap habit
+that catches a wrong coordinate system or an unexpectedly empty layer before
+either one causes a problem three steps into a project.
+
+The next lesson turns from features to grids: raster data, the pixel-based
+half of GIS that stores satellite imagery and elevation as cells rather than
+points, lines, and polygons.

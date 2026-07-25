@@ -1,0 +1,70 @@
+---
+title: Longest Collatz Chain
+summary: Find the starting number below one million with the longest Collatz chain.
+track: make
+category: algorithms
+difficulty: HARD
+tags: [collatz, memoization, sequences]
+daily: true
+answer: 837799
+answerType: number
+starterLang: python
+starter: |
+  # Goal: find the starting number below 1,000,000 whose Collatz
+  # chain is the longest, then print that starting number.
+  #
+  # Collatz rule for a number n:
+  #   if n is even -> n // 2
+  #   if n is odd  -> 3 * n + 1
+  # Every chain ends when it reaches 1.
+  #
+  # Brute force is slow. Memoize chain lengths so already-seen
+  # values are never recomputed.
+
+  LIMIT = 1000000
+  cache = {1: 1}  # chain length of 1 is just [1]
+
+  def chain_len(n):
+      # Walk n toward a value already in cache, then fill in
+      # every step you visited on the way.
+      ...
+
+  best_start = 1
+  best_len = 0
+  for i in range(1, LIMIT):
+      ...
+
+  print("replace me")
+hints:
+  - The chain for a starting number counts every term including the starting number and the final 1. For example 13 -> 40 -> 20 -> 10 -> 5 -> 16 -> 8 -> 4 -> 2 -> 1 has length 10.
+  - A plain recursion or loop per number repeats enormous amounts of work. Store each number's chain length in a dictionary the first time you compute it, and reuse it forever after.
+  - Track the best length seen and the starting number that produced it as you scan 1 up to 999999. Submit the starting number, not the length.
+---
+
+The Collatz sequence starts from any positive whole number and repeatedly
+applies one rule until it reaches 1:
+
+- If the current number is even, the next number is half of it.
+- If the current number is odd, the next number is three times it plus one.
+
+For example, starting at 13 the chain runs:
+
+```
+13 -> 40 -> 20 -> 10 -> 5 -> 16 -> 8 -> 4 -> 2 -> 1
+```
+
+That chain has 10 terms. It is believed (though not proven) that every starting
+number eventually reaches 1.
+
+Your job: among all starting numbers **below 1,000,000**, find the one that
+produces the **longest** chain. Submit that **starting number**, not the length
+of its chain.
+
+A naive approach recomputes the same tails millions of times and is far too slow.
+The trick is memoization: keep a dictionary mapping a number to its chain length.
+When you compute a new starting number, walk it forward until you hit a value
+already in the dictionary, then fill in the length for every value you passed
+through on the way. Each number gets its length computed exactly once, which makes
+the full scan fast.
+
+Run your code in the editor, read the starting number it prints, and submit it.

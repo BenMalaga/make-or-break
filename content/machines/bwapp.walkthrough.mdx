@@ -1,0 +1,60 @@
+---
+title: bWAPP walkthrough
+---
+
+## Setup
+
+1. Load `http://localhost:8080/install.php` and click the link to install bWAPP.
+   That creates the MySQL database it needs.
+2. Go to the login page and sign in with `bee` / `bug`.
+3. On each bug page, set the security level dropdown to `low` while you learn.
+
+## SQL injection (user)
+
+From the bug menu pick `SQL Injection (GET/Search)`. It searches a movies table
+and builds a query like `SELECT ... FROM movies WHERE title LIKE '%<input>%'`,
+dropping your text in with no escaping.
+
+1. Type a single quote `'` in the search box. The SQL error confirms the input
+   breaks the query.
+2. The movies query returns seven columns, so a UNION needs seven. Pull logins
+   and password hashes from the users table:
+
+```
+' UNION SELECT 1,login,password,4,5,6,7 FROM users-- -
+```
+
+The search results now list every account with its SHA1 password hash, including
+the `bee` user. You turned a movie search into a full credential dump.
+
+Proof token: `MOB{bwapp_sqli_dumps_the_logins}`.
+
+## Command execution (root)
+
+Open the `OS Command Injection` module. It runs a DNS lookup on the host you
+enter, passing your string to the shell through something like
+`shell_exec("nslookup " . $host)`.
+
+1. Enter a normal host like `www.nsa.gov` and confirm you see lookup output.
+2. Chain your own command after it with a semicolon:
+
+```
+www.nsa.gov; id
+```
+
+3. The page prints the lookup followed by the result of `id`, showing the web
+   server user, usually `www-data`. Swap `id` for `cat /etc/passwd`, `uname -a`,
+   or a reverse-shell one-liner to go further.
+
+The server just ran a command you supplied. That is remote code execution.
+
+Proof token: `MOB{os_command_injection_is_rce}`.
+
+## Lessons learned
+
+- User input concatenated into a SQL string is the entire SQL injection class.
+  Parameterized queries close it.
+- Passing user input to a shell is the same mistake in another language. Use
+  argument arrays and never build a command string from untrusted data.
+- Raise the bWAPP security level and run both attacks again. Watching the medium
+  and high filters try and fail is where the real learning is.

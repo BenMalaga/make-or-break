@@ -1,0 +1,153 @@
+---
+title: The Data Table Behind the Map
+module: gis-foundations
+moduleTitle: GIS Foundations
+moduleOrder: 1
+moduleIcon: Compass
+order: 5
+summary: "Every layer carries a plain data table alongside its shapes, and an attribute join attaches outside data to that table by a shared key, not by location."
+estimatedMinutes: 13
+prerequisites: ["map-projections"]
+objectives:
+  - Describe the structure of an attribute table, including rows as features, columns as fields, and each field's fixed data type
+  - Explain what a unique key does for a table and why a join depends on one existing
+  - Perform an attribute join that attaches a non-spatial table to a spatial layer by a shared key
+  - Distinguish a one-to-one join from a one-to-many join and know when a table needs summarizing before joining
+tags:
+  - gis
+  - attributes
+  - joins
+---
+
+The previous lesson, map projections, spent its entire length on getting geometry to line up correctly on a flat screen. None of that work touches the other half of a GIS record. A county polygon that projects perfectly still knows nothing about its own population, its median income, or its unemployment rate unless that information sits somewhere in a table attached to the shape. That table is where most of the actual data in a GIS project lives, and it behaves almost exactly like a spreadsheet.
+
+## Rows are features, columns are fields
+
+An attribute table is the ordinary, non-geometric half of a layer. Open one for a layer of New Jersey counties and each row is a single feature, meaning one county polygon. Each column is called a field, and it holds one property shared across every feature in the layer: the county's name, its area in square kilometers, its state abbreviation.
+
+Every field has a data type, and the type is fixed for the whole column, not chosen row by row. A text field holds strings like county names. An integer field holds whole numbers like a population count. A float field, short for floating point, holds numbers with a decimal, like an area measured to three decimal places. A date field holds a calendar date, like when a parcel record was last updated. Mixing types in one field causes real problems. A population field typed as text will sort "9,500" before "10,200" alphabetically instead of numerically, because the software is comparing characters, not quantities. Choosing the right type up front saves that kind of quiet corruption later.
+
+QGIS shows this table directly. Opening the attribute table for a layer displays a spreadsheet-like grid, one row per feature, with a small toolbar for selecting, filtering, and editing rows. Clicking a row in that table highlights the matching shape on the map, and clicking a shape on the map highlights its row in the table. That two-way link is the whole reason geometry and attributes are described as two halves of one feature rather than two separate things.
+
+<Quiz
+  id="attribute-table-rows-columns"
+  question="A layer of hiking trails has a field named surface_type storing values like 'gravel' and 'paved'. What data type should that field use, and why?"
+  answer={1}
+  options={[
+    "Integer, because every field in an attribute table must store a number for the software to draw it.",
+    "Text, because surface_type holds words describing a category, not a quantity to calculate with.",
+    "Date, because the field describes when the trail was surveyed.",
+    "Float, because decimal precision is needed to distinguish gravel from paved.",
+  ]}
+  explanation="Text is correct because the field stores category labels, words like gravel and paved, not numbers meant for arithmetic. Integer and float are for quantities such as counts or measurements, and neither fits a label. Date is for calendar values, which surface_type is not. A field's type should match what the value actually represents, not an assumption that GIS data must be numeric."
+/>
+
+## The one column that must never repeat
+
+Every attribute table needs a way to point at exactly one row without ambiguity, and that job belongs to a specific field called the unique key, sometimes called the primary key. Its defining rule is simple: no two rows share the same value in that column. A county layer might use a five digit FIPS code as its key, since no two counties in the country share one. A parcel layer might use a parcel ID assigned by the county tax office. A customer table might use a customer number.
+
+Without a unique key, a row can only be pointed at by its position in the table, and position is fragile. Sort the table by name and every row's position shifts. Delete a row in the middle and everything below it shifts again. A key is stable precisely because it does not depend on where the row happens to sit. Look a row up by its key and the answer is the same regardless of sort order, filters applied, or how many other rows exist.
+
+This matters immediately for the next idea, because attaching outside data to a layer only works if there is a reliable value to match on both sides. A key that repeats, or a key that is missing on some rows, breaks the whole operation before it starts.
+
+## Attaching a table by a shared key
+
+An attribute join takes a table that is not spatial, meaning it has no geometry column at all, and attaches its columns onto a spatial layer using a shared key. The census bureau publishes population figures as plain tables: one row per county, a FIPS code, a population number, nothing about shape or location. A county boundary layer, on the other hand, has geometry but usually just a name and a FIPS code in its own attribute table, no population figures. A join merges the two on the FIPS code they both carry, and the result is a single layer that has both the polygons and the population numbers riding along with them.
+
+This is worth naming precisely: an attribute join matches rows by a shared value in a key column, not by where anything sits on the Earth. Two rows join because their FIPS codes are identical strings, full stop. A join that matches rows because one point happens to fall inside one polygon is a different operation entirely, called a spatial join, and it belongs to the analysis module later in this track. The distinction matters because the two produce very different failure modes: an attribute join fails when a key does not match, while a spatial join fails when a location does not overlap. Confusing which kind of join is running is a fast way to get a confusing wrong answer.
+
+Here is the join carried out in GeoPandas, the Python library that reads spatial data into a table-like structure and keeps geometry as just another column:
+
+```python
+import geopandas as gpd
+import pandas as pd
+
+counties = gpd.read_file("nj_counties.gpkg")
+population = pd.read_csv("nj_population_2024.csv")
+
+print(counties[["GEOID", "NAME"]].head(3))
+print(population.head(3))
+```
+
+<ExpectedOutput label="two separate tables sharing a GEOID column, before any join">
+```
+   GEOID       NAME
+0  34001   Atlantic
+1  34003     Bergen
+2  34005 Burlington
+
+   GEOID  population
+0  34001      274534
+1  34003      952681
+2  34005      445349
+```
+</ExpectedOutput>
+
+`counties` is a GeoDataFrame, meaning it carries a geometry column alongside GEOID and NAME. `population` is a plain pandas DataFrame with no geometry at all, just GEOID and population. The join lines them up on GEOID:
+
+```python
+joined = counties.merge(population, on="GEOID", how="left")
+print(joined[["NAME", "GEOID", "population"]].head(3))
+```
+
+<ExpectedOutput label="one table now carrying both the polygons and the population figures">
+```
+       NAME  GEOID  population
+0  Atlantic  34001      274534
+1    Bergen  34003      952681
+2 Burlington  34005      445349
+```
+</ExpectedOutput>
+
+The `.merge()` call is pandas' join method, and GeoPandas inherits it directly since a GeoDataFrame is a DataFrame with one extra column. Passing `on="GEOID"` tells it which field to match rows on, and `how="left"` keeps every county from the left table even if a matching population row is missing, filling those cases with a null value instead of dropping the county entirely. The `joined` result still has its geometry column, untouched, so it draws on a map exactly as before, only now population comes along for any query or symbology that needs it.
+
+The same operation in SQL, against a PostGIS database where counties live in one table and population in another, reads almost identically:
+
+```sql
+SELECT c.name, c.geoid, p.population, c.geom
+FROM counties AS c
+JOIN population AS p ON c.geoid = p.geoid;
+```
+
+`ON c.geoid = p.geoid` is the join condition, the SQL way of saying match rows where this column equals that column. Nothing about geometry enters the condition. The geom column just gets carried along in the result because it happens to be selected, the same way NAME or population does.
+
+<Callout type="info" title="A join fails silently when the key types do not match">
+FIPS codes are a common trap. A county's code is often stored as text, like `"34001"`, because the leading zero matters and a number cannot hold it, since `34001` as an integer and `034001` as an integer are the same value. If one table stores GEOID as text and the other stores it as a number, most join tools will match nothing and quietly return nulls instead of raising an error. Checking that both key columns share the same data type before joining, and that leading zeros survived being loaded, is worth doing before trusting any join result.
+</Callout>
+
+<Quiz
+  id="join-key-type-mismatch"
+  question="A join between counties and population returns a population value of null for every single row, even though both tables clearly contain matching FIPS codes. What is the most likely cause?"
+  answer={2}
+  options={[
+    "The counties layer is missing its geometry column.",
+    "PostGIS and GeoPandas cannot join tables from different file formats.",
+    "The FIPS code is stored as text in one table and as a number in the other, so no value matches even though the codes look the same.",
+    "The population table has more rows than the counties table.",
+    
+  ]}
+  explanation="A key stored as text in one table and as a number in the other will never match during a join, even when the printed values look identical, because the comparison checks type as well as value. This is the classic FIPS code trap, since a leading zero survives in text but disappears once the value becomes a number. A missing geometry column, mismatched file formats, or an unequal row count would cause different symptoms, not a universal null result."
+/>
+
+## One matching row, or many
+
+A join can behave in two different shapes depending on how many rows in each table share a key value. A one-to-one join is the shape used above: each county's FIPS code appears exactly once in the counties layer and exactly once in the population table, so every county picks up exactly one population figure. This is the simplest and safest shape, because there is never any doubt about which row goes with which.
+
+A one-to-many join happens when one side has a single row per key but the other side has several. Imagine a table of business licenses where many businesses share the same county FIPS code, several dozen license rows per county. Joining the county polygons to that license table on FIPS code means each county polygon now matches multiple license rows at once. Most GIS software handles this by duplicating the county's geometry once per matching row, so a county with forty licenses becomes forty copies of the same polygon, one per license. That is often not what an analyst actually wants. If the real question is "how many licenses does each county have," the correct move is to count the licenses per FIPS code first, producing one summary row per county, and only then join that one-to-one summary onto the polygons. Joining the raw one-to-many table directly usually means an accidental bloat in row count and, if anyone sums an area or a population field afterward, silently wrong totals from counting the same geometry several times over.
+
+Recognizing which shape a join will produce, before running it, is mostly a matter of asking how many rows in each table share a given key value. One and one gives a clean one-to-one join. One and several gives a one-to-many join that needs a summarizing step first, unless the duplication itself is the intended output.
+
+<Quiz
+  id="one-to-many-join-summary"
+  question="An analyst wants to know the total number of building permits issued per county, then join that count onto county polygons for mapping. The raw permits table has one row per permit, with many permits sharing each county's FIPS code. What should happen before the join?"
+  answer={0}
+  options={[
+    "The permits table should be summarized into one row per county, with a permit count column, before joining it to the polygons.",
+    "The permits table should be joined to the polygons exactly as it is, since GIS software always summarizes automatically during a join.",
+    "The polygons should be duplicated first to match the number of permit rows, then joined.",
+    "Nothing needs to change, because a one-to-many join and a one-to-one join always produce the same map.",
+  ]}
+  explanation="Summarizing the permits into one count per FIPS code first turns the join into a clean one-to-one match, so each county polygon receives exactly one number. Joining the raw permit rows directly would duplicate each county's geometry once per permit, which is rarely the intended result and quietly breaks any later calculation that sums an area or a population field. GIS software does not auto-summarize during a join, and a one-to-many join produces a materially different, usually bloated, result from a one-to-one join."
+/>
+
+Attribute joins are how a spatial layer picks up almost everything an analyst actually maps: census figures, sales records, inspection results, sensor readings, all published as ordinary tables somewhere and pulled onto geometry through nothing more than a shared key. The next lesson moves to the other kind of join, the spatial one, where two layers are matched not by a key at all but by where their geometries actually sit relative to each other. That is where the geometry half of a feature finally gets to do the matching itself.

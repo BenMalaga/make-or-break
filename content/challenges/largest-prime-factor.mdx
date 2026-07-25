@@ -1,0 +1,50 @@
+---
+title: Largest Prime Factor
+summary: Factor a large number and submit its greatest prime factor.
+track: make
+category: math
+difficulty: MEDIUM
+tags: [primes, factorization, trial-division]
+daily: true
+answer: 6857
+answerType: number
+starterLang: python
+starter: |
+  # Goal: find the largest prime factor of N and print it.
+  N = 600851475143
+
+  # Trial division: pull out the smallest factor repeatedly.
+  # Each time d divides n, divide it out. Whatever is left at the
+  # end is the largest prime factor.
+  n = N
+  d = 2
+  while d * d <= n:
+      # ... if d divides n, keep dividing it out; otherwise increase d
+      pass
+
+  print("replace me")
+hints:
+  - Start dividing from the smallest factor (2) and work upward.
+  - Every time a divisor divides evenly, divide it out completely before moving on. This guarantees each divisor you find is prime.
+  - You only need to test divisors up to the square root of the current value. Whatever remains above 1 at the end is the answer.
+---
+
+Every whole number greater than 1 breaks down into a product of prime numbers,
+and that breakdown is unique. For example, 60 is 2 times 2 times 3 times 5, so
+its prime factors are 2, 3, and 5, and the largest is 5.
+
+Your job is to find the **largest prime factor** of this number:
+
+```
+600851475143
+```
+
+Trial division from the smallest factor upward is enough. Start with the divisor
+2. While the current divisor divides the number evenly, divide it out. When it no
+longer divides evenly, move to the next divisor and repeat. Because you remove
+each factor completely before moving on, every divisor you successfully pull out
+is prime. You only need to keep going while the divisor squared is less than or
+equal to the value that remains. Whatever value is left above 1 at the end is the
+largest prime factor.
+
+Run your code in the editor, read the number it prints, and submit it.

@@ -1,0 +1,248 @@
+---
+title: "Variables and Types"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 2
+summary: "A variable is a name Python attaches to a value, and the type of that value decides what the program is allowed to do with it."
+estimatedMinutes: 14
+prerequisites: ["python-first-program"]
+objectives:
+  - Store a value in a variable with = and read it back with print()
+  - Reassign a variable and explain what happens to the value it held before
+  - Name the four core types, int, float, str, and bool, and check any value's type with type()
+  - Explain why the type of a value changes what an operator like + actually does
+tags:
+  - python
+  - variables
+  - types
+---
+
+The first program printed a line of text by typing the exact words inside `print()`. That works for one line, once. It falls apart the moment a program needs to use the same value more than a handful of times, or needs to change based on something that was not known when the code was written, like a number a user types in or a total a program calculates as it runs. Typing the same value over and over is fragile: change it in one place and the other copies quietly go stale. Python's fix for this is the variable, and almost nothing past this lesson works without it.
+
+## A name for a value
+
+A variable is a name attached to a value. Creating one takes a single line: a name, an equals sign, and the value on the right.
+
+```python
+age = 27
+print(age)
+```
+
+<ExpectedOutput label="the value stored under the name age, read back by that name">
+```
+27
+```
+</ExpectedOutput>
+
+Read `age = 27` as "the name `age` now refers to the value 27," not as a math equation. Python evaluates whatever sits on the right of the equals sign first, in this case the plain number 27, and then attaches the name on the left to that value. After that line runs, `age` is a stand-in for 27 anywhere it appears in the program. `print(age)` does not know or care that the number came from a variable instead of being typed directly. It just prints whatever value the name currently holds.
+
+This is the whole trick behind why variables matter: write `age` once at the top of a program, use it in ten places below, and changing one line changes all ten results. There is no hunting through the file for every spot a number was typed by hand.
+
+## Reassigning: the name can point at something new
+
+A variable is not locked to its first value. Assigning to the same name again replaces what it holds.
+
+```python
+score = 10
+print(score)
+score = 25
+print(score)
+```
+
+<ExpectedOutput label="the second assignment overwrites the first">
+```
+10
+25
+```
+</ExpectedOutput>
+
+The first `print(score)` runs while `score` still holds 10, so 10 comes out. The line `score = 25` then does the same thing the very first assignment did: evaluate the right side, attach the name to that value. It does not add 25 to the old value or keep both numbers around. The old 10 is gone the moment `score` is reassigned, and nothing in the program can get it back unless it was saved somewhere else first.
+
+This matters because a lot of real programs work by updating the same variable over and over: a running total, a counter, a score that goes up as a game plays. Each reassignment throws away the value before it and keeps only the new one. That is not a limitation to work around, it is the entire mechanism a loop or a counter depends on.
+
+<Quiz
+  id="variables-reassignment"
+  question="A program runs total = 5, then later runs total = total + 1. What happens to the 5 that total held before the second line ran?"
+  answer={2}
+  options={[
+    "Python keeps both 5 and 6 stored under the name total.",
+    "The second line raises an error, because total already has a value.",
+    "The 5 is discarded the moment total is reassigned, and total now refers only to 6.",
+    "Python renames the old value to total_old and creates a new total for 6.",
+  ]}
+  explanation="Assignment always replaces whatever a name pointed to before. total + 1 is evaluated first using the old value 5, producing 6, and then total is reassigned to point at 6. The old 5 is not kept anywhere unless another variable was assigned to hold it. Reassigning a name that already exists is completely normal in Python, not an error, and Python never auto-renames a variable."
+/>
+
+## Four types every beginner needs
+
+Every value in Python has a type, and the type is what tells Python how the value behaves. Four types come up constantly enough to learn first.
+
+An `int` is a whole number with no decimal point, like `27` or `-4`. A `float` is a number with a decimal point, like `4.99` or `0.5`, used for anything measured rather than counted. A `str`, short for string, is text, written inside quotes, like `"Ada"` or `"hello"`. A `bool` is one of exactly two values, `True` or `False`, capitalized and without quotes, used to record a yes-or-no fact like whether an account is active.
+
+```python
+age = 27
+price = 4.99
+name = "Ada"
+is_active = True
+
+print(type(age))
+print(type(price))
+print(type(name))
+print(type(is_active))
+```
+
+<ExpectedOutput label="type() reports the type of whatever value a variable currently holds">
+```
+<class 'int'>
+<class 'float'>
+<class 'str'>
+<class 'bool'>
+```
+</ExpectedOutput>
+
+`type()` takes a value and reports what kind of value it is. Python prints that report as `<class 'int'>` rather than just `int`, because a type in Python is itself a kind of object called a class, but the word after `class` is the answer worth reading: `int`, `float`, `str`, `bool`.
+
+The distinction between `int` and `float` is not just about whether a decimal point happens to show up. An `int` counts things that only ever come in whole units, like a number of items in a cart or a person's age in years. A `float` measures things that naturally fall between whole numbers, like a price in dollars and cents or a temperature reading. Python treats them differently under the hood too: dividing two `int` values with `/` still hands back a `float`, since a division like 7 divided by 2 does not land on a whole number. Picking the right one up front saves confusion later, when a program expects a clean count and gets a value like `3.0` instead of `3`.
+
+Nothing locks a variable to the type it started with. A name like `age` can hold an `int` on one line and a `str` on the next, because reassignment replaces the value entirely, type included.
+
+```python
+age = 27
+print(type(age))
+age = "twenty-seven"
+print(type(age))
+```
+
+<ExpectedOutput label="the same name, two different types, one right after the other">
+```
+<class 'int'>
+<class 'str'>
+```
+</ExpectedOutput>
+
+This is worth seeing once, but it is rarely a good idea in real code. A variable that switches type partway through a program is a variable that is hard to reason about later. Most well-written Python keeps one variable holding one kind of thing for its whole life, even though the language does not force that discipline.
+
+## Naming rules and the snake_case habit
+
+A variable name in Python has to follow a few fixed rules. It can use letters, digits, and underscores, but it cannot start with a digit, so `1st_place` is invalid while `first_place` is fine. It cannot contain spaces or symbols like `-` or `@`. It cannot be one of Python's own reserved words, like `if`, `for`, or `class`, since those already mean something to the language. Names are case-sensitive, so `Age` and `age` are two different variables, not the same one written two ways.
+
+Inside those rules, Python programmers follow a shared convention called snake_case: lowercase words separated by underscores, like `first_name` or `total_price`. Nothing in the language requires this. A program would run fine with `FirstName` or `firstname`, the style used in some other languages. Python code almost never looks like that, because snake_case is what everyone else's code looks like, and matching the convention means any Python programmer can read a name and immediately know it is an ordinary variable, not a class or a constant, which have their own conventions covered later.
+
+Names should describe what they hold. `age` says more than `a`, and `total_price` says more than `tp`. A program is read far more often than it is written, and a name that explains itself saves whoever reads it next, including the same person, months later, from having to reconstruct what a two-letter name meant.
+
+A `bool` deserves one more word, since it looks the simplest of the four but does the most quiet work later on. `is_active`, `is_admin`, `has_paid`: naming a boolean with `is_` or `has_` up front reads almost like a small yes-or-no question, which is exactly what the value answers. That habit pays off once a program starts making decisions based on these values, which is the entire subject of the lesson on conditionals still to come. For now, the thing worth remembering is that `True` and `False` are the only two values a `bool` can ever hold, spelled with a capital letter and no quotes, since `"True"` the string and `True` the boolean are two entirely different types.
+
+<Quiz
+  id="variables-naming-snake-case"
+  question="Which of these is a valid, conventionally styled Python variable name for storing someone's total score?"
+  answer={1}
+  options={[
+    "2ndScore",
+    "total_score",
+    "total-score",
+    "TotalScore",
+  ]}
+  explanation="total_score follows both the hard rule and the convention: it starts with a letter, uses only letters and underscores, and is lowercase with underscores between words, which is snake_case. 2ndScore is invalid because a name cannot start with a digit. total-score is invalid because a hyphen is not allowed in a name, Python would read it as subtraction. TotalScore is valid syntax but breaks the snake_case convention Python code follows for ordinary variables."
+/>
+
+## Why the type of a value decides what an operator does
+
+Types are not just labels. They decide what an operator like `+` actually does with a value, and mixing types incorrectly is one of the first errors most beginners hit.
+
+Between two numbers, `+` adds.
+
+```python
+a = 3
+b = 4
+print(a + b)
+```
+
+<ExpectedOutput label="int plus int is arithmetic addition">
+```
+7
+```
+</ExpectedOutput>
+
+Between two strings, the same `+` does something completely different. It joins the text end to end, an operation called concatenation, with no addition involved at all.
+
+```python
+first = "Ada"
+last = "Lovelace"
+print(first + " " + last)
+```
+
+<ExpectedOutput label="str plus str joins text, it does not add">
+```
+Ada Lovelace
+```
+</ExpectedOutput>
+
+Same symbol, same operator, two unrelated behaviors, chosen entirely by the type of the values on either side of it. That is why type is not a minor detail. A program that expects two numbers and gets two strings, or the other way around, does not just produce a wrong answer. Often it does not run at all.
+
+```python
+age = 27
+print("Age: " + age)
+```
+
+<ExpectedOutput label="a str and an int cannot be joined with +">
+```
+Traceback (most recent call last):
+  File "info.py", line 2, in <module>
+    print("Age: " + age)
+TypeError: can only concatenate str (not "int") to str
+```
+</ExpectedOutput>
+
+Python will not silently guess what was meant here. `+` on a string only knows how to join it with another string, and 27 is an `int`, so the line raises a `TypeError` and the program stops. Fixing it means either converting `age` to text with `str(age)` before joining it, or, more often in modern Python, skipping the joining entirely with an f-string, which builds text and drops values into it without needing matching types at all:
+
+```python
+age = 27
+print(f"Age: {age}")
+```
+
+<ExpectedOutput label="an f-string inserts a value into text regardless of its type">
+```
+Age: 27
+```
+</ExpectedOutput>
+
+<Callout type="warning" title="A TypeError on + almost always means two different types met unexpectedly">
+Seeing "can only concatenate str" or "unsupported operand type(s)" is Python reporting that an operator was asked to combine two things it has no rule for together, usually a number and a piece of text. The fix is never to guess and retry. Check what `type()` reports for both sides, then either convert one of them on purpose or use an f-string to sidestep the mismatch entirely.
+</Callout>
+
+<Quiz
+  id="variables-type-mismatch"
+  question="A program runs count = 5 and then print('Total: ' + count). What happens?"
+  answer={0}
+  options={[
+    "Python raises a TypeError, because + cannot join a str and an int.",
+    "Python prints Total: 5, automatically converting count to text.",
+    "Python prints Total5, dropping the space and the colon.",
+    "Python treats count as the string '5' from then on for the rest of the program.",
+  ]}
+  explanation="+ between a str and an int is not defined, so Python raises a TypeError instead of guessing what was meant. It does not auto-convert count to text, and it never permanently changes count's type just because one line tried to use it as text. The fix is str(count) or an f-string, not a silent conversion Python performs on its own."
+/>
+
+<CommandCard command="python3 details.py" title="terminal" explain="Runs the code saved in details.py from top to bottom, printing whatever the code prints." />
+
+<Exercise title="Store three types and print them together">
+Save this into a file named `details.py`:
+
+```python
+name = "Grace"
+age = 36
+is_admin = True
+
+print(f"{name} is {age} years old.")
+print(f"Admin status: {is_admin}")
+print(type(name), type(age), type(is_admin))
+```
+
+Run it with `python3 details.py` and check the printout against what each variable holds. Then add a line that tries `print("Age: " + age)` and run it again to see the TypeError happen for real. Delete that line, and instead try changing `age` to a string like `"thirty-six"` right before the f-strings run. Watch how the f-string output barely changes, since it never needed matching types in the first place.
+</Exercise>
+
+Every value seen so far has been created from scratch on one line. Real programs spend most of their time combining values that already exist: adding a tax rate to a price, joining a first and last name, checking whether one number is bigger than another. The next lesson picks up right where types leave off, working through the operators that combine values and the expressions they build.
+
+<Notes />

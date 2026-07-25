@@ -1,0 +1,56 @@
+---
+title: Building a Portfolio That Gets Noticed
+module: breaking-into-security
+moduleTitle: Breaking Into Security
+moduleOrder: 45
+moduleIcon: Compass
+order: 3
+summary: Anyone can claim they can do the work; a portfolio is you showing it.
+estimatedMinutes: 16
+objectives:
+  - Turn solved boxes into writeups that prove you can reason and communicate
+  - Build a home lab and a GitHub that show you actually touch keys
+  - Keep everything you publish on the legal side of the line
+tags:
+  - careers
+  - portfolio
+  - writeups
+  - home-lab
+  - github
+---
+
+Two candidates apply for the same SOC role with identical Security+ certs. One attaches a resume. The other links a blog with 25 box writeups, a GitHub with a log-parsing script, and a line about the Active Directory lab in their basement. The second person gets the callback every time. A portfolio is the gap between claiming you can do the work and showing someone you already have.
+
+The single most useful thing you can build is a pile of writeups. Solve a machine on TryHackMe or Hack The Box, then write how you would explain the solve to a teammate: what you saw, what you tried, what failed, and why the winning path worked. Nobody hiring cares that you followed a walkthrough. They care that you can reason and communicate, and one good writeup proves both in a single artifact.
+
+## Show that you touch keys
+
+Keep a GitHub that shows a pulse. It does not need to be impressive. A Python script that parses auth logs, a small Nmap wrapper, your dotfiles, notes from a course you took. Months of green squares quietly say "this person shows up and finishes things." An empty or nonexistent profile reads as a red flag for anything technical.
+
+Build a lab you can break without hurting anyone. Proxmox on an old desktop works, or just VirtualBox on your laptop, running a couple of deliberately vulnerable VMs like Metasploitable and a DVWA container. If you are aiming blue, add a small AD domain and a SIEM such as Security Onion so you can watch your own attacks land. "I built and broke my own AD lab" is a sentence that moves interviews.
+
+Your home network is free practice too. Segment it with VLANs, drop a Pi-hole in to watch DNS traffic, run Wireshark and actually look at what your devices say when nobody is asking them anything. You learn to spot the abnormal fastest by first getting very familiar with normal.
+
+<CommandBlock
+  title="start a writeups repo you can put on a resume"
+  commands={[
+    { cmd: "git init writeups && cd writeups", comment: "one repo, one markdown file per box" },
+    { cmd: "$EDITOR 2026-07-blue-htb.md", comment: "what you saw, what you tried, what failed, why the win worked" },
+    { cmd: "git add . && git commit -m 'blue: SMB foothold to SYSTEM'", comment: "commit per solve so the history shows steady work" },
+  ]}
+/>
+
+## Make it legible to a hiring manager
+
+A recruiter skims. Put the good stuff up front: a pinned repo, a blog with real titles, a one-line summary of your lab. Write your writeups for a human who is deciding whether to spend 30 minutes interviewing you, not for search engines. Clear beats clever.
+
+<Callout type="security" title="Only publish what you are allowed to publish">
+Hack The Box lets you publish writeups for retired machines, not active ones, and posting an active-box solve can get your account banned. Never publish a writeup of a real client engagement, a bug bounty target that has not authorized disclosure, or anything containing real names, IP addresses, or customer data. Redact hard, and when in doubt, do not post it. A portfolio that leaks a client's internal hostnames does the exact opposite of getting you hired. Document only what you own or what a platform gave you written permission to share.
+</Callout>
+
+<Exercise
+  id="portfolio-first-writeup"
+  prompt="Pick one retired Hack The Box machine or a completed TryHackMe room. Write a one-page writeup with four sections: what you enumerated, the path you took to foothold, how you escalated, and one thing you would check faster next time. Publish it somewhere with a link, then put that link on your resume."
+/>
+
+<Notes />

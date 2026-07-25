@@ -1,0 +1,40 @@
+---
+title: Even Fibonacci Sum
+summary: Add up every even Fibonacci term that stays under four million.
+track: make
+category: math
+difficulty: EASY
+tags: [fibonacci, sequences, loops]
+daily: true
+answer: 4613732
+answerType: number
+starterLang: python
+starter: |
+  # Goal: sum the even-valued Fibonacci terms that do not exceed 4,000,000.
+  # The sequence for this challenge starts 1, 2, 3, 5, 8, 13, 21, ...
+  a, b = 1, 2
+  total = 0
+  while a <= 4000000:
+      # add a to total when a is even
+      ...
+      a, b = b, a + b
+  print("replace me")
+hints:
+  - Generate terms with a running pair, advancing by a, b = b, a + b.
+  - A term is even when term % 2 == 0. Only those get added to the total.
+  - Stop as soon as a term goes above 4,000,000, then submit the total.
+---
+
+Each new term in the Fibonacci sequence is the sum of the two before it. Starting
+with 1 and 2, the first terms are:
+
+```
+1, 2, 3, 5, 8, 13, 21, 34, 55, 89, ...
+```
+
+Find the sum of every even-valued term in this sequence whose value does not
+exceed 4,000,000.
+
+Write code in the editor to build the sequence, keep a running total of the even
+terms, and stop once the terms pass 4,000,000. Run it, read the printed total,
+and submit that single number.

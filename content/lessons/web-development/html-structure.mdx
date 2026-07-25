@@ -1,0 +1,334 @@
+---
+title: "HTML: The Structure"
+module: web-development
+moduleTitle: Web Development
+moduleOrder: 2
+moduleIcon: LayoutTemplate
+order: 2
+summary: "Elements, tags, attributes, and the document skeleton: writing the HTML a browser draws, one piece at a time."
+estimatedMinutes: 16
+prerequisites: ["how-the-web-works"]
+objectives:
+  - Break an HTML element into its opening tag, content, and closing tag, and name the void elements that have no closing tag
+  - Add attributes to an element and read what a name and value pair does
+  - Nest elements correctly and see a page as a tree of parents and children
+  - Lay out the document skeleton of doctype, html, head, and body, and say what each part is for
+  - Write a small page from scratch with headings, paragraphs, links, images, lists, and a form
+tags:
+  - web
+  - html
+---
+
+In the last lesson, how-the-web-works, a browser sent a request and a server sent
+a block of text back. The browser turned that text into the page on the screen.
+That text is almost always HTML, and this lesson opens it up and writes it from
+nothing.
+
+HTML stands for HyperText Markup Language. Markup means ordinary text with labels
+wrapped around it that say what each part is: this run of words is a heading, that
+run is a paragraph, this bit is a link. The browser reads the labels and draws the
+page to match. HTML does not set color, spacing, or fonts. It states what each
+piece of content is, and stops there. How the page looks is the next lesson.
+
+## The smallest real page
+
+Here is a complete web page. Not a fragment, the whole thing:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>My First Page</title>
+  </head>
+  <body>
+    <h1>Hello</h1>
+    <p>This is a real web page.</p>
+  </body>
+</html>
+```
+
+Saved in a file named `index.html` and opened in a browser, this draws a big bold
+"Hello" with a line of normal text under it. Every part of it has a job, and the
+rest of the lesson takes those parts one at a time.
+
+## Elements and tags
+
+The building block of HTML is the element. An element is one piece of content plus
+the labels that mark where it starts and stops. Look at one line from the page
+above:
+
+```html
+<p>This is a real web page.</p>
+```
+
+That is a paragraph element, and it has three parts. `<p>` is the opening tag, the
+label that marks the start. `</p>` is the closing tag, the label that marks the
+end, and the slash is what makes it a closing tag rather than a second opening
+one. Between them sits the content, the actual words the reader sees. The browser
+reads `<p>`, understands that a paragraph is beginning, draws everything up to
+`</p>` as one paragraph, and stops.
+
+The letter inside the tag is the element's name, and it is not free to invent. `p`
+means paragraph. `h1` means top-level heading. `a` means a link. The browser only
+knows the names HTML defines, so a made-up name like `<paragraph>` draws as
+nothing, because the browser has no rule for it.
+
+Most elements come as a pair of tags like this. A few do not. An element that has
+no content of its own needs no closing tag, and these are called void elements.
+The clearest one is the line break:
+
+```html
+<br>
+```
+
+`<br>` forces a line to break at that point and does nothing else. There is no
+content to put between an opening and a closing tag, so there is only the one tag.
+The image element, coming up shortly, is the other void element worth knowing
+early.
+
+<Quiz
+  id="html-void-img"
+  question="A writer adds </img> right after an <img> tag to close it, copying the pattern of <p> and </p>. What happens?"
+  answer={1}
+  options={[
+    "The image only appears once the closing tag is added.",
+    "Nothing improves. img is a void element with no content, so it never needs a closing tag, and </img> is meaningless.",
+    "The browser shows an error and refuses to draw the page.",
+    "The image draws twice, one for each tag.",
+  ]}
+  explanation="An image carries everything it needs in its attributes and has no content between tags, so it is a void element. It is written as a single <img> tag. A </img> has nothing to close and is simply ignored."
+/>
+
+## Attributes carry the extras
+
+A tag can hold more than a name. Extra settings go inside the opening tag, and
+each one is an attribute: a named value that adjusts what the element does. An
+attribute is written as a name, an equals sign, and a value in quotes.
+
+Go back to the second line of the page:
+
+```html
+<html lang="en">
+```
+
+`html` is the element name. `lang="en"` is an attribute. Its name is `lang`, its
+value is `"en"`, and together they tell the browser and screen readers that the
+page is written in English. The value belongs in straight double quotes.
+
+Attributes matter most on elements that point at something outside themselves. A
+link has to know where it goes. An image has to know which file to show. Neither
+destination fits between tags, so both ride in attributes:
+
+```html
+<a href="https://example.com">Visit the site</a>
+<img src="cat.jpg" alt="A cat asleep on a keyboard">
+```
+
+The link element `a` uses the `href` attribute to hold the address it points to,
+and the words between its tags are what the reader clicks. The image element `img`
+uses `src` to name the file to load, and `alt` to hold a text description that
+shows if the image fails to load and that a screen reader reads aloud. `img` is a
+void element, so it keeps everything in attributes and has no closing tag. Leaving
+`alt` off is a common mistake, and it is worth adding every time, because it is the
+only thing a reader who cannot see the image ever gets from it.
+
+## Nesting builds the structure
+
+Elements go inside other elements. That is nesting, and it is how a flat run of
+text becomes a structured page. The page from the start of the lesson nests `h1`
+and `p` inside `body`, and `body` inside `html`.
+
+One rule governs nesting, and breaking it causes strange bugs. Elements close in
+the reverse of the order they opened: the last one opened is the first one closed.
+This is right:
+
+```html
+<p>Some <strong>bold</strong> text.</p>
+```
+
+The `strong` element, which marks its content as important and draws it bold,
+opens after `p` and closes before `p`. It sits fully inside the paragraph. This is
+wrong:
+
+```html
+<p>Some <strong>bold text.</p></strong>
+```
+
+Here the tags cross over each other. The browser tries to guess what was meant,
+often guesses wrong, and the page comes out mangled in a way that is hard to
+trace. Keep each element fully inside its parent.
+
+That word parent is the useful way to think about it. An element that contains
+another is the parent, the one inside is the child, and a whole page is a tree of
+these relationships branching down from a single root. The browser builds exactly
+this tree in memory as it reads the file, and every later lesson about styling or
+scripting is really about reaching into that tree.
+
+<Quiz
+  id="html-nesting"
+  question="A paragraph should contain one bold word. Which line is written correctly?"
+  answer={1}
+  options={[
+    "<strong><p>bold</strong></p>",
+    "<p><strong>bold</strong></p>",
+    "<p><strong>bold</p></strong>",
+    "<p>bold<strong></strong></p>",
+  ]}
+  explanation="The strong element must open and close entirely inside the paragraph, so it opens after <p> and closes before </p>: <p><strong>bold</strong></p>. The first and third cross their tags, and the fourth leaves strong empty, so the word is never bold."
+/>
+
+## The document skeleton
+
+Every HTML page shares the same four-part frame, and the tiny page at the top had
+all four. Each part is worth naming on its own.
+
+`<!DOCTYPE html>` is the first line of every HTML page. It is not an element, it is
+a declaration that tells the browser to read the rest as modern HTML. Leaving it
+out drops the browser into an old compatibility mode that draws some things wrong,
+so it goes at the top of every page with no exceptions.
+
+`<html>` is the root element. Everything else on the page nests inside it. It is
+the trunk of the tree.
+
+`<head>` holds information about the page that the reader does not see inside the
+window. In the example it holds two things: `<meta charset="utf-8">`, which tells
+the browser the text is stored as UTF-8 so accented letters and symbols draw
+correctly, and `<title>`, whose content is the text shown in the browser tab, not
+on the page itself. The head is for setup.
+
+`<body>` holds everything the reader actually sees: the headings, paragraphs,
+images, links, and the rest. When people talk about writing a page, they almost
+always mean writing the body.
+
+The indentation in these examples is not required. The browser ignores it
+completely. It exists so a person reading the file can see at a glance which
+element sits inside which, and it is a habit worth keeping from the first page.
+
+## The elements a page is built from
+
+A handful of elements cover most of what an ordinary page contains.
+
+Headings come in six ranks, `<h1>` down to `<h6>`. `h1` is the main title of the
+page, and a page gets one. `h2` marks major sections, `h3` marks subsections under
+those, and so on down. The numbers describe rank, not just size. Using them in
+order is what lets a screen reader build an outline of the page.
+
+Paragraphs are `<p>`, one per block of running text.
+
+Links are `<a>` with an `href`, seen already. A link is what makes the web a web:
+the `href` can point at another page on the same site or at a machine on the other
+side of the planet, and the browser treats both the same.
+
+Images are `<img>` with `src` and `alt`, seen already.
+
+Lists come in two kinds. An unordered list, `<ul>`, draws a bullet for each item
+and is for things whose order does not matter. An ordered list, `<ol>`, draws a
+number for each item and is for steps or ranks. Either way, each item inside is a
+list item, `<li>`:
+
+```html
+<ul>
+  <li>Bread</li>
+  <li>Cheese</li>
+  <li>Apples</li>
+</ul>
+```
+
+Then two elements that draw nothing of their own. `<div>` is a plain block-level
+box that groups other elements into one section stacked above the next. `<span>`
+is a plain inline box that wraps a few words inside a line without breaking it.
+Neither changes how its content looks. They exist to be grouped, named, and
+targeted later, which is exactly what the styling lesson does with them.
+
+## A form takes input
+
+Everything so far shows content to the reader. A form collects content from the
+reader: a search box, a login, a comment field. The `<form>` element wraps the
+whole thing, and the pieces inside are where text gets typed and a button gets
+pressed.
+
+```html
+<form>
+  <label for="name">Your name</label>
+  <input id="name" type="text">
+  <button type="submit">Send</button>
+</form>
+```
+
+`<input>` is the box the reader types into, and it is a void element. Its `type`
+attribute decides what kind of box it is: `type="text"` is a single line of text,
+`type="password"` hides what is typed, `type="email"` expects an address.
+`<label>` is the caption next to the box, and its `for` attribute holds the same
+value as the input's `id` attribute, which links the two so that clicking the
+label puts the cursor in the box. `<button type="submit">` is the button that
+sends the form.
+
+What a form does with the typed data, where it sends it and what comes back, is a
+later topic. The markup that collects the input is the part that belongs here.
+
+<Quiz
+  id="html-head-title"
+  question="A page's <title> says Recipes, but the reader complains the word Recipes never shows up anywhere on the page. Where did it go?"
+  answer={1}
+  options={[
+    "The title is broken and needs to move into the body.",
+    "The title lives in the head, so its text shows in the browser tab, not in the page body. This is working as designed.",
+    "The browser hid it because the page has no <h1>.",
+    "Title text only appears after a form on the page is submitted.",
+  ]}
+  explanation="The head holds information about the page rather than visible content. A <title> sets the text of the browser tab, not anything drawn in the window. To put Recipes on the page itself, it goes in the body, usually as an <h1>."
+/>
+
+## The whole page
+
+Put the pieces together and a real page falls out:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>About Me</title>
+  </head>
+  <body>
+    <h1>About Me</h1>
+    <p>I am learning to build for the web.</p>
+    <h2>Things I like</h2>
+    <ul>
+      <li>Music</li>
+      <li>Building small tools</li>
+    </ul>
+    <p>Find me on <a href="https://example.com">my site</a>.</p>
+  </body>
+</html>
+```
+
+Nothing in it is new. It is the skeleton, filled with headings, a paragraph, a
+list, and a link, each one nested where it belongs.
+
+<Exercise title="Build a page from nothing">
+Open a plain text editor, the kind that saves files without formatting, and create
+a file named `index.html`. Type the four-part skeleton first: `<!DOCTYPE html>`,
+then `<html lang="en">`, a `<head>` holding a `<meta charset="utf-8">` and a
+`<title>`, and a `<body>`. Close every tag you open.
+
+Inside the body, add an `<h1>` with a title, a `<p>` with a sentence about
+yourself, and a `<ul>` with three `<li>` items. Then add a link with
+`<a href="https://example.com">` pointing anywhere you like.
+
+Save the file and open it in a browser by dragging the file onto a browser window
+or double-clicking it. The page draws with no server and no internet, because the
+browser reads HTML straight off the disk. Change one word between two tags, save,
+and reload the tab to watch it update. If a whole section vanishes, check that
+every opening tag has a matching closing tag in the right order. A missing `</p>`
+or a crossed pair is the usual cause.
+</Exercise>
+
+This page is correct, and it is also plain. Black text, blue underlined links,
+round bullets, everything stacked in the top-left corner. HTML said what each piece
+is and went no further, on purpose. The next lesson, styling-with-css, is where the
+same markup stops looking like a document from 1994 and starts looking like
+something built.
+
+<Notes />

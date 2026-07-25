@@ -1,0 +1,92 @@
+---
+title: Storage Exposure
+module: cloud-security-fundamentals
+moduleTitle: Cloud Security Fundamentals
+moduleOrder: 29
+moduleIcon: Cloud
+order: 4
+summary: A misnamed bucket and a public ACL, and the customer database is a URL.
+estimatedMinutes: 20
+objectives:
+  - Understand the three ways an S3 bucket goes public
+  - Enumerate and check buckets and blobs for exposure
+  - Lock down storage without breaking the app that reads it
+tags:
+  - cloud
+  - s3
+  - storage
+  - buckets
+  - enumeration
+---
+
+Object storage leaks are the most common cloud breach because the failure is so easy and the payoff is so large. One bucket can hold a company's entire customer table, its backups, its source code, its internal PDFs. Flip one setting and all of it answers to an anonymous HTTP GET. No login, no exploit, just a URL.
+
+S3 is the one everybody names, but the pattern is identical on Azure Blob Storage and Google Cloud Storage. Learn S3 and you can read the other two in an afternoon.
+
+## The three ways a bucket goes public
+
+Buckets are private by default. Something has to make them public, and it is one of three things.
+
+An **ACL** (access control list) on the bucket or on individual objects granting `READ` to `AllUsers`. This is the legacy mechanism, and the reason someone runs `aws s3 cp file s3://bucket --acl public-read` and does not realize they just published it.
+
+A **bucket policy**, which is JSON like an IAM policy, with a statement allowing `s3:GetObject` to `Principal: "*"`. Sometimes that is intentional for a static website. Often it is copy-pasted from a tutorial and scoped far wider than intended.
+
+**Block Public Access** being turned off. AWS added this account-and-bucket-level switch after too many leaks. When it is on, it overrides ACLs and policies and keeps the bucket private no matter what. When someone disables it to "make the site work," they remove the safety net.
+
+## Finding buckets
+
+Bucket names live in a global namespace, and they show up in URLs, JavaScript, DNS, and Git history. That predictability is the enumeration surface. Attackers guess names from a company's naming pattern: `acme-backups`, `acme-prod-assets`, `acme-dev`.
+
+<CommandBlock
+  title="check a bucket's exposure"
+  commands={[
+    { cmd: "aws s3 ls s3://target-bucket --no-sign-request", comment: "list contents with no credentials; if it works, the bucket allows anonymous listing" },
+    { cmd: "curl -s https://target-bucket.s3.amazonaws.com/", comment: "an XML listing instead of AccessDenied means public list" },
+    { cmd: "aws s3 cp s3://target-bucket/backup.sql . --no-sign-request", comment: "public read on an object pulls the file with zero auth" },
+  ]}
+/>
+
+`--no-sign-request` is the tell. It means the request carries no credentials at all. If it returns data, the bucket is answering to the anonymous public.
+
+<Callout type="security" title="Only test buckets you own or are authorized to assess">
+Guessing and reading buckets belonging to companies you have no contract with is unauthorized access to their data, and every request is logged with your source IP. Practice against your own buckets or the flAWS.cloud challenge, which is built for exactly this. A public bucket is still someone's property; treat it like one.
+</Callout>
+
+## Auditing your own storage properly
+
+To check what you own, do not eyeball the console. Ask the API directly, and check all three mechanisms.
+
+<CommandBlock
+  title="audit account storage for public exposure"
+  commands={[
+    { cmd: "aws s3api get-public-access-block --bucket my-bucket", comment: "confirm Block Public Access is on for the bucket" },
+    { cmd: "aws s3api get-bucket-acl --bucket my-bucket", comment: "look for any grant to the AllUsers group URI" },
+    { cmd: "aws s3api get-bucket-policy --bucket my-bucket", comment: "look for Principal * with s3:GetObject" },
+  ]}
+/>
+
+<ExpectedOutput label="a Block Public Access setting you want to see">
+
+```json
+{
+    "PublicAccessBlockConfiguration": {
+        "BlockPublicAcls": true,
+        "IgnorePublicAcls": true,
+        "BlockPublicPolicy": true,
+        "RestrictPublicBuckets": true
+    }
+}
+```
+
+</ExpectedOutput>
+
+All four true is the state you want. Turn on Block Public Access at the account level and you stop the whole class of accidental exposure in one move, because it overrides any bucket that later gets a public ACL or policy.
+
+The nuance people miss: a bucket serving a public website legitimately needs some public read. Fix that with a CloudFront distribution and an origin access identity so the bucket stays private and only the CDN reads it. Public is a choice you should make on purpose, per object, never a default you drifted into.
+
+<Exercise
+  id="csf-bucket-audit"
+  prompt="In your own AWS account (free tier is fine), create a test bucket, then run get-public-access-block, get-bucket-acl, and get-bucket-policy against it. Now add a public-read bucket policy and re-run the checks. Confirm you can see the exposure in the API output before you clean it up and delete the bucket."
+/>
+
+<Notes />

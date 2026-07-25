@@ -1,0 +1,57 @@
+---
+title: The Map of Security Roles
+module: breaking-into-security
+moduleTitle: Breaking Into Security
+moduleOrder: 45
+moduleIcon: Compass
+order: 1
+summary: Security is not one job, it is a dozen jobs that barely overlap.
+estimatedMinutes: 14
+objectives:
+  - Tell red, blue, GRC, and appsec apart by what each one does all day
+  - Know which roles have the most open seats for someone breaking in
+  - Pick a starting lane that matches what you actually like doing
+tags:
+  - careers
+  - roles
+  - blue-team
+  - red-team
+  - grc
+---
+
+"I want to get into cybersecurity" is like saying "I want to get into medicine." Cardiologist, paramedic, and hospital billing all count, and they share almost none of the same day. Security is the same shape. Before you buy a cert or start a course, figure out which chair you are actually trying to sit in, because the wrong map wastes a year.
+
+The offense side is what most people picture. Penetration testers, red teamers, and exploit developers break things on purpose: you get a scope, you find the holes, you write up exactly how you got in. It is a small slice of the industry by headcount, and it is not where most people start no matter what YouTube implies. Landing an OSCP-gated red team job as your first role is the hard way in.
+
+Defense is where the jobs actually are, and it is not close. Roughly ten defensive seats exist for every offensive one. The SOC analyst is the classic front door: you watch alerts, triage what is real, and escalate what is bad. From there people branch into DFIR (digital forensics and incident response), detection engineering (writing the rules that fire the alerts), and threat hunting (chasing what the rules missed). If you want to get hired this year, look here first.
+
+## The two lanes people forget
+
+Governance, risk, and compliance is the least hands-on-keyboard on-ramp and the most underrated. You turn technical risk into business language, run audits, and map controls to frameworks like SOC 2 and PCI DSS. Demand is steady, the pay is real, and you can get in without ever popping a shell. Plenty of people who thought they wanted red team end up happier here.
+
+Application security sits between the developers and the security team. You review code, model threats, run the SAST and DAST tooling, and teach engineers to stop shipping the same bug twice. It usually expects you to have written real software first, so it tends to be a second act for developers moving into security rather than a first job.
+
+## Where you fit
+
+Be honest about what you like doing on a Saturday. If you like taking things apart and the rush of "I got in," offense fits. If you like puzzles, patterns, and catching the thing everyone else walked past, defense fits. If you like making a messy system legible and talking to humans, GRC fits.
+
+Most people should start in blue or GRC, get hired, and pivot toward offense from the inside once they understand how defenders actually think. Knowing what the SOC sees makes you a far better attacker later. The reverse rarely works.
+
+<Callout type="security" title="The offense side runs on authorization, not skill">
+The line between a penetration tester and a criminal is a signed scope document. Every offensive technique, from a port scan to a full domain takeover, is legal because a client asked for it in writing and defined what you may touch. Learn these skills on labs you own or platforms that grant permission, and never point them at a system that has not authorized you. The certificate on your wall does not make it legal. The authorization does.
+</Callout>
+
+<Quiz
+  id="roles-most-open-seats"
+  question="You want the fastest realistic path to a first security job. Which role has the most open entry-level seats?"
+  answer={1}
+  options={[
+    "Red team penetration tester",
+    "SOC analyst",
+    "Exploit developer",
+    "Red team lead",
+  ]}
+  explanation="Defensive roles outnumber offensive ones by roughly ten to one, and the SOC analyst is the standard entry point. Offense and exploit dev are small, senior-heavy fields that rarely hire someone with no experience."
+/>
+
+<Notes />

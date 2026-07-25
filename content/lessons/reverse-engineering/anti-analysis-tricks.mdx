@@ -1,0 +1,70 @@
+---
+title: Anti-Analysis Tricks
+module: reverse-engineering
+moduleTitle: Reverse Engineering
+moduleOrder: 34
+moduleIcon: Microscope
+order: 5
+summary: The binary knows you are watching, and it hides its real code and refuses to run under a debugger.
+estimatedMinutes: 22
+objectives:
+  - Recognize a packed binary from entropy and a near-empty import table
+  - Unpack the common cases and dump the real code once it is in memory
+  - Defeat ptrace-based and timing-based anti-debug checks
+tags:
+  - reverse-engineering
+  - anti-debug
+  - packing
+  - malware
+---
+
+You open a binary in Ghidra and there is almost nothing there. A tiny bit of code, a huge blob of high-entropy data, an import table with three functions instead of forty. The program is packed: the real code is compressed or encrypted on disk and only gets unpacked into memory when it runs. Packing is the first wall authors put up to slow you down, and malware uses it constantly to dodge both analysts and antivirus signatures.
+
+Spot it before you waste time. High entropy across a section is the tell, because compressed and encrypted data looks like noise while normal code has structure. A stub that unpacks then jumps to the freshly written region is the other giveaway.
+
+<CommandBlock
+  commands={[
+    { cmd: "detect-it-easy license_check", comment: "DIE names the packer: UPX, Themida, ASPack, etc." },
+    { cmd: "upx -t suspicious.exe", comment: "test whether it is UPX-packed" },
+    { cmd: "python3 -c \"import math,sys; d=open(sys.argv[1],'rb').read(); print(sum(-(d.count(b)/len(d))*math.log2(d.count(b)/len(d)) for b in set(d)))\" license_check", comment: "rough entropy; near 8.0 screams packed" },
+  ]}
+/>
+
+## Unpack the easy ones, dump the hard ones
+
+UPX is the most common packer and it unpacks itself. `upx -d packed.exe` reverses it cleanly, and a shocking amount of real-world packed malware is just UPX that the author never bothered to modify. Try it first, always.
+
+When the packer is custom or commercial, you do not reverse the packer. You let the program unpack itself, then grab the result from memory. Run it under a debugger, set a breakpoint at the moment the unpacking stub finishes and jumps to the original entry point, and dump the process memory to disk. The unpacked code is sitting right there once the stub has done its work. Tools like Scylla rebuild the import table on the dumped image so the result actually runs and disassembles.
+
+The trick is finding the jump to the real code. The stub writes decompressed bytes into a region, then transfers control with a `jmp` to an address that was empty at load time. Break on writes to that region or on the tail jump, and the instruction right after it is the original entry point.
+
+## Anti-debug, and getting past it
+
+Packing hides the code. Anti-debug stops you from watching it run. On Linux the classic is `ptrace`: a process can only be traced once, so the program calls `ptrace(PTRACE_TRACEME, 0, 0, 0)` on itself. If that call fails, a debugger already has it, and the program exits or lies about the result.
+
+<CommandCard command="catch syscall ptrace" explain="In GDB, stop on every ptrace syscall. When the self-trace check fires, force its return value to 0 with 'set $rax = 0' so the program thinks no debugger is attached and keeps running." />
+
+Set the return to 0 and the check passes. You can also patch the call out entirely with the NOP technique from the patching lesson, or preload a library that stubs `ptrace` to always return success. Any of the three works; the register override is fastest when you just want to get past it once.
+
+Timing checks are the other common family. The program reads the clock with `rdtsc` or `clock_gettime` before and after a block, and if too much wall time passed it assumes you were single-stepping and bails. You defeat these by not single-stepping through the timed region: set a breakpoint after it and let it run at full speed, so the delta stays small. If the check is inline, patch the comparison so the "too slow" branch never fires.
+
+<Callout type="security" title="Unpack malware in isolation">
+Anti-analysis is everywhere in real malware, so the moment you are unpacking or debugging a live sample you are running hostile code. Do it in a disposable VM with no network or a controlled sandbox, snapshot before you run, and never on a machine you care about. Analyze only samples you are authorized to handle.
+</Callout>
+
+The mindset that saves you: every anti-analysis trick is a check, and every check is code you can find and neutralize. The packer has to unpack to run, so the real code is always reachable in memory. The anti-debug call has to return a value, so you can force that value. Nothing here is magic. It is one more branch to flip, and you already know how to flip branches.
+
+<Quiz
+  id="anti-ptrace-bypass"
+  question="A Linux binary calls ptrace(PTRACE_TRACEME) and exits when it detects your debugger. What is the cleanest way to keep analyzing it in GDB?"
+  answer={2}
+  options={[
+    "Recompile the binary from source",
+    "Run it without any debugger and hope it prints the key",
+    "Catch the ptrace syscall and set its return value to 0",
+    "Increase the CPU clock speed so timing checks pass",
+  ]}
+  explanation="The self-trace fails because your debugger already holds the trace slot. Intercepting the ptrace syscall and forcing rax to 0 makes the program believe the call succeeded and no debugger is present, so it continues normally."
+/>
+
+<Notes />

@@ -1,0 +1,66 @@
+---
+title: Authentication vs Authorization
+module: identity-and-access-management
+moduleTitle: Identity and Access Management
+moduleOrder: 48
+moduleIcon: Fingerprint
+order: 1
+summary: "Proving who you are and being allowed to act are two separate checks. Apps skip the second one constantly."
+estimatedMinutes: 16
+objectives:
+  - Separate authentication from authorization and tell which one failed
+  - Read a 401 versus a 403 and know what each leaks to an attacker
+  - Spot broken access control by tampering with IDs and hidden endpoints
+tags:
+  - iam
+  - authentication
+  - authorization
+  - access-control
+  - idor
+---
+
+A finding I write up on almost every web assessment: the login is airtight, and you can still read every other customer's invoices by adding one to a number in the URL. bcrypt on the passwords, solid session cookies, rate limiting on the login form, and `GET /api/invoice/1043` cheerfully hands invoice `1044` to anyone who asks. That app nailed authentication and forgot authorization. They are not the same check, and confusing them is the most common access-control bug in production.
+
+Authentication answers one question: who are you. Authorization answers a different one: what are you allowed to do. You authenticate once, at the door. You authorize on every single request, at every resource, forever.
+
+The order is fixed. Resolve identity first, then decide permission. A server that has verified who you are still knows nothing about whether you may delete that particular record. Treating "holds a valid session" as "is allowed" is exactly the mistake that ships.
+
+Watch the HTTP status codes, they tell the story. A `401 Unauthorized` means the server does not know who you are: no credentials, bad token, expired session. A `403 Forbidden` means it knows exactly who you are and you still may not. Send a request with no cookie and get a 403 instead of a 401, or swap in another user's ID and get a 200 instead of a 403, and the authorization layer is broken or missing.
+
+After you authenticate, the server issues a token, a session cookie or a JWT. That token proves who on later requests. It does not prove what. Decode a JWT and you see claims like `sub` (the subject, who you are) and maybe `roles` or `scopes`. Those are hints. The server still has to enforce them against the resource, every time, or the claim is just decoration an attacker can ignore.
+
+## Where authorization breaks
+
+<CommandBlock
+  title="probe the authorization layer"
+  commands={[
+    { cmd: "curl -s http://app.local/api/invoice/1043 -H \"Cookie: session=$MINE\"", comment: "your own record, baseline 200" },
+    { cmd: "curl -s http://app.local/api/invoice/1044 -H \"Cookie: session=$MINE\"", comment: "not yours; a 200 here is IDOR" },
+    { cmd: "curl -s http://app.local/admin/users -H \"Cookie: session=$MINE\"", comment: "forced browsing; hit the route with no link to it" },
+  ]}
+/>
+
+Three classic failures. IDOR, insecure direct object reference, where the ID in the request points straight at a database row and nobody checks you own it. Forced browsing, where the admin page has no link in your UI but the route still answers when you type it. And missing function-level checks, where the frontend hides the delete button for non-admins while the `DELETE` endpoint never re-checks the role, so curl deletes anyway.
+
+The models underneath decide who gets what. RBAC, role-based, grants by role: admin, editor, viewer. ABAC, attribute-based, decides from attributes like department, record owner, or time of day. Whichever the app uses, the enforcement has to live on the server, at the resource.
+
+UI-side checks are usability, not security. If the only thing stopping a delete is a greyed-out button, there is no authorization at all, just a suggestion the browser is free to ignore.
+
+<Callout type="security" title="Authorized targets only">
+Tampering with IDs and hitting admin routes is real intrusion when the app is not yours. Keep this to a local lab or a range built for it: OWASP Juice Shop, DVWA, and PortSwigger's access-control labs all ship these exact bugs on purpose. Testing a live app you have no written scope for is unauthorized access, and walking IDs is very loud in the logs.
+</Callout>
+
+<Quiz
+  id="authn-401-403"
+  question="You send a request with no session cookie and the server returns 403 Forbidden. What does that suggest?"
+  answer={2}
+  options={[
+    "The server is correct, 403 is the right code for missing credentials",
+    "Nothing useful, 401 and 403 mean the same thing",
+    "The app is making an authorization decision without first establishing identity, since a no-credential request should be 401",
+    "The endpoint does not exist and returns 403 by default",
+  ]}
+  explanation="401 means not authenticated, 403 means authenticated but not permitted. A request carrying no credentials that comes back 403 means the app decided permission without first resolving who you are, a sign the two checks are tangled together."
+/>
+
+<Notes />

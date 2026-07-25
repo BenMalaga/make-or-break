@@ -1,0 +1,217 @@
+---
+title: Edge Cases and Thinking Like a Tester
+module: debugging-and-testing
+moduleTitle: Debugging and Testing
+moduleOrder: 5
+moduleIcon: Bug
+order: 5
+summary: "Knowing how to write a test is the easy half; knowing which inputs will break the code is where bugs get caught."
+estimatedMinutes: 15
+prerequisites: ["writing-tests-with-pytest"]
+objectives:
+  - Distinguish the happy path from the edges where bugs actually cluster
+  - List the predictable edge categories: empty, boundary, unexpected type, and large or duplicate
+  - Write pytest tests for the empty and boundary cases of a function
+  - Explain why a passing suite is a floor, not a proof of correctness
+tags:
+  - testing
+  - edge-cases
+---
+
+The last lesson, writing tests with pytest, made running a suite easy: name the files, write the
+functions, type `pytest`. It left the harder question wide open. Which tests? A function that adds two
+numbers can have a test for `2 + 3 == 5`, and that test will pass forever, and it will never catch a
+single real bug, because `2 + 3` is not where code goes wrong. Bugs do not live on the ordinary
+input. They live at the edges.
+
+The happy path is the normal, expected input: a list with a few items, a positive number, a word with
+letters in it. Code is written with the happy path in mind, so the happy path usually works. The
+edges are the inputs the author was not picturing when the code was written, and that is exactly why
+the code breaks on them. Thinking like a tester means spending the testing effort where the bugs are,
+not where they are not.
+
+## The edges cluster in predictable places
+
+The good news is that edges are not random. They gather in a handful of categories, and running down
+the list for any function surfaces most of the cases that matter.
+
+The empty case comes first: the empty list, the empty string, zero items, `None` where something was
+expected. A stunning share of real crashes are a function that assumed there was at least one thing
+and got nothing. Boundaries come next: zero, one, the first index and the last, the maximum allowed
+and one past it. This is the home of the off-by-one bug, the loop that stops one item early or runs
+one item too far, the single most common logic error in programming. Then the unexpected type or
+shape: a negative number where only positives were imagined, a float where an integer was assumed, a
+string that will not convert. Last, the large or duplicated case: a huge input that is slow, or
+repeated values a function silently assumed were unique.
+
+For any function, the tester's move is a short interrogation of its input. What is the smallest thing
+that could arrive here? The biggest? The emptiest? The weirdest? Each answer is a test worth writing,
+and each one is a place the happy-path test never looked.
+
+<Quiz
+  id="edge-happy-path"
+  question="A function passes a test for average([10, 20, 30]) but crashes in production. What is the most likely explanation?"
+  answer={1}
+  options={[
+    "The production computer runs a different version of arithmetic.",
+    "The test only covered the happy path; a real input hit an edge the test never checked, like an empty list.",
+    "pytest reported a pass that was actually a fail.",
+    "Averages cannot be tested reliably.",
+  ]}
+  explanation="A happy-path test proves the normal case works and nothing else. Production hit an edge the test skipped, most likely the empty list, which makes average divide by zero. The bug was always there; no test was watching that input."
+/>
+
+## Working an example
+
+Take a real function and run it down the list. Here is `average`, the running example from this
+module, the version that divides a total by the count.
+
+```python
+def average(scores):
+    return sum(scores) / len(scores)
+```
+
+The happy path, `average([90, 80, 100])`, returns `90.0`, and a test for it passes. Now the
+interrogation. The emptiest input is `[]`, and `sum([]) / len([])` is `0 / 0`, which raises
+`ZeroDivisionError`. That is a real bug, and the happy-path test sailed right over it. A boundary
+input is the single-item list `[42]`, whose average is `42.0`, worth pinning down because
+off-by-one mistakes love lists of length one. Written as pytest tests, the interesting cases look
+like this.
+
+```python
+import pytest
+from stats import average
+
+def test_average_normal():
+    assert average([90, 80, 100]) == 90.0
+
+def test_average_single_item():
+    assert average([42]) == 42.0
+
+def test_average_empty_raises():
+    with pytest.raises(ZeroDivisionError):
+        average([])
+```
+
+That third test is new. `pytest.raises` checks that a block of code raises a specific error, which is
+how a test asserts that bad input fails in the expected way rather than silently returning garbage.
+Running the suite against the current function shows the empty case is not handled: the code raises,
+so the test that expects a raise passes, and it documents the real behavior.
+
+<ExpectedOutput label="running the edge-case suite">
+```
+collected 3 items
+
+test_stats.py ...                                                [100%]
+
+3 passed in 0.01s
+```
+</ExpectedOutput>
+
+The three-dot pass is not the interesting part. The interesting part is that writing
+`test_average_empty_raises` forced a decision that the happy path never raised: what should this
+function do with an empty list? Crash? Return zero? Return `None`? A test on the edge does not just
+catch a bug, it drags a hidden question into the open and demands an answer.
+
+<Quiz
+  id="edge-empty-first"
+  question="For almost any function that takes a list, which edge case is worth testing first?"
+  answer={2}
+  options={[
+    "A list of exactly 100 items, since that is the average size.",
+    "A list where every item is the string &quot;test&quot;.",
+    "The empty list, because a function that assumed at least one item will often crash or misbehave on zero.",
+    "A list sorted in reverse order.",
+  ]}
+  explanation="The empty input is the highest-value edge for list functions. So much code quietly assumes there is at least one item that the empty list is where a large share of real crashes, like divide-by-zero or index errors, actually happen."
+/>
+
+## Why edges are cheap to catch here and expensive later
+
+There is an economic reason edge thinking pays off, beyond neatness. A bug found while writing a test
+costs a minute: change a line, rerun `pytest`, done. The same bug found by a user in production costs
+a great deal more, a confused report, a scramble to reproduce it, a fix pushed under pressure, and
+whatever the broken behavior did to that user's data in the meantime. The empty-list crash is the
+same bug in both places. The difference is entirely when it is found. Ten minutes of asking "what is
+the smallest, emptiest, weirdest input" up front is cheap insurance against a bad afternoon later.
+
+There is a matching piece of honesty to keep close. A green suite covers the cases that were written
+and nothing more. Testing raises the floor under code, it does not put a ceiling over the bugs.
+Skilled testers know this and aim their limited effort at the inputs most likely to break things,
+rather than chasing an impossible proof of perfection. The goal is not zero bugs, which no test can
+promise. The goal is that the bugs that survive are the strange, rare ones, not the empty list that
+anyone could have pictured. A bug that only a genuinely unusual input triggers is a fair thing to
+miss. A crash on an empty list, in code that was always going to see empty lists, is a bug that a
+single edge test would have caught and never should have shipped.
+
+## The boundary and the off-by-one
+
+Of all the edge categories, boundaries deserve their own look, because the most common logic bug in
+all of programming lives there. The off-by-one is a mistake of exactly one step: a loop that runs one
+time too many, or one too few, or a slice that grabs one element extra, or drops the last one. It
+happens because the human brain and the machine disagree about counting. People count "first,
+second, third." Computers count positions "0, 1, 2," and the last position of a list with n items is
+n minus 1, not n. That single fencepost is where an enormous share of real bugs sit.
+
+Boundaries are the inputs that sit right at the edge of a range, and they are exactly where an
+off-by-one shows itself. The first item and the last item. The empty case and the case with exactly
+one item. The maximum a function allows and the value one past it. A function that works on a list of
+five is not proof of anything at the boundaries: the interesting questions are whether it handles the
+list of one, whether it includes the last element or quietly skips it, and what it does at zero. A
+test at the boundary is worth ten tests in the comfortable middle, because the middle is where the
+code already works and the boundary is where the fencepost error hides.
+
+There is a reliable way to hunt these. For any function that walks a range or indexes a sequence, ask
+three questions in order. Does it handle the first element correctly, including a collection of just
+one? Does it handle the last element, or does it stop one short? And what happens at the empty
+boundary, zero items, where there is no first or last at all? Those three questions, asked every
+time, catch the off-by-one before it ships. They feel mechanical because they are, and mechanical is
+the point: intuition misses fenceposts, a checklist does not.
+
+The reason this matters so much is that off-by-one bugs are quiet. A loop that skips the last item
+does not crash. It returns an answer that is almost right, missing one element, and almost right is
+the hardest kind of wrong to notice by eye. Only a test that specifically checks the last element,
+comparing against a hand-computed answer, reliably catches it.
+
+<Quiz
+  id="edge-off-by-one"
+  question="Why are boundary tests, like a list of exactly one item or checking the last element, especially valuable?"
+  answer={2}
+  options={[
+    "Boundaries run faster than middle-of-range inputs.",
+    "Every function is required by Python to be tested at its boundaries.",
+    "The off-by-one, the most common logic bug, hides at boundaries, and it produces an almost-right answer that is hard to spot without a test aimed at the edge.",
+    "Boundary tests are the only tests pytest can run.",
+  ]}
+  explanation="Off-by-one errors cluster at the first and last positions and the empty case, because people and computers count differently. They do not crash; they return an answer missing or repeating one item, which the eye glides over. A test aimed straight at the boundary is what catches them."
+/>
+
+<Callout type="tip" title="Steal your edge cases from the bugs you have already hit">
+The best source of edge cases is memory. Every crash from a null value, every off-by-one, every
+"but what if the list is empty" is a category that will recur in the next function too. Keeping a
+short mental list, empty, zero, one, first, last, negative, huge, duplicate, and running any new
+function against it turns edge thinking from inspiration into a checklist. Inspiration is unreliable.
+A checklist ships.
+</Callout>
+
+<Exercise title="Interrogate a function's edges">
+Pick a small function, one of yours or a fresh one like a function that returns the first word of a
+sentence. Before writing any test, run the interrogation out loud: what is the smallest input (an
+empty string?), the boundary (a single word with no space?), the weird one (leading spaces, or a
+string that is all spaces?). Write down the answer you think the function should give for each.
+
+Now write pytest tests for those edge cases, not the happy path. Run `pytest` and watch what happens.
+If a test fails, you found a real bug the normal case hid. If a test forces you to decide what an
+empty input should return, you found a hole in the design. Either way, the edges taught you something
+the happy path never could.
+</Exercise>
+
+That closes the Programming path. It started with the first line of code in Programming Foundations,
+went deep on Python's real tools, put version control under the work with Git, gave data a home with
+SQL, and ends here, with the discipline that keeps code honest as it grows. The pieces are in place to
+build something real. The Build tab is an editor and a terminal ready to run code right now, and the
+Challenges put every one of these skills, the logic, the data structures, the debugging, the edge
+thinking, to work on problems worth solving. Go make something, then go break it on purpose to see
+if it holds.
+
+<Notes />

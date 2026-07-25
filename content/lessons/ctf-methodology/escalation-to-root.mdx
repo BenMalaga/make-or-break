@@ -1,0 +1,114 @@
+---
+title: From Foothold to Root
+module: ctf-methodology
+moduleTitle: CTF Methodology
+moduleOrder: 7
+moduleIcon: Flag
+order: 3
+summary: You have a shell. Now stabilize it, hunt from the inside, and take root.
+estimatedMinutes: 18
+objectives:
+  - Upgrade a raw shell into a usable interactive one
+  - Run the local enumeration that surfaces privesc paths
+  - Turn a misconfiguration into root and capture both flags
+tags:
+  - methodology
+  - privesc
+  - post-exploitation
+---
+
+A foothold is a low-privilege user, not a win. This is the final phase of the
+loop: stabilize the shell you fought for, enumerate the box from the inside, and
+ride one misconfiguration up to root.
+
+## Stabilize the shell first
+
+The reverse shell you caught is raw. No tab completion, no arrow keys, and one
+stray Ctrl-C kills the whole session. Upgrade it to a proper TTY before you do
+anything else, or you will lose your foothold to a fat-finger.
+
+<CommandBlock
+  title="victim@target"
+  commands={[
+    { cmd: "python3 -c 'import pty; pty.spawn(\"/bin/bash\")'", comment: "spawn a real PTY" },
+    { cmd: "export TERM=xterm", comment: "so clear and less behave" },
+  ]}
+/>
+
+<Callout type="tip" title="Full upgrade in three moves">
+After the PTY spawn, press Ctrl-Z to background the shell, run `stty raw -echo;
+fg` on your Kali box, then press Enter twice. Now you have arrow keys, tab
+completion, and Ctrl-C stays inside the target instead of killing your session.
+</Callout>
+
+## Enumerate again, from the inside
+
+Escalation starts exactly like the whole engagement started: enumerate. You now
+see the box the way a local user does, which exposes surface no port scan could.
+Check who you are, what you can run as root, and which files are misconfigured.
+
+<CommandBlock
+  title="victim@target"
+  commands={[
+    { cmd: "id", comment: "your user, your groups, any special membership" },
+    { cmd: "sudo -l", comment: "commands you can run as root, sometimes without a password" },
+    { cmd: "find / -perm -4000 -type f 2>/dev/null", comment: "SUID binaries: run as their owner, often root" },
+    { cmd: "cat /home/*/user.txt", comment: "grab the user flag while you are here" },
+  ]}
+/>
+
+## Read the permission bits like a map
+
+Half of Linux privilege escalation is spotting a file whose permissions are
+wrong for what it does. A SUID binary runs as its owner, not as you, so a SUID
+root program you can abuse is a direct path to root. Learn to read the mode
+string on sight.
+
+<Diagram type="chmod" />
+
+## Turn the misconfiguration into root
+
+Say `sudo -l` reports you may run `find` as root without a password. `find` can
+execute commands, so it hands you a root shell. This is the pattern for the
+whole phase: a legitimate tool, running with privilege it should not lend you,
+pointed at a shell.
+
+<CommandBlock
+  title="victim@target"
+  commands={[
+    { cmd: "sudo find . -exec /bin/bash \\; -quit", comment: "find runs bash as root because sudo lets it" },
+    { cmd: "id", comment: "confirm uid=0(root)" },
+    { cmd: "cat /root/root.txt", comment: "the flag that ends the box" },
+  ]}
+/>
+
+<Callout type="security" title="GTFOBins is your cheat sheet">
+When enumeration hands you a binary you can run as root, do not guess how to
+abuse it. Look it up on GTFOBins, which catalogs the exact one-liner that turns
+each common binary into a shell, a file read, or a write. Half of easy-box roots
+are a copy-paste from that site.
+</Callout>
+
+<Quiz
+  id="privesc-first-step"
+  question="You just caught a raw reverse shell as a low-privilege user. What is the very first thing you do?"
+  answer={0}
+  options={[
+    "Stabilize it into a proper TTY so you do not lose it",
+    "Run every exploit you can find at once",
+    "Delete the logs",
+    "Reboot the target",
+  ]}
+  explanation="A raw shell is fragile; one Ctrl-C ends it. Upgrade to a real PTY before you enumerate or exploit, so a stray keystroke does not cost you the foothold."
+/>
+
+<Exercise
+  id="sudo-check"
+  prompt="Which one command lists the programs your current user may run as root, and is the first privesc check to run?"
+  answer="sudo -l"
+  placeholder="one command"
+>
+It asks sudo to list your allowed commands rather than run one.
+</Exercise>
+
+<Notes />

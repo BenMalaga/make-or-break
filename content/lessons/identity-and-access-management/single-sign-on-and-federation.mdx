@@ -1,0 +1,66 @@
+---
+title: SSO and Federation
+module: identity-and-access-management
+moduleTitle: Identity and Access Management
+moduleOrder: 48
+moduleIcon: Fingerprint
+order: 2
+summary: "One login for everything sounds simple. The trust that makes it work is where it breaks."
+estimatedMinutes: 18
+objectives:
+  - Tell SAML, OAuth 2.0, and OIDC apart and know which one authenticates
+  - Explain the signed-assertion trust that federation rests on
+  - Name the attack classes that fall out of a skipped validation step
+tags:
+  - iam
+  - sso
+  - saml
+  - oidc
+  - oauth
+---
+
+You click "Sign in with Google" on Slack and you are in, no Slack password ever typed. That is federation doing its job: Slack trusts Google to vouch for who you are. Get the trust wrong and one forged token logs an attacker into every connected app at once, which is why this is worth understanding cold rather than as a vendor diagram.
+
+Two words people use loosely. SSO, single sign-on, means one authentication gets you into many apps. Federation is SSO that crosses an organizational or domain boundary: your company's identity provider vouching for you to a third-party SaaS it does not control. All federation is SSO. Not all SSO is federated.
+
+Three protocols get conflated constantly, and the difference is the whole lesson. SAML is the old enterprise workhorse, XML-based, assertions posted through the browser. OAuth 2.0 is not authentication at all, it is delegated authorization: it hands an app an access token to call an API on your behalf. OIDC, OpenID Connect, is a thin authentication layer built on top of OAuth 2.0 that adds an `id_token`, a signed JWT that actually states who you are.
+
+The classic mistake is using an OAuth access token as proof of identity. An access token says "the bearer may call this API." It says nothing about who the bearer is. Apps that read an access token and log you in as whoever it belongs to get bitten by token substitution: swap in a token minted for a different client and you can end up authenticated as someone else. OIDC exists precisely because OAuth was never designed to answer "who are you."
+
+## The trust is a signature
+
+Roles first. The IdP, identity provider, is who vouches: Okta, Entra ID, Google, Ping. The SP or RP, service provider or relying party, is the app that trusts them. The whole model rests on the SP validating a signature the IdP produced with its private key.
+
+In SAML the IdP returns a signed assertion, and the SP has real work to do. Check the `ds:Signature` against the IdP's certificate. Check that `Audience` names this SP and not some other one. Check that `NotOnOrAfter` has not passed and that `InResponseTo` ties back to a request it actually sent. Skip any of those and you have a hole someone will find.
+
+<CommandBlock
+  title="crack open a captured SAMLResponse"
+  commands={[
+    { cmd: "echo $SAMLRESPONSE | base64 -d > resp.xml", comment: "the SAMLResponse form field is base64" },
+    { cmd: "xmllint --format resp.xml | less", comment: "read the Assertion, Audience, Conditions, Signature" },
+    { cmd: "grep -c ds:Signature resp.xml", comment: "zero signatures on the assertion is a finding by itself" },
+  ]}
+/>
+
+The attack classes follow directly from that checklist. Unsigned assertions accepted, because the SP never enforced a signature at all. XML signature wrapping, XSW, where you keep the signed element technically valid but add a second unsigned assertion that the parser reads instead of the real one. Golden SAML, where an attacker who has stolen the IdP signing key forges assertions for any user, and no password reset helps because the key itself is trusted.
+
+On the OAuth and OIDC side the failures are their own family. A loose `redirect_uri` allowlist that lets you send the authorization code to a host you control. An `id_token` whose `nonce`, `iss`, and `aud` the relying party never bothers to check, so a token from another issuer or replayed from another session sails through.
+
+<Callout type="security" title="Test in your own tenant">
+Forging assertions and tampering with redirect flows against a live IdP is an attack on production identity infrastructure. Build the lab instead: stand up a Keycloak or SimpleSAMLphp IdP, wire a test SP to it, and break that. Burp's SAML Raider extension replays and mutates assertions safely against a target you control, and PortSwigger has OAuth and SAML labs for exactly this.
+</Callout>
+
+<Quiz
+  id="oauth-vs-oidc"
+  question="An app logs users in by reading the OAuth access token it receives and trusting whatever user it maps to. Why is that a problem?"
+  answer={0}
+  options={[
+    "An access token proves authorization to call an API, not identity, so a token minted for another client can impersonate a user",
+    "Access tokens expire too quickly to be useful for login",
+    "OAuth cannot carry any user information at all",
+    "The access token is not encrypted in transit",
+  ]}
+  explanation="OAuth 2.0 grants authorization, not authentication. The access token means the bearer may call an API, not that they are a specific verified person. OIDC adds the id_token for identity precisely so apps stop misusing access tokens as proof of who someone is."
+/>
+
+<Notes />

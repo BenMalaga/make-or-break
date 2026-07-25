@@ -1,0 +1,340 @@
+[
+  {
+    "domain": 4,
+    "question": "A security analyst is hardening a fleet of Windows servers and wants to reduce the attack surface by turning off features that are not required for the servers' role. Which action best represents this hardening principle?",
+    "options": [
+      "Enabling full-disk encryption on every server",
+      "Disabling unused services, ports, and default accounts",
+      "Deploying an endpoint detection and response agent",
+      "Scheduling weekly vulnerability scans against the servers"
+    ],
+    "correct": [1],
+    "explanation": "Reducing the attack surface means removing or disabling anything not needed, such as unused services, open ports, and default accounts. Full-disk encryption protects data at rest, EDR adds detection, and scanning finds flaws, but none of those are the core hardening act of minimizing the attack surface.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "An organization wants to ensure that all new mobile devices enrolled by employees automatically receive the corporate security baseline, application restrictions, and remote-wipe capability. Which solution most directly provides this?",
+    "options": [
+      "A mobile device management (MDM) platform",
+      "A network access control (NAC) appliance",
+      "A cloud access security broker (CASB)",
+      "A host-based intrusion prevention system (HIPS)"
+    ],
+    "correct": [0],
+    "explanation": "MDM enforces baselines, app restrictions, and remote wipe on enrolled mobile devices. NAC controls network admission, a CASB governs cloud service usage, and HIPS protects a single host, so none of those centrally manage mobile device configuration and wipe.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A vulnerability scanner reports that a web server is vulnerable to a critical remote code execution flaw. After manual investigation, the analyst confirms the affected library is not actually loaded and the flaw cannot be triggered. How should this finding be classified?",
+    "options": [
+      "True positive",
+      "False positive",
+      "True negative",
+      "False negative"
+    ],
+    "correct": [1],
+    "explanation": "The scanner flagged a vulnerability that does not really exist in an exploitable form, which is a false positive. A true positive would be a real, confirmed flaw; a false negative is a real flaw the scanner missed; and a true negative is correctly reporting no issue.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "During vulnerability management, an organization decides not to remediate a low-severity finding on an isolated legacy system because the cost of fixing it exceeds the potential impact, and leadership formally accepts the exposure. Which response category does this represent?",
+    "options": [
+      "Remediation",
+      "Mitigation",
+      "Exception and risk acceptance",
+      "Validation"
+    ],
+    "correct": [2],
+    "explanation": "Formally documenting and accepting a residual exposure rather than fixing it is an exception with risk acceptance. Remediation fully fixes the flaw, mitigation reduces impact through compensating controls, and validation confirms a fix worked.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A CVSS base score is reported as 9.1 for a newly disclosed vulnerability. Which statement about this score is correct?",
+    "options": [
+      "It reflects the likelihood of exploitation observed in the wild",
+      "It represents the intrinsic severity of the vulnerability on a 0 to 10 scale",
+      "It is a percentile ranking derived from EPSS data",
+      "It measures the financial loss expected from a single exploit"
+    ],
+    "correct": [1],
+    "explanation": "The CVSS base score expresses the intrinsic severity of a vulnerability on a 0 to 10 scale, independent of environment or real-world activity. EPSS estimates exploitation likelihood, and neither CVSS nor EPSS quantifies financial loss.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An incident response team has just identified that a workstation is actively communicating with a command-and-control server and exfiltrating data. According to the standard incident response process, what should the team do next?",
+    "options": [
+      "Begin lessons-learned documentation",
+      "Contain the incident by isolating the affected host",
+      "Restore the workstation from a known-good backup",
+      "Perform root-cause analysis of the malware"
+    ],
+    "correct": [1],
+    "explanation": "After detection and analysis identify an active compromise, containment (isolating the host) is the immediate next step to stop the bleeding. Recovery, root-cause analysis, and lessons learned all come after the threat is contained.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Order-of-volatility guidance is being followed while collecting digital evidence from a running server. Which source should be collected first?",
+    "options": [
+      "Data on the hard disk drive",
+      "Archived logs on a remote backup server",
+      "CPU cache and contents of RAM",
+      "Data stored on optical media"
+    ],
+    "correct": [2],
+    "explanation": "The order of volatility dictates capturing the most ephemeral data first, and CPU cache and RAM are the most volatile because they are lost on power-down. Disk, remote backups, and optical media are far more persistent and are collected later.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A forensic investigator images a suspect drive, then generates a SHA-256 hash of both the original and the copy, recording the values in the case file. What is the primary purpose of this step?",
+    "options": [
+      "To encrypt the evidence so it cannot be read by unauthorized parties",
+      "To compress the image so it consumes less storage",
+      "To preserve integrity and prove the copy was not altered",
+      "To establish legal hold on the original device"
+    ],
+    "correct": [2],
+    "explanation": "Matching cryptographic hashes prove the forensic copy is identical to the original and has not been altered, preserving evidence integrity. Hashing does not encrypt or compress data, and legal hold is a separate preservation obligation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An analyst must document every person who handled a piece of evidence, along with the date, time, and purpose of each transfer, from collection through court presentation. Which forensic concept does this describe?",
+    "options": [
+      "Chain of custody",
+      "Legal hold",
+      "E-discovery",
+      "Data provenance"
+    ],
+    "correct": [0],
+    "explanation": "Chain of custody is the documented record of who handled evidence, when, and why, ensuring admissibility. Legal hold preserves data from deletion, e-discovery is the process of producing electronic data for litigation, and provenance describes data origin.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A SIEM is configured to collect logs from firewalls, servers, and endpoints, then normalize and correlate them to detect a brute-force attack that spans multiple systems. Which SIEM capability makes detecting this multi-source pattern possible?",
+    "options": [
+      "Log aggregation from a single source",
+      "Event correlation across normalized data",
+      "Full-disk encryption of the log store",
+      "Automated patch deployment"
+    ],
+    "correct": [1],
+    "explanation": "Correlation across normalized events from many sources lets a SIEM connect related activity, such as repeated failed logins on multiple hosts, into a single detectable pattern. Single-source aggregation alone would miss the cross-system view, and encryption and patching are unrelated functions.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A security team wants to reduce repetitive manual work by automatically enriching alerts, opening tickets, and quarantining hosts based on predefined playbooks that tie together their SIEM, EDR, and ticketing tools. Which technology is designed for this?",
+    "options": [
+      "SOAR (security orchestration, automation, and response)",
+      "DLP (data loss prevention)",
+      "UEBA (user and entity behavior analytics)",
+      "IPS (intrusion prevention system)"
+    ],
+    "correct": [0],
+    "explanation": "SOAR platforms orchestrate multiple tools and run automated playbooks to enrich, ticket, and respond to alerts. DLP prevents data exfiltration, UEBA baselines behavior for anomaly detection, and an IPS blocks malicious traffic inline, none of which orchestrate cross-tool playbooks.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An administrator is designing access controls and wants users to receive only the permissions strictly necessary to perform their job functions. Which principle is being applied?",
+    "options": [
+      "Separation of duties",
+      "Least privilege",
+      "Implicit deny",
+      "Mandatory vacation"
+    ],
+    "correct": [1],
+    "explanation": "Granting only the minimum permissions needed is the principle of least privilege. Separation of duties splits sensitive tasks across people, implicit deny blocks anything not explicitly allowed, and mandatory vacation is a fraud-detection control.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A company assigns permissions to job titles such as Accountant and HR Specialist, and users inherit permissions by being placed into the matching group. Which access control model is in use?",
+    "options": [
+      "Discretionary access control (DAC)",
+      "Mandatory access control (MAC)",
+      "Role-based access control (RBAC)",
+      "Attribute-based access control (ABAC)"
+    ],
+    "correct": [2],
+    "explanation": "Assigning permissions to defined roles that users inherit is role-based access control. DAC lets owners set permissions directly, MAC uses labels and clearances, and ABAC evaluates dynamic attributes such as time, location, or device.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An enterprise wants to grant conditional access that evaluates the user's department, the sensitivity label of the resource, the time of day, and the device's compliance status before allowing a request. Which access control model best fits these dynamic, multi-factor policies?",
+    "options": [
+      "Role-based access control (RBAC)",
+      "Rule-based access control",
+      "Attribute-based access control (ABAC)",
+      "Discretionary access control (DAC)"
+    ],
+    "correct": [2],
+    "explanation": "ABAC makes decisions by evaluating multiple attributes of the subject, resource, action, and environment, which matches this dynamic policy. RBAC keys off static roles, rule-based control applies fixed rules like ACLs, and DAC relies on owner discretion.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A user signs in once to an identity provider and is then able to access multiple cloud applications without re-entering credentials, using SAML assertions passed to each service provider. Which capability does this describe?",
+    "options": [
+      "Multifactor authentication",
+      "Single sign-on (SSO)",
+      "Privileged access management",
+      "Federation certificate pinning"
+    ],
+    "correct": [1],
+    "explanation": "Authenticating once and gaining access to many applications is single sign-on, commonly implemented with SAML assertions between an identity provider and service providers. MFA adds authentication factors, and PAM governs privileged accounts, neither of which describes the single sign-on behavior.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An organization implements a password vault that checks out temporary, time-limited credentials for administrators, records their privileged sessions, and rotates the passwords after each use. Which solution provides this?",
+    "options": [
+      "Privileged access management (PAM)",
+      "Single sign-on (SSO)",
+      "Identity provider (IdP) federation",
+      "Self-service password reset"
+    ],
+    "correct": [0],
+    "explanation": "Just-in-time credential checkout, session recording, and automatic password rotation for admin accounts are hallmark features of privileged access management. SSO streamlines everyday logins, federation extends identity across domains, and self-service reset lets users recover their own passwords.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A security engineer wants an authentication factor drawn from the something-you-are category. Which of the following qualifies? (Choose two.)",
+    "options": [
+      "A fingerprint scan",
+      "A hardware security key",
+      "Facial recognition",
+      "A one-time code sent via SMS"
+    ],
+    "correct": [0, 2],
+    "explanation": "Fingerprint scanning and facial recognition are biometric factors, which fall under something you are. A hardware key is something you have, and an SMS one-time code is also something you have (possession of the phone), so neither is a biometric factor.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Security personnel deliberately deploy a decoy server that appears to hold valuable data but is isolated and heavily monitored, so that any interaction with it is treated as suspicious. What is this called?",
+    "options": [
+      "A honeypot",
+      "A jump server",
+      "A sandbox",
+      "A bastion host"
+    ],
+    "correct": [0],
+    "explanation": "A honeypot is a decoy resource designed to attract and observe attackers, where any interaction is inherently suspect. A jump server and bastion host are hardened administrative gateways, and a sandbox is an isolated environment for safely executing untrusted code.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A patch has been released for a critical vulnerability. Following change and configuration management best practices, what should the team do before deploying the patch broadly across production?",
+    "options": [
+      "Deploy it immediately to all systems to close the gap fastest",
+      "Test the patch in a staging environment and follow the change management process",
+      "Wait for the next quarterly maintenance window regardless of severity",
+      "Disable the vulnerability scanner to avoid duplicate alerts"
+    ],
+    "correct": [1],
+    "explanation": "Best practice is to test patches in a staging or test environment and route them through change management to avoid unplanned outages. Blind mass deployment risks breaking production, delaying a critical fix for a quarter ignores severity, and disabling the scanner hides the problem.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "An analyst wants a scanning approach that authenticates to target systems with valid credentials so it can inspect installed patches, registry settings, and configuration details from the inside. Which scan type is this?",
+    "options": [
+      "Non-credentialed scan",
+      "Credentialed scan",
+      "Passive network scan",
+      "Port scan"
+    ],
+    "correct": [1],
+    "explanation": "A credentialed scan logs into the host to inspect internal configuration, patch levels, and settings, producing far more accurate results with fewer false positives. Non-credentialed scans see only the external view, passive scans just observe traffic, and a port scan only enumerates open ports.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A monitoring team wants to detect insider threats by building behavioral baselines for each user and flagging deviations, such as an accountant suddenly accessing engineering source code at 3 a.m. from a new location. Which technology is best suited to this?",
+    "options": [
+      "Signature-based antivirus",
+      "User and entity behavior analytics (UEBA)",
+      "Static application security testing (SAST)",
+      "Network time protocol (NTP) monitoring"
+    ],
+    "correct": [1],
+    "explanation": "UEBA builds behavioral baselines for users and entities and flags anomalous deviations, ideal for insider-threat detection. Signature-based antivirus matches known malware, SAST analyzes source code for flaws, and NTP monitoring tracks time synchronization.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "During the recovery phase of an incident, an organization rebuilds compromised systems and restores data from clean backups. Before returning systems to production, what is the most important verification to perform?",
+    "options": [
+      "Confirm the systems are patched and the threat has been fully eradicated",
+      "Rotate the SSL certificate on the load balancer",
+      "Increase the SIEM log retention period",
+      "Notify the marketing department of the outage"
+    ],
+    "correct": [0],
+    "explanation": "Before restoring systems to production, the team must verify eradication is complete and systems are patched so the same compromise does not immediately recur. Certificate rotation, log retention changes, and internal notifications are not the core recovery-verification step.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A company uses a threat intelligence feed that automatically distributes indicators of compromise, such as malicious IP addresses and file hashes, to its firewalls and EDR in a structured, machine-readable format. Which pair of standards is most associated with sharing this threat intelligence?",
+    "options": [
+      "STIX and TAXII",
+      "SAML and OAuth",
+      "SNMP and NetFlow",
+      "RADIUS and TACACS+"
+    ],
+    "correct": [0],
+    "explanation": "STIX defines the structured format for threat intelligence and TAXII is the transport protocol for exchanging it, making them the standard pairing for automated IoC sharing. SAML and OAuth handle authentication and authorization, SNMP and NetFlow handle network monitoring, and RADIUS and TACACS+ are AAA protocols.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A team is deciding which vulnerabilities to remediate first. Two flaws share the same CVSS base score, but threat intelligence shows one is being actively exploited in the wild while the other has no known exploit. How should prioritization account for this?",
+    "options": [
+      "Both should be treated identically because their CVSS scores are equal",
+      "The actively exploited vulnerability should be prioritized higher based on threat context",
+      "The one with no known exploit should be fixed first to prevent future attacks",
+      "Neither should be remediated until the next scheduled maintenance window"
+    ],
+    "correct": [1],
+    "explanation": "Prioritization should incorporate real-world threat context, so an actively exploited flaw is more urgent than an equally scored one with no exploit activity. Treating them identically ignores exploitability, deprioritizing the exploited one is backwards, and deferring both ignores active risk.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "An administrator wants to ensure that every host on the corporate network conforms to a documented secure baseline and that configuration drift is automatically detected and corrected. Which practice best supports this ongoing goal?",
+    "options": [
+      "One-time hardening during initial deployment only",
+      "Automated configuration management with baseline enforcement",
+      "Quarterly manual spot checks of a few random machines",
+      "Relying on users to report misconfigurations"
+    ],
+    "correct": [1],
+    "explanation": "Automated configuration management continuously enforces a defined baseline and remediates drift, keeping systems compliant over time. One-time hardening ignores drift, occasional manual spot checks are incomplete, and depending on user reports is unreliable.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A financial firm requires that no single employee can both create a vendor record and approve payments to that vendor, to reduce fraud. Which control is being enforced?",
+    "options": [
+      "Least privilege",
+      "Separation of duties",
+      "Job rotation",
+      "Time-of-day restrictions"
+    ],
+    "correct": [1],
+    "explanation": "Requiring two different people for creating vendors and approving payments is separation of duties, which prevents any one person from completing a fraudulent transaction alone. Least privilege limits permissions generally, job rotation moves staff between roles, and time-of-day restrictions limit when access is allowed.",
+    "difficulty": "MEDIUM"
+  }
+]

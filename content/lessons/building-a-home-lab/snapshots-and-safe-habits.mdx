@@ -1,0 +1,172 @@
+---
+title: Snapshots and Safe Habits
+module: building-a-home-lab
+moduleTitle: Building a Home Lab
+moduleOrder: 42
+moduleIcon: FlaskConical
+order: 5
+summary: "Snapshot before you break it, keep notes on the host, keep real credentials out, keep the lab sealed, and rebuild anything you can no longer trust."
+estimatedMinutes: 16
+prerequisites: ["why-you-need-a-lab", "choosing-virtualization", "networking-your-lab", "stocking-it-with-targets"]
+objectives:
+  - Take a snapshot before every destructive action and roll a target back to a clean state in seconds
+  - Explain how copy-on-write differencing disks make rollback fast, and why a snapshot is not a backup
+  - Keep lab-only credentials so a compromised target can never reach a real account
+  - Hold the lab's isolation as it grows and verify it with a reachability check
+  - Decide when a box is too contaminated to trust and rebuild it from a clean baseline
+tags:
+  - lab
+  - snapshots
+  - safety
+  - authorization
+---
+
+Stocking It With Targets left a shelf of deliberately broken machines in the lab and one attacker box aimed at them. Every target on that shelf is built to fall over. The point of the lab was always to knock them down on purpose, read the wreckage, and do it again tomorrow.
+
+That only works if two things are true. Breaking a machine has to be free, so that a ruined target costs a few seconds instead of an evening. And the breaking has to stay inside the lab, so that a practice compromise never becomes a real one. This lesson is the set of habits that buy both.
+
+## An undo button for the whole machine
+
+The single habit that changes how the lab feels is the snapshot. A snapshot is a saved copy of a virtual machine's state at one instant: the contents of its virtual disk, and, if the machine was running when the snapshot was taken, the contents of its memory too. Roll back to a snapshot and the machine returns to exactly that instant. Every file written since is gone. Every process started since is gone. If memory was captured, the machine even resumes mid-run, cursor blinking where it sat.
+
+The reason a rollback finishes in seconds instead of recopying a whole disk is worth understanding, because it also explains the one way snapshots bite back. When VirtualBox takes a snapshot, it does not duplicate the disk. It freezes the current disk image as read-only and creates a small second image, a differencing disk, beside it. From that moment every write the machine makes lands in the differencing disk, and the frozen base is never touched again. This is copy-on-write: the original data stays put, and only changes get written somewhere new. Rolling back means discarding the differencing disk and pointing the machine back at the untouched base. Nothing was overwritten, so nothing has to be restored.
+
+That design has a tail. Each new snapshot adds another differencing layer, and reading a block means walking down the chain to find the newest version of it. A tower of forty snapshots is slow and eats disk, since every layer holds its own changes. The fix is to take snapshots deliberately and delete the ones a practice run has finished with. Deleting a snapshot from the middle of a chain loses no data; VirtualBox merges that layer's changes down into the layer below it.
+
+Two moments earn a snapshot every time. The first is right after a target is installed, updated, and confirmed working, before anything has been run against it. This is the clean baseline, and it is the reset button for the life of that machine. The second is right before running something destructive: an exploit that might corrupt the filesystem, a piece of malware to be studied, a config change to be tested three different ways. That one is the undo for a single experiment.
+
+<CommandCard
+  command='VBoxManage snapshot "target01" take clean-baseline'
+  title="virtualbox"
+  explain="Saves the target's current state under the name clean-baseline. A --description flag can annotate why the snapshot was taken. Run this once, after the machine is set up and before it has been attacked, for a reset point that lasts the machine's whole life."
+/>
+
+A second snapshot, taken with the same command under a name like `pre-exploit`, marks the point to return to after one risky experiment. Listing the snapshots shows how they stack.
+
+<CommandCard
+  command='VBoxManage snapshot "target01" list'
+  title="virtualbox"
+  explain="Prints the snapshot tree for one VM. Indentation shows which snapshot descends from which, and the asterisk marks the state the machine is currently based on."
+/>
+
+<ExpectedOutput label='VBoxManage snapshot "target01" list after two snapshots'>
+```
+   Name: clean-baseline (UUID: 5b6a1f2c-...)
+      Name: pre-exploit (UUID: 9c2f77ad-...) *
+```
+UUIDs are random per machine and are shortened here.
+</ExpectedOutput>
+
+Rolling back is one command, and it is the move that makes destructive practice cost nothing.
+
+<CommandCard
+  command='VBoxManage snapshot "target01" restore clean-baseline'
+  title="virtualbox"
+  explain="Discards everything written since the named snapshot and returns the machine to it. Seconds later the target is pristine, whatever an exploit did to it in the meantime."
+/>
+
+<Callout type="security" title="A snapshot is not a backup">
+A snapshot lives inside the same VM, on the same disk, in the same differencing chain. If that disk fails or the VM's files corrupt, every snapshot on it dies at the same moment. For anything that would actually hurt to lose, a custom target built by hand or a folder of notes, copy it off the machine: `VBoxManage export` writes a portable appliance file, and a plain file copy works too. Snapshots are a fast undo. They are not a second copy.
+</Callout>
+
+<Quiz
+  id="snap-rollback-semantics"
+  question="A target sits at its clean-baseline snapshot. Someone boots it, runs an exploit that deletes half the filesystem, saves a text file of notes onto the target's desktop, then runs restore clean-baseline. What state is the machine in afterward?"
+  answer={1}
+  options={[
+    "The deleted files are back and the notes file is also there.",
+    "The deleted files are back and the notes file is gone, because rollback discards everything written since the snapshot.",
+    "The filesystem stays deleted, since restore only reloads memory.",
+    "Nothing changes until the differencing disk is merged by hand.",
+  ]}
+  explanation="Rollback throws away the differencing disk that holds every write made since the snapshot, the exploit's damage and the notes alike. The damage vanishes and so do the notes. That is exactly why notes never live on the target."
+/>
+
+## Notes live on the host, not the target
+
+The vanishing notes file is not a footnote. It is the reason notes never live on a target at all. Roll a box back and anything saved on it is gone, which is fine for the box and fatal for a record of what just happened.
+
+An exploit that works once and cannot be reproduced taught almost nothing. The value is in running it again, changing one variable, and watching what moves. That takes a written record made while the details are fresh: the target's name and address, the snapshot it was on, the exact command typed, the output that came back, and the one detail that finally made it work. Memory does not hold this. A week later the difference between the command that worked and the four that did not is simply gone.
+
+Notes belong on the host, the machine running the hypervisor, in plain text or Markdown, one folder per target. The host is not on the isolated network, does not get rolled back, and does not run the hostile code, so it is the one place a record stays safe. Those notes are also the raw material for real work later. A security report is mostly careful notes with the guesswork removed, and the habit of keeping them starts here, not on the day someone pays for the writeup.
+
+## Keep the lab and real life apart
+
+The lab has two boundaries worth guarding, and they fail in opposite directions. One is the lab reaching out to the internet. The other is the lab reaching into a real account. Both reduce to the same rule: nothing in the lab should be able to touch anything that matters.
+
+Networking Your Lab put the targets on an isolated segment with no path to the router or the internet. That isolation is not a one-time setting; it erodes. Six months in there are ten VMs, one got flipped to bridged to pull down a file and never flipped back, and now a machine running known-vulnerable software has a route onto the home network and out to the world. A vulnerable box with internet access is not a lab any more. It is a liability that can be found, compromised by someone else entirely, and used as a foothold, all without the owner noticing.
+
+The cheap defense is to re-run the reachability check from Networking Your Lab now and then. From inside a target, try to reach a well-known public address. On a properly sealed machine there is no route to it at all.
+
+<CommandCard
+  command="ping -c2 8.8.8.8"
+  title="linux"
+  explain="Sent from inside a target, this tries to reach a public address (8.8.8.8 is a Google DNS server). In a sealed lab it must fail. A success means that VM found a way to the internet, and its network adapter needs fixing before anything else runs on it."
+/>
+
+<ExpectedOutput label="ping from a correctly isolated target">
+```
+ping: connect: Network is unreachable
+```
+The exact wording varies by ping version. The phrase that matters is Network is unreachable.
+</ExpectedOutput>
+
+That message means the machine's own routing table has no way to send a packet toward `8.8.8.8`, which is the cleanest possible sign of isolation. A weaker failure, a long pause ending in `100% packet loss`, means the packet left but nothing answered; that only proves this one address stayed quiet, not that the box has no route out. The unreachable message is the one to want.
+
+Two small habits keep a growing lab legible. Machine names should make each role obvious, `target-web-dvwa` sitting next to `attacker-kali`, so the box being attacked is never confused with the box doing the attacking. And targets not in use should be powered off, both to free memory and to shrink the number of intentionally broken machines sitting live.
+
+The other boundary is the one people forget. A target exists to be compromised, which means at some point untrusted code will run as a privileged user on it, reading whatever is in memory and on disk. From then on, every secret ever entered on that box counts as known to an attacker. So the lab gets its own throwaway credentials and nothing else. Credentials are the username-and-secret pairs that prove identity to a system, and the whole danger is reuse. That means lab-only logins, never the real email password, never a reused account, never the SSH key, the cryptographic file that logs into a real server without a password. Feed a lab a secret that also works somewhere real, and a practice compromise quietly becomes a real one. Fresh junk passwords, generated per lab machine and kept in the lab, are the whole practice.
+
+<Quiz
+  id="lab-credential-reuse"
+  question="Why should credentials used on lab machines never match any real account, even though the lab is supposed to be sealed off from the internet?"
+  answer={1}
+  options={[
+    "Isolation guarantees nothing ever leaves, so matching credentials are fine in practice.",
+    "Isolation can slip and downloaded targets can carry real malware, so reused credentials turn any such slip into a real-account compromise, while lab-only credentials cap the damage at the lab.",
+    "The hypervisor logs every password typed into a guest and could leak them.",
+    "Long real passwords slow down the exploits used for practice.",
+  ]}
+  explanation="Isolation is a control, and controls fail. Vulnerable targets sometimes carry genuinely hostile code. Lab-only credentials mean the worst case is a burned lab account, not a real one. The isolation and the credential separation each cover the other's failure."
+/>
+
+## When a box is dirty, rebuild it
+
+Sometimes rolling back is not enough, and the honest move is to destroy the machine and build it again. This is the call when a box is contaminated: something ran on it that could still be running, hiding, or lying about its own presence. The clearest case is a rootkit, software that buries itself deep in a system, hands an attacker ongoing privileged access, and actively hides from the tools that would find it. A machine that has hosted a rootkit cannot be inspected clean, because the very tools used to inspect it are the ones the rootkit has learned to fool.
+
+The instinct to clean a dirty box, delete the bad file, kill the process, patch the hole, is the wrong instinct in a lab and a dangerous one in the real world. If code ran with enough privilege, there is no way to prove afterward that it left nothing behind. The trustworthy state is not a cleaned machine. It is a machine rebuilt from a known-good starting point.
+
+In the lab this is not expensive, which is the whole reason to practice it here. Restoring to the clean-baseline snapshot takes the contamination away with the differencing disk that held it. If the baseline itself is in doubt, because a downloaded target never sat right from the start, the move is to delete the VM and rebuild from the original image, re-checking its hash the way Stocking It With Targets described. Getting fluent with rebuild-instead-of-clean where a rebuild costs ten minutes is what makes the same call obvious later, when the contaminated machine is a production server and cleaning it is the tempting, wrong shortcut.
+
+<Quiz
+  id="rootkit-rebuild"
+  question="A target was used to study a rootkit. Its known files have been deleted and its process killed. Can the machine now be trusted as clean?"
+  answer={1}
+  options={[
+    "Yes. Once the known files and process are gone, the system is clean.",
+    "No. A rootkit hides itself and can outlive the removal of its known parts, and the tools checking for it are the ones it fools, so the trustworthy move is to rebuild from a known-good baseline.",
+    "Yes, but only after a reboot clears memory.",
+    "It can never be known either way, so cleaning and rebuilding are the same.",
+  ]}
+  explanation="Deleting the parts you can see does not prove nothing hidden remains, and a rootkit specifically defeats the tools that would tell you. Trust comes from rebuilding to a known-good state, not from cleaning. In the lab that is a snapshot restore; in the real world it is a full reimage."
+/>
+
+## The line that outranks all of it
+
+Every habit here, snapshots, sealed networks, throwaway credentials, rebuilds, exists to protect the one rule Why You Need a Lab put first: nothing gets tested without ownership or explicit written authorization. The lab is what keeps "I own this" true. The tools practiced against these targets are the same ones that put people in front of judges when aimed at a machine nobody gave them. The tool cannot tell a lab target from a stranger's server. The person running it has to, every single time.
+
+<Callout type="security" title="Authorization comes before the first packet">
+Outside the lab, the standard does not move: written scope, agreed in advance, from someone with the authority to grant it. There is no reading of a computer-misuse law where "I was only curious" or "I didn't break anything" is a defense. Keep the practice pointed at machines in the lab until an authorization for a real target is signed and in hand. Then, and only then, does the same work become a job instead of a crime.
+</Callout>
+
+The lab is built, sealed, and safe to wreck. On its shelf are the intentionally vulnerable machines from Stocking It With Targets, powered off and waiting. Everything the rest of this course does, mapping a network, finding an open service, turning a flaw into access, now has a legal place to happen. Point it at those practice machines and start.
+
+<Exercise title="Snapshot, break, roll back">
+On the host running the hypervisor, pick one target VM. With it powered off, take a snapshot named `clean-baseline`. Boot it, then do something clearly destructive inside it: delete a system directory, fill the disk, whatever leaves obvious damage. Confirm the machine is broken.
+
+Now restore `clean-baseline` and boot again. The damage should be gone completely, in seconds, with no reinstall.
+
+While the target is running, send two pings at a public address with `ping -c2 8.8.8.8`. On a properly isolated lab it fails with `Network is unreachable`. If it succeeds, the target has a route to the internet, and its adapter needs to go back to the isolated network before anything else runs on it.
+</Exercise>
+
+<Notes />

@@ -1,0 +1,58 @@
+---
+title: The Mobile Threat Model
+module: mobile-security
+moduleTitle: Mobile Application Security
+moduleOrder: 39
+moduleIcon: Smartphone
+order: 1
+summary: The app ships to the attacker. That one fact changes how you test everything.
+estimatedMinutes: 18
+objectives:
+  - Explain why the mobile client is untrusted and what that means for testing
+  - Map the real attack surface of a mobile app
+  - Locate the true security boundary and stop testing the wrong layer
+tags:
+  - mobile
+  - threat-model
+  - android
+  - ios
+---
+
+Ship a web app and your code stays on your server, where you control it. Ship a mobile app and you hand every attacker a copy of the binary to take apart on their own bench, at their own pace, with no rate limit and no logs watching them. That single fact is the whole reason mobile testing feels different from web testing.
+
+The client is untrusted. Fully, permanently untrusted. Anything the app does on the device, an attacker can watch, modify, or rip out. Root detection, jailbreak detection, certificate pinning, the "you must update" gate, the license check: those are speed bumps, and a tester with Frida drives over all of them in an afternoon. If a control only runs on the phone, treat it as already bypassed and test what is behind it.
+
+So where is the real security boundary? The server API. The app is just one of many possible clients hitting that API, and a hostile client is trivial to build. This is the mistake that sinks half of mobile assessments: someone spends a day defeating the app's UI logic when the actual question is whether the backend enforces authorization on the raw request. Get to the traffic and test the API as if the app did not exist.
+
+## What you are actually attacking
+
+The attack surface splits into a few concrete places, and each one is a different kind of test.
+
+- **The binary itself.** Hardcoded API keys, secret URLs, weak crypto, business logic you can read straight out of the decompiled code.
+- **Data at rest.** What the app writes to the device: preferences, SQLite databases, cached files, logs. A lost or stolen phone is the classic threat here.
+- **Data in transit.** Whether traffic is encrypted, whether the app validates the certificate, whether pinning is present and how it fails.
+- **Inter-process communication.** Android intents and exported components, iOS URL schemes and universal links, the clipboard, and anything else that lets another app on the device talk to yours.
+- **Third-party SDKs.** Analytics, ads, and crash reporters that leak data or drag in their own vulnerabilities.
+
+Notice what is missing compared to web: there is no same-origin policy quietly protecting you, and the browser sandbox is gone. The platform sandbox is what keeps app A out of app B's data, and it holds right up until the device is rooted or jailbroken, at which point every app's private storage is one `cd` away.
+
+The industry map for all of this is the OWASP MASVS (Mobile Application Security Verification Standard) and its companion testing guide, the MASTG. When someone asks "what does a real mobile test cover," MASVS is the checklist: storage, crypto, network, auth, platform interaction, and anti-tampering. You will see those categories again in the vulnerabilities lesson.
+
+<Callout type="security" title="Test only what you are cleared to touch">
+Decompiling and instrumenting an app you did not write is legal on a device you own with an app you are authorized to assess. It is not a blanket license. The app's backend API belongs to someone, and hammering it without written scope is the same unauthorized-access problem as any web engagement. Practice on your own builds, deliberately vulnerable apps like DIVA, InsecureBankv2, iGoat, and OWASP MAS test apps, or a client system named in a signed contract.
+</Callout>
+
+<Quiz
+  id="mobile-threat-boundary"
+  question="An app hides the 'delete account' button unless the logged-in user is an admin. Where should you focus your testing?"
+  answer={2}
+  options={[
+    "Whether the button is visually hidden correctly",
+    "Reverse engineering the UI code that hides the button",
+    "Whether the backend API enforces the admin check when you send the delete request directly",
+    "Whether the app store listing mentions admin features",
+  ]}
+  explanation="UI checks run on the untrusted client and can be removed. The security boundary is the server, so the real test is whether the API rejects a delete request from a non-admin regardless of what the app UI shows."
+/>
+
+<Notes />

@@ -1,0 +1,84 @@
+---
+title: API Authentication Flaws
+module: api-security
+moduleTitle: API Security
+moduleOrder: 32
+moduleIcon: Webhook
+order: 4
+summary: A token the server forgot to verify, a key committed to GitHub, a login with no rate limit.
+estimatedMinutes: 22
+objectives:
+  - Break weak JWT handling including alg none and weak secrets
+  - Find leaked API keys and understand what access they grant
+  - Attack login, reset, and token flows that skip the basic checks
+tags:
+  - api
+  - authentication
+  - jwt
+  - tokens
+---
+
+Most API auth is one signed token doing all the work. Break how that token is issued or verified and you skip the login entirely. This is API2 on the OWASP list, right behind BOLA, and it fails in a handful of predictable ways that you can check in minutes.
+
+Start with the JWT, because it is everywhere. A JSON Web Token is three base64url chunks joined by dots: header, payload, signature. Paste one into `jwt_tool` or just decode the middle chunk and read it. It is not encrypted. Anyone holding it can see the claims inside, including the `alg`, the `role`, and the expiry.
+
+<CommandCard command={`echo 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiYm9iIiwicm9sZSI6InVzZXIifQ.sig' | cut -d. -f2 | base64 -d`} explain="Decode the payload chunk. You will see the raw claims like role and exp. JWTs are signed, not encrypted, so reading them takes no key. That is by design and often forgotten by developers." />
+
+## The JWT mistakes worth checking
+
+The classic is `alg:none`. The JWT spec allows an unsigned token where the algorithm is literally `none` and the signature is empty. If the server honors it, you forge any token you like: set `"role":"admin"`, strip the signature, send it.
+
+<CommandBlock
+  title="jwt_tool covers the common attacks"
+  commands={[
+    { cmd: "jwt_tool <token> -X a", comment: "the alg:none attack, drops the signature and sets alg to none" },
+    { cmd: "jwt_tool <token> -C -d rockyou.txt", comment: "crack a weak HS256 secret against a wordlist" },
+    { cmd: "jwt_tool <token> -X k -pk public.pem", comment: "RS256-to-HS256 confusion using the known public key as the HMAC secret" },
+  ]}
+/>
+
+Weak secret is the next one. If the token is signed with HS256 and the developer used a guessable secret like `secret` or `changeme`, you crack it offline with `jwt_tool` or `hashcat -m 16500` against `rockyou.txt`, then sign your own forged tokens with the recovered key. No further access to the server needed.
+
+Algorithm confusion is the subtle one. A server that expects RS256 (public/private key pair) but verifies with a function that also accepts HS256 can be tricked: sign a forged token with HMAC using the server's public key as the secret. The server verifies with the same public key and accepts it. Look for this when the public key is downloadable, which it usually is.
+
+Then check the boring stuff that wins anyway. Does the token actually expire? Copy a token, wait, resend an hour later. Does logout invalidate it server-side, or does the token keep working after you sign out? A token that lives forever means one leak is permanent.
+
+## Leaked keys
+
+Static API keys do not expire and do not care where they come from, which makes a leaked one pure gold. They land in public GitHub repos, in JavaScript bundles served to the browser, in mobile app binaries, in error messages.
+
+<CommandBlock
+  title="hunt for keys in the places they leak"
+  commands={[
+    { cmd: "trufflehog git https://github.com/target/repo", comment: "scans full commit history, not just the current tree" },
+    { cmd: "gitleaks detect --source . -v", comment: "regex-based secret scan of a cloned repo" },
+    { cmd: "curl -s https://target.tld/main.js | grep -Eo '(sk_live|AKIA|ghp_)[A-Za-z0-9]+'", comment: "grep the front-end bundle for key prefixes" },
+  ]}
+/>
+
+Prefixes tell you what you found. `sk_live_` is a Stripe live secret key, `AKIA` starts an AWS access key id, `ghp_` is a GitHub personal access token, `xoxb-` is a Slack bot token. Check the commit history, not just the current files, because a key deleted in a later commit is still sitting in the git log for anyone who clones.
+
+## The login flow itself
+
+Auth breaks at the endpoints around the token too. The most common miss is no rate limit on `POST /login`, which hands you unlimited credential stuffing and password spraying. Fire a few hundred attempts and watch whether anything slows you down. Nothing slowing down is the finding.
+
+Password reset is the other soft spot. A reset token that is short, sequential, or derived from a timestamp is guessable. A reset flow that leaks whether an email exists (different response for a known versus unknown address) hands you a valid-user list to spray against.
+
+<Callout type="security" title="Authorized targets only">
+Cracking tokens, forging JWTs, and brute-forcing logins are all real attacks with real legal weight. Run them only against OWASP crAPI, VAmPI, PortSwigger labs, or systems you are contracted to test. A leaked key you find in a public repo is not permission to use it: report it, do not log in with it.
+</Callout>
+
+<Quiz
+  id="api-auth-alg-none"
+  question="A JWT arrives with header alg:HS256. You resend it with the header changed to alg:none and the signature removed, and the server accepts it. What did you just prove?"
+  answer={1}
+  options={[
+    "The token is encrypted and you decrypted it",
+    "The server does not enforce a signing algorithm, so you can forge any token including an admin one",
+    "The secret key is rockyou.txt",
+    "Nothing, alg:none is normal and safe",
+  ]}
+  explanation="Accepting alg:none means the server verifies no signature. You can rewrite the payload to any user or role, drop the signature, and the server trusts it. It is full authentication bypass."
+/>
+
+<Notes />

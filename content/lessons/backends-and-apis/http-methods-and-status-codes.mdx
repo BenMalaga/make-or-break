@@ -1,0 +1,152 @@
+---
+title: HTTP Methods and Status Codes
+module: backends-and-apis
+moduleTitle: Backends and APIs
+moduleOrder: 3
+moduleIcon: Webhook
+order: 2
+summary: "Every API call is one HTTP request and one HTTP response, and both follow a strict, learnable shape."
+estimatedMinutes: 15
+prerequisites: [what-a-backend-is]
+objectives:
+  - Identify the four parts of an HTTP request and the three parts of its response
+  - Match each HTTP method, GET, POST, PUT, PATCH, and DELETE, to the exact change it is allowed to make
+  - Classify a status code by its first digit and state whether the client or the server caused it
+  - Read and write a JSON body that a Python backend and a JavaScript frontend both parse natively
+tags:
+  - http
+  - json
+---
+
+The last lesson landed on a plain definition: a backend is the piece of software that owns the data and decides what happens to it, and the only way anything else gets to it is through the API it exposes. That word did a lot of quiet work. An API is not a vague promise to "talk to the server." It is a fixed set of rules two programs agree to before either one sends a byte: which method to use, which address to hit, what shape the data has to be in, and what kind of answer comes back. HTTP is the protocol that carries every one of those exchanges, and every API call anywhere, a mobile app checking a balance, a web page loading a product page, one microservice asking another for a price, is one HTTP request paired with exactly one HTTP response. Learn that shape once and it stops mattering whether the client is a phone, a browser, or another backend three servers away. The rules do not change.
+
+## The shape of a request and a response
+
+A request has four things in it, always in the same order. First, a method: a single word that says what the client wants done, GET or POST or one of a short list of others. Second, a path: the address of the specific resource being acted on, something like /books/7 or /users/42/orders. Third, headers: a set of key-value pairs that describe the request without being part of the data itself, things like what format the client wants back or how big the body is. Fourth, and only sometimes, a body: the actual payload, present on a request that is sending data (creating something, updating something) and absent on one that is only asking to read.
+
+The response mirrors that shape from the other side. A status code comes first, a three-digit number that reports what happened in one glance. Then headers, describing the response the same way request headers describe the request. Then, almost always, a body: the data the client asked for, or an error message explaining why it didn't get it. A request that only reads something usually gets a body back full of that something. A request that deletes something often gets a response with no body at all, because there is nothing left to describe.
+
+What makes this worth memorizing rather than looking up every time is that the shape never bends. A payment API and a weather API and a to-do list API all send the same four-part request and get the same three-part response back. The only thing that changes between them is the specific method, path, and data, not the format those pieces travel in. Once that clicks, reading any API's documentation gets a lot faster, because most of the work is just filling in which method goes with which path.
+
+## The methods, and why they're a contract
+
+HTTP defines a short list of methods, and each one carries an agreed meaning that every API, in any language, on any team, is expected to respect. That agreement is the whole point. A developer who has never seen a particular API before can still guess a lot about it just from the method in front of the path, because the method is a promise, not a suggestion.
+
+GET reads a resource and changes nothing. A request to GET /books/7 asks for book number seven and only that: the server is not supposed to alter anything in the database to answer it. Because GET changes nothing, it's safe to retry, safe to cache, and safe to send five times in a row without worrying about side effects. If sending the same GET twice would double-charge someone or create a second copy of something, the API broke the rule, not the client.
+
+POST creates something new. A request to POST /books, with a book's title and author in the body, tells the server "make a new record out of this data," and the server decides the new resource's identity, usually returning the path to the thing it just created, something like /books/104. POST is the one method where sending the same request twice is expected to produce two different results, two new books, not one, because each call is a fresh instruction to create.
+
+PUT and PATCH both update something that already exists, and the difference between them is a distinction worth holding onto. PUT replaces the resource wholesale: a PUT to /books/7 sends the complete book record, every field, and the server overwrites what was there with exactly that. Leave a field out of a PUT body and, done correctly, that field goes missing or reverts to a default, because PUT means "this is now the whole thing." PATCH changes only part of a resource: a PATCH to /books/7 might send just {"price": 12.99} and nothing else, and only the price changes, everything else on the record stays exactly as it was. Mixing these two up is a common source of bugs: a client that means to nudge one field but sends a PUT will silently wipe out every field it forgot to include.
+
+DELETE removes a resource. A request to DELETE /books/7 tells the server that book seven should no longer exist, and a well-built API responds by removing it and returning a status that confirms there is nothing left to look at. Like GET, a DELETE is meant to be safe to retry: sending it twice should leave the same end state as sending it once, because the second call is just deleting something that's already gone.
+
+<Quiz
+  id="http-methods-purpose"
+  question="A mobile app needs to change only the price field on an existing product, leaving the name, description, and stock count untouched. Which method fits, and why would sending PUT instead be a mistake here?"
+  answer={2}
+  options={[
+    "POST, because POST is used any time a client sends data in a request body",
+    "DELETE, because the old price record has to be removed before a new one can exist",
+    "PATCH, because it changes only the fields included in the body, while PUT is treated as a full replacement of the resource",
+    "GET, because reading the current price first is required before any update can happen",
+  ]}
+  explanation="PATCH is built for partial updates: send only the field that's changing and the rest of the resource is left alone. PUT is a contract to replace the whole resource, so a PUT that only includes price risks wiping out every field the client didn't send. POST creates new resources rather than updating existing ones, and GET never modifies anything at all."
+/>
+
+## Status codes: whose fault was it
+
+A status code is a three-digit number, and the first digit alone sorts every possible response into one of a few families. Learning those families first, before memorizing individual codes, is the efficient way in: once the pattern is in place, a code nobody has memorized yet still tells most of the story just from its leading digit.
+
+Codes starting with 2 mean success, the request did what it was supposed to do. 200 OK is the general-purpose success code, returned by a GET that found what it was looking for or a PUT that finished updating. 201 Created is more specific: it's what a POST returns after making something new, often paired with a Location header pointing at the new resource's path. 204 No Content means the request succeeded and there is genuinely nothing to send back, the typical response to a DELETE that removed something cleanly.
+
+Codes starting with 4 mean the client's request was the problem, and the server is refusing to do more work on it as it stands. 400 Bad Request is the catch-all: the request is malformed somehow, broken JSON, a missing required field, a value in the wrong format. 401 Unauthorized means the server does not know who is making this request at all, no valid credentials came with it, or the ones that did come are expired or wrong. 403 Forbidden is a different failure entirely: the server knows exactly who is asking, that identity checked out fine, but that identity is not allowed to do this particular thing. 404 Not Found means the path simply doesn't correspond to anything, there is no book seven. 422 Unprocessable Entity shows up when the request is well-formed JSON that parses fine but fails validation, a price sent as the string "free" instead of a number, or an email field missing the @ sign. 429 Too Many Requests is a rate limit doing its job, telling a client it has sent too many requests too fast and needs to slow down.
+
+Codes starting with 5 mean the server broke while trying to handle a request that, as far as it could tell, was perfectly fine. 500 Internal Server Error is the general failure, something threw an exception on the server side that nobody handled gracefully. 503 Service Unavailable usually means the server is up but overloaded, down for maintenance, or waiting on some dependency, like a database, that isn't answering.
+
+<Callout type="warning" title="401 and 403 get swapped constantly, and they mean different things">
+401 Unauthorized means the server does not know who is asking: no credentials arrived, or the ones sent are invalid or expired. The fix is to log in or send a valid token. 403 Forbidden means the server knows exactly who is asking, the credentials checked out fine, and that identity is simply not allowed to do this. No amount of logging in again fixes a 403; the account itself lacks permission. Confusing the two in an error message sends a person down the wrong troubleshooting path every time.
+</Callout>
+
+<Quiz
+  id="http-status-family"
+  question="A request comes back with status 403. What does that first digit rule out, and what does the code itself tell a developer to check?"
+  answer={0}
+  options={[
+    "It rules out a server-side crash (that would be 5xx) and says the request was understood but the authenticated identity isn't permitted to do this",
+    "It rules out a client mistake entirely, since 4xx only ever means the client sent bad JSON",
+    "It means the credentials are missing or expired, the same as a 401",
+    "It means the server is temporarily overloaded and the client should retry later",
+  ]}
+  explanation="Any 4xx code puts the problem on the client's side of the exchange, not the server's, so a crash or an overloaded server (5xx) is ruled out. 403 specifically means the server recognized who was asking and denied the action anyway, which is different from 401 (no valid identity at all) and different from a 5xx retry-later situation."
+/>
+
+## JSON: the format both sides already speak
+
+Bodies have to be written in some agreed format, or the server has no way to know where one field ends and the next begins. The format almost every modern API uses is JSON, JavaScript Object Notation, a lightweight text format built out of keys and values, wrapped in curly braces, with arrays in square brackets. A book might travel as {"id": 7, "title": "Chirality", "author": "Juno Hale", "price": 12.99, "in_stock": true}. That's the whole vocabulary: strings in quotes, numbers bare, true and false, null for nothing, objects nested inside objects, and lists of any of those in square brackets.
+
+JSON won this role for a practical reason, not a fashionable one. A Python dictionary and a JavaScript object are close enough in structure that converting between JSON and either language's native data is close to automatic, no custom parsing logic required on either end. That matters because a backend commonly serves more than one kind of client at once, a web frontend running JavaScript in a browser, a mobile app written in Swift or Kotlin, another backend service calling in for data it needs, and all of them can parse the exact same JSON body with their own language's built-in tools. One backend, one JSON contract, many clients that never have to know what language wrote the server.
+
+A request or response carrying a JSON body says so explicitly with a header: Content-Type: application/json. That header isn't decoration. It tells whatever's on the receiving end how to interpret the bytes below the blank line, the same role Content-Type plays for any HTTP body, whether it's JSON, an HTML page, or an uploaded image. Skip it, or get it wrong, and a perfectly valid JSON body can get misread as plain text and rejected.
+
+Here's a full request and response pair for a books API, exactly as they travel over the wire:
+
+```http
+POST /books HTTP/1.1
+Host: api.example.com
+Content-Type: application/json
+Content-Length: 68
+
+{"title": "Chirality", "author": "Juno Hale", "price": 12.99}
+```
+
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
+Location: /books/104
+
+{"id": 104, "title": "Chirality", "author": "Juno Hale", "price": 12.99, "in_stock": true}
+```
+
+The method is POST, so a new resource gets made. The response comes back 201 Created, not a generic 200, because something new now exists, and the Location header names exactly where: /books/104. The response body echoes the data back with the id the server assigned and an in_stock field the server filled in on its own, fields the client never sent at all.
+
+A modern Python backend built with FastAPI makes this pairing close to automatic. A route function declares its expected input as a typed model, FastAPI validates an incoming JSON body against that model before the function even runs, and it hands back a 422 with a clear error if the body doesn't match, no hand-written validation code required. The same type hints that make the function readable also generate live, interactive API documentation for free, a page where anyone can see every route, every expected field, and try a real request without leaving the browser. That pairing of types, validation, and generated docs is a large part of why FastAPI has become the default choice for a new JSON API in Python rather than something older and less structured.
+
+<CommandCard command="curl -s localhost:8000/books" title="terminal" explain="Sends a GET with no body to the books list endpoint and prints the JSON response." />
+
+<ExpectedOutput label="response body">
+```json
+[
+  {"id": 7, "title": "Chirality", "author": "Juno Hale", "price": 12.99, "in_stock": true},
+  {"id": 104, "title": "Chirality", "author": "Juno Hale", "price": 12.99, "in_stock": true}
+]
+```
+</ExpectedOutput>
+
+That response is a JSON array of objects, the same building blocks as the single-book example, just one level deeper. A GET carries no body of its own, so the request side of this exchange is just the method and the path, and everything interesting comes back in the response.
+
+<Quiz
+  id="json-content-type"
+  question="A client sends a POST with a JSON body but forgets the Content-Type: application/json header. What is the most likely consequence?"
+  answer={1}
+  options={[
+    "Nothing changes, because JSON is always assumed regardless of headers",
+    "The server may fail to parse the body correctly, since Content-Type is what tells it how to read the bytes after the blank line",
+    "The request is automatically upgraded to a PUT",
+    "The response will always come back as 201 Created regardless of what happened",
+  ]}
+  explanation="Content-Type tells the receiving side how to interpret the body. Without it, or with the wrong value, a server has no reliable way to know the bytes it received are JSON rather than plain text or form data, and parsing can fail even when the JSON itself is written correctly."
+/>
+
+<Exercise title="Read a real JSON response">
+Pick any public JSON API that needs no key, for example https://jsonplaceholder.typicode.com/posts/1, and run:
+
+```
+curl -i https://jsonplaceholder.typicode.com/posts/1
+```
+
+Find the status line at the top of the output and confirm it reads 200. Find the Content-Type header and confirm it says application/json. Then look at the body: pick out the keys, note which values are strings, which are numbers, and whether anything is nested. Finally, try changing the number at the end of the URL to something absurd, like 99999, and run the command again. Read the new status code before reading anything else in the response, and decide, from the code alone, whether the resource existed.
+</Exercise>
+
+Every idea in this lesson, the four-part request, the method as a promise, the status code as a verdict, the JSON body as the shared language, comes together the moment an actual API gets built rather than just described. The next lesson, building a REST API, takes these exact methods and status codes and wires them into a real, running FastAPI service that a browser or curl can hit and get honest answers from.
+
+<Notes />

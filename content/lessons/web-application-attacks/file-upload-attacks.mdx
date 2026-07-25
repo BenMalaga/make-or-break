@@ -1,0 +1,134 @@
+---
+title: File Upload Attacks
+module: web-application-attacks
+moduleTitle: Web Application Attacks
+moduleOrder: 15
+moduleIcon: Crosshair
+order: 4
+summary: An avatar uploader that saves an executable file inside the web root hands the attacker code execution.
+estimatedMinutes: 18
+objectives:
+  - Explain why an executable file in the web root equals remote code execution
+  - Recognize why client-side upload checks stop no determined attacker
+  - Walk the server-side bypasses from content-type forging to magic-byte polyglots
+  - Harden an uploader by re-encoding, relocating storage, and disabling execution
+prerequisites:
+  - command-injection
+tags:
+  - web
+  - file-upload
+  - webshell
+  - rce
+---
+
+Command injection got the server to run attacker-chosen commands by slipping shell metacharacters into a parameter that was already being handed to a shell. A file upload arrives at the same destination, code running on the server, by a different road. Instead of smuggling a command into an existing call, the attacker delivers a whole file and then persuades the server to execute that file as a program. The avatar uploader on a profile page is the classic doorway.
+
+An unrestricted file upload is any feature that accepts a file, writes it somewhere the server can reach, and never properly checks what the file actually is. The risk is not the act of uploading. It is what the server later does with a file it is willing to interpret. On a PHP application, a file whose name ends in .php and whose contents are PHP source is not data at all. It is a program, and the server runs it the instant a browser requests its URL.
+
+The payload the attacker plants is a web shell. A web shell is a short script that reads a value out of the incoming request, passes it to the operating system, and returns whatever the system printed back into the response. One of them, dropped in the right place, turns a photo uploader into a remote command console. That is remote code execution, the same prize command injection chases, delivered as a file rather than a parameter.
+
+Two conditions have to hold for the planted file to fire. The file has to land somewhere the server treats as executable code, and the attacker has to reach that location with an ordinary HTTP request. Break either link and the upload is inert. A PHP script saved outside the web root, or saved inside a folder configured to hand files back as plain downloads, is just text taking up disk space.
+
+<Callout type="security" title="Authorized targets only">
+Uploading a web shell means planting code that runs on someone else's server. Every technique in this lesson belongs only on machines the tester owns or holds written authorization to assess, such as a local DVWA container, an OWASP Juice Shop instance, or an assigned lab box. Against any system without that permission it is unlawful access, not research.
+</Callout>
+
+## The check that runs in the wrong place
+
+The first defense most uploaders ship is a client-side check. A snippet of JavaScript inspects the chosen filename, sees that it does not end in .jpg or .png, and refuses to submit the form. On screen it looks like a real gate. It is not.
+
+The browser belongs to the attacker. Every line of that JavaScript runs on the attacker's own machine, where it can be edited, disabled, or skipped entirely. The simplest bypass never touches the page. An intercepting proxy such as Burp Suite sits between the browser and the server, so the attacker submits an innocent image, then rewrites the paused request to swap in the .php file before it reaches the server. The validation code never sees the real upload.
+
+The rule this teaches is old and absolute. A check that runs in the browser is a usability feature, not a security control. Anything the server needs to trust has to be decided by the server, on the bytes it actually received.
+
+<Quiz
+  id="file-upload-attacks-client-side"
+  question="An avatar form uses JavaScript to block any filename not ending in .jpg or .png before the request is sent. Why does this stop almost no determined attacker?"
+  answer={0}
+  options={[
+    "The JavaScript runs in the browser, which the attacker controls, so the check can be disabled or the request replayed through a proxy without it",
+    "JavaScript cannot read filenames, so the check never actually runs",
+    "The server re-runs the same JavaScript, which makes the check cancel itself out",
+    "Browsers strip file extensions before upload, so the rule matches nothing",
+  ]}
+  explanation="Client-side validation executes on the attacker's own machine. It can be edited out, or an intercepting proxy like Burp can rewrite the request after the check has passed. Only server-side validation on the received bytes is trustworthy."
+/>
+
+## Server-side filters and the bypass menu
+
+A server that does validate still tends to validate the easy, wrong thing. Each shortcut has a matching bypass, and they are worth knowing as a set rather than one at a time.
+
+The content-type check trusts the Content-Type header that came with the upload. That header is set by the client, so it lies on request. The attacker keeps the .php filename and simply sends Content-Type: image/png. The bytes are still PHP source; the server now believes they are an image.
+
+The extension blocklist rejects a list of dangerous endings and allows everything else. This is backwards. A blocklist has to name every executable extension in advance, and web servers interpret more of them than most developers remember: .php3, .php4, .php5, .phtml, .phar, .pht. Miss one and the upload runs. An allowlist that permits only .jpg, .png, and .gif fails safe, because anything not on the short list is refused by default.
+
+The double-extension trick targets servers that decide how to handle a file by scanning its name loosely. A file called shell.php.jpg ends in .jpg, so a naive suffix check is satisfied, yet a misconfigured Apache that runs any file containing .php in its name still executes it. Case games play the same angle. A filter that blocks .php but not .pHp leaves the door open on a case-insensitive filesystem.
+
+The magic-byte check is the smart one, and it still falls to a polyglot. Here the server reads the first bytes of the file to confirm a real image signature. The attacker prepends a genuine header, GIF89a; is the favorite because it is short and printable, and places the script after it. The file is a valid GIF and a valid PHP script at once. The image parser reads the header and approves, while the PHP engine ignores the leading bytes and runs the code that follows.
+
+Not every dangerous upload is a server-side shell. An SVG is XML that the browser renders, so an SVG carrying a script tag becomes stored cross-site scripting the moment another user opens it, and an uploaded HTML page served inline does the same. That file never runs on the server. It only needs the victim's browser to treat it as active content, which is why the type of file an application accepts matters as much as where it stores it.
+
+<CommandCard command="file profile-avatar.png && exiftool profile-avatar.png" explain="Both tools read the bytes, not the name. When a file ending in .png reports as PHP script text, or exiftool surfaces a script tag tucked into a metadata comment field, the upload is a polyglot and the extension was a lie. Re-encoding the image through a library like ImageMagick rewrites the pixels and drops the smuggled code." />
+
+<Quiz
+  id="file-upload-attacks-blocklist"
+  question="A server rejects any upload whose extension appears on a blocklist of .php, .php5, and .phtml. What is the core weakness of that approach?"
+  answer={1}
+  options={[
+    "Blocklists are case-sensitive by nature and always crash on uppercase names",
+    "A blocklist must enumerate every dangerous extension in advance, and one it forgot, such as .phar or .pht, still executes",
+    "Blocklists cannot be applied to files that also carry an image signature",
+    "The server is unable to read file extensions on a POST request",
+  ]}
+  explanation="A blocklist is a denylist that fails open. It has to predict every executable extension a server might interpret, and web servers run many. An allowlist of permitted types fails safe instead, refusing anything not explicitly named."
+/>
+
+## Where the file lands decides everything
+
+Every bypass above only matters because of what happens after the save. A web shell is inert until the server executes it, so the storage decision is the control that outranks the filters.
+
+Three properties of the destination matter. Whether it sits inside the web root, so a URL maps to it at all. Whether the directory is configured to execute scripts or to serve them as static bytes. And whether the attacker can learn or guess the final path. An application that writes uploads to a folder the web server refuses to interpret has already won, no matter how clever the polyglot was, because the request for shell.php comes back as source text instead of running.
+
+This is also why locating the file is part of the attack, not an afterthought. Applications rename uploads, bury them under dated directories, or serve them from a path that never appears on the page. If the saved file cannot be reached over HTTP, the code inside it never runs, which is exactly the property a good defender engineers on purpose.
+
+## Building an uploader that cannot be turned into a shell
+
+Defense stacks. No single control is trusted alone, because each one has a known bypass, and the aim is to make every bypass land against another wall.
+
+The strongest control is to validate by decoding and re-encoding, not by reading names or headers. An image upload is loaded into an imaging library and written back out as a fresh file. Re-encoding rebuilds the pixels and discards anything that was not part of the image, which destroys a GIF89a polyglot outright, because the smuggled PHP was never image data and does not survive the round trip.
+
+Store uploads outside the web root, or in a location where the server will not execute code. A directory served as static downloads, with the script engine switched off, means a planted .php file is handed back as plain text. This is the layer that survives after a filter has already failed, which is why it carries the most weight in the stack.
+
+Randomize the stored filename and discard the client-supplied name. A random identifier removes the attacker's ability to predict or reach the file, and it prevents a double-extension name from ever being written to disk.
+
+Serve user files from a separate domain. A dedicated, cookieless host for uploads means that even a file that somehow executes cannot read the main application's session cookies or ride its trust, which contains the blast radius of anything that slips through. An allowlist of extensions, a size cap, and a nosniff header on the response finish the job by turning the rare bypass into a dead end rather than a foothold.
+
+<CommandBlock
+  title="stop the upload directory from executing code"
+  commands={[
+    { cmd: "php_admin_value engine Off", comment: "apache directory config: turns the PHP engine off for the uploads folder, so a .php file is served, never run" },
+    { cmd: "location /uploads/ { default_type text/plain; }", comment: "nginx: forces every file under the uploads path to be served as plain text" },
+    { cmd: "add_header X-Content-Type-Options nosniff", comment: "stops the browser from re-guessing a served file as html or script" },
+  ]}
+/>
+
+<Quiz
+  id="file-upload-attacks-defense"
+  question="A filter failed and a working web shell was written to disk. Which single control most reliably keeps it from running?"
+  answer={2}
+  options={[
+    "Renaming the stored file to a random string",
+    "Checking the Content-Type header on the way in",
+    "Storing uploads outside the web root, or in a directory where the server will not execute scripts, so the file is served as text instead of run",
+    "Capping the upload size at two megabytes",
+  ]}
+  explanation="A web shell does nothing until the server interprets it. If the destination cannot execute code, the request for the shell returns its source as plain text. Randomized names and size caps help, but relocating or de-executing the storage is the control that neutralizes a shell that already got through."
+/>
+
+<Exercise title="Get a web shell in DVWA, then close the hole">
+Run DVWA locally and set the security level to Low. Open the File Upload page and upload a small PHP file that prints the output of a system call, then browse to the path DVWA returns and confirm the server ran your command. Raise the level to Medium and watch the content-type check appear: intercept the upload in Burp Suite, change the Content-Type to image/png, and resend. At High, DVWA re-reads the file with getimagesize and checks the extension harder, so reach for the GIF89a polyglot. Now switch hats. Edit the handler so it re-encodes the image and stores it outside the web root, then repeat every bypass and confirm none of them execute. Run the same file-upload labs on PortSwigger's Web Security Academy for a second target built a different way.
+</Exercise>
+
+A web shell makes the server run commands the attacker chose. There is a quieter way to make the server act on the attacker's behalf, one that needs no upload at all: a feature that asks the server to fetch a URL, and the server, sitting inside the network, reaches somewhere the attacker never could from outside. That is where SSRF begins.
+
+<Notes />

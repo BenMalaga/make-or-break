@@ -1,0 +1,238 @@
+---
+title: "Comparisons, if, and Loops"
+module: powershell
+moduleTitle: PowerShell
+moduleOrder: 1
+moduleIcon: Terminal
+order: 6
+summary: "A comparison decides what is true, if and elseif pick which script block runs, and for, foreach, and while repeat a block until a condition says stop."
+estimatedMinutes: 15
+prerequisites: ["ps-arrays"]
+objectives:
+  - Test values with PowerShell's word-based comparison operators, -eq, -ne, -gt, -lt, -ge, -le, plus -like for wildcard matching
+  - Combine multiple comparisons into a single test using -and, -or, and -not
+  - Branch a script's behavior with if, elseif, and else, each one guarded by a script block in braces
+  - Repeat a block of code with a for loop, a foreach loop over a collection, and a while loop, and choose the right one for the job
+tags:
+  - powershell
+  - control-flow
+  - logic
+---
+
+The previous lesson built arrays: ordered collections held in one variable, indexed with square brackets, counted with `.Count`, and generated quickly with a range like `1..10`. An array on its own just sits there. The interesting work starts when a script looks at each item and decides something about it: is this number even, is this file over a certain size, is this process worth killing. That decision-making is what comparisons and branching are for, and once a script can decide, it needs a way to repeat that decision across every item in the collection without writing the same line ten times. That is what a loop does.
+
+## Testing values with word-based comparisons
+
+A comparison in PowerShell always answers a yes-or-no question and hands back a bool, either `$true` or `$false`. The operators are spelled as words, prefixed with a hyphen: `-eq` for equals, `-ne` for not equals, `-gt` for greater than, `-lt` for less than, `-ge` for greater than or equal, and `-le` for less than or equal.
+
+```powershell
+$score = 82
+Write-Output ($score -ge 60)
+Write-Output ($score -eq 100)
+```
+
+<ExpectedOutput label="each comparison hands back a bool">
+```
+True
+False
+```
+</ExpectedOutput>
+
+`$score -ge 60` asks whether 82 is sixty or more, and the answer is `True`. `$score -eq 100` asks whether it is exactly one hundred, and the answer is `False`. Nothing about that changes based on what the comparison feeds into next: the same `-ge` used here inside a plain `Write-Output` is the same `-ge` a `Where-Object` filter or an `if` statement relies on later in this lesson.
+
+The word-based spelling looks unusual next to languages that use `==` and `!=`, and there is a concrete reason for it rather than a stylistic quirk. PowerShell is a shell first, and in a shell the characters `<` and `>` already have a job: they mean redirection, sending a command's output to a file or pulling input in from one. If PowerShell also used `>` for greater than, then `Get-Process > log.txt` and a comparison like `$a > $b` would be impossible to tell apart just by looking at the characters. Spelling comparisons as words sidesteps that collision entirely, and it has a side benefit: `-gt` and `-lt` read almost like English once the habit sets in.
+
+Two more operators extend this same family into matching rather than pure equality. `-like` compares a string against a pattern that can include wildcards: `*` stands in for any run of characters, and `?` stands in for exactly one.
+
+```powershell
+$file = "report_2026.csv"
+Write-Output ($file -like "report_*.csv")
+Write-Output ($file -like "*.txt")
+```
+
+<ExpectedOutput label="wildcard matching with -like">
+```
+True
+False
+```
+</ExpectedOutput>
+
+`report_*.csv` matches because the name starts with `report_` and ends with `.csv`, with anything at all filling the middle. The second pattern fails outright, since the file does not end in `.txt`. `-like` is the operator to reach for when a check is really "does this text roughly fit a shape," like matching every log file for a given day or every user account starting with a department prefix.
+
+A step up from `-like` is `-match`, which tests a string against a regular expression, a much more powerful pattern language that can check things like "starts with a digit" or "contains three letters followed by a dash" rather than only wildcards. Regular expressions are their own subject worth a full lesson, so for now it is enough to know `-match` exists, that it returns a bool exactly like the other comparisons, and that it reaches for when `-like`'s wildcards are not expressive enough for the pattern being tested.
+
+<Quiz
+  id="ps-why-words"
+  question="Why does PowerShell spell comparisons as -eq, -gt, and -lt instead of using ==, >, and < like many other languages?"
+  answer={1}
+  options={[
+    "Because PowerShell cannot process any character that is not a letter.",
+    "Because < and > are already used for redirecting input and output in a shell, so reusing them for comparison would collide with that meaning.",
+    "Because word-based operators run faster than symbol-based ones.",
+    "Because PowerShell was designed before the == and != symbols existed.",
+  ]}
+  explanation="PowerShell is a shell, and in a shell < and > already mean redirect input from a file and redirect output to one. Spelling comparisons as words avoids that clash entirely. It has nothing to do with speed, and PowerShell is a modern language built long after == existed."
+/>
+
+## Combining tests with -and, -or, and -not
+
+A single comparison is often not enough. A script checking whether a number falls in a range needs two comparisons at once: greater than some floor and less than some ceiling. PowerShell combines comparisons the same way it spells them, as words: `-and` requires both sides to be true, `-or` requires at least one side to be true, and `-not` flips a single result from true to false or back.
+
+```powershell
+$age = 34
+Write-Output ($age -ge 18 -and $age -lt 65)
+Write-Output ($age -lt 18 -or $age -ge 65)
+Write-Output (-not ($age -eq 34))
+```
+
+<ExpectedOutput label="combining comparisons with -and, -or, and -not">
+```
+True
+False
+True
+```
+</ExpectedOutput>
+
+The first line asks whether 34 is both at least 18 and under 65, which it is, so `-and` returns `True`. The second line asks whether 34 is under 18 or at least 65, which it is neither, so `-or` returns `False`. The third line takes the plain comparison `$age -eq 34`, which is `True`, and `-not` inverts it to `False`... except the parentheses hand `-not` the whole comparison, and the comparison itself is true, so `-not` flips it to `False`. Wait, that traces through as: `$age -eq 34` is `True`, and `-not $true` is `$false`. Read that line again slowly if the flip feels backwards; inverting true always gives false, and that habit of tracing one operator at a time is exactly what makes longer conditions readable instead of guessed at.
+
+These three operators are what turn a handful of simple comparisons into the actual conditions a real script needs, and they are also exactly what feeds into the next tool: a branch that runs different code depending on which way a condition falls.
+
+## Branching with if, elseif, and else
+
+An `if` statement runs a block of code only when a condition is true. The condition sits in parentheses right after `if`, and the block of code it guards sits inside curly braces, called a script block. Nothing inside the braces runs unless the condition passes.
+
+```powershell
+$temperature = 15
+if ($temperature -lt 0) {
+    Write-Output "Freezing"
+} elseif ($temperature -lt 20) {
+    Write-Output "Cool"
+} else {
+    Write-Output "Warm"
+}
+```
+
+<ExpectedOutput label="the first matching branch runs, the rest are skipped">
+```
+Cool
+```
+</ExpectedOutput>
+
+PowerShell checks the conditions from top to bottom and runs the script block attached to the first one that comes back true, then skips everything after it. Fifteen is not less than zero, so the first branch is skipped. Fifteen is less than twenty, so `elseif` catches it and prints `Cool`, and `else` never even gets evaluated because a match was already found. `elseif` can appear as many times as needed to cover more bands, and a final `else` is optional: it is the block that runs when nothing else matched, a catch-all rather than another named condition.
+
+That one habit, checking top to bottom and stopping at the first true branch, matters for ordering. A common mistake is writing the widest condition first, like checking `$temperature -lt 100` before checking `$temperature -lt 0`; the wide check would swallow every case and the narrower ones underneath would never get a turn. Order conditions from most specific to most general, the same way a triage nurse checks for the emergency before checking for the mild symptom.
+
+A slightly longer example puts arrays back into the picture, looping is still a section away, but this shows `if`/`elseif`/`else` classifying more than one input in a row:
+
+```powershell
+$numbers = -3, 0, 7
+foreach ($n in $numbers) {
+    if ($n -lt 0) {
+        Write-Output "$n is negative"
+    } elseif ($n -eq 0) {
+        Write-Output "$n is zero"
+    } else {
+        Write-Output "$n is positive"
+    }
+}
+```
+
+<ExpectedOutput label="each number classified on its own pass">
+```
+-3 is negative
+0 is zero
+7 is positive
+```
+</ExpectedOutput>
+
+Each number takes its own trip through the same three branches, and the branch that matches depends only on that one value. This is the shape a huge amount of real scripting takes: loop over a collection, and inside the loop, decide what to do with the current item.
+
+<Quiz
+  id="ps-if-elseif-order"
+  question="In an if / elseif / else chain, what happens once PowerShell finds a condition that evaluates to true?"
+  answer={0}
+  options={[
+    "It runs that branch's script block and skips every remaining elseif and else in the chain.",
+    "It runs that branch and then also runs the else block afterward, just in case.",
+    "It runs every branch whose condition is true, not just the first one.",
+    "It re-checks all the conditions from the top one more time before deciding.",
+  ]}
+  explanation="PowerShell checks conditions top to bottom and stops at the first true one, running only that block. The else block is a fallback for when nothing matched, so it does not also run after a match, and there is no re-check pass or multi-branch execution."
+/>
+
+## Repeating work: for, foreach, and while
+
+The classify-numbers example above already used `foreach`, and it is worth naming precisely what it does: `foreach ($n in $numbers)` walks a collection one item at a time, puts the current item into the loop variable, here `$n`, and runs the script block once per item. It is the natural fit whenever the task is "do this to every item in a collection" and the count of items does not need to be tracked by hand.
+
+A `for` loop is built differently, around three parts separated by semicolons: a starting point, a condition checked before every pass, and an update that runs after every pass. It fits naturally when a script needs to count, especially counting by something other than one item at a time.
+
+```powershell
+$total = 0
+for ($i = 1; $i -le 5; $i++) {
+    $total += $i
+}
+Write-Output $total
+```
+
+<ExpectedOutput label="summing 1 through 5 with a for loop">
+```
+15
+```
+</ExpectedOutput>
+
+`$i = 1` sets the starting value once. `$i -le 5` is checked before every pass, and the loop stops the moment it comes back false. `$i++` increases `$i` by one after each pass runs. `$total += $i` adds the current `$i` onto the running total, which is shorthand for `$total = $total + $i`. Five passes add 1, 2, 3, 4, and 5, landing on 15.
+
+The same total comes out of a `foreach` over a range, and for a plain sum across a known collection, `foreach` usually reads cleaner because there is no counter to manage by hand:
+
+```powershell
+$total = 0
+foreach ($n in 1..5) {
+    $total += $n
+}
+Write-Output $total
+```
+
+<ExpectedOutput label="the same sum, walking a range instead of counting by hand">
+```
+15
+```
+</ExpectedOutput>
+
+`1..5` builds the array `1,2,3,4,5`, and `foreach` walks it exactly the way it walked `$numbers` earlier. Reach for `for` when the loop genuinely needs a counter that does not map cleanly onto an existing collection, like stepping by twos or counting backwards. Reach for `foreach` for the far more common case of "run this once per item already in a collection."
+
+A `while` loop is the third shape, and it fits when the number of passes is not known ahead of time, only the condition that should eventually end it. The condition is checked before every pass, and as long as it holds, the block keeps running.
+
+```powershell
+$count = 0
+$doubled = 1
+while ($doubled -lt 50) {
+    $doubled = $doubled * 2
+    $count++
+}
+Write-Output "$count doublings to pass 50, ending at $doubled"
+```
+
+<ExpectedOutput label="the loop runs until the condition fails, however many passes that takes">
+```
+6 doublings to pass 50, ending at 64
+```
+</ExpectedOutput>
+
+Nobody counted the doublings in advance; the loop simply kept doubling until `$doubled -lt 50` finally came back false. That is the tell for reaching for `while` over `for` or `foreach`: the stopping point is a condition on the data, not a fixed number of items or a known count.
+
+One more shape is worth knowing exists even without a full walkthrough here: `switch` checks one value against several possible matches in a row, which reads cleaner than a long chain of `elseif` blocks once there are more than two or three specific values to check against, like matching a day name or a status code. It is built for exactly that job, matching one value against many candidates, where `if`/`elseif` is built for testing a series of different conditions that may not even involve the same variable.
+
+<Quiz
+  id="ps-loop-choice"
+  question="A script needs to double a starting value repeatedly until it exceeds a target, but nobody knows in advance how many doublings that will take. Which loop fits best, and why?"
+  answer={2}
+  options={[
+    "A for loop, because for loops are the fastest option in PowerShell.",
+    "A foreach loop, because foreach can walk any number automatically.",
+    "A while loop, because it keeps running as long as a condition holds, with no fixed pass count needed ahead of time.",
+    "A switch statement, because switch is built for repeating a block of code.",
+  ]}
+  explanation="A while loop checks its condition before each pass and stops the moment it fails, which fits a task where the number of passes is not known in advance. A for loop and foreach both fit better when a count or a collection is already known, and switch does not repeat code at all, it picks one matching branch."
+/>
+
+Comparisons decide what is true, `if`/`elseif`/`else` choose which block runs based on that decision, and `for`, `foreach`, and `while` repeat a block until a condition says stop. Those three ideas, testing, branching, and repeating, cover most of what a script actually does once it moves past printing a single answer. The next lesson in this module builds on exactly that: wrapping this logic into functions, so a block of decisions and loops gets a name and can be called by that name instead of copied wherever it is needed.

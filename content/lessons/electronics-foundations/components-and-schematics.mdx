@@ -1,0 +1,297 @@
+---
+title: Components and Schematics
+module: electronics-foundations
+moduleTitle: Electronics Foundations
+moduleOrder: 4
+moduleIcon: CircuitBoard
+order: 2
+summary: "The handful of parts every circuit is built from, and how to read the drawing that wires them together."
+estimatedMinutes: 16
+prerequisites: ["what-electricity-is"]
+objectives:
+  - Identify a resistor, capacitor, diode, LED, transistor, battery, and ground by what each one does to current
+  - Size a current-limiting resistor for an LED using Ohms law and real component values
+  - Explain why an LED wired without a series resistor destroys itself
+  - Read a schematic as symbols joined into nodes, and map each symbol back to a real part
+tags:
+  - electronics
+  - hardware
+---
+
+The last lesson ended with a working picture: voltage pushes current around a
+loop, and resistance sets how much current flows. Ohms law tied the three
+together, V equals I times R. That is the physics. It is not yet a circuit
+anyone can build.
+
+A real circuit is made of parts, each one doing a specific job to the current
+passing through it. And it is written down on paper as a drawing that looks
+nothing like the parts themselves: a page of zigzags, triangles, and parallel
+lines connected by wires. This lesson covers the small set of parts that show up
+in almost every circuit, what each one does, and how to read the drawing that
+ties them into a loop.
+
+## The battery and ground
+
+A circuit needs a source. The battery is the part that supplies voltage, the
+push that moves current around the loop. It has two terminals: the positive
+terminal, marked plus, sits at the higher voltage, and the negative terminal,
+marked minus, sits at the lower one. Current leaves the positive terminal,
+travels the loop, and returns to the negative terminal. Cut the loop anywhere and
+the current stops, exactly as the last lesson described.
+
+Batteries come in fixed voltages that are worth knowing on sight. A single AA
+alkaline cell is 1.5 volts. A CR2032 coin cell, the flat silver disc in a car key
+or a motherboard, is 3.0 volts. A single lithium-polymer cell, the kind inside a
+phone, is 3.7 volts nominal. A USB port delivers 5 volts. The battery does not
+decide how much current flows. It sets the voltage and lets the rest of the
+circuit determine the current.
+
+Ground is the other end of the story. It is the reference point every other
+voltage is measured against, defined as zero volts. On most small circuits ground
+is simply the battery's negative terminal, and it is the common return path that
+current flows back through. Voltage is always a difference between two points, so
+a single number like "3.3 volts" is shorthand for "3.3 volts above ground." Ground
+is the agreed-upon floor that makes those single numbers mean something.
+
+## The resistor
+
+The resistor is a part built to resist current. It converts a bit of electrical
+energy into heat, and in doing so it holds the current down to a chosen level.
+Its value is measured in ohms, written with the symbol Ω, and a real resistor's
+value is printed on it as colored bands or stamped on the body. Common values run
+from a few ohms up to millions: 220 Ω, 330 Ω, 1,000 Ω (also written 1 kΩ), 10 kΩ.
+
+Ohms law is what makes a resistor useful, because it says exactly how much current
+a given resistor will allow. Rearranged to solve for current, V equals I times R
+becomes I equals V divided by R. Put 5 volts across a 1,000 Ω resistor and the
+current is 5 divided by 1,000, which is 0.005 amps, or 5 milliamps. Swap in a
+330 Ω resistor and the current climbs to 5 divided by 330, about 0.015 amps, or
+15 milliamps. Smaller resistance, more current. The resistor is the knob that sets
+it.
+
+That knob is the whole reason resistors sit next to more delicate parts. A part
+that would pull too much current if wired straight to the source gets a resistor
+in series with it, sized so the current lands where it should. The next part is
+the classic case.
+
+<Quiz
+  id="elec-resistor-ohms"
+  question="A resistor needs to have 3 volts across it while passing 10 milliamps (0.01 amps) of current. Using Ohms law, what resistance does that take?"
+  answer={1}
+  options={[
+    "30 ohms",
+    "300 ohms",
+    "3,000 ohms",
+    "0.03 ohms",
+  ]}
+  explanation="Rearrange V = I times R into R = V divided by I. That is 3 volts divided by 0.01 amps, which equals 300 ohms. This is the exact calculation that sizes the resistor sitting in series with an LED."
+/>
+
+## The capacitor
+
+A capacitor stores charge. Inside it are two conductive plates held close
+together but not touching, separated by a thin insulating layer. Apply a voltage
+across the plates and charge piles up on them, one side positive, the other
+negative. Remove the source and the charge stays for a while. A capacitor is a
+small, fast reservoir for electrical charge.
+
+Its capacity is measured in farads, symbol F, but a full farad is enormous. Real
+capacitors are labeled in fractions: microfarads (µF, a millionth of a farad),
+nanofarads (nF, a billionth), and picofarads (pF, a trillionth). A 0.1 µF ceramic
+capacitor, the tiny part scattered across every circuit board, is a completely
+ordinary value.
+
+The behavior that matters most: a capacitor resists sudden changes in voltage.
+When the voltage feeding a chip dips for an instant, a capacitor placed across its
+power pins dumps its stored charge to fill the gap, holding the voltage steady.
+That job is called decoupling, and it is why boards are covered in small
+capacitors near every chip. A capacitor also blocks steady, unchanging current
+once it is fully charged, while still passing a changing signal through. Storing
+charge and smoothing voltage are the two things to remember it for.
+
+## The diode and the LED
+
+A diode lets current flow one way and blocks it the other. It has two terminals,
+the anode and the cathode, and current passes only when it enters the anode and
+exits the cathode. Push current the other direction and the diode stops it cold.
+It is a one-way valve for electricity. On a real diode a printed band marks the
+cathode, the blocked-return side, so the part can be placed the right way around.
+
+A diode also costs a little voltage to push current through in its allowed
+direction. For an ordinary silicon diode that forward drop is about 0.7 volts.
+The current gives up 0.7 volts crossing the diode, which is a fixed toll rather
+than something Ohms law sets.
+
+An LED, light-emitting diode, is a diode that glows when current flows through it
+the right way. It behaves like any diode, one-way with a forward voltage, except
+its forward drop depends on the color: a red LED drops about 2.0 volts, a blue or
+white one about 3.0 to 3.4 volts. And here is the trap. Once the voltage across an
+LED passes its forward drop, the LED barely resists current at all. Nothing inside
+it limits how much flows.
+
+So an LED wired straight across a source with nothing else in the loop pulls
+current until it destroys itself. This is where the resistor from earlier earns
+its place. Put a resistor in series with the LED and it takes up the leftover
+voltage and sets the current. Work the numbers on a real case: a red LED at 2.0
+volts forward, run from a 5 volt supply, at a target of 10 milliamps. The resistor
+has to drop the difference, 5 minus 2.0, which is 3.0 volts. From Ohms law,
+R equals 3.0 divided by 0.010, which is 300 Ω. The nearest common resistor is
+330 Ω, and with it the current settles at 3.0 divided by 330, about 9 milliamps.
+Safe, bright, and steady.
+
+<Callout type="warning" title="An LED is not a lightbulb">
+A lightbulb has real resistance and can be wired straight to a battery. An LED
+cannot. Past its forward voltage it acts almost like a plain wire, so its current
+is set by whatever else is in the loop. Leave out the series resistor and the
+current is limited only by the source, which is usually far past the roughly 20
+milliamps a small LED tolerates. The LED flares once and dies. Always size a
+resistor for it first.
+</Callout>
+
+<Quiz
+  id="elec-led-resistor"
+  question="A red LED with a 2 volt forward drop is wired directly across a 5 volt supply, with no resistor anywhere in the loop. What happens?"
+  answer={2}
+  options={[
+    "Nothing unusual, because the LED only uses 2 of the 5 volts and ignores the rest.",
+    "The LED glows at a safe, steady brightness because it regulates its own current.",
+    "Current climbs past what the LED can handle and it burns out, because nothing in the loop limits the current.",
+    "The extra 3 volts are stored inside the LED to use later.",
+  ]}
+  explanation="Once it is past its forward voltage an LED barely resists current, so it does not set its own limit. With no resistor in the loop, current rises to whatever the source can deliver, well past the roughly 20 milliamps a small LED survives, and it burns out. The series resistor is the part that sets a safe current."
+/>
+
+## The transistor
+
+A transistor is a switch with no moving parts, controlled by electricity instead
+of a finger. It has three terminals. A small signal on one of them, the control
+terminal, decides whether a much larger current is allowed to flow between the
+other two. Weak in, strong out: that is the whole idea. Applied one way it acts as
+a switch, fully on or fully off. Applied another way it acts as an amplifier,
+where a small changing signal steers a larger copy of itself.
+
+This is why a transistor is the most important part on the list even though it
+does the least on its own. A microcontroller pin can supply only a tiny current,
+nowhere near enough to spin a motor or drive a bright lamp. Wire that pin to a
+transistor's control terminal and the pin's small current switches the
+transistor, which in turn switches the heavy current the motor needs. The pin
+decides, the transistor does the lifting.
+
+Stack up enough transistors switching each other and the result is a logic gate,
+then a memory cell, then a processor. Every chip in every device is transistors,
+counted in the billions. The takeaway here is simpler: a transistor lets a small
+electrical signal control a big one, as either a switch or an amplifier.
+
+## The schematic
+
+None of these parts is useful alone. A circuit is parts wired into a loop, and the
+standard way to write down which part connects to which is the schematic: a
+diagram where every component is drawn as a simple, agreed-upon symbol and every
+wire is a line. A schematic says nothing about where the parts physically sit or
+how big they are. It records one thing only, what connects to what.
+
+Each symbol is a shorthand that hardware people read at a glance:
+
+- A resistor is a zigzag line, or a plain rectangle, labeled with its value like 330 Ω.
+- A capacitor is two short parallel lines, the two plates, face to face.
+- A diode is a triangle pointing at a bar, and the bar is the cathode, the blocked side. An LED adds two small arrows pointing away, for the light it throws off.
+- A battery is a stack of alternating long and short lines, the long line positive.
+- Ground is a set of shrinking horizontal lines, or a small down-pointing triangle.
+
+The other half of reading a schematic is the wires, and the key idea there is the
+node. A node is any set of points joined by wire, all sitting at the same voltage
+because current moves freely between them with nothing in the way. Where lines
+meet and are connected, the drawing puts a filled dot at the junction. Where two
+lines merely cross with no dot, they are not connected, like one road flying over
+another. That dot, present or absent, is the difference between a joint and a
+flyover, and misreading it is the most common schematic mistake there is.
+
+Put the parts together and a schematic maps straight onto real hardware. Take the
+LED example and add an Arduino, a small board with a microcontroller whose pins a
+program can switch on and off. The schematic reads: pin 13 connects through a
+330 Ω resistor to the LED's anode, and the LED's cathode connects to ground. Three
+symbols, three wires, one loop. When the program sets pin 13 high, the pin goes to
+5 volts, current flows through the resistor and the LED down to ground, and the
+LED lights. Set the pin low and the loop drops to zero, and the light goes out.
+
+Here is the program that drives it, the standard Arduino blink sketch:
+
+```cpp
+const int LED_PIN = 13;
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(LED_PIN, HIGH);
+  delay(500);
+  digitalWrite(LED_PIN, LOW);
+  delay(500);
+}
+```
+
+The `setup` function runs once and tells the board that pin 13 is an output, a pin
+the program will drive. The `loop` function repeats forever: set pin 13 high to put
+5 volts on it, wait 500 milliseconds, set it low again, wait another 500. The LED,
+sitting on the other end of that resistor in the schematic, blinks once a second.
+Compiling the sketch checks that it is valid before it ever reaches the board.
+
+<CommandCard
+  command="arduino-cli compile --fqbn arduino:avr:uno Blink"
+  title="terminal"
+  explain="Compiles the Blink sketch for an Arduino Uno and reports how much program and memory space it uses, without needing a board attached."
+/>
+
+<ExpectedOutput label="compiling the blink sketch for an Uno">
+```
+Sketch uses 924 bytes (2%) of program storage space. Maximum is 32256 bytes.
+Global variables use 9 bytes (0%) of dynamic memory, leaving 2039 bytes for local variables. Maximum is 2048 bytes.
+```
+</ExpectedOutput>
+
+The exact byte counts shift a little with the compiler version, but the shape
+holds: a blink sketch is tiny, using a couple percent of the chip. The point is
+that the schematic and the code describe the same loop from two sides. The drawing
+says which parts connect; the program decides when the pin that feeds them turns
+on.
+
+<Quiz
+  id="elec-schematic-node"
+  question="On a schematic, three wire lines meet at a single point marked with a filled dot. What does that dot tell the reader?"
+  answer={1}
+  options={[
+    "The three wires cross over each other but are not electrically connected.",
+    "All three points are one node, electrically joined and at the same voltage.",
+    "A component is missing and should be placed at the dot.",
+    "The current is required to split into three equal parts there.",
+  ]}
+  explanation="A filled dot marks a junction. Every wire touching it is part of one node, meaning the same electrical point at the same voltage. Lines that cross with no dot are not connected. The dot is the difference between a joint and a flyover."
+/>
+
+<Exercise title="Read a part off a board">
+Find any circuit board within reach: an old charger, a dead remote, a broken toy,
+anything with exposed electronics. Look for the small parts with two ends and a
+number printed on the body.
+
+Spot a resistor if you can, a small cylinder with colored bands, or a black
+rectangle stamped with something like `330` or `1K`. Spot a capacitor, often a
+little disc or a small can. Look for an LED, the part that would light up. You do
+not need to test anything. The goal is to match the symbols from this lesson to
+the real objects, so the drawing and the hardware stop feeling like two separate
+subjects.
+
+If you have an LED and a resistor loose in a drawer, hold them side by side and
+say which resistor value you would put in series to run that LED from 5 volts.
+Work it the way the lesson did: subtract the LED's forward drop from 5, then
+divide by the current you want. That number, rounded to a common resistor, is the
+part you would reach for.
+</Exercise>
+
+The parts are named and the drawing makes sense, but reading a schematic is not
+the same as building the loop it describes. The next lesson, your first circuit,
+takes these exact parts, a resistor and an LED and a source, and wires them up on
+a breadboard, a reusable board that holds parts and connects them without any
+soldering. That is where the symbols turn into something that lights up.
+
+<Notes />

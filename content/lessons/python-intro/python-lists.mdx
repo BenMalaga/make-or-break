@@ -1,0 +1,286 @@
+---
+title: "Lists: Many Values in One"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 8
+summary: "A list holds many values under one name and in one order, and indexing, slicing, and looping are how a program reaches in and gets exactly what it needs."
+estimatedMinutes: 14
+prerequisites: ["python-loops"]
+objectives:
+  - Create a list, read an item by index (including negative indexes), and pull out a range with slicing
+  - Change, add, and remove items with assignment, .append(), and .remove()
+  - Loop over a list with for and check whether a value is present with in
+  - Build a list in a loop and filter or total it, the pattern behind most real list work
+tags:
+  - python
+  - lists
+  - collections
+---
+
+A single variable holds one value. `score = 87` is fine for one player, but a leaderboard has ten players, a shopping list has a dozen items, and a sensor log has thousands of readings. Storing each of those in its own variable, `score1`, `score2`, `score3`, falls apart fast: the previous lesson's loop had no way to run ten times over ten separately named variables. Python's answer is a collection that holds many values under a single name, in the order they were put in. That collection is called a list, and it is the tool that finally lets a loop do something useful with real data instead of just counting.
+
+## Building a list and reading it back
+
+A list is written with square brackets, with commas separating the values inside:
+
+```python
+scores = [87, 92, 78]
+print(scores)
+```
+
+<ExpectedOutput label="a list prints all its values together, in order">
+```
+[87, 92, 78]
+```
+</ExpectedOutput>
+
+That single name, `scores`, now refers to three numbers at once, and it remembers the order they were given in: 87 first, 92 second, 78 third. A list can hold any type Python has: numbers, strings, even other lists. It can also mix types in one list, though most real lists hold one kind of thing, since that is what makes looping over them predictable.
+
+Each spot in a list has a position, called an index, and Python counts positions starting from 0, not 1. The first item sits at index 0, the second at index 1, and so on. Square brackets after the list name pull out the item at a given index:
+
+```python
+scores = [87, 92, 78]
+print(scores[0])
+print(scores[1])
+print(scores[2])
+```
+
+<ExpectedOutput label="index 0 is the first item, not the second">
+```
+87
+92
+78
+```
+</ExpectedOutput>
+
+`scores[0]` is 87, the first value, because counting starts at 0. This trips up almost everyone the first time: reaching for `scores[1]` expecting the first item returns the second one instead, 92. It is worth saying out loud once and then never forgetting: index 0 means "first," index 1 means "second." Asking for an index that does not exist, like `scores[3]` on a three-item list, raises an error and stops the program, the same way a missing dictionary key would, so an index always has to point at a real position.
+
+## Reaching from the end with negative indexes
+
+Finding the last item of a list by counting forward means knowing how many items it has first, which is extra work for something this common. Python allows negative indexes to count backward from the end instead: `-1` is the last item, `-2` is the second to last, and so on.
+
+```python
+scores = [87, 92, 78, 65, 99]
+print(scores[-1])
+print(scores[-2])
+```
+
+<ExpectedOutput label="negative indexes count backward from the end">
+```
+99
+65
+```
+</ExpectedOutput>
+
+`scores[-1]` is 99, the last value in the list, no matter how many items the list holds. That is the whole point of negative indexing: `scores[-1]` gives the last item whether the list has 5 entries or 5,000, without ever counting them. `scores[-2]` steps back one more, to 65, the second to last. Positive indexes count from the front starting at 0, negative indexes count from the back starting at -1, and both describe the same list at once.
+
+## Slicing: pulling out a range instead of one item
+
+A single index gives one value. A slice gives a whole chunk. Slicing uses a colon inside the square brackets, with a start index and a stop index: `list[start:stop]`. It grabs every item from `start` up to, but not including, `stop`.
+
+```python
+scores = [87, 92, 78, 65, 99]
+print(scores[1:3])
+print(scores[:2])
+print(scores[3:])
+```
+
+<ExpectedOutput label="a slice stops one before the number after the colon">
+```
+[92, 78]
+[87, 92]
+[65, 99]
+```
+</ExpectedOutput>
+
+`scores[1:3]` starts at index 1 and stops right before index 3, so it collects indexes 1 and 2, which are 92 and 78. Index 3 itself, 65, is left out. That "stop is exclusive" rule is the same one strings follow, and it pays off the same way: `scores[0:3]` and `scores[3:5]` split the list cleanly with no overlap and no gap, which would not hold if the stop index were included. Leaving off one side of the colon means "go to that edge": `scores[:2]` starts at the beginning and stops before index 2, and `scores[3:]` starts at index 3 and runs to the end. A slice always returns a new list, even if it only has one item in it or none at all.
+
+<Quiz
+  id="lists-index-vs-slice"
+  question="Given scores = [10, 20, 30, 40, 50], what does scores[1:4] return, and how is that different from scores[1]?"
+  answer={2}
+  options={[
+    "Both return 20, the single value at index 1.",
+    "scores[1:4] returns 40, the value at index 4, while scores[1] returns 20.",
+    "scores[1:4] returns a new list, [20, 30, 40], covering indexes 1 through 3, while scores[1] returns the single value 20.",
+    "scores[1:4] returns the whole list unchanged, while scores[1] raises an error."
+  ]}
+  explanation="A slice with a colon returns a list built from a range of indexes, here 1 up to but not including 4, which is [20, 30, 40]. A single index with no colon returns just that one value, 20. The slice does not stop at index 4 itself, and scores[1] is a completely ordinary, valid lookup, not an error."
+/>
+
+## Length, changing an item, and adding or removing
+
+The built-in `len()` function, already familiar from strings, works on a list the same way: it returns how many items the list holds.
+
+```python
+scores = [87, 92, 78]
+print(len(scores))
+```
+
+<ExpectedOutput label="len() counts the items in the list">
+```
+3
+```
+</ExpectedOutput>
+
+A list is not fixed once it is written. Assigning to an index with square brackets on the left of an equals sign replaces the value at that position:
+
+```python
+scores = [87, 92, 78]
+scores[1] = 100
+print(scores)
+```
+
+<ExpectedOutput label="assigning to an index replaces that one item">
+```
+[87, 100, 78]
+```
+</ExpectedOutput>
+
+`scores[1] = 100` overwrote the 92 that used to sit at index 1, leaving the other two items untouched. That only works for a position that already exists. Adding a brand new item to the end uses a different tool, the `.append()` method:
+
+```python
+scores = [87, 92, 78]
+scores.append(65)
+print(scores)
+```
+
+<ExpectedOutput label="append adds one new item to the end">
+```
+[87, 92, 78, 65]
+```
+</ExpectedOutput>
+
+`.append()` grows the list by exactly one item, tacked onto the end, which is how a list is usually built up: start empty or small, then append as new values show up. Removing an item works the other direction, with `.remove()`, which takes a value, not an index, and deletes the first matching item it finds:
+
+```python
+scores = [87, 92, 78, 92]
+scores.remove(92)
+print(scores)
+```
+
+<ExpectedOutput label="remove deletes the first matching value, not every match">
+```
+[87, 78, 92]
+```
+</ExpectedOutput>
+
+Notice only the first 92 disappeared. The second one, still sitting at the end, survives, because `.remove()` stops after its first match. Asking it to remove a value that is not in the list at all raises an error, so code that is not sure a value is present should check first, using the `in` operator covered next.
+
+<Callout type="warning" title="An index has to exist before it can be assigned to">
+`scores[1] = 100` only works if index 1 is already a valid position in the list. It cannot be used to grow a list, the way `.append()` can. Trying to assign to an index past the end, like `scores[10] = 5` on a three-item list, raises an IndexError and stops the program. When new data needs to go into a list, `.append()` is almost always the right call; index assignment is for replacing something that is already there.
+</Callout>
+
+## Looping over a list and checking membership
+
+A list earns its keep in a loop. A `for` loop can walk every item in a list directly, without touching indexes at all:
+
+```python
+scores = [87, 92, 78]
+for score in scores:
+    print(score)
+```
+
+<ExpectedOutput label="the loop runs once per item, in list order">
+```
+87
+92
+78
+```
+</ExpectedOutput>
+
+Read `for score in scores` as: for each item in the list, put it into the variable `score`, then run the indented block. On the first pass `score` is 87, on the second it is 92, on the third it is 78, and the loop stops when the list runs out. This is the same `for` loop from the previous lesson, just handed a list instead of a range of numbers, and it is by far the most common way a list gets used.
+
+Checking whether a specific value is anywhere in a list uses the `in` operator, which answers with `True` or `False`:
+
+```python
+scores = [87, 92, 78]
+print(92 in scores)
+print(50 in scores)
+```
+
+<ExpectedOutput label="in checks membership without a loop written by hand">
+```
+True
+False
+```
+</ExpectedOutput>
+
+`92 in scores` is `True` because 92 sits somewhere in the list; `50 in scores` is `False` because it does not. Under the hood, Python is checking every item for a match, the same work a hand-written loop with an `if` inside it would do, but `in` does it in one readable step. This is the natural way to answer "does this list contain that," which shows up constantly: is this username taken, is this word on the banned list, has this score already been recorded.
+
+<Quiz
+  id="lists-in-operator"
+  question="Given tags = [\"red\", \"blue\", \"green\"], what does \"blue\" in tags evaluate to, and what would it evaluate to for \"purple\" in tags?"
+  answer={0}
+  options={[
+    "True for \"blue\", because it is in the list, and False for \"purple\", because it is not.",
+    "True for both, since in only checks that tags is a list of strings.",
+    "False for both, because in only works on numbers, not strings.",
+    "True for \"blue\" only if it is the first item in the list."
+  ]}
+  explanation="The in operator checks membership anywhere in the list, not just the first position, so blue is True because it appears in tags and purple is False because it does not appear at all. in works on strings just as well as numbers, and it does not return True for everything."
+/>
+
+## A worked example: building and filtering a list
+
+The pattern that ties all of this together is building a list up from nothing, then walking it to pull out only what is wanted. Here is a program that starts with a list of temperatures, then collects just the ones above freezing into a second list:
+
+```python
+temperatures = [28, 34, 41, 30, 55, 22, 47]
+above_freezing = []
+
+for temp in temperatures:
+    if temp > 32:
+        above_freezing.append(temp)
+
+print(above_freezing)
+print(f"{len(above_freezing)} of {len(temperatures)} readings were above freezing")
+```
+
+<ExpectedOutput label="the loop keeps only the temperatures that pass the check">
+```
+[34, 41, 55, 47]
+[4] of 7 readings were above freezing
+```
+</ExpectedOutput>
+
+Walk through what actually happens. `above_freezing = []` creates an empty list, ready to collect results. The `for` loop visits every temperature in order. Each time `temp > 32` is `True`, that value gets appended to `above_freezing`; when it is `False`, nothing happens and the loop moves on. By the time the loop finishes, `above_freezing` holds exactly the readings that passed the test, in the order they were found, and `len()` on both lists gives an easy way to report how many passed out of how many total. This build-then-filter shape, an empty list, a loop, an `if`, and an `.append()` inside it, covers an enormous share of real list work: collecting passing test scores, valid email addresses, orders over a certain amount, or words longer than three letters.
+
+The same shape adds things up instead of collecting them, by keeping a running total instead of a list:
+
+```python
+temperatures = [28, 34, 41, 30, 55, 22, 47]
+total = 0
+
+for temp in temperatures:
+    total = total + temp
+
+print(f"Average: {total / len(temperatures):.1f}")
+```
+
+<ExpectedOutput label="a running total divided by len() gives the average">
+```
+Average: 36.7
+```
+</ExpectedOutput>
+
+`total` starts at 0, and each pass through the loop adds one more temperature onto it. After the loop finishes, `total` holds the sum of every reading, and dividing by `len(temperatures)`, the count of readings, gives the average. Nothing here is new on its own: a loop, an `if`, `.append()`, and arithmetic have all shown up before. What is new is combining them to turn a list of raw values into an answer a program could not have produced by inspecting one variable at a time.
+
+<Quiz
+  id="lists-filter-pattern"
+  question="In the filtering example, why does the code start with above_freezing = [] before the loop runs?"
+  answer={3}
+  options={[
+    "Because .append() only works on a list that already has at least one item in it.",
+    "Because Python requires every variable to be created before a for loop can run.",
+    "Because an empty list automatically fills itself with every value greater than 32.",
+    "Because the loop needs somewhere to collect the matching values as it finds them, one .append() at a time."
+  ]}
+  explanation="above_freezing = [] creates an empty list purely as a collector: the loop tests each temperature and appends the ones that pass, building the result one item at a time. .append() works fine on an empty list, a for loop does not require every variable in a program to exist beforehand, and an empty list does nothing on its own without the loop and the if check driving it."
+/>
+
+This is a first look at lists, covering what almost every program written in this track will need: creating one, reading items by position from either end, slicing out a range, growing and shrinking it, looping over it, and checking membership. There is more underneath, including sorting, reversing, nested lists, and list comprehensions that build a filtered list in a single line instead of four, and the deep-dive module returns to lists with all of that. For now, a list plus a `for` loop plus an `if` is enough to turn a pile of raw values into something worth printing. The next lesson picks up a different kind of collection, one that looks values up by a name instead of a position.
+
+<Notes />

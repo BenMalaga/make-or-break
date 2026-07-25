@@ -1,0 +1,64 @@
+---
+title: Why Crypto Implementations Fail
+module: cryptographic-attacks
+moduleTitle: Cryptographic Attacks
+moduleOrder: 41
+moduleIcon: Unlock
+order: 1
+summary: Nobody brute-forces AES. They attack the sloppy code wrapped around it.
+estimatedMinutes: 18
+objectives:
+  - Explain why the cipher is almost never the weak point
+  - Name the four places real crypto bugs live
+  - Spot the difference between a broken algorithm and broken plumbing
+tags:
+  - crypto
+  - fundamentals
+  - key-management
+  - randomness
+---
+
+A developer picks AES-256, feels safe, and hardcodes the key in the source. The math is bulletproof and the system is still wide open. That gap, between the strength of the algorithm and the strength of the thing built around it, is where nearly every crypto bug you will ever find lives.
+
+Start from the right assumption: AES, RSA-2048, and SHA-256 are not the target. No one on a normal engagement is going to factor a 2048-bit modulus or exhaust a 256-bit keyspace. Those numbers are astronomical on purpose. When someone says they "broke the encryption," they broke the code holding it, not the cipher.
+
+So point your attention at the wiring. Four places is where it goes wrong.
+
+## Bad randomness
+
+Keys, IVs, nonces, and tokens all need real entropy. When code pulls that from `Math.random()`, the current time, or a fixed seed, the "random" value becomes predictable, and a predictable key is no key at all. The 2008 Debian OpenSSL bug is the classic: a one-line change gutted the entropy pool, so every SSH and TLS key generated on affected systems came from a pool of roughly 32,000 possibilities. Attackers just precomputed all of them.
+
+The fix is boring and absolute. Use the platform CSPRNG, `/dev/urandom` on Linux, `crypto.randomBytes` in Node, `secrets` in Python. If you see `rand()` anywhere near key material, that is a finding.
+
+## Key management
+
+The strongest cipher in the world does nothing if the key sits in a Git history, a config file shipped to the client, or an environment variable dumped into logs. Hardcoded keys are the single most common crypto flaw in real codebases because they are invisible until someone reads the source. And once a key is committed to a public repo, rotating it is the only fix, since you cannot un-publish it.
+
+## Mode and parameter misuse
+
+Right algorithm, wrong settings. AES in ECB mode leaks structure. A reused IV in CBC or a reused nonce in GCM leaks plaintext relationships or worse. Encrypting without authenticating lets an attacker tamper with ciphertext undetected, which is exactly what a padding oracle exploits. The cipher is fine; the way it was called is not.
+
+## Rolling your own
+
+Someone decides the library is too slow or too complicated and writes a custom scheme. It almost always has a flaw a professional would catch in minutes: a homemade "encryption" that is really XOR against a repeating key, a hash truncated to save space, a comparison that leaks timing. Use vetted libraries. This is not a place for cleverness.
+
+<Callout type="security" title="Test your own plumbing only">
+Everything in this module is for systems you own or have written authorization to assess. Pulling keys from a repo, probing an oracle, or decrypting traffic on infrastructure you are not cleared for is a computer crime in most jurisdictions. Practice on your own apps, deliberately vulnerable labs like CryptoHack and PentesterLab, or a target inside an engagement scope.
+</Callout>
+
+The mindset shift is the whole lesson. You are not a cryptanalyst attacking a primitive. You are a code auditor looking for the human mistake in how a solid primitive got used. That is a much easier target, and it is almost always there.
+
+<Quiz
+  id="crypto-fail-target"
+  question="On a real engagement, what is the most productive first assumption about an app using AES-256?"
+  answer={2}
+  options={[
+    "The 256-bit key can be brute-forced with enough GPUs",
+    "AES-256 has a hidden mathematical backdoor to exploit",
+    "The cipher is fine; look at key handling, randomness, and mode",
+    "Encryption this strong means the app is not worth testing",
+  ]}
+  explanation="AES-256 is not the weak point. Real findings cluster in key management, weak randomness, and mode or parameter misuse, the plumbing around the cipher."
+/>
+
+<Notes />

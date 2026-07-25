@@ -1,0 +1,129 @@
+---
+title: Your Privacy Toolkit
+module: digital-self-defense
+moduleTitle: Digital Self-Defense
+moduleOrder: 6
+moduleIcon: EyeOff
+order: 7
+summary: The tools that actually protect a life, grouped by the job they do, with what each one does not do said out loud.
+estimatedMinutes: 16
+objectives:
+  - Assemble a privacy kit from the threat model outward, choosing each tool by the job it does
+  - Name the free, open-source tool that fits each job and state what that tool does not do
+  - Separate real protection from paid one-click privacy apps and VPNs sold as anonymity
+  - Treat privacy as ongoing maintenance matched to risk, not a one-time purchase
+tags:
+  - privacy
+  - security-tools
+  - opsec
+prerequisites: ["securing-your-devices-and-messages"]
+---
+
+A threat model with no tools is a plan nobody carried out. Five lessons built the map: what privacy actually protects, where a data trail leaks, how the web watches a single page load, how a scam talks a person out of the keys, and which device settings hold the line. This lesson turns that map into a kit. The order is the whole point. The threat model comes first and the tool comes second, because a tool picked before the threat is just a purchase, and the market is glad to sell privacy as a product to people who never decided what they were defending.
+
+So the kit below is grouped by the job each tool does, not by the brand shouting loudest, and every entry names what the tool does not do. One bias runs through all of it: free and open-source is the default. Open code can be read, and a privacy claim that can be checked is worth more than one a company only asks people to believe.
+
+## The password manager holds the one habit that fixes the most
+
+A password manager is the single tool that repairs the most damage for the least effort, which earns it the first slot. The reason traces back to how accounts actually fall. An attacker rarely guesses a password. The attacker buys a list of email and password pairs leaked from some unrelated site, then replays those pairs against banks, inboxes, and shops, betting that one login got reused somewhere that matters. That attack is called credential stuffing, and it works only because no human remembers eighty distinct passwords, so people recycle a handful.
+
+```
+# what one leaked "combo list" line looks like to an attacker (illustrative)
+alex@example.com:Summer2019!      # reused on 12 sites, opens all 12
+alex@example.com:7Qx#v!2pLm9$Rb   # unique, generated, useless anywhere else
+```
+
+A password manager removes the reason to recycle. It generates a long random password for every account, stores them all encrypted behind one master password, and fills them in on demand. Two names are worth trusting, both open-source. Bitwarden runs in a browser and on every phone, syncs across devices through its own servers, and its free tier covers what a normal person needs; the client and the server can both be self-hosted by anyone who wants to hold their own copy. KeePassXC keeps the whole vault in one encrypted file on the device, with no cloud at all, which fits a person who would rather manage a file and its backups than trust any server. The trade is honest. Bitwarden syncs for the owner and asks them to trust its sync. KeePassXC trusts nobody and asks the owner to move the file.
+
+The master password is the game, because it guards every other secret. It should be a passphrase long enough to resist guessing and stored nowhere a stranger can reach, and it is the one password a person still has to keep in their head. Lose it and the vault is gone by design, since the provider cannot read it either.
+
+## The second factor proves the password was not enough
+
+A password can leak. That is the flaw a second factor answers. Two-factor authentication, written 2FA, asks for a second proof after the password, so a stolen password alone opens nothing. Not all second factors are equal, and the differences track exactly the phishing lesson from earlier in this module.
+
+The weakest common second factor is a code texted over SMS. It beats nothing, but a determined attacker can talk a mobile carrier into moving a phone number to a new SIM, an attack called SIM swapping, and then the codes arrive on their phone. A step up is an authenticator app that generates a rotating six-digit code on the device itself, with no carrier in the path. Aegis on Android and Ente Auth across platforms are open-source and free, and they export their secrets so a lost phone is not a locked door.
+
+The strongest factor removes the code entirely. A hardware security key, such as a YubiKey, and a passkey stored on a phone both use a challenge the browser answers only for the genuine site. A passkey is bound to the real domain, so it simply will not respond to a lookalike page, which means a phishing site cannot relay it the way it can relay a typed code. Passkeys are free and already built into current phones, browsers, and password managers. A hardware key costs money and suits a person whose threat model includes a motivated attacker.
+
+<Callout type="security" title="Save the recovery codes before they are needed">
+Every service that offers 2FA also hands out a short list of one-time recovery codes for the day a phone is lost or wiped. Those codes are the backdoor into a locked-out account, so they belong in the password manager or on paper somewhere safe, not in a screenshot in the camera roll. A second factor with no recovery plan is a lockout waiting to happen.
+</Callout>
+
+<Quiz
+  id="your-privacy-toolkit-passkey"
+  question="Why does a passkey or hardware security key resist phishing better than a six-digit code from an authenticator app?"
+  answer={2}
+  options={[
+    "It generates a longer code that is harder for an attacker to guess",
+    "It hides the login from the internet service provider",
+    "It is bound to the real site's domain, so it will not authenticate to a lookalike phishing page",
+    "It stores the password in the cloud where attackers cannot reach it"
+  ]}
+  explanation="A rotating code can be typed into a fake site and replayed to the real one within seconds. A passkey or security key answers a challenge tied to the genuine domain, so a phishing lookalike gets nothing to relay. That binding, not code length, is the protection."
+/>
+
+## Signal keeps the message between two devices
+
+Passwords and second factors guard accounts. A message needs a different tool, because the risk is not a stolen login but a conversation read in transit or handed over later. Signal is the answer most of the security field agrees on. It applies end-to-end encryption to every message and call, meaning the content is scrambled on the sender's device and readable only on the recipient's, and the Signal Foundation that runs it is a nonprofit that keeps almost no records to hand over. The app is open-source on both ends, and the encryption protocol inside it is the same one other messengers licensed after the fact.
+
+What Signal does not do is hide who is talking to whom from a truly determined observer, and it needs a phone number to start, which ties an account to an identity. It also cannot protect a message once it lands on a phone that someone else can pick up and open. The device settings from the last lesson, a locked screen and full-disk encryption, are what guard the message at rest. Signal guards it on the wire.
+
+## uBlock Origin and a quieter browser cut the watchers
+
+The web itself is the leakiest surface in daily life, and the browsing lesson already showed how many companies load code into a single page. Three tools shrink that crowd. uBlock Origin is a free, open-source content blocker that stops ads and third-party trackers from loading at all, and it does so without selling an allowlist to advertisers the way some blockers quietly do. It runs best in Firefox, where the full version still works without restriction; on Chrome the platform's newer extension rules limit it, so Firefox is the cleaner home for it.
+
+The browser underneath matters too. Firefox with its tracking protection turned up, Brave, and the Mullvad Browser all block cross-site tracking by default and resist browser fingerprinting to different degrees. Pairing any of them with DuckDuckGo as the search engine keeps the query itself out of a profile, since DuckDuckGo does not log searches against an identity or build an ad profile from them. None of this is anonymity. A tracker cannot follow a blocked script, but the moment a person signs in to an account, that account knows exactly who they are. These tools cut the ambient watching, not the watching a person opts into by logging in.
+
+<Quiz
+  id="your-privacy-toolkit-blocker"
+  question="What does a content blocker like uBlock Origin do that a private or incognito window does not?"
+  answer={0}
+  options={[
+    "It stops third-party trackers and ads from loading at all, while a private window only forgets history and cookies locally after the session ends",
+    "It makes the browser fully anonymous to every website it visits",
+    "It encrypts the connection so the local network can see no traffic",
+    "It removes the person's data from advertising brokers automatically"
+  ]}
+  explanation="A private window is about local cleanup: it forgets the session on that one device. It still loads every tracker on the page. uBlock Origin blocks those trackers from loading in the first place, which is a different job. Neither one makes the browser anonymous."
+/>
+
+## Have I Been Pwned reveals a wall that already fell
+
+Every tool so far tries to prevent a loss. One tool exists to detect one. Have I Been Pwned is a free service run by security researcher Troy Hunt that collects the email and password dumps traded after breaches and lets anyone check whether their address appears in one. Typing an email into the site returns the list of known breaches it turned up in, and the notify feature emails a warning the next time that address surfaces in a fresh dump. Many password managers, Bitwarden included, wire the same data in directly and flag any stored login that shows up in a breach.
+
+The service checks exposure; it does not fix it. A hit means one thing to do: change the password on that account, and on any other account that shared it, then confirm the second factor is on. Have I Been Pwned turns a silent leak into a dated alert, which is the difference between rotating one password today and finding out through a drained account in six months.
+
+## The device settings are the floor the kit stands on
+
+Two items from the last lesson belong in the kit by name, because every tool above runs on top of them. Full-disk encryption turns the whole drive into meaningless noise without the passcode, so a lost or stolen device is a brick rather than an open vault; FileVault on macOS, BitLocker on Windows, the built-in encryption on current phones, and the open-source VeraCrypt for an external drive all do this job. Automatic updates close the known holes that make up the bulk of real attacks, which is why the boring toggle beats every clever trick. A password manager on an unpatched phone with no lock screen is a strong lock on a door that is propped open.
+
+## What to be skeptical of
+
+The privacy market sells three things worth refusing. The first is the paid one-click privacy app, the suite that promises to make a person private or anonymous with a single purchase and a single switch. Privacy is a set of specific jobs done by specific tools, and no toggle does all of them. The data-broker removal services in that category are the honest edge of it: they can file some opt-outs, but they cannot clear a person from the internet the way the ads imply, and the same opt-outs can be filed by hand for free.
+
+The second is the VPN sold as anonymity. The browsing lesson already right-sized this, and the kit repeats it because the marketing is relentless. A VPN hides a person's IP address from the sites they visit and their traffic from the local network, which is real and useful on hostile Wi-Fi. It does not make them anonymous. It moves the trust from the internet provider to the VPN company, and trackers still follow logins, cookies, and browser fingerprints straight through the tunnel. Anyone who genuinely needs anonymity reaches for Tor, not a VPN subscription. Reputable providers like Mullvad and Proton VPN say this plainly; the ones promising anonymity are the ones to distrust.
+
+The third is any tool that asks for more access than its job needs. A privacy app that wants device-administrator rights, an accessibility service that can read every screen, or permission to inspect all network traffic has made itself a richer target than the problem it claims to solve. The more a tool can see, the more it costs everyone when that tool is breached or sold. This is the same instinct the flashlight-app example built in the last lesson, pointed now at the security products themselves. Match the access to the job, and treat a mismatch as a warning.
+
+<Quiz
+  id="your-privacy-toolkit-skeptic"
+  question="A paid app promises one-click anonymity and, to deliver it, asks to install a system-wide VPN profile plus an accessibility service that can read every screen. Which reaction fits the threat model?"
+  answer={3}
+  options={[
+    "Install it, because more access always means more protection",
+    "Trust it because it costs money, so it must be serious about privacy",
+    "Trust it because it has a large advertising budget and good reviews",
+    "Be skeptical: anonymity is not one setting, and a tool that reads every screen is a bigger target than the problem it solves"
+  ]}
+  explanation="No single app delivers anonymity, and a tool demanding access to every screen has made itself the most valuable thing on the device. Price and ad spend say nothing about safety. Matching access to the actual job is the check that catches overreach."
+/>
+
+<Exercise title="Build the core of your kit in twenty minutes">
+Pick the two jobs that matter most to you and close them tonight. First, install a password manager (Bitwarden if you want sync, KeePassXC if you want a local file), set a long passphrase as the master password, and move just your email and bank logins into it with freshly generated passwords. That handles the account most attackers want. Second, go to haveibeenpwned.com, enter your main email address, and read the list of breaches it appears in; for every account still using a password that showed up there, change it now and turn on two-factor authentication, choosing an authenticator app or a passkey over SMS where the option exists. Save the recovery codes into the password manager as you go. Everything here is reversible, and you can stop after these two jobs. The rest of the kit can wait for a night when the threat model says it is worth the time.
+</Exercise>
+
+None of this is a one-time install. A password leaks and gets rotated, a phone gets replaced and its passkeys move with it, a breach notice arrives and one account gets locked down, an app quietly asks for a permission it never needed and gets denied. Privacy is maintenance, not a purchase, and the amount of maintenance any person owes is set by the threat model from the first lesson, not by the loudest fear. The kit is only ever as good as the map that decided what to put in it.
+
+To go deeper, the map is where the other side of this platform picks up. The osint module shows how an investigator assembles a person from the scattered data trails these tools try to close, and the social-engineering module shows how an attacker talks a target past every one of these defenses without touching the technology at all. Reading how the attack is built is the fastest way to see which of these tools is load-bearing and which is decoration, because the defense sharpens the moment the offense stops being a mystery.
+
+<Notes />

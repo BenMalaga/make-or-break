@@ -1,0 +1,105 @@
+---
+title: A Repeatable Privesc Method
+module: linux-privilege-escalation
+moduleTitle: Linux Privilege Escalation
+moduleOrder: 18
+moduleIcon: ArrowUpFromLine
+order: 1
+summary: A shell is not root. Here is the order you check things in.
+estimatedMinutes: 15
+objectives:
+  - Stabilize a shell and establish your user context before anything else
+  - Follow a fixed enumeration order instead of guessing at exploits
+  - Prioritize cheap, safe wins over risky kernel exploits
+tags:
+  - privesc
+  - linux
+  - methodology
+---
+
+You popped a shell as `www-data` through a file upload bug. The box is not yours
+yet. `www-data` can read the web root and not much else, and the flag you want
+sits in `/root`. The gap between that shell and root is almost never a single
+clever trick. It is a checklist you run every time, in the same order, so you
+never miss the boring misconfiguration that hands you the box.
+
+The first mistake people make is firing off a kernel exploit they found on
+Google before they even know what user they are. Slow down. Root is usually
+sitting behind a `sudo` rule or a writable script, and those cost you nothing to
+check. The exploit is the last thing you reach for, not the first.
+
+## Stabilize the shell first
+
+A raw reverse shell has no job control, no tab completion, and dies if you press
+Ctrl-C. Fix that before you do real work. The Python PTY trick upgrades you to a
+usable terminal.
+
+<CommandBlock
+  title="www-data@target"
+  commands={[
+    { cmd: "python3 -c 'import pty; pty.spawn(\"/bin/bash\")'", comment: "spawn a real TTY" },
+    { cmd: "export TERM=xterm", comment: "so clear and less behave" },
+    { cmd: "id", comment: "who am I, what groups do I hold" },
+  ]}
+/>
+
+## Know your context
+
+Before you enumerate the system, enumerate yourself. Your user, your groups, and
+the OS version decide which whole categories of attack are even worth trying.
+A user in the `docker` or `lxd` group is basically root already. A user with a
+`sudo` entry might be one command away.
+
+<CommandBlock
+  title="www-data@target"
+  commands={[
+    { cmd: "id; whoami; hostname", comment: "user, groups, box name" },
+    { cmd: "sudo -l", comment: "what can I run as another user" },
+    { cmd: "uname -a; cat /etc/os-release", comment: "kernel and distro version" },
+  ]}
+/>
+
+## The order that works
+
+Run these top to bottom. The list is sorted by effort and risk, cheapest and
+safest first. Stop the moment one pays off.
+
+1. `sudo -l` rights, especially any `NOPASSWD` entry.
+2. SUID and SGID binaries you can abuse (next lesson).
+3. Cron jobs and scripts running as root that you can write to.
+4. Writable files that root reads or executes, and weak file permissions.
+5. Credentials in config files, history files, and environment variables.
+6. Group memberships like `docker`, `lxd`, `disk`, `adm`.
+7. Kernel and service version, checked against known exploits. Last.
+
+Kernel exploits sit at the bottom for a reason. They can panic the box, and a
+crashed target on a real engagement means an angry client and lost access. Try
+every misconfiguration first.
+
+<Callout type="security" title="Authorized targets only">
+Everything here assumes a machine you own or have written permission to test.
+Running enumeration scripts or exploits against a system you are not authorized
+to touch is a crime in most places, full stop. Practice on your own VMs, Hack
+The Box, or an engagement with a signed scope.
+</Callout>
+
+<Callout type="tip" title="Write it down as you go">
+Keep a scratch file of every finding: SUID paths, cron entries, cracked creds.
+Half of privesc is noticing that two boring facts combine into one root shell.
+You will not hold it all in your head.
+</Callout>
+
+<Quiz
+  id="privesc-order"
+  question="You just landed a low-priv shell. Which check should you run first?"
+  answer={2}
+  options={[
+    "Compile and run a kernel exploit for the running kernel version",
+    "Reboot the box to clear any monitoring",
+    "Run sudo -l to see what you can already run as root",
+    "Delete the auth logs to stay hidden",
+  ]}
+  explanation="sudo -l is free, safe, and frequently hands you root outright. Kernel exploits are the last resort because they can crash the target."
+/>
+
+<Notes />

@@ -1,0 +1,164 @@
+---
+title: Spatial Joins with ST_Intersects and ST_DWithin
+module: gis-postgis
+moduleTitle: Spatial SQL with PostGIS
+moduleOrder: 5
+moduleIcon: Database
+order: 3
+summary: "A spatial join matches rows from two tables by where their geometries sit relative to each other, not by a shared ID column, and PostGIS supplies the predicates that do the matching."
+estimatedMinutes: 15
+prerequisites: ["spatial-sql-basics"]
+objectives:
+  - Write a spatial join that matches rows from two tables using a predicate such as ST_Intersects or ST_Contains instead of a shared key column
+  - Tell a point-in-polygon join apart from a proximity join and choose ST_Contains or ST_DWithin correctly for each
+  - Use ST_DWithin instead of ST_Distance for a distance threshold, and explain why the choice lets PostGIS use the spatial index
+  - Aggregate a spatial join with GROUP BY to count how many points fall inside each polygon, including polygons with a zero count
+tags:
+  - gis
+  - postgis
+  - sql
+---
+
+The previous lesson set up a table with a geometry column, built a GIST spatial index on it, and ran ST_Distance between two rows picked out by their IDs. That works when both features are already sitting in the same table, or when someone already knows which two rows to compare. Real analysis rarely starts that specific. A city planner does not ask about one crime report and one neighborhood. She asks which neighborhood every crime report in the whole table falls inside, all at once. That question needs a join, but not the ordinary kind, and it is exactly why that index went in ahead of time.
+
+## A join whose match is a shape, not a key
+
+An ordinary SQL join matches rows by comparing a column in one table to a column in another, almost always an ID. `orders.customer_id = customers.id` is the classic shape: two numbers, and if they match, the rows belong together. A **spatial join** keeps the join syntax but swaps that equality for a function call that tests how two geometries relate to each other. The ON clause still decides which rows pair up. It just asks a geographic question instead of an arithmetic one.
+
+PostGIS ships a set of these functions, called spatial predicates, and three of them cover most of the work: ST_Intersects, ST_Contains, and ST_Within. All three take two geometries and return true or false, which is exactly what a JOIN's ON clause needs.
+
+ST_Intersects(a, b) is the loosest of the three. It returns true if the two geometries share any point at all: one lies inside the other, their edges touch, or their interiors overlap. It is the right first choice when the exact relationship (fully inside versus just touching) does not matter yet, only whether the two shapes meet in any way.
+
+ST_Contains(a, b) is stricter and directional. It returns true only when geometry b sits entirely inside geometry a, with no part of b poking outside a's boundary. ST_Within(a, b) is the mirror image: true when a sits entirely inside b. `ST_Contains(neighborhood, point)` and `ST_Within(point, neighborhood)` ask the identical question from opposite ends, and either one works. Most people write it as containment from the polygon's point of view, because that reads closer to the English question: "does this neighborhood contain this point."
+
+<Quiz
+  id="spatial-join-predicate-choice"
+  question="A table of river polygons and a table of city boundary polygons need to be joined to find every city that a river passes through, even where the river only clips a corner of the city. Which predicate fits?"
+  answer={2}
+  options={[
+    "ST_Contains, because the city fully contains every river that passes through it",
+    "ST_Within, because the river is always smaller than the city",
+    "ST_Intersects, because it only needs to know that the two shapes share any point, not that one is fully inside the other",
+    "A spatial predicate cannot be used here since rivers and cities are different geometry types",
+  ]}
+  explanation="A river clipping a corner of a city shares points with it without being contained inside it, so ST_Contains and ST_Within would both miss that case or return false. ST_Intersects only asks whether the shapes touch at all, which is exactly the looser question being asked. Different geometry types (lines and polygons) can absolutely be compared with these predicates; PostGIS does not require matching shapes."
+/>
+
+## Point in polygon: putting each record inside its region
+
+The single most common spatial join is point in polygon: a table of point features, a table of polygon features, and a question about which polygon each point falls inside. Crime reports inside neighborhoods, well permits inside counties, delivery stops inside sales territories. It is the same query shape every time.
+
+```sql
+SELECT c.id, c.crime_type, n.name AS neighborhood
+FROM crimes c
+JOIN neighborhoods n
+  ON ST_Contains(n.geom, c.geom);
+```
+
+Read the ON clause the same way the earlier examples read a predicate: for each pair of rows, one crime and one neighborhood, keep the pair if the neighborhood's polygon contains the crime's point. Because it is a normal JOIN, PostGIS runs this test against every neighborhood for every crime and returns only the pairs where it holds.
+
+A point sitting exactly on the shared border between two neighborhoods is the one case worth knowing about ahead of time. ST_Contains is strict about the boundary: a point resting precisely on a polygon's edge counts as not contained, so a crime report that lands right on a border line can match neither neighborhood and quietly disappear from the results. PostGIS has a related predicate, ST_Covers, that treats a point on the boundary as included, which is the safer choice when the source data was snapped to shared boundary lines and edge cases like this are expected to happen often rather than rarely. For most real datasets, where points are addresses geocoded independently of any neighborhood file, landing exactly on a line is rare enough that ST_Contains is the right default, and the edge case is worth a comment in the query rather than a different predicate.
+
+Nothing about this query mentions coordinates directly. The analyst does not compute anything by hand. Two geometry columns and one function name replace what would otherwise be a manual check of latitude and longitude ranges for every neighborhood shape, which is not something anyone would want to write by hand for a city with a hundred irregular polygons.
+
+Point in polygon is the most common shape of spatial join, but the two tables do not need to hold different kinds of feature. A parcel table checked against itself finds overlapping ownership claims. A table of proposed zoning changes checked against a table of existing flood zone polygons finds every rezoning that overlaps a flood risk area, before anyone approves it:
+
+```sql
+SELECT z.parcel_id, f.zone_name
+FROM proposed_zoning z
+JOIN flood_zones f
+  ON ST_Intersects(z.geom, f.geom);
+```
+
+ST_Intersects is the right predicate here instead of ST_Contains, because a proposed rezoning boundary rarely sits entirely inside a flood zone. Usually only a slice of it does, which is still a real conflict worth flagging, and ST_Contains would miss every partial overlap and report a false all clear.
+
+## Proximity joins: asking "within some distance," correctly
+
+Point in polygon answers "is this point inside that shape." A different, equally common question is "is this point near that other point," which does not involve a polygon at all. How many bus stops sit within 500 meters of a given school. Which sensors sit within two kilometers of a wildfire. This is a **proximity join**, and PostGIS has a purpose built predicate for it: ST_DWithin.
+
+```sql
+SELECT s.name AS school, b.name AS stop_name
+FROM schools s
+JOIN bus_stops b
+  ON ST_DWithin(s.geom, b.geom, 500);
+```
+
+ST_DWithin(a, b, distance) returns true when the two geometries are no farther apart than distance. It looks like it should be interchangeable with `ST_Distance(a, b) < 500`, and it returns the identical set of rows, but the two are not the same query under the hood, and the difference matters the moment the tables get large.
+
+ST_Distance has to compute the exact distance between every pair of geometries before the comparison can even run, because the database cannot know whether a pair is close until it has done the full calculation. That means checking every school against every bus stop in the entire city, in full, just to throw most of the answers away. ST_DWithin flips the order of operations. It uses the geometry's bounding box first, a quick check against the spatial index built in the earlier lesson, to throw out every pair that could not possibly be within range, and only computes the exact distance on the small set of candidates that survive that first pass. Same answer, far less work, because the expensive part only runs on pairs that had a real chance of qualifying.
+
+This is not a minor style preference. On a table of a few hundred rows the difference is invisible. On a table of tens of thousands of points, ST_Distance forces a full scan of both tables against each other, while ST_DWithin lets the index skip almost all of it. PostGIS's own documentation calls ST_DWithin out by name as the preferred way to ask a proximity question for exactly this reason.
+
+Running EXPLAIN ANALYZE in front of either query makes the difference visible instead of theoretical. The ST_DWithin version shows a bitmap index scan against the GIST index built in the previous lesson, meaning Postgres consulted the index before touching most rows. The ST_Distance version shows a nested loop with no index step at all, meaning every school got compared against every bus stop regardless of how far apart they actually were.
+
+<Callout type="warning" title="ST_DWithin's distance is in whatever units the geometry's CRS uses">
+ST_DWithin(a, b, 500) does not mean 500 meters unless the geometry column is stored in a coordinate reference system whose unit is meters, such as a UTM zone. Data left in EPSG:4326, the longitude and latitude system, measures distance in degrees, and 500 degrees covers most of the planet. Project the geometry into a metric CRS before running a distance query, or cast the column to PostGIS's geography type, which does the distance math in meters regardless of the stored coordinates. Getting this wrong does not error. It silently returns the wrong rows, which is worse than a crash.
+</Callout>
+
+<Quiz
+  id="spatial-join-dwithin-vs-distance"
+  question="A query needs every pair of sensors within 2 kilometers of each other, out of 50,000 sensors. Why is ST_DWithin(a.geom, b.geom, 2000) preferred over ST_Distance(a.geom, b.geom) < 2000, assuming the geometry is in a metric CRS?"
+  answer={1}
+  options={[
+    "ST_Distance rounds to the nearest kilometer, so it would miss sensors just over the 2 kilometer line",
+    "ST_DWithin can use the spatial index to discard far apart pairs by their bounding boxes first, while ST_Distance must compute the exact distance for every pair before any comparison happens",
+    "ST_Distance only works on point geometries, and sensors might be stored as polygons",
+    "ST_DWithin returns a boolean and ST_Distance returns a number, so only one of them can appear in a WHERE clause",
+  ]}
+  explanation="Both functions give the identical result set here; the difference is cost. ST_DWithin is written to use the spatial index's bounding box test to eliminate pairs that cannot qualify before doing the expensive exact distance math, while ST_Distance has no way to filter first, so it computes the real distance for every single pair. ST_Distance is not restricted to points, it does not round, and a boolean-returning function works in a WHERE clause exactly as well as a numeric comparison does."
+/>
+
+## Counting features per polygon: GROUP BY after the spatial match
+
+A spatial join answers "which pairs match." Plenty of real questions want a summary of those pairs instead of the raw list: not every bus stop and its tract, but how many bus stops each tract has. That is the same GROUP BY and COUNT that works on any other join, added on top of a spatial one.
+
+```sql
+SELECT t.geoid, t.name, COUNT(b.id) AS bus_stop_count
+FROM tracts t
+JOIN bus_stops b
+  ON ST_Contains(t.geom, b.geom)
+GROUP BY t.geoid, t.name
+ORDER BY bus_stop_count DESC;
+```
+
+<ExpectedOutput label="one row per tract, with how many bus stops fell inside its polygon">
+```
+    geoid    |         name          | bus_stop_count
+-------------+------------------------+-----------------
+ 34013001100 | Newark Tract 11        |              14
+ 34013001200 | Newark Tract 12        |               9
+ 34013001300 | Newark Tract 13        |               3
+```
+</ExpectedOutput>
+
+The query runs the point in polygon match first, producing one row for every bus stop paired with its containing tract, then GROUP BY collapses those rows down to one per tract, counting how many bus stop IDs landed in each group. It is the ordinary aggregation pattern from a plain SQL course. The only new part is that "which group a row belongs to" was decided by a shape test instead of a shared ID.
+
+One thing this plain JOIN silently loses: a tract with zero bus stops never shows up in the result at all, because the ON clause never matched it to anything, and an inner JOIN drops rows on both sides that fail to match. A report meant to flag "transit deserts," tracts with no service, would show nothing for exactly the tracts it is supposed to surface. The fix is the same one used with an ordinary key based join: swap JOIN for LEFT JOIN so every tract survives regardless of a match, and wrap the count so a missing match reads as zero instead of vanishing.
+
+```sql
+SELECT t.geoid, t.name, COUNT(b.id) AS bus_stop_count
+FROM tracts t
+LEFT JOIN bus_stops b
+  ON ST_Contains(t.geom, b.geom)
+GROUP BY t.geoid, t.name
+ORDER BY bus_stop_count ASC;
+```
+
+COUNT(b.id) counts actual bus stop IDs, and a tract with no match produces rows where b.id is null, which COUNT correctly skips, landing on zero rather than one. Sorting ascending this time puts the zeros, the tracts a transit planner actually needs to see, at the top.
+
+<Quiz
+  id="spatial-join-left-join-zero"
+  question="A tract with no bus stops inside it needs to appear in the results with a count of zero, for a report on transit gaps. Which change makes that happen?"
+  answer={0}
+  options={[
+    "Change JOIN to LEFT JOIN so every tract row survives even when ST_Contains never matches it to a bus stop",
+    "Change ST_Contains to ST_Intersects, since intersects is a looser test that will match more bus stops",
+    "Add HAVING COUNT(b.id) = 0 to an inner JOIN query",
+    "Nothing needs to change, since COUNT always returns zero for unmatched rows in an inner JOIN",
+  ]}
+  explanation="An inner JOIN only keeps pairs where the ON clause matched, so a tract with zero bus stops never produces a row to count in the first place, and no amount of HAVING can recover a row that was already discarded. LEFT JOIN keeps every tract regardless of whether ST_Contains found a match, and COUNT(b.id) then correctly reports zero for the tracts that matched nothing. Switching to ST_Intersects changes which points match, not whether unmatched tracts appear."
+/>
+
+Spatial joins are the point where PostGIS stops feeling like a database with an odd column type and starts feeling like a GIS. Everything from here, buffering a service area before joining, dissolving polygons by a shared attribute, snapping mismatched boundaries together, builds on the same idea: a geometry column is something a WHERE clause and a JOIN can reason about directly, using the same predicates covered here.
+
+None of it requires a different mental model from the ordinary SQL joins learned long before PostGIS entered the picture. The FROM, the JOIN, the GROUP BY are exactly the same keywords doing exactly the same job. The only thing that changed is what counts as a match, and that is now a question about where things sit, answered by a function instead of an equals sign.

@@ -1,0 +1,339 @@
+---
+title: Talking HTTP with Python
+module: python-for-security
+moduleTitle: Python for Security
+moduleOrder: 13
+moduleIcon: FileCode
+order: 2
+summary: "The requests library turns a web server into an object a Python script can question, in a loop, thousands of times."
+estimatedMinutes: 15
+prerequisites: ["python-for-hackers"]
+objectives:
+  - Install requests and read a response's status code, headers, body, and final URL
+  - Attach query parameters and custom headers to a request without hand-building a URL
+  - Send a POST as a form or as JSON, and tell which one an endpoint expects
+  - Parse a JSON response into a Python dict, and handle the case where the body is not JSON
+  - Carry a login across many requests with a Session object that stores cookies
+tags:
+  - python
+  - http
+  - requests
+  - web
+---
+
+python-for-hackers ended with a script that could store data in a dict, walk a
+list with a for loop, and branch on a condition. Useful, and pointed at nothing.
+Most security work points at a web server, and a web server speaks HTTP. This
+lesson joins the two ends: it turns those loops and dicts into something that can
+question a live server, read what it says back, and decide what to do next.
+
+Consider a login form. Trying one password means typing it and clicking a
+button. Trying five thousand means writing a loop, and a loop needs a way to send
+each attempt as a real HTTP request and read the real answer. That way is the
+requests library.
+
+## requests is not built in
+
+Python does ship with an HTTP module called urllib. Almost nobody reaches for it
+directly, because it's clumsy for anything past the simplest request. The
+requests library wraps the same job in something readable, and it's the
+near-universal choice. It is not part of the standard library, so it has to be
+installed once before any `import requests` will find it. The installer is pip,
+Python's package manager, which downloads the library and puts it where the
+interpreter looks.
+
+<CommandCard
+  command="pip3 install requests"
+  title="shell"
+  explain="Downloads the requests package and installs it for the current Python. Run once per machine, or per virtual environment. After it finishes, 'import requests' works."
+/>
+
+With that done, one GET request is three lines:
+
+```python
+import requests
+
+r = requests.get("https://httpbin.org/get", timeout=5)
+```
+
+`requests.get` sends a single HTTP GET to that URL and waits for the answer. What
+comes back is assigned to `r`: a response object. Not the page text, the whole
+response. The status line, every header the server sent, the body, and a record
+of the request that produced it all hang off that one object as attributes.
+
+Four attributes carry most of the value. `r.status_code` is the number the server
+put on its answer, as an integer, so it compares with `==` and `<`. `r.headers`
+holds the response headers as a dictionary-like object, keyed by name like
+`Content-Type` or `Server`. `r.text` is the body decoded into a string. `r.url`
+is the final URL, after any redirects the server sent along the way.
+
+```python
+import requests
+
+r = requests.get("https://httpbin.org/get", timeout=5)
+print(r.status_code)
+print(r.headers["Content-Type"])
+print(r.url)
+```
+
+<ExpectedOutput label="the three prints, against httpbin.org (a public HTTP test service)">
+```
+200
+application/json
+https://httpbin.org/get
+```
+</ExpectedOutput>
+
+That `timeout=5` is not optional in any script that matters. Without it, requests
+waits forever for a server that accepts the connection and then goes silent. One
+dead host with no timeout freezes the entire loop, with no error and no clue
+which host stalled it. Five seconds is a reasonable default.
+
+Here is the trap that catches everyone once. A 404 or a 500 is not an error to
+requests. It's a normal return. A request to `https://httpbin.org/status/404`
+comes back with `status_code` set to 404 and raises nothing at all, because the
+request succeeded and the answer was "not found." An exception only fires when the
+request itself fails: no route to the host, a DNS failure, or the timeout
+expiring. So the script has to check the number itself.
+
+```python
+r = requests.get("https://httpbin.org/status/404", timeout=5)
+print(r.status_code)   # prints 404, and no exception was raised
+```
+
+If a bad status should stop the script, `r.raise_for_status()` turns any 4xx or
+5xx into an exception on demand. More often the script branches on the number,
+because different codes mean different next moves: 401 means the credentials were
+wrong, 429 means slow down, 200 means in.
+
+<Quiz
+  id="http-status-no-raise"
+  question="A script runs r = requests.get(url, timeout=5) against a page that returns 500, and the next line is print(r.status_code). What happens?"
+  answer={2}
+  options={[
+    "requests raises an exception, so the print line never runs.",
+    "r is set to None, so the print line raises an error.",
+    "r.status_code prints 500. A 500 is a normal return, not an exception, so nothing is raised.",
+    "The script hangs, because a 500 response carries no status code.",
+  ]}
+  explanation="requests only raises when the request itself fails: no route, DNS error, or timeout. A server that answers 500 answered successfully. The response object holds 500 in status_code and raises nothing, so checking the number is the script's job."
+/>
+
+## Parameters and headers come from dicts
+
+Plenty of GET requests carry parameters, the part of a URL after the `?`, like
+`?q=admin&page=2`. Building that string by hand invites bugs, because characters
+such as spaces and ampersands have to be percent-encoded or the server reads them
+wrong. requests builds it from a dict instead. Pass `params=` and it assembles
+the query string and encodes each value.
+
+```python
+r = requests.get("https://httpbin.org/get",
+                 params={"q": "admin user", "page": 2},
+                 timeout=5)
+print(r.url)
+```
+
+<ExpectedOutput label="the URL requests actually built">
+```
+https://httpbin.org/get?q=admin+user&page=2
+```
+</ExpectedOutput>
+
+The space in `admin user` became a `+`, and the integer `2` became the string
+`2`. The dict is the source of truth and the URL is generated from it, which
+means a loop can change one value and let requests rebuild the URL correctly every
+time.
+
+Headers work the same way, passed as a dict to `headers=`. The one most worth
+setting is `User-Agent`, the string that tells the server what client is calling.
+By default requests announces itself as something like `python-requests/2.31.0`
+(the version tracks the installed library). In a server's access log that line
+reads as "a script, not a browser, was here." Overriding it is a single argument.
+
+```python
+r = requests.get("https://httpbin.org/headers",
+                 headers={"User-Agent": "Mozilla/5.0"},
+                 timeout=5)
+```
+
+Setting a header does not hide anything by itself. It only changes what the
+request advertises. That's still useful when a server serves different content, or
+blocks outright, based on the User-Agent it sees.
+
+## POST sends data, in one of two shapes
+
+A GET asks for something. A POST sends something: a login, a form submission, a
+new record. What requests puts in the request body depends on which argument
+carries the data, and getting that wrong produces an error that looks like a
+credentials problem but isn't one.
+
+Two shapes cover almost everything. `data=` sends the dict as a URL-encoded form,
+the exact format an HTML `<form>` submits, and sets the header
+`Content-Type: application/x-www-form-urlencoded`.
+
+```python
+r = requests.post("https://httpbin.org/post",
+                  data={"username": "admin", "password": "hunter2"},
+                  timeout=5)
+```
+
+`json=` serializes the dict to a JSON string and sets
+`Content-Type: application/json`, which is what most APIs expect.
+
+```python
+r = requests.post("https://httpbin.org/post",
+                  json={"username": "admin", "password": "hunter2"},
+                  timeout=5)
+```
+
+Send `data=` to an endpoint that wants JSON, or `json=` to one that wants a form,
+and the server rejects the body with a 400 or a 415 that says nothing about the
+username and password being wrong. The fix is never in the credentials. It's
+matching the shape the endpoint documents.
+
+<Quiz
+  id="http-post-shape"
+  question="A POST with data={'user': 'admin', 'pass': 'x'} to a JSON API returns 415 Unsupported Media Type. The credentials are correct. What produced the 415?"
+  answer={1}
+  options={[
+    "The password field has to be named 'password', not 'pass'.",
+    "data= sent a URL-encoded form body, but the API wanted a JSON body, which json= sends. The rejection is about the body's format, not the credentials.",
+    "415 means the account is locked, so the fix is to wait and retry.",
+    "A GET should have been used instead of a POST.",
+  ]}
+  explanation="data= sets Content-Type to application/x-www-form-urlencoded and sends form fields. An API expecting application/json rejects that shape before it ever inspects the values. Switching to json= serializes the dict and sets the JSON content type the endpoint wants."
+/>
+
+## Reading JSON back
+
+When a server answers with JSON, `r.text` holds it as one long string, which is
+painful to pick apart by hand. `r.json()` parses that string into a real Python
+object, usually a dict, so the fields become plain dict lookups.
+
+```python
+r = requests.post("https://httpbin.org/post",
+                  json={"user": "admin"},
+                  timeout=5)
+data = r.json()
+print(data["json"]["user"])   # prints admin
+```
+
+httpbin echoes the JSON body it received back under a `json` key, so
+`data["json"]["user"]` reads out `admin`. Once the response is a dict, everything
+from the last lesson applies: index it, loop its keys, pull a token out of one
+response and feed it into the next request.
+
+`r.json()` only works when the body actually is JSON. Call it on an HTML error
+page and it raises a `JSONDecodeError`, because there's nothing there to parse. A
+500 that returns an HTML stack trace is the usual way to trip this. Checking
+`r.status_code`, or reading `r.headers["Content-Type"]` first, sidesteps the
+crash before it happens.
+
+## A Session carries the login
+
+Each call to `requests.get` or `requests.post` is amnesiac. It opens a
+connection, sends one request, reads one response, and forgets everything,
+including any cookie the server just set. That breaks the instant a login is
+involved. Logging in works by the server returning a `Set-Cookie` header, and
+every later request has to send that cookie back to prove it's the same visitor. A
+fresh `requests.post` to log in, followed by a fresh `requests.get`, never sends
+the cookie, so the second request arrives as a stranger and gets a 401 or a bounce
+back to the login page.
+
+A `Session` object fixes this. It's created once and used in place of the
+top-level functions. It keeps a cookie jar: any cookie a response sets is stored
+and sent automatically on every following request made through that same session.
+
+```python
+s = requests.Session()
+
+s.post("https://target.example/login",
+       data={"username": "admin", "password": "hunter2"},
+       timeout=5)
+
+r = s.get("https://target.example/dashboard", timeout=5)
+print(r.status_code)
+```
+
+The `target.example` host there is a stand-in for a real target. The login
+response's cookie is captured by `s` and attached to the dashboard request with no
+code written to do it. That is the backbone of almost every real web script:
+authenticate once, then walk the pages behind the login in a loop, each request
+carrying the session on its own.
+
+A session also holds headers set on it, so a User-Agent or an auth token set once
+rides on every request through that session.
+
+```python
+s = requests.Session()
+s.headers.update({"User-Agent": "Mozilla/5.0"})
+```
+
+<Quiz
+  id="http-session-cookie"
+  question="A script calls requests.post(login_url, ...) then requests.get(dashboard_url, ...) as two separate top-level calls, and the dashboard call comes back as a redirect to /login. The credentials are correct. Why?"
+  answer={2}
+  options={[
+    "The password has to be sent again on the GET as a query parameter.",
+    "The login should have been a GET, not a POST.",
+    "Each top-level call is independent and shares no cookies, so the login cookie is never sent on the dashboard request. A Session object stores it and sends it automatically.",
+    "requests strips cookies from GET requests as a safety measure.",
+  ]}
+  explanation="A bare requests.get knows nothing about a cookie an earlier requests.post received. The server set a session cookie at login and expects it back. Only a shared Session object stores that cookie and attaches it to later requests, keeping the caller logged in."
+/>
+
+## What requests is doing underneath
+
+Everything here sits on a lower layer. To send that first GET, requests resolves
+the hostname to an IP address, opens a TCP connection to port 443, writes the raw
+request text (the method, the path, the headers) into the connection, reads the
+bytes that come back, and parses them into the response object. All of that is
+hidden. A Session goes one step further and reuses the open connection across
+requests instead of paying to set up a new one each time, which is why a session
+is faster over many calls, not only more convenient.
+
+Real lab and CTF targets often present a TLS certificate requests refuses to
+trust, which raises an `SSLError` before any response arrives. `verify=False`
+turns that check off so the request goes through. It also turns off the protection
+that stops a man-in-the-middle from impersonating the server, so it belongs on
+throwaway targets and nowhere near a host whose answer has to be trusted.
+
+<Callout type="security" title="Every request in a loop is real traffic on a real server">
+A loop that fires thousands of requests is load on someone else's machine, and a
+login loop is an attack in the eyes of any monitoring watching that host. Run
+scripts like these only against systems owned outright or covered by written
+authorization to test. `verify=False` removes a genuine safety check: keep it on
+lab boxes and off anything that matters.
+</Callout>
+
+<Exercise title="Read a real response end to end">
+On any machine with Python installed, install the library with
+`pip3 install requests`, then start Python and run these lines:
+
+```python
+import requests
+r = requests.get("https://httpbin.org/get", params={"q": "test"}, timeout=5)
+print(r.status_code, r.url)
+```
+
+Confirm the status is 200 and the printed URL ends with `?q=test`. That is proof
+requests built the query string from your dict, not you.
+
+Now run `print(r.json())` and find the `args` section. Your `q=test` is echoed
+back inside it, because httpbin returns the request it received as JSON. Change
+the params to `{"q": "a b"}` and run it again. Watch the space turn into a `+` in
+the URL. That plus sign is requests encoding the value so the server reads it
+correctly.
+</Exercise>
+
+requests turns a web server into an object because HTTP is a request-and-response
+protocol that fits that shape cleanly. Plenty of services don't. A raw TCP
+service, a custom binary protocol, or a port that just streams bytes has no
+`.get` and no `.json()`, and reaching one means opening the connection by hand.
+The next lesson, sockets-and-networking, drops one layer down to the socket
+module: connecting a TCP socket, sending and receiving raw bytes, setting
+timeouts, and how all of it maps onto the TCP concepts from Networking
+Foundations.
+
+<Notes />

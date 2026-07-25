@@ -1,0 +1,82 @@
+---
+title: Security Frameworks
+module: grc-and-frameworks
+moduleTitle: Governance, Risk, and Compliance
+moduleOrder: 35
+moduleIcon: Scale
+order: 3
+summary: Three frameworks, three jobs. Pick the wrong one and you burn a year building the wrong binder.
+estimatedMinutes: 17
+objectives:
+  - Tell NIST CSF, ISO 27001, and CIS Controls apart by what each is for
+  - Pick the right framework for a given company size and goal
+  - Map a real control to its place in a framework
+tags:
+  - grc
+  - frameworks
+  - nist
+  - iso27001
+  - cis-controls
+---
+
+Someone hands you a startup with no security program and says "make us compliant." Compliant with what? There is no single framework, and the three you will actually meet do different jobs. Grab the wrong one and you spend a year building an ISO binder when the company needed a two-week CIS sprint, or the reverse.
+
+Frameworks are structured lists of what a security program should contain. They save you from inventing the checklist yourself and give you a shared language, so when you say "we do CC6" an auditor knows what you mean. None of them make you secure on their own. They tell you what to build, not whether you built it well.
+
+## NIST CSF: the shared vocabulary
+
+The NIST Cybersecurity Framework organizes everything into functions. The original five were Identify, Protect, Detect, Respond, Recover, and CSF 2.0 added Govern on top. That is the whole spine.
+
+Its strength is that it is a language, not a mandate. You do not get certified in CSF, you use it to describe and measure your program: "we are strong on Protect but weak on Detect and Recover." A board understands that sentence instantly. Reach for CSF when you need to communicate posture across technical and non-technical people, especially in US organizations where it is close to a default.
+
+<CommandCard command="Govern -> Identify -> Protect -> Detect -> Respond -> Recover" explain="Walk any security capability through these six. A new EDR tool is Detect and Respond. An asset inventory is Identify. Backups are Recover. If a whole function is empty, that gap is your next quarter's roadmap. CSF is a map you plot your program onto, not a test you pass." />
+
+## ISO 27001: the certificate you can sell
+
+ISO 27001 is the international standard for an Information Security Management System, and the key word is management system. It is less a list of controls and more a process for running security: set a scope, assess risk, pick controls from Annex A, document it, and prove you keep improving.
+
+The reason companies do it is the certificate. An accredited auditor certifies you, and that cert opens doors in Europe and with enterprise customers who require it in contracts. It is heavy. Expect a multi-month program, real documentation discipline, and a recurring audit cycle. Pick ISO 27001 when a customer contract demands it or you sell internationally and need a recognized badge.
+
+<Callout type="info" title="Annex A is the control catalog">
+People say "ISO 27001" but often mean Annex A, its list of controls (93 of them in the 2022 revision, grouped into organizational, people, physical, and technological). The main body is the management-system process; Annex A is the menu of controls you select from based on your risk assessment. You justify which ones apply in a document called the Statement of Applicability.
+</Callout>
+
+## CIS Controls: the do-this-first list
+
+The CIS Controls are 18 prioritized, concrete actions, and they are the most useful thing on this page for someone who just wants to get more secure fast. Control 1 is inventory your hardware. Control 2 is inventory your software. You cannot protect what you do not know you have, so the list starts there on purpose.
+
+What makes CIS practical is Implementation Groups. IG1 is basic cyber hygiene for a small business with no dedicated security staff. IG2 and IG3 layer on more as you grow. A five-person company does IG1 and genuinely raises its floor; it does not need an ISO binder yet.
+
+<CommandBlock
+  title="the order CIS tells you to work in"
+  commands={[
+    { cmd: "Control 1: inventory and control of enterprise assets", comment: "know every device, this is not optional" },
+    { cmd: "Control 2: inventory and control of software assets", comment: "know every app and version" },
+    { cmd: "Control 3: data protection", comment: "know where sensitive data lives and lock it" },
+    { cmd: "Control 4: secure configuration", comment: "harden the defaults, kill the weak settings" },
+    { cmd: "Control 5: account management", comment: "control who has accounts before you control access" },
+  ]}
+/>
+
+## Which one, and why not all three
+
+They are not competitors, they stack. A common real setup: CIS Controls for the hands-on technical baseline, NIST CSF as the language you report posture in, ISO 27001 when a contract forces certification. Start with CIS if you are small and want fast wins. Add CSF when you need to talk to leadership. Go ISO when money depends on the badge.
+
+<Callout type="security" title="A framework is not a pentest">
+Checking a box that says "we have a firewall" is not the same as proving the firewall is configured right. Frameworks describe controls; they do not test them. That is why organizations running a full framework still hire people like you to actually attack the controls and see which ones fold. Never assume a framework-compliant environment is a hardened one.
+</Callout>
+
+<Quiz
+  id="frameworks-pick-one"
+  question="A 20-person SaaS startup wants concrete, prioritized technical actions to raise its security floor fast, with no dedicated security team. Which framework fits best as a starting point?"
+  answer={0}
+  options={[
+    "CIS Controls, Implementation Group 1",
+    "ISO 27001 full certification",
+    "NIST CSF Govern function only",
+    "PCI DSS Level 1",
+  ]}
+  explanation="CIS Controls IG1 is built for exactly this: a small org with no security staff that needs concrete, prioritized actions. ISO 27001 is a heavy certification program, and PCI DSS only applies if they handle card data."
+/>
+
+<Notes />

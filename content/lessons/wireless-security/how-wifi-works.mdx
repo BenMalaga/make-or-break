@@ -1,0 +1,84 @@
+---
+title: How Wi-Fi Works
+module: wireless-security
+moduleTitle: Wireless Security
+moduleOrder: 20
+moduleIcon: Wifi
+order: 1
+summary: Channels, frames, and monitor mode. The radio basics you need before you attack anything.
+estimatedMinutes: 15
+objectives:
+  - Explain 802.11 channels, SSIDs, and BSSIDs
+  - Name the three 802.11 frame types and why management frames matter
+  - Put a wireless card into monitor mode and confirm it worked
+tags:
+  - wireless
+  - "802.11"
+  - monitor-mode
+  - wifi
+---
+
+Every Wi-Fi attack you will ever run depends on one thing: a card that can listen to raw radio, not just the traffic addressed to it. Get that working and the rest is mechanical. Skip it and nothing else in this module functions, so we start here.
+
+Wi-Fi is IEEE 802.11. An access point (AP) broadcasts a network name, the **SSID**, and identifies itself by its MAC address, the **BSSID**. Clients associate to the BSSID, not the name, which matters later when two APs advertise the same SSID. One is real, one is yours.
+
+## Channels and bands
+
+802.11 splits the spectrum into channels. The 2.4 GHz band has channels 1 through 14, but only 1, 6, and 11 do not overlap, so most APs sit on one of those three. The 5 GHz band has far more non-overlapping channels, which is why modern networks prefer it.
+
+This matters for capture. Your card hears exactly one channel at a time. If the AP is on channel 6 and you are parked on channel 1, you hear nothing. Every capture tool either locks to a channel or hops across them, and picking the wrong channel is the most common reason a beginner sees an empty screen.
+
+## The three frame types
+
+802.11 traffic comes in three flavors, and the offensive value is lopsided.
+
+**Data frames** carry the actual payload, your web traffic, encrypted under WPA2. **Control frames** handle medium access, things like ACKs and RTS/CTS. **Management frames** run the network: beacons that announce the SSID, probe requests from clients hunting for known networks, association requests, and deauthentication frames.
+
+Management frames are the interesting ones. In WPA2 they are unauthenticated, which is the whole reason a deauth attack works: you forge a management frame telling a client to disconnect, and it obeys. That single design gap feeds the handshake capture in a later lesson.
+
+## Monitor mode
+
+Normal ("managed") mode makes the card behave like a client. It only surfaces frames meant for it and it will not inject. **Monitor mode** hands you every frame in the air on the current channel, and with the right chipset it lets you transmit crafted frames too. That is the mode you need.
+
+Kill the processes that fight you for the card first, then flip the mode with airmon-ng.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "iw dev", comment: "find your wireless interface name, often wlan0" },
+    { cmd: "sudo airmon-ng check kill", comment: "stop NetworkManager and wpa_supplicant so they stop resetting the card" },
+    { cmd: "sudo airmon-ng start wlan0", comment: "enable monitor mode, usually renames the interface to wlan0mon" },
+    { cmd: "iw dev wlan0mon info", comment: "confirm 'type monitor' in the output" },
+  ]}
+/>
+
+<ExpectedOutput label="What confirms it worked">
+```
+Interface wlan0mon
+	type monitor
+	channel 6 (2437 MHz), width: 20 MHz
+```
+</ExpectedOutput>
+
+If `type` still says `managed`, the mode did not take. Nine times out of ten it is a chipset that does not support monitor mode. Not every USB adapter does. The reliable ones in the field use Atheros AR9271 or Ralink RT3070/RT5370, which is why the Alfa AWUS036 line is the standard recommendation.
+
+<Callout type="security" title="Only test networks you own">
+Monitor mode is passive, but everything you do after it, deauth, capture, cracking, is an active attack on someone's network. Run these techniques only against your own AP or a lab you control, or a client engagement with written authorization. Sniffing or disrupting a network you do not own is a crime in most places.
+</Callout>
+
+To undo it and get your normal connection back, run `sudo airmon-ng stop wlan0mon` then `sudo systemctl restart NetworkManager`.
+
+<Quiz
+  id="wifi-monitor-mode"
+  question="Why does a normal managed-mode wireless card fail to capture a WPA2 handshake from a nearby AP?"
+  answer={1}
+  options={[
+    "Managed mode encrypts everything it receives",
+    "Managed mode only surfaces frames addressed to the card and cannot see other clients' traffic",
+    "Managed mode cannot tune to 5 GHz channels",
+    "Managed mode drops all management frames by design",
+  ]}
+  explanation="A managed card acts as a client and only passes up frames meant for it. Monitor mode is what exposes every frame in the air on the current channel, which is what capture needs."
+/>
+
+<Notes />

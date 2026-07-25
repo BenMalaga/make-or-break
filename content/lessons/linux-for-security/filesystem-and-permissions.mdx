@@ -1,0 +1,348 @@
+---
+title: Filesystem and Permissions
+module: linux-for-security
+moduleTitle: Linux for Security
+moduleOrder: 2
+moduleIcon: Terminal
+order: 1
+summary: "The tree, the paths, and the ten characters in front of every filename: how a Linux machine decides who is allowed to touch what."
+estimatedMinutes: 18
+prerequisites: []
+objectives:
+  - Define terminal, shell, command, flag, and path without hand-waving
+  - Walk the filesystem tree and tell an absolute path from a relative one
+  - Read the ten-character mode string on any line of ls -l output on sight
+  - Convert between rwx letters and the octal numbers chmod expects
+  - Explain what root is, what sudo does, and why the kernel is the thing enforcing all of it
+  - Name the permission rules that surprise people, including who gets to delete a file
+tags:
+  - linux
+  - fundamentals
+  - permissions
+---
+
+A web application saves uploaded images into a folder. The folder sits inside
+the web root, and whoever set it up made it writable by everyone so uploads
+would stop failing. That worked. It also meant anyone who could upload a file
+could upload a program, ask the web server for it, and have the server run it.
+
+Nothing was hacked. A number was set wrong, and the machine did exactly what the
+number said. Linux decides who may read, change, and run every single file on
+disk using a handful of bits attached to that file, and those bits are checked
+millions of times a second without anybody thinking about them. Reading them is
+the first real skill on a Linux box, offense or defense.
+
+## Typing at a machine that types back
+
+A terminal is a window that shows text and accepts text. That is all it is. It
+draws characters and it collects keystrokes. It has no opinion about what any of
+them mean.
+
+Behind the terminal runs a shell, a program whose entire job is to read a line
+of text, work out which program the line is asking for, run that program, and
+print whatever comes back. The common one is called bash, and newer systems ship
+zsh. When a terminal window opens, a shell starts inside it and prints a prompt,
+usually ending in `$`, meaning it is ready for a line.
+
+A command is one such line. It has up to three kinds of piece:
+
+- The program name, first. `ls` is a real program living at `/usr/bin/ls`.
+- Flags, also called options, which are switches that change how the program
+  behaves. They almost always start with a hyphen: `-l`, `-a`, `--help`. Short
+  flags can be jammed together, so `ls -la` and `ls -l -a` are the same request.
+- Arguments, which are what the program should act on, usually filenames.
+
+So `ls -la /home` is three pieces: run `ls`, in long-and-show-hidden mode, on
+`/home`. The shell does not list anything itself. It finds `ls`, hands it the
+flags and the argument, and gets out of the way.
+
+## One tree, no drives
+
+Windows gives each disk a letter. Linux does not. Every file on a Linux machine,
+on every disk, hangs off a single tree whose base is one character: `/`, spoken
+as "root" or "slash". A second hard drive, a USB stick, a network share: each
+gets attached at some folder inside that one tree rather than becoming a separate
+lettered world.
+
+A directory is a folder. The word directory is what Linux documentation uses and
+it is worth adopting, because a directory is not really a container. It is a
+list, mapping names to the files they point at. That detail becomes important in
+about eight hundred words.
+
+A path is the text that names a location in the tree, with `/` between each step:
+`/home/alice/notes.txt`. Paths come in two flavors and mixing them up is the most
+common early mistake.
+
+An absolute path starts at the base of the tree, so it starts with `/`. It means
+the same thing typed from anywhere on the machine. `/etc/passwd` is `/etc/passwd`
+forever.
+
+A relative path does not start with `/`. It is read starting from wherever the
+shell currently sits, which is called the working directory. If the shell sits in
+`/home/alice`, then `notes.txt` means `/home/alice/notes.txt`, and it means
+something completely different, or nothing at all, five seconds later after the
+shell moves.
+
+Three shorthands appear constantly. A single dot `.` means the current directory.
+Two dots `..` mean the directory one step up. A tilde `~` means the current
+user's home directory. `cd ..` climbs one level. `cd ~` goes home. `pwd` prints
+the working directory when the shell has wandered somewhere confusing.
+
+<CommandCard
+  command="ls -la /"
+  title="linux"
+  explain="Lists the base of the tree. -l gives one file per line with its owner and permissions, -a includes entries starting with a dot, which ls hides by default."
+/>
+
+<ExpectedOutput label="ls -la / on a Debian server, trimmed to the interesting lines">
+```
+drwxr-xr-x  18 root root  4096 Jun 12 08:03 .
+drwxr-xr-x  18 root root  4096 Jun 12 08:03 ..
+lrwxrwxrwx   1 root root     7 Apr 22 13:41 bin -> usr/bin
+drwxr-xr-x 102 root root  4096 Jul  9 06:22 etc
+drwxr-xr-x   3 root root  4096 May  2 17:55 home
+drwx------   5 root root  4096 Jun 30 21:14 root
+drwxrwxrwt  12 root root   280 Jul  9 09:47 tmp
+drwxr-xr-x  14 root root  4096 Apr 22 13:41 usr
+drwxr-xr-x  13 root root  4096 Apr 22 13:52 var
+```
+</ExpectedOutput>
+
+The names repeat on nearly every Linux system, which is the point of the layout.
+`/etc` holds configuration, in plain text, including the list of every user
+account. `/home` holds one directory per human user. `/root` is the superuser's
+own home directory, and it is not the same thing as `/`, which is a genuinely
+annoying collision of names. `/tmp` is scratch space anyone may write to. `/usr`
+holds installed programs, `/usr/bin` being where most commands actually live.
+`/var` holds data that changes while the machine runs, which means `/var/log`
+holds the logs.
+
+Note the `bin -> usr/bin` line. That entry is a symlink, a file whose only
+content is the path of another file. Opening the symlink opens the target
+instead. The `l` in front and the arrow both say so.
+
+<Quiz
+  id="fs-path-resolution"
+  question="A shell sitting in /var/www/html is given the command `cat ../config.php`. Which file does it open?"
+  answer={1}
+  options={[
+    "/config.php, because .. always means the base of the tree",
+    "/var/www/config.php, because .. means one directory up from the working directory",
+    "/var/www/html/config.php, because .. is ignored when a filename follows it",
+    "Nothing. Relative paths cannot contain ..",
+  ]}
+  explanation="A relative path is read starting from the working directory. From /var/www/html, .. resolves to /var/www, so ../config.php is /var/www/config.php. The same command run from a different directory would open a different file, which is exactly the risk relative paths carry."
+/>
+
+## Every file has an owner and a group
+
+Two labels are attached to every file. The owner is a single user account,
+usually whoever created it. The group is a named set of accounts, which exists so
+that permission can be handed to several people at once without listing them
+individually.
+
+The machine does not store those as names. It stores numbers: a UID for the user
+and a GID for the group. `/etc/passwd` maps the numbers to names, which is only
+for the benefit of humans reading output. `id` prints the numbers for the current
+account.
+
+<ExpectedOutput label="id, run by a normal user on a Debian host">
+```
+uid=1000(alice) gid=1000(alice) groups=1000(alice),27(sudo),100(users)
+```
+</ExpectedOutput>
+
+Now the part that carries the whole lesson. Every `ls -l` line opens with ten
+characters describing the file's type and its permissions. That block is called
+the mode.
+
+<ExpectedOutput label="ls -l on the two files that define every account on the box (sizes and dates are illustrative)">
+```
+-rw-r--r-- 1 root root   2913 Jul  9 06:22 /etc/passwd
+-rw-r----- 1 root shadow 1620 Jul  9 06:22 /etc/shadow
+```
+</ExpectedOutput>
+
+The first character is the type: `-` for an ordinary file, `d` for a directory,
+`l` for a symlink. The nine that follow are three groups of three, and they are
+always in the same order, and every group is always `rwx` in that order with a
+hyphen standing in for a permission that is absent.
+
+- Characters 2 to 4 apply to the owner.
+- Characters 5 to 7 apply to members of the file's group.
+- Characters 8 to 10 apply to other, meaning every account that is neither.
+
+So `/etc/passwd` at `-rw-r--r--` is a file the root account may read and write,
+and everyone else on the machine may read. `/etc/shadow` at `-rw-r-----` is owned
+by root, grouped to `shadow`, readable and writable by root, readable by anyone
+in the `shadow` group, and invisible to everyone else. That difference is
+deliberate: `/etc/shadow` holds the password hashes, and the world-readable
+`/etc/passwd` exists so ordinary programs can turn UID 1000 into "alice" without
+being handed the hashes too.
+
+Here is the rule almost nobody is told. The three groups are not tried in
+sequence and they do not add up. The kernel picks exactly one group and stops. Is
+the account the owner? Then only the owner bits apply, and the group and other
+bits are never consulted. Otherwise, is the account in the file's group? Then
+only the group bits apply. Otherwise the other bits apply.
+
+That means a file with mode `----rwxrwx` owned by alice locks alice out of her
+own file while letting the rest of the machine do anything to it. It looks like a
+typo. It behaves exactly as written.
+
+<Quiz
+  id="fs-owner-bits-only"
+  question="A file is owned by user bob and has mode -r--rw-rw-. Bob is also a member of the file's group. Can bob write to the file?"
+  answer={2}
+  options={[
+    "Yes. The owner and group permissions combine, so bob gets rw.",
+    "Yes. The owner always has full access to files they own.",
+    "No. Bob matches as the owner, so only the owner bits are checked, and those are read-only.",
+    "No, but only because the other bits also have to allow it.",
+  ]}
+  explanation="The kernel checks owner, then group, then other, and it stops at the first match. Bob is the owner, so the check ends on r-- and never looks at the group bits, even though he is in that group. Permissions narrow, they never accumulate."
+/>
+
+## The numbers chmod wants
+
+Each permission is one bit, and each bit has a value: read is 4, write is 2,
+execute is 1. Adding the values in a group produces a digit from 0 to 7, and
+three digits describe all nine bits.
+
+- `7` is `rwx`, 4+2+1
+- `6` is `rw-`, 4+2
+- `5` is `r-x`, 4+1
+- `4` is `r--`
+- `0` is `---`
+
+So `-rw-r--r--` is 644, and `-rwxr-x---` is 750. The command that sets them is
+`chmod`, short for change mode.
+
+<CommandCard
+  command="chmod 640 /etc/app/secrets.conf"
+  title="linux"
+  explain="Sets owner to rw-, group to r--, other to nothing. The file becomes readable by its group and invisible to every other account on the machine."
+/>
+
+`chmod` also takes letters, which is easier for a single change: `chmod u+x
+deploy.sh` adds execute for the owner and touches nothing else, where `u` is
+user (owner), `g` is group, `o` is other, and `a` is all. The numeric form
+replaces all nine bits at once. The letter form edits. That distinction bites
+people who run `chmod 755` meaning to add execute and quietly open up two other
+permissions in the same breath.
+
+Changing the labels rather than the bits is `chown`. `chown alice:developers
+report.txt` sets the owner to alice and the group to developers. Giving a file
+away requires root, for a reason worth pausing on: without that rule, any user
+could dodge a disk quota by dumping files on someone else, or plant a file they
+control under another account's ownership.
+
+## root, and borrowing it
+
+Every access decision above compares the caller's UID against the file's. One
+account skips the comparison entirely. root, UID 0, is the superuser: the kernel
+does not check file permissions for it. root reads `/etc/shadow` not because
+`/etc/shadow` allows it but because the check is not performed.
+
+Which is why nobody sensible logs in as root to read email. Instead accounts run
+as themselves and borrow root for one command at a time using sudo. `sudo` runs a
+single command as another user, root by default, after confirming two things:
+that the account is permitted to do so by the rules in `/etc/sudoers`, and, most
+of the time, that whoever is at the keyboard knows the account's own password.
+Not root's password. Their own.
+
+<CommandCard
+  command="sudo -l"
+  title="linux"
+  explain="Prints exactly which commands the current account is allowed to run through sudo, and as whom. It asks the sudo rules rather than guessing."
+/>
+
+<ExpectedOutput label="sudo -l for an account in the sudo group">
+```
+User alice may run the following commands on web01:
+    (ALL : ALL) ALL
+```
+</ExpectedOutput>
+
+`(ALL : ALL) ALL` is the broad grant that membership of the `sudo` group carries
+on Debian and Ubuntu: any command, as any user. Tighter setups list individual
+programs instead, and the gap between what an administrator meant to allow and
+what a listed program can actually be talked into doing is where a great deal of
+Linux privilege escalation lives. `sudo -l` is the honest answer to "what can
+this account actually do", and it costs one keystroke.
+
+<Quiz
+  id="fs-sudo-root"
+  question="A file has mode -rw------- and is owned by alice. Why can root read it?"
+  answer={3}
+  options={[
+    "root is silently added to every file's group when the file is created.",
+    "The other bits are ignored for accounts with a UID below 1000.",
+    "sudo rewrites the file's permissions before opening it, then restores them.",
+    "The kernel does not run the permission check for UID 0 at all.",
+  ]}
+  explanation="root is not a very well-permissioned user. It is the exception baked into the check itself: for UID 0 the kernel skips file permission enforcement. That is why the mode string on a file tells nothing about whether root can touch it, and why getting to UID 0 ends the conversation."
+/>
+
+## The rules that surprise people
+
+Deleting a file does not need write permission on the file. It needs write
+permission on the directory holding it. Remember that a directory is a list of
+names, so removing a file is editing that list, not editing the file. A
+read-only file in a writable directory can be deleted by anyone who can write the
+directory, no prompting, no error.
+
+That rule alone would make `/tmp` unusable, since `/tmp` is writable by everyone
+and any account could delete anyone else's files. The fix is the last character
+in `drwxrwxrwt`. That `t` is the sticky bit, and it narrows deletion inside the
+directory to the file's owner, the directory's owner, and root. Any world-writable
+directory without a `t` is a real problem.
+
+On a directory, the bits do not mean what the letters suggest. Read on a
+directory permits listing the names inside it. Execute permits entering it and
+reaching things through it. They are separate, so a directory with `--x` can be
+passed through by anyone who already knows the exact filename, while `ls` on it
+returns "Permission denied". A directory with `r--` lists names and cannot open
+any of them.
+
+The execute bit does not make a file into a program. It is permission to try. A
+text file with mode 755 is still a text file, and running it produces an error
+from the kernel rather than anything useful. The bit grants; it does not
+transform.
+
+And permissions on a symlink are decoration. The `lrwxrwxrwx` on that `bin` entry
+looks wide open and means nothing. The kernel follows the link and checks the
+permissions of the target. Every symlink prints `rwxrwxrwx`, always, on every
+system.
+
+<Exercise title="Read a real machine">
+On any Linux or macOS host, run `ls -l /etc/passwd`. Read the mode string one
+character at a time out loud: type, then owner, then group, then other. Convert
+it to three digits before scrolling to check yourself.
+
+Now run `ls -ld /tmp`. The `-d` matters: without it, `ls` lists what is inside
+the directory instead of describing the directory itself. Find the final
+character. If it is a `t`, that machine has the sticky bit set, and any file you
+drop in `/tmp` cannot be deleted by another user.
+
+Last, run `id` and note the number after `uid=`. If it is 0, that shell is root
+and no file on the machine will refuse it. If it is 1000 or higher, run `sudo -l`
+and read what that account is permitted to borrow. The gap between those two
+answers is the shape of every privilege escalation there is.
+</Exercise>
+
+No Linux machine handy? Try the commands from this lesson in the sandbox below. It
+is a fake filesystem running in the browser, so nothing here can break anything.
+Start with `ls`, then `ls -l`, `cd notes`, and `cat recon.md`. Type `help` for the
+full list.
+
+<Terminal />
+
+A mode string describes a file sitting still on a disk. What it does not describe
+is the thing that opens it. Every read and write on a Linux box is performed by a
+running program, running as some account, and the permission check happens
+against that program's identity rather than the file's. Which makes the next
+question unavoidable: what exactly is running on this machine, as whom, and who
+started it. The next lesson, processes and services, answers that.
+
+<Notes />

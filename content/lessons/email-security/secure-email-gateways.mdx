@@ -1,0 +1,67 @@
+---
+title: Secure Email Gateways
+module: email-security
+moduleTitle: Email Security
+moduleOrder: 50
+moduleIcon: MailWarning
+order: 4
+summary: An SEG filters your mail before it lands, and it misses more than the vendor admits.
+estimatedMinutes: 15
+objectives:
+  - Describe how mail routes through an SEG and what it inspects
+  - List the concrete checks an SEG runs on inbound and outbound mail
+  - Name the attacks that walk right past a gateway and why
+tags:
+  - email
+  - seg
+  - gateway
+  - filtering
+  - architecture
+---
+
+Your MX record is the whole game. Point it at Proofpoint, Mimecast, or Cisco Secure Email and every inbound message has to pass through that gateway before it reaches a mailbox. That is a secure email gateway, and it is the workhorse of email defense: one chokepoint where you filter spam, strip malware, enforce DMARC, and rewrite links for the entire organization at once.
+
+The classic SEG sits inline. Attacker's server connects to your MX, which is the gateway, the gateway scores and scrubs the message, and only then relays the clean copy to your actual mail platform. The newer model is API-based, where a product like Microsoft Defender for Office 365 or Abnormal plugs into the mailbox after delivery and can claw back a message the moment it turns out to be bad. Plenty of shops run both, an inline SEG for bulk filtering and an API tool for what slips through.
+
+## What it actually checks
+
+On the way in, a gateway runs a stack of checks and each one drops a slice of the bad mail:
+
+- **Sender reputation and block lists.** Connections from IPs with a bad history or on an RBL get throttled or refused before the message body is even read.
+- **Anti-spam and content scoring.** Heuristics and machine learning score the message on language, structure, and known campaign patterns.
+- **Antivirus and attachment analysis.** Known-malware signatures plus sandbox detonation for suspicious files.
+- **DMARC enforcement.** The gateway is where you apply your inbound policy on other domains and honor your own.
+- **URL rewriting.** Links get rewritten to route through a click-time inspection proxy, so a link flipped to malicious after delivery still gets scanned.
+
+Outbound, a decent SEG does DLP to catch credit-card numbers or source code leaving the building, and it stamps external mail with a banner so a spoofed internal sender is easier to spot.
+
+## Where it falls down
+
+The gateway inspects mail at delivery. That is its structural weakness. An attacker sends a link to a page that is empty and harmless at delivery time, waits until the URL scan passes, then arms the page. Time-of-click rewriting helps, but only if your users click the rewritten link and not a cached or copied version.
+
+BEC is the bigger blind spot. No attachment, no link, nothing for AV or the sandbox to fire on. A text-only "please update the wire details" from a spoofed or lookalike sender sails through a signature-based gateway untouched. Catching it takes behavioral and language analysis, which is exactly what the API-based tools were built for and where old inline SEGs are weakest.
+
+Internal-to-internal mail is the one people forget. When an attacker compromises a real mailbox and emails a coworker from it, that message may never traverse the inline gateway at all, because it never leaves the mail platform. The MX-based SEG only sees mail crossing the perimeter. An API-based tool watching every mailbox is what catches the compromised-account phish.
+
+Then there is the mail that is technically clean. Password-protected zips defeat AV because the gateway cannot open them. Lookalike domains pass SPF, DKIM, and DMARC because the attacker owns `yourcompany-billing.com` and authenticates it properly. The gateway sees valid authentication and waves it through, which is correct behavior and still a successful phish.
+
+<Callout type="security" title="Test gateway bypasses only on your own tenant">
+Probing how a gateway handles crafted attachments, rewritten links, or spoofed headers is fair game against a lab tenant or a domain you administer, and it is how you find the gaps before an attacker does. Sending crafted test mail into someone else's org to see what their filter catches is unauthorized activity. Keep your bypass testing inside a tenant you own or are explicitly contracted to assess.
+</Callout>
+
+Treat the SEG as necessary and not sufficient. It clears the bulk noise and the known-bad so your people and your SOC can spend attention on the handful of messages that were built to beat it. Pair it with DMARC at the edge, an API tool for compromised-account and BEC detection, and a user report button, because the gateway alone will let real attacks through by design.
+
+<Quiz
+  id="seg-internal-blindspot"
+  question="An attacker compromises a real employee mailbox and emails a coworker to approve a fake invoice. Why might a traditional inline SEG never inspect that message?"
+  answer={1}
+  options={[
+    "The message is encrypted with DKIM",
+    "Internal mail between two mailboxes on the same platform never crosses the MX gateway",
+    "SEGs only scan outbound mail",
+    "DMARC blocks all internal mail by default",
+  ]}
+  explanation="An MX-based SEG sits at the perimeter and only sees mail crossing it. Mailbox-to-mailbox traffic inside the same platform never routes through the gateway, so a compromised-account phish to a coworker bypasses it entirely. API-based tools that watch each mailbox are what cover that gap."
+/>
+
+<Notes />

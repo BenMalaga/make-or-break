@@ -1,0 +1,78 @@
+---
+title: Investigating a Phish
+module: email-security
+moduleTitle: Email Security
+moduleOrder: 50
+moduleIcon: MailWarning
+order: 5
+summary: A reported email hits your queue. Read the headers, pull the IOCs, find everyone else who got it.
+estimatedMinutes: 20
+objectives:
+  - Read an email header chain and spot spoofing from authentication results
+  - Extract sender, IP, URL, and file-hash IOCs safely from a sample
+  - Scope the blast radius across mailboxes and contain the campaign
+tags:
+  - email
+  - incident-response
+  - headers
+  - iocs
+  - phishing-analysis
+---
+
+A user forwards you a suspicious email through the report button, and the clock starts. Your job is three things in order: decide if it is malicious, pull the indicators, and find every other person who got the same message before they click. Do it fast, because the first report usually means the campaign is already sitting in other inboxes.
+
+Get the original message first, not a forward. Forwarding strips the headers you need. In Microsoft 365 that is the `.eml` or `.msg` file the report add-in preserves, or "View source" in most clients. Never open the live message or click anything in it. Analyze the raw text.
+
+## Read the headers bottom to top
+
+The `Received:` chain is a stack. The bottom entry is the first server that touched the message, usually the true origin, and each hop above it was added later. Reading bottom-up shows you where the mail actually started, which often has nothing to do with the friendly `From:` at the top.
+
+The line that settles most cases is `Authentication-Results`. It records the verdicts your own inbound server reached:
+
+<ExpectedOutput label="a failing header tells you most of the story">
+Authentication-Results: spf=fail smtp.mailfrom=evilsender.net;
+ dkim=none; dmarc=fail action=quarantine header.from=yourcompany.com
+</ExpectedOutput>
+
+`dmarc=fail` with `header.from=yourcompany.com` means someone tried to spoof your domain and DMARC caught it. Then check three fields against each other: `From:` is what the user saw, `Return-Path:` is the real envelope sender bounces go to, and `Reply-To:` is where a reply actually lands. A `From:` of your CFO with a `Reply-To:` of a Gmail address is the whole scam in one line.
+
+<CommandBlock
+  title="pull the useful fields out of a saved sample.eml"
+  commands={[
+    { cmd: "grep -Ei '^(from|reply-to|return-path):' sample.eml", comment: "compare the three sender fields for mismatches" },
+    { cmd: "grep -i 'Authentication-Results' sample.eml", comment: "the SPF, DKIM, and DMARC verdicts in one place" },
+    { cmd: "grep -iE 'received:' sample.eml | tail -1", comment: "the bottom hop, usually the originating server and IP" },
+  ]}
+/>
+
+For anything heavier than grep, paste the raw headers into the Microsoft Message Header Analyzer or run them through a tool like Sublime or PhishTool, which lay out the hop chain and flag the mismatches for you.
+
+## Pull the IOCs, carefully
+
+Extract the indicators you will hunt and block with:
+
+- **Sender address and domain**, plus the originating IP from the bottom `Received` hop.
+- **URLs**, defanged so nobody clicks them by accident: `hxxps://evil[.]site/login`.
+- **Attachment hashes**. Compute the SHA-256 with `sha256sum` and search it, do not open the file.
+- **Message-ID and Subject**, which you will use to find the same message in other mailboxes.
+
+Detonate URLs in a sandbox or urlscan.io rather than a real browser. Hash attachments and check the hash against threat intel first.
+
+<Callout type="security" title="Handle live samples and sensitive files with care">
+You are working with real malicious content and, sometimes, confidential company documents. Detonate links and files only in an isolated sandbox or a VM you can burn, never on your daily machine. Do not upload a sensitive attachment to a public scanner like VirusTotal, because anything you submit there can become searchable by others. Check the hash first, and only submit the file itself if it is confirmed malware with no confidential payload.
+</Callout>
+
+## Scope the blast, then contain
+
+One reported copy is never the whole campaign. Search your mail logs, the Microsoft 365 message trace or your SEG's tracking, for the sender, the subject, the URL, and the Message-ID across every mailbox. Now you know who received it, and the interesting question becomes who clicked and who typed a password.
+
+For anyone who interacted, pull their sign-in logs. Look for a login from the phishing kit's IP, an impossible-travel event, or a session that satisfied MFA in a way that smells like token replay. Check for a mailbox rule created in the last hour, because auto-forward or auto-delete rules are the classic first move after a mailbox takeover.
+
+Then contain in one sweep. Purge the message from all mailboxes with a search-and-delete. Block the sender, domain, URL, and file hash at the gateway. For every user who entered credentials, reset the password and revoke active sessions, because a reset alone leaves a stolen token valid until it expires.
+
+<Exercise
+  id="phish-triage-headers"
+  prompt="You are handed sample.eml from a reported message. Write the exact grep or tool step you would run for each of these: confirm whether it spoofed your domain, find the originating IP, and identify where a reply would actually go. Then name the two IOCs you would search across all mailboxes to scope the campaign."
+/>
+
+<Notes />

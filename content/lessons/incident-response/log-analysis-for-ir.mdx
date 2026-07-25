@@ -1,0 +1,114 @@
+---
+title: Log Analysis for Responders
+module: incident-response
+moduleTitle: Incident Response
+moduleOrder: 23
+moduleIcon: Siren
+order: 4
+summary: The specific logs and event IDs that answer who, what, when, and how.
+estimatedMinutes: 18
+objectives:
+  - Find successful and failed logins in Linux and Windows logs
+  - Recognize the Windows Security event IDs that matter in an intrusion
+  - Correlate artifacts across logs to build a login-to-action chain
+tags:
+  - incident-response
+  - logs
+  - windows-events
+---
+
+Logs are where an incident stops being a hunch and becomes a story. Somebody
+logged in from somewhere at some time and did something. Every one of those blanks
+is a log line if you know where to look, and knowing the exact file and event ID
+cold is what makes you fast when the clock matters.
+
+## Linux: auth.log and the login trio
+
+On Debian and Ubuntu, authentication lands in `/var/log/auth.log` (Red Hat uses
+`/var/log/secure`). This is your first stop for who got in and who tried.
+
+<CommandBlock
+  title="analyst@suspect-host"
+  commands={[
+    { cmd: "grep -a 'Accepted' /var/log/auth.log", comment: "every successful login, with user, IP, and method" },
+    { cmd: "grep -a 'Failed password' /var/log/auth.log | awk '{print $11}' | sort | uniq -c | sort -rn", comment: "failed logins by source IP, brute force jumps out" },
+    { cmd: "grep -a 'sudo:' /var/log/auth.log | grep -v 'session opened'", comment: "who ran what with sudo, privilege use trail" },
+  ]}
+/>
+
+Cross-check those against the login database. `last` reads `/var/log/wtmp` for
+successful sessions, `lastb` reads `/var/log/btmp` for failed ones. A `last -F`
+gives you full timestamps you can drop straight into the timeline.
+
+<CommandCard command="last -F -a" title="analyst@suspect-host" explain="Successful logins with full date, duration, and the source host on the far right. The gap between an attacker's first login here and your first alert is the dwell time you report." />
+
+On modern systemd boxes, a lot lives only in the journal. `journalctl _COMM=sshd
+--since '2026-07-14 22:00'` pulls SSH activity in a window, and `--since` plus
+`--until` is how you bound the search to the incident timeframe instead of
+drowning in a month of logs.
+
+## Windows: the event IDs worth memorizing
+
+Windows buries the good stuff in the Security event log, keyed by numeric event
+IDs. Learn these five and you can reconstruct most intrusions:
+
+- **4624** successful logon. The Logon Type field is the tell: type 3 is network,
+  type 10 is RDP, type 2 is interactive at the keyboard.
+- **4625** failed logon. A flood of these from one source is a brute force.
+- **4688** a new process was created. This is your record of what actually ran,
+  including the command line if command-line auditing is on.
+- **4672** special privileges assigned at logon, effectively an admin logged in.
+- **4720** a user account was created. Attackers love making their own account.
+
+Pull them from PowerShell rather than clicking through Event Viewer, because you
+can filter and export in one line.
+
+<CommandBlock
+  title="PS analyst@dc01"
+  commands={[
+    { cmd: "Get-WinEvent -FilterHashtable @{LogName='Security';Id=4625} -MaxEvents 50", comment: "recent failed logons" },
+    { cmd: "Get-WinEvent -FilterHashtable @{LogName='Security';Id=4624;StartTime=(Get-Date).AddHours(-6)} | Where-Object {$_.Message -match 'Logon Type:\\s+10'}", comment: "RDP logins in the last six hours" },
+    { cmd: "wevtutil qe Security /q:\"*[System[(EventID=4720)]]\" /f:text /rd:true /c:10", comment: "last 10 account-creation events, wevtutil works without PowerShell" },
+  ]}
+/>
+
+## Correlate, do not just collect
+
+One log line proves nothing. The story comes from stitching them together. A 4625
+flood from an IP, then a single 4624 type 10 from that same IP, then a 4720
+minutes later, then a 4672: that is a brute force that succeeded, logged in over
+RDP, created an account, and gained admin. Line those timestamps up in your
+timeline and you have written the middle of the report already.
+
+Timestamps are the thread. Normalize everything to UTC as you pull it, because a
+host in one timezone and a domain controller in another will not line up
+otherwise, and a broken timeline is a report nobody trusts.
+
+<Callout type="warning" title="Attackers clear logs, so watch for the gaps">
+Windows event ID **1102** means the Security log was cleared. On Linux, a
+truncated `auth.log` or a suspicious gap in timestamps says the same thing. Log
+tampering is itself an indicator, and an incident where logging was off or wiped
+tells you exactly what to fix in the lessons-learned phase.
+</Callout>
+
+<Callout type="security" title="Pull logs only from in-scope systems">
+Reading logs still means logging into and reading from production systems. Work
+only within the hosts and accounts your incident authorizes, and preserve
+original log files (copy, then analyze the copy) so you never alter the evidence
+you may have to defend later.
+</Callout>
+
+<Quiz
+  id="log-analysis-4624"
+  question="You see Windows event ID 4624 with Logon Type 10 from an external IP on a server that should never accept remote desktop. What happened?"
+  answer={0}
+  options={[
+    "A successful RDP logon from that IP",
+    "A failed logon attempt",
+    "A new local account was created",
+    "The Security log was cleared",
+  ]}
+  explanation="4624 is a successful logon and Logon Type 10 is RemoteInteractive, meaning RDP. On a host that should not accept RDP, a successful type 10 from an external address is a compromise you scope immediately."
+/>
+
+<Notes />

@@ -1,0 +1,178 @@
+[
+  {
+    "domain": 3,
+    "question": "In access control terminology, what is a subject?",
+    "options": ["A passive resource such as a file, database, or printer being accessed", "An active entity such as a user or process that requests access to a resource", "The written policy that defines who may access what", "The audit log that records access attempts"],
+    "correct": [1],
+    "explanation": "A subject is the active entity, a user, process, or device, that requests access to an object. The passive resource being acted upon is the object, not the subject. A policy and an audit log are governance and monitoring artifacts, not the requesting entity.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Which statement best describes the principle of least privilege?",
+    "options": ["Every user is given administrator rights to reduce help desk tickets", "Users are granted only the access rights they need to perform their job and no more", "Access decisions are made by the resource owner at their discretion", "Two people must approve every sensitive transaction"],
+    "correct": [1],
+    "explanation": "Least privilege means each subject receives only the minimum access needed to do its job, limiting the damage from mistakes or compromise. Handing out administrator rights is the opposite of least privilege. Owner discretion describes DAC, and requiring two approvers describes separation of duties.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A hospital assigns permissions to positions such as Nurse, Physician, and Billing Clerk, and each employee inherits the permissions of the position they hold. Which access control model is being used?",
+    "options": ["Discretionary Access Control (DAC)", "Mandatory Access Control (MAC)", "Role-Based Access Control (RBAC)", "Rule-Based Access Control"],
+    "correct": [2],
+    "explanation": "RBAC grants permissions to roles that map to job functions, and users get access by being assigned to a role. DAC lets the owner decide, MAC uses security labels and clearances, and rule-based control applies conditions such as time or source address. Grouping by job title is the hallmark of RBAC.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Under Discretionary Access Control (DAC), who decides which subjects may access a given object?",
+    "options": ["A central security administrator using clearance levels", "The owner of the object, at their own discretion", "The operating system based on classification labels", "A firewall rule set evaluated for every request"],
+    "correct": [1],
+    "explanation": "In DAC the owner of a resource decides who else can access it, which is why standard file permissions are a classic DAC example. Clearance-based central control and classification labels describe MAC. A firewall rule set is rule-based access control, not DAC.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which characteristic is unique to Mandatory Access Control (MAC)?",
+    "options": ["Resource owners freely share their files with anyone they choose", "Access is enforced by the system using security labels and clearances that users cannot override", "Permissions are grouped by job role and inherited when a user joins that role", "Access is granted only during approved business hours"],
+    "correct": [1],
+    "explanation": "MAC enforces access centrally using classification labels on objects and clearances on subjects, and ordinary users cannot change these settings. Owner sharing is DAC, grouping by job role is RBAC, and time restrictions are rule-based conditions. The non-discretionary, label-driven enforcement defines MAC.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Defense in depth is best described as which of the following?",
+    "options": ["Relying on one strong firewall to block all threats", "Layering multiple, different security controls so that if one fails, others still protect the asset", "Giving each user the least access necessary to do their job", "Encrypting all data both at rest and in transit"],
+    "correct": [1],
+    "explanation": "Defense in depth uses multiple overlapping layers of controls so a single failure does not expose the asset. Relying on one firewall is a single point of failure, the opposite idea. Least privilege and encryption are individual controls that may be part of a layered strategy but are not the definition of it.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "An organization requires that the employee who creates a vendor payment cannot also approve it. Which security principle does this enforce?",
+    "options": ["Least privilege", "Separation of duties", "Defense in depth", "Need to know"],
+    "correct": [1],
+    "explanation": "Separation of duties splits a sensitive task among two or more people so no single person can complete it alone, reducing fraud and error. Least privilege limits how much access one person has, need to know limits what information they see, and defense in depth layers controls. Splitting create from approve is separation of duties.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A company installs a small enclosed space with two interlocking doors at the entrance so that only one person can pass at a time after being verified. What is this physical control called?",
+    "options": ["A turnstile", "A mantrap (access control vestibule)", "A bollard", "A honeypot"],
+    "correct": [1],
+    "explanation": "A mantrap, also called an access control vestibule, uses two interlocking doors so only one verified person passes at a time, preventing tailgating. A turnstile slows entry but is easier to defeat, a bollard blocks vehicles, and a honeypot is a decoy system, not a physical entry control.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Why do organizations apply extra monitoring and tighter controls to privileged accounts such as domain administrators?",
+    "options": ["Privileged accounts are used by the most junior staff", "Compromise of a privileged account gives an attacker broad, high-impact control over systems", "Privileged accounts never need passwords", "Privileged accounts are exempt from the least privilege principle"],
+    "correct": [1],
+    "explanation": "Privileged accounts hold elevated rights, so their compromise lets an attacker do far more damage, which is why they get extra logging, MFA, and restrictions. They are held by trusted senior staff, still require strong authentication, and are actually a prime target for least privilege, not an exception to it.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which pairing correctly distinguishes need to know from least privilege?",
+    "options": ["Need to know restricts access to specific information; least privilege restricts the overall rights a subject holds", "They are identical terms with no difference", "Need to know applies only to physical access; least privilege applies only to logical access", "Least privilege restricts information; need to know grants administrator rights"],
+    "correct": [0],
+    "explanation": "Need to know limits access to the specific data required for a task, while least privilege limits the total set of rights and actions a subject is granted. They are related but not identical, and neither is confined to only physical or only logical access. The last option reverses the definitions.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "Which of the following is an example of a logical (technical) access control rather than a physical access control?",
+    "options": ["A security guard checking badges at the lobby", "A biometric fingerprint reader on a locked server room door", "A username and password required to log into an application", "A chain-link perimeter fence around the data center"],
+    "correct": [2],
+    "explanation": "A username and password enforced by software is a logical, or technical, access control. A guard, a door lock, and a fence are physical controls that restrict bodily access to a space. The reader on a door is applied to physical entry, so the login remains the logical example here.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "In Attribute-Based Access Control (ABAC), access decisions are made by evaluating which of the following?",
+    "options": ["Only the user's assigned job role", "A combination of attributes about the subject, the object, the action, and the environment", "The classification label alone, set by a central authority", "The discretion of the object's owner"],
+    "correct": [1],
+    "explanation": "ABAC evaluates policies built from multiple attributes, such as user department, resource type, requested action, and context like time or location, giving fine-grained control. Using only a role is RBAC, using only a label is MAC, and owner discretion is DAC. The multi-attribute evaluation is what makes it ABAC.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A firewall permits or denies traffic based on rules such as source address, destination port, and time of day. Which access control approach does this represent?",
+    "options": ["Role-Based Access Control", "Rule-Based Access Control", "Discretionary Access Control", "Mandatory Access Control"],
+    "correct": [1],
+    "explanation": "Rule-based access control enforces the same set of conditions on all subjects, and firewall access control lists are the textbook example. RBAC keys off job roles, DAC keys off owner discretion, and MAC keys off labels and clearances. Global if-then rules applied to every request describe rule-based control.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A fingerprint scanner authenticates a user based on which authentication factor?",
+    "options": ["Something you know", "Something you have", "Something you are", "Somewhere you are"],
+    "correct": [2],
+    "explanation": "A fingerprint is a physical trait of the user, so it is a something you are, or biometric, factor. Something you know is a password or PIN, something you have is a token or smart card, and somewhere you are is a location-based factor. Biometrics fall under something you are.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "An unauthorized person slips through a secured door immediately behind an authorized employee who just badged in. What is this security violation called?",
+    "options": ["Tailgating (piggybacking)", "Shoulder surfing", "Phishing", "Privilege escalation"],
+    "correct": [0],
+    "explanation": "Tailgating, also called piggybacking, is following an authorized person through a controlled door without presenting credentials. Shoulder surfing is observing someone enter secrets, phishing tricks users into revealing information, and privilege escalation is gaining higher rights on a system. Following through a door is tailgating.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Short, sturdy vertical posts installed in front of a building entrance are used primarily to protect against which threat?",
+    "options": ["Eavesdropping on wireless signals", "Vehicles being driven into the building", "Malware infection of workstations", "Password guessing attacks"],
+    "correct": [1],
+    "explanation": "Bollards are physical barriers that stop vehicles from ramming or driving into a protected area or entrance. They do nothing about wireless eavesdropping, malware, or password attacks, which are addressed by logical and technical controls. Bollards are a vehicle-focused physical control.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which two of the following are examples of physical access controls? (Choose two.)",
+    "options": ["A locked door with a proximity badge reader", "A password complexity policy enforced at login", "A security guard verifying visitors at a checkpoint", "An access control list on a network share"],
+    "correct": [0, 2],
+    "explanation": "A badge-controlled locked door and a security guard both control bodily access to a physical space, making them physical controls. A password policy and a network share ACL are logical controls enforced by software. Only the door and the guard restrict physical entry.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "The Zero Trust security model is best summarized by which statement?",
+    "options": ["Trust everything inside the corporate network by default", "Never trust, always verify, regardless of whether the request originates inside or outside the network", "Grant permanent administrator access to reduce authentication friction", "Rely on a single perimeter firewall as the only line of defense"],
+    "correct": [1],
+    "explanation": "Zero Trust assumes no implicit trust based on network location and verifies every request continuously. Trusting the internal network by default is the traditional perimeter model that Zero Trust rejects. Permanent admin access and a single firewall both contradict Zero Trust principles.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A closed-circuit television (CCTV) camera recording activity in a data center is functioning primarily as which type of control?",
+    "options": ["A preventive control that blocks entry", "A detective control that records and helps identify events", "A corrective control that restores systems", "A compensating control that replaces MFA"],
+    "correct": [1],
+    "explanation": "CCTV recording captures events so they can be reviewed and investigated, which makes it a detective control. It does not physically block entry, restore a system, or authenticate users. Its role is to detect and provide evidence of activity, and it can also deter, but its recording function is detective.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "When an employee changes departments, they keep their old permissions in addition to new ones over several moves, ending up with far more access than their current role needs. What is this accumulation called?",
+    "options": ["Privilege creep", "Defense in depth", "Separation of duties", "Single sign-on"],
+    "correct": [0],
+    "explanation": "Privilege creep, also called authorization creep, is the gradual buildup of unnecessary access rights as a person moves through roles without old permissions being revoked. It undermines least privilege. Defense in depth, separation of duties, and single sign-on are unrelated concepts that do not describe accumulated leftover access.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which practice most directly helps detect and prevent fraud by ensuring no single employee stays in one sensitive position long enough to hide wrongdoing?",
+    "options": ["Job rotation", "Least privilege", "Single sign-on", "Biometric authentication"],
+    "correct": [0],
+    "explanation": "Job rotation moves employees through different duties so problems set up by one person are likely to surface when another takes over, deterring and detecting fraud. Least privilege limits access scope, single sign-on eases login, and biometrics verify identity, but none rotate people through positions to expose hidden fraud.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "On a standard Linux system, a file owner runs chmod to set read and write permissions for other users on a file they own. Which access control model does this action illustrate?",
+    "options": ["Mandatory Access Control (MAC)", "Discretionary Access Control (DAC)", "Role-Based Access Control (RBAC)", "Attribute-Based Access Control (ABAC)"],
+    "correct": [1],
+    "explanation": "Because the file owner personally decides and changes who may access their file, this is Discretionary Access Control. MAC would enforce access through system labels the owner cannot alter, RBAC would assign access by job role, and ABAC would evaluate multiple attributes. Owner-set file permissions are DAC.",
+    "difficulty": "MEDIUM"
+  }
+]

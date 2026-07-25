@@ -1,0 +1,106 @@
+---
+title: Online vs Offline Attacks
+module: password-attacks
+moduleTitle: Password Attacks
+moduleOrder: 9
+moduleIcon: KeySquare
+order: 4
+summary: Know when to guess against a live service and when to steal the hash and run.
+estimatedMinutes: 18
+objectives:
+  - Distinguish online guessing from offline cracking
+  - Use password spraying to dodge account lockouts
+  - Name the defenses that stop each attack class
+tags:
+  - passwords
+  - spraying
+  - defense
+---
+
+There are two worlds of password attacks, and confusing them gets you caught or
+locked out. **Online** attacks guess against a live service. **Offline** attacks
+guess against a stolen hash on your own hardware. The rules, speed, and risks are
+completely different.
+
+## Online: guessing at the front door
+
+An online attack sends candidates to a real login endpoint (SSH, RDP, a web form)
+and reads the response. It is slow because it is limited by the network and the
+server, and it is **loud**: every failed attempt is a log entry.
+
+Worse, most services enforce **lockout**: too many failures and the account
+freezes. This is why blasting one account with a huge wordlist is a beginner
+mistake. You lock the account, alert the defender, and crack nothing.
+
+## Spraying beats brute force online
+
+**Password spraying** flips the strategy. Instead of many passwords against one
+account, you try one common password against many accounts, then wait before the
+next round. You stay under the lockout threshold on every individual account.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "hydra -l admin -P rockyou.txt ssh://10.10.14.7", comment: "brute force one account, high lockout risk" },
+    { cmd: "hydra -L users.txt -p 'Spring2024!' ssh://10.10.14.7", comment: "spray one password across many users, low risk" },
+  ]}
+/>
+
+The difference is `-P` (a password list against one user) versus `-p` (one
+password against a user list). That single flag is the line between reckless and
+careful.
+
+## Offline: the fast, silent world
+
+If you can steal the hashes (a shadow file, a SAM dump, a database leak), the game
+changes entirely. Now you crack on your own GPU with hashcat. There is no network
+limit, no lockout, and no login log to trip. This is why grabbing hashes is such a
+priority: it moves the fight to ground where you always win eventually.
+
+<Callout type="info" title="The core tradeoff">
+Online attacks are slow, loud, and lockout-limited, but they need no prior access.
+Offline attacks are fast, silent, and unlimited, but you must first steal the
+hashes. Most engagements go online only long enough to grab something you can
+crack offline.
+</Callout>
+
+## Defenses that actually work
+
+Know these so you can both attack and advise:
+
+- **Lockout policies** blunt online guessing but do nothing offline.
+- **Rate limiting and MFA** stop spraying cold.
+- **Slow hashes** (bcrypt, argon2) with **per-user salts** make offline cracking
+  expensive enough to abandon.
+- **Long passphrases** beat every attack: length crushes both guessing and
+  cracking budgets.
+
+<Callout type="security" title="Why the hunter cares">
+Read the target before you attack. A hardened login with MFA and lockout means
+online guessing is a dead end, so pivot to capturing a hash. A weak-hashed dump
+means the login barely matters. Match the attack to the terrain.
+</Callout>
+
+<Quiz
+  id="spray-why"
+  question="Why does password spraying avoid triggering account lockouts?"
+  answer={0}
+  options={[
+    "It tries one password across many accounts, keeping failures per account low",
+    "It encrypts the login attempts",
+    "It runs entirely offline",
+    "It disables the lockout policy first",
+  ]}
+  explanation="Spraying spreads a single guess across many users, so no individual account accumulates enough failures to lock."
+/>
+
+<Exercise
+  id="online-offline"
+  prompt="Which attack class, online or offline, is unaffected by account lockout policies?"
+  answer="offline"
+>
+Offline cracking happens on your own hardware against a stolen hash. The target
+service is never contacted, so its lockout policy is irrelevant.
+</Exercise>
+
+<Notes />

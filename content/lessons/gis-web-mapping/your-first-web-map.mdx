@@ -1,0 +1,230 @@
+---
+title: An Interactive Map with Leaflet
+module: gis-web-mapping
+moduleTitle: Web Mapping
+moduleOrder: 6
+moduleIcon: Globe
+order: 2
+summary: "Leaflet turns a div and a few lines of JavaScript into a pannable, zoomable map with a basemap, markers, and clickable GeoJSON shapes."
+estimatedMinutes: 15
+prerequisites: ["how-web-maps-work"]
+objectives:
+  - Build a minimal Leaflet map with a div, a map object, a view, and a tile basemap
+  - Add a GeoJSON layer to a map and bind a popup to each feature with onEachFeature
+  - Place a marker at a coordinate and explain why Leaflet takes latitude before longitude
+  - Decide when Leaflet's raster tiles are the right choice and when a project should reach for vector tiles instead
+---
+
+The previous lesson covered how a web map assembles itself in a browser: tiles arriving as small images or vector data, a basemap underneath, and layers of the site's own data stacked on top. This lesson builds one. The library doing the work is Leaflet, a small open-source JavaScript library that has been the default choice for interactive web maps since 2011, mostly because it does the tedious part (dragging, zooming, tile loading, mobile touch handling) and gets out of the way for everything else.
+
+Leaflet's whole job is to manage a rectangle of tiles and the layers drawn over them. It does not know what GIS is. It does not care whether the underlying data came from PostGIS, a GeoJSON file, or a spreadsheet that got converted five minutes ago. Given a container element, a center point, a zoom level, and a URL pattern for tile images, it produces a map a person can drag and scroll like any map they have used on a phone. Everything past that, markers, shapes, popups, is added on top.
+
+## The four pieces of a minimal map
+
+A Leaflet map needs exactly four things: a page to sit on, a div to sit in, a JavaScript call that turns the div into a map, and a basemap so the map has something to show. Nothing else is required.
+
+The div is a container element in the page's HTML, an empty box with an id that the JavaScript can find. It has to have a height set in CSS, because a div with no content and no height collapses to nothing, and a map with zero height is invisible even though it loaded correctly. This trips up almost everyone the first time.
+
+```html
+<div id="map" style="height: 400px;"></div>
+```
+
+With the div in place, `L.map()` turns that div into a live Leaflet map object. `L` is the global object the Leaflet library exposes once its script has loaded, and every Leaflet function hangs off it.
+
+```javascript
+const map = L.map('map').setView([40.7128, -74.0060], 12);
+```
+
+`L.map('map')` looks up the div by its id and wires up all the drag and zoom behavior. `.setView()` chains right onto it, and this is the line that decides what the map shows first: a center coordinate and a zoom level. The zoom level is an integer, usually somewhere from 0 (the whole planet fits on one tile) to about 19 (individual buildings are visible), and 12 is roughly a city view, enough to see most of a metro area's streets at once.
+
+Look closely at that coordinate pair: `[40.7128, -74.0060]`. That is latitude first, then longitude, the reverse of the order a GeoJSON file uses. This single detail causes more broken Leaflet maps than any other mistake, so it is worth sitting with for a moment before moving on.
+
+<Callout type="info" title="Leaflet reads lat, lng. GeoJSON reads lon, lat.">
+A GeoJSON coordinate is always written longitude first, then latitude, per the GeoJSON specification. Leaflet, by contrast, takes latitude first everywhere it accepts a raw pair: `setView`, `L.marker`, `L.latLng`. Swap the order by accident and the map does not error, it just centers somewhere strange, often in the ocean off the coast of west Africa near 0,0. When a marker or a view jumps to the wrong hemisphere, this swap is almost always the reason.
+</Callout>
+
+A map object with a view but no basemap is a gray rectangle. The tiles that actually show streets, land, and water come from `L.tileLayer`, which points Leaflet at a tile server and hands it a URL template with placeholders for zoom (`z`), column (`x`), and row (`y`).
+
+```javascript
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+```
+
+Every tile Leaflet needs, it builds the URL by filling in `{z}`, `{x}`, and `{y}`, fetches the image, and stitches it into place under whatever the site draws on top. This particular URL points at the OpenStreetMap project's own tile server, which serves the map data volunteers around the world have been editing since 2004. It is free for light use and asks for exactly one thing in return, which the `attribution` option handles: crediting OpenStreetMap contributors, visible in the small text corner of the map.
+
+<Quiz
+  id="leaflet-four-pieces"
+  question="A page has a div with id 'map' and no CSS height set on it. L.map, setView, and L.tileLayer are all called correctly with no JavaScript errors. What happens?"
+  answer={2}
+  options={[
+    "Leaflet throws an error because the div has no height attribute.",
+    "The map renders at a default height of 400 pixels that Leaflet assumes.",
+    "The div collapses to zero height since it has no content of its own, so the map is technically live but invisible on the page.",
+    "The tiles load but appear stretched to fill the full width of the browser window.",
+  ]}
+  explanation="An empty div has no natural height, so without a CSS height rule it collapses to nothing, even though L.map wired it up correctly. Leaflet has no default height to fall back on and raises no error, since nothing about the JavaScript is wrong. This is the single most common reason a first Leaflet map looks broken."
+/>
+
+## Putting the site's own data on the map
+
+A basemap alone is just a reference layer. The reason to build a map at all is usually to show a particular set of places: store locations, park boundaries, a delivery zone. Leaflet has two ways to do that, and the choice between them depends on whether the data is one point or a whole shape.
+
+A single point, like the location of one office or one sensor, gets an `L.marker`. It takes a coordinate in Leaflet's lat, lng order and can be chained straight to `.addTo()`.
+
+```javascript
+L.marker([40.7484, -73.9857])
+  .addTo(map)
+  .bindPopup('Empire State Building');
+```
+
+`.bindPopup()` attaches a small text box that opens when someone clicks the marker's pin icon. That single marker is fine for one place, but real data almost never comes as one point typed by hand. It usually arrives as GeoJSON, the format the previous lesson introduced, a FeatureCollection holding many features at once, each with its own geometry and attributes. Leaflet reads that format directly with `L.geoJSON()`.
+
+```javascript
+const parks = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: { name: 'Bryant Park', acres: 9.6 },
+      geometry: { type: 'Point', coordinates: [-73.9832, 40.7536] }
+    },
+    {
+      type: 'Feature',
+      properties: { name: 'Madison Square Park', acres: 6.2 },
+      geometry: { type: 'Point', coordinates: [-73.9880, 40.7420] }
+    }
+  ]
+};
+
+L.geoJSON(parks, {
+  onEachFeature: function (feature, layer) {
+    layer.bindPopup(feature.properties.name + ': ' + feature.properties.acres + ' acres');
+  }
+}).addTo(map);
+```
+
+Notice the coordinates inside `parks` are written `[-73.9832, 40.7536]`, longitude before latitude, exactly the order the GeoJSON specification requires. `L.geoJSON()` reads GeoJSON in its native order and converts internally, so no swap is needed here. The swap only matters for the raw coordinate pairs handed straight to Leaflet's own functions, like `setView` and `L.marker`.
+
+`onEachFeature` is the option doing the real work in that block. Leaflet calls this function once for every feature in the collection as it builds the layer, handing it the raw GeoJSON `feature` (properties and geometry, same shape as the source data) alongside `layer`, the Leaflet shape or marker that feature turned into on the map. Binding the popup inside that callback is what lets each feature's own name and acreage end up in its own popup, rather than every feature showing the same fixed text. Click Bryant Park's dot, get Bryant Park's popup, click Madison Square Park's dot, get Madison Square Park's popup, all from one `L.geoJSON()` call and one shared callback function.
+
+This pattern scales the same way whether the FeatureCollection holds two features or two thousand. A city's fire hydrants, a country's rivers, a company's store footprint, all of them go through `L.geoJSON()` the same way: build a FeatureCollection (or load one from a file or an API), pass it in, describe what a popup should say inside `onEachFeature`, and Leaflet handles drawing every point, line, or polygon on top of the basemap.
+
+<Quiz
+  id="leaflet-geojson-order"
+  question="A FeatureCollection has a point feature with geometry.coordinates equal to [-118.2437, 34.0522]. Which of these correctly describes the coordinate order and what would happen if that same pair were passed directly to L.marker instead of through L.geoJSON?"
+  answer={0}
+  options={[
+    "GeoJSON stores longitude then latitude, so -118.2437 is the longitude. Passed directly to L.marker as [-118.2437, 34.0522], Leaflet would read it as latitude -118.2437, which is not a valid latitude and would place the marker somewhere wrong.",
+    "GeoJSON stores latitude then longitude, so -118.2437 is the latitude, and L.marker would place it correctly with no changes needed.",
+    "Coordinate order does not matter to either GeoJSON or Leaflet, since both accept either order automatically.",
+    "L.geoJSON and L.marker both expect longitude first, so the pair would work unchanged in either function.",
+  ]}
+  explanation="The GeoJSON specification fixes the order as longitude, then latitude, so -118.2437 here is a longitude. L.geoJSON knows this and converts internally, but L.marker and setView expect Leaflet's own lat, lng order, so handing them a raw GeoJSON pair unchanged silently produces a nonsense latitude. Coordinate order is exactly the kind of detail that fails quietly instead of raising an error."
+/>
+
+## A complete page, start to finish
+
+Putting every piece together produces a short, real HTML file. This one loads Leaflet from a content delivery network, builds a map centered on lower Manhattan, adds the OpenStreetMap basemap, and draws the two parks from the example above as clickable points.
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>First web map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map { height: 500px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([40.748, -73.985], 13);
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const parks = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: { name: 'Bryant Park', acres: 9.6 },
+          geometry: { type: 'Point', coordinates: [-73.9832, 40.7536] }
+        },
+        {
+          type: 'Feature',
+          properties: { name: 'Madison Square Park', acres: 6.2 },
+          geometry: { type: 'Point', coordinates: [-73.9880, 40.7420] }
+        }
+      ]
+    };
+
+    L.geoJSON(parks, {
+      onEachFeature: function (feature, layer) {
+        layer.bindPopup(feature.properties.name + ': ' + feature.properties.acres + ' acres');
+      }
+    }).addTo(map);
+  </script>
+</body>
+</html>
+```
+
+Note the CSS link in the head. Leaflet ships its own stylesheet alongside its script, and skipping it is a second classic way to get a broken-looking map: the tiles load, but the zoom buttons are unstyled, popups render without their pointer tail, and the whole thing looks like it is missing a layer of paint, because it is.
+
+<ExpectedOutput label="what opening this file in a browser shows">
+```
+A gray-and-tan street map of lower Manhattan fills the page, centered
+roughly on the Flatiron district, at a zoom level showing individual
+streets and block outlines.
+
+Two small blue circle markers sit on the map, one over Bryant Park and
+one over Madison Square Park. Clicking either one opens a small white
+popup box with a pointer tail, reading:
+
+  Bryant Park: 9.6 acres
+
+or
+
+  Madison Square Park: 6.2 acres
+
+Standard zoom controls (+ and -) sit in the top left corner. The map
+can be dragged with the mouse and zoomed with the scroll wheel, and a
+small OpenStreetMap attribution link sits in the bottom right corner.
+```
+</ExpectedOutput>
+
+Nothing in that file needs a build step, a bundler, or a server beyond something that can serve static files. Two script tags and a stylesheet link are the entire dependency list, which is a large part of why Leaflet became the default choice for so many small mapping projects: a working map is one HTML file away.
+
+## When Leaflet is the right tool, and when it is not
+
+Leaflet earns its popularity by staying small and by handling raster tiles, meaning tiles that are already-rendered images, extremely well. A city's park locator, a store finder, a single choropleth map of county data, a dashboard with a few hundred markers: Leaflet handles all of these comfortably, and the amount of code stays close to what this lesson just walked through.
+
+The library starts to strain in two situations. The first is styling depth. Leaflet can color and size GeoJSON shapes, but every visual rule is written by hand in JavaScript, so a map that needs to restyle its roads by speed limit at five different zoom levels turns into a long pile of conditional logic. The second is data volume. Drawing tens of thousands of individual GeoJSON features as separate Leaflet layers gets slow, because the browser is tracking that many DOM elements and event listeners at once.
+
+This is where vector tiles come in, and it's worth naming the alternative rather than pretending Leaflet is the only answer. A vector tile is a tile that carries geometry and attributes instead of pixels, styled by the browser at the moment it draws, using the GPU instead of downloading a pre-rendered image for every possible zoom level and color scheme. MapLibre GL JS, an open-source fork of the library Mapbox built before it went closed-source, is the library most projects reach for when a map needs to hold a whole country's roads, or restyle a layer instantly based on a slider, or render smoothly at continent-wide zoom. The trade is a steeper style specification to learn in exchange for far more data on screen and far more control over how it looks.
+
+<Callout type="info" title="Pick the tool by the shape of the data, not by habit">
+A map with a few hundred features and a straightforward look is exactly what Leaflet was built for, and reaching for anything heavier is wasted effort. A map that needs to draw entire countries of detail, restyle live, or run smoothly on a phone with a slow connection is a sign to look at MapLibre GL and vector tiles instead. Neither library is strictly better. They solve different sizes of problem.
+</Callout>
+
+<Quiz
+  id="leaflet-vs-vector-tiles"
+  question="A project needs to render every road in a country, restyled instantly whenever a user drags a time slider, and stay smooth on a phone. Which approach fits best, and why?"
+  answer={3}
+  options={[
+    "Leaflet with L.geoJSON, since it can already draw any GeoJSON shape regardless of how many features there are.",
+    "Leaflet with more tileLayer calls added, one basemap per possible slider position.",
+    "Neither library can do this, since restyling a map after it loads is not possible in a browser.",
+    "MapLibre GL with vector tiles, since the browser can restyle geometry on the GPU at draw time instead of tracking huge numbers of individual DOM layers.",
+  ]}
+  explanation="A whole country's roads is exactly the data volume where Leaflet's per-feature DOM layers get slow, and swapping basemap images per slider position is not how restyling works. MapLibre GL renders vector tile geometry on the GPU and can restyle it instantly without re-fetching data, which is precisely the combination of scale and live restyling this project needs. Restyling after load is very possible, just not what Leaflet is built to do efficiently at this scale."
+/>
+
+The next lesson in this module stays inside the browser but swaps the data source: instead of a FeatureCollection typed by hand, it pulls features from a live API and keeps the map in sync as that data changes.

@@ -1,0 +1,173 @@
+---
+title: "Building a REST API"
+module: "backends-and-apis"
+moduleTitle: "Backends and APIs"
+moduleOrder: 3
+moduleIcon: "Webhook"
+order: 3
+summary: "Turn GET, POST, and status codes into a real running server by building a REST API in FastAPI."
+estimatedMinutes: 16
+prerequisites: ["http-methods-and-status-codes"]
+objectives:
+  - "Organize an API around resources instead of actions"
+  - "Map HTTP methods and paths to CRUD operations on a resource"
+  - "Explain statelessness and why it lets an API scale"
+  - "Build and run a working FastAPI app with GET and POST routes"
+tags: ["rest", "fastapi"]
+---
+
+The last lesson took apart a single request and response: a method like GET or POST, a status code like 200 or 404, a body carrying JSON. That was anatomy. Nothing was running. This lesson wires those pieces into an actual server that answers real requests, using the design pattern almost every API on the internet follows: REST.
+
+REST stands for representational state transfer, a name nobody uses in conversation and one that hides how simple the idea actually is. Roy Fielding described it in his year 2000 dissertation as a style for building networked systems, not a protocol or a library. An API that follows REST organizes itself around resources: nouns like a book, a user, an order. Each resource gets a path, and the HTTP method sent to that path says what to do with it. That's the whole idea. Everything else is detail.
+
+## Resources, not actions
+
+Picture a small bookstore's catalog. Before REST, a lot of APIs organized themselves around actions: a path like /getBooks to fetch the list, /addBook to create one, /deleteBook3 to remove a specific one. Each action needed its own named endpoint, and the verb lived in the URL. That works, technically, the same way a filing cabinet works if every drawer has a different unrelated label. But it multiplies endpoints for no reason and it throws away a tool that already exists: the HTTP method itself.
+
+REST flips this. The resource is /books, or /books/3 for one particular book, and the verb is the HTTP method sitting next to the path, not baked into it. GET /books lists every book in the catalog. POST /books creates a new one from the data in the request body. GET /books/3 reads a single book. DELETE /books/3 removes it. PUT or PATCH /books/3 updates it. One path pattern, five behaviors, distinguished entirely by method. A client that already understands HTTP already understands roughly what each of these does before reading a single line of documentation.
+
+This is why the four operations behind almost every resource go by the acronym CRUD: create, read, update, delete. Once a team names its resources well, most of an API's surface follows a predictable shape. A `/orders` resource behaves like a `/books` resource behaves like a `/users` resource. New team members guess correctly more often than not, and that predictability is worth more over the life of a project than any clever naming scheme.
+
+The plural in `/books` is a convention, not a rule enforced by any protocol, but it's worth following. `/books` is the collection, `/books/3` is one member of that collection identified by its id. Nesting follows the same logic when a resource lives inside another: `/authors/12/books` reads as "the books belonging to author 12," which a person can parse without a legend. Compare that to `/getBooksByAuthor?id=12`, which says the same thing with a lot more noise and an implied promise that every new relationship gets its own bespoke function name.
+
+<Quiz
+  id="rest-resource-path"
+  question="A team is building an API for a todo app. Which pair of routes fits the REST style described above?"
+  answer={2}
+  options={[
+    "GET /getTodos and POST /createTodo",
+    "GET /todo-list and GET /remove-todo?id=5",
+    "GET /todos and POST /todos, with DELETE /todos/5 to remove one",
+    "POST /todos/list and POST /todos/delete/5"
+  ]}
+  explanation="REST names the resource as a noun (/todos) and lets the HTTP method carry the action. GET lists or reads, POST creates, DELETE removes. The other options bake a verb into the path itself, which is the action-oriented style REST replaces."
+/>
+
+## Statelessness: why the server forgets
+
+REST has a second property that matters as much as resource naming, and it's easy to skip past because nothing about it shows up in a URL: statelessness. Every request an API receives has to carry everything the server needs to handle it. Authentication info, the data being sent, any identifiers required. The server does not remember the previous request from that same client. Each one arrives fresh, gets handled, and the server keeps no session tucked away in its own memory waiting for the next message from that particular caller.
+
+This sounds like a limitation until the reason for it becomes clear. If a server has to remember state about a specific client between requests, then every one of that client's future requests has to land on that same server. That's a real constraint on how a system scales. An API that runs behind a load balancer, spreading requests across ten or a hundred identical server processes, works only because any of those processes can answer any request. A request that depends on memory from a different process breaks the moment it lands on the wrong machine. Statelessness is what makes that spread-the-load trick possible at all, and it's the default assumption baked into cloud infrastructure now: containers get created and destroyed, servers scale up and down with traffic, and none of that works if a request needs a specific process's memory to succeed.
+
+Statelessness does not mean an API has no memory of anything. A books catalog has to remember which books exist between requests, obviously, or the whole thing is pointless. What it means is that memory lives in shared storage, a database sitting apart from any one server process, not inside the running server's own memory. Multiple server processes read and write the same database, so the state exists in one place all of them can reach, and any of them can answer any client's request. This lesson keeps a books list sitting in a Python variable inside the running process, purely to keep the example small enough to read in one sitting. The next lesson replaces that in-memory list with a real database, which is what makes the data survive a restart and makes the design honestly stateless rather than just close to it.
+
+A related word shows up constantly next to statelessness: idempotent. An operation is idempotent if doing it twice has the same effect as doing it once. GET is idempotent: reading a resource repeatedly doesn't change anything. DELETE is idempotent too, by convention: deleting the same book twice leaves it gone either way, even if the second call returns 404 because it's already gone. POST is the odd one out. Calling POST /books twice with the same body creates two books, not one, because POST means "create a new thing" and a new thing gets created each time. That distinction matters when a network request times out and a client considers retrying: retrying a GET is always safe, retrying a POST might duplicate something.
+
+<Quiz
+  id="rest-statelessness"
+  question="An API runs behind a load balancer that can route each incoming request to any of five identical server processes. Why does statelessness matter here?"
+  answer={1}
+  options={[
+    "It makes each individual request faster to process than a stateful request would be.",
+    "Since no server process holds memory of a specific client's past requests, any of the five processes can handle any request, which is what lets the load balancer spread traffic freely.",
+    "It reduces the number of HTTP status codes the API needs to return.",
+    "It removes the need for a database entirely."
+  ]}
+  explanation="Statelessness is about where request-handling depends on stored memory, not about raw speed or status codes. A stateless design means no request needs a specific process's leftover memory to succeed, so the load balancer is free to send any request anywhere. A database is still needed for data that must persist; statelessness just means that data lives in shared storage rather than in a single server process's memory."
+/>
+
+## Building it: a first FastAPI app
+
+Time to write one. FastAPI is the framework of choice here because it fits how Python is actually written now: type hints describe the shape of data, and FastAPI reads those hints to validate incoming requests, convert them into real Python objects, and reject anything malformed before a route's own code ever runs. It also generates interactive documentation automatically from the same type hints, a page at `/docs` where every route, its expected input, and its possible responses show up without a single line of documentation written by hand. That last part matters more than it sounds: a frontend developer, a mobile developer, or a teammate building a different service can open that page and see exactly what the API expects, with no separate spec to keep in sync.
+
+That "different service" point is worth sitting with. One backend built this way commonly serves a web frontend, a mobile app, and other backend services all at once, all hitting the same JSON endpoints. The API doesn't know or care whether the caller is a browser, an iOS app, or another server; it just receives an HTTP request and returns JSON. That's part of why REST won as the default shape for backends: the same routes work for every kind of client without special-casing any of them.
+
+Here's a minimal version, a books catalog kept in memory:
+
+```python
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+app = FastAPI()
+
+
+class Book(BaseModel):
+    title: str
+    author: str
+    year: int
+
+
+books: list[dict] = [
+    {"id": 1, "title": "Dune", "author": "Frank Herbert", "year": 1965},
+    {"id": 2, "title": "Neuromancer", "author": "William Gibson", "year": 1984},
+]
+
+
+@app.get("/books")
+def list_books():
+    return books
+
+
+@app.post("/books", status_code=201)
+def create_book(book: Book):
+    new_id = max((b["id"] for b in books), default=0) + 1
+    record = {"id": new_id, **book.model_dump()}
+    books.append(record)
+    return record
+
+
+@app.get("/books/{book_id}")
+def get_book(book_id: int):
+    for b in books:
+        if b["id"] == book_id:
+            return b
+    raise HTTPException(status_code=404, detail="Book not found")
+```
+
+Read this the way FastAPI reads it. The `Book` class, built on Pydantic's `BaseModel`, describes what a valid book looks like: a title that's a string, an author that's a string, a year that's an integer. That description is doing real work. When a POST request arrives at `/books`, FastAPI reads its JSON body, checks it against that shape, and if a field is missing or the wrong type, it sends back a 422 Unprocessable Entity automatically, before `create_book` runs a single line. Nobody wrote that validation code by hand.
+
+The routes themselves map straight onto the CRUD pattern from before. `list_books` answers GET `/books` and hands back the whole list as JSON, which FastAPI serializes on its own. `create_book` answers POST `/books`, takes the validated `Book` as its argument, assigns it an id, appends it to the list, and returns the new record with a 201 Created status, set right there in the decorator. `get_book` answers GET `/books/{book_id}`, where the curly braces mark a path parameter FastAPI extracts from the URL and converts to an `int` automatically. If no book matches that id, it raises an `HTTPException` with a 404, which FastAPI turns into a proper error response instead of a crash.
+
+Running it takes one command, using Uvicorn, the ASGI server that actually listens on a port and hands requests to the FastAPI app:
+
+<CommandCard command="uvicorn main:app --reload" title="terminal" explain="starts the app defined in main.py, restarting automatically when the file changes" />
+
+With that running, a request from another terminal window shows the real shape of a response:
+
+<CommandCard command="curl -s http://127.0.0.1:8000/books" title="terminal" explain="a plain GET request to the collection route" />
+
+<ExpectedOutput label="response">
+```json
+[
+  {"id": 1, "title": "Dune", "author": "Frank Herbert", "year": 1965},
+  {"id": 2, "title": "Neuromancer", "author": "William Gibson", "year": 1984}
+]
+```
+</ExpectedOutput>
+
+And creating one:
+
+<CommandCard command='curl -s -X POST http://127.0.0.1:8000/books -H "Content-Type: application/json" -d "{\"title\": \"Snow Crash\", \"author\": \"Neal Stephenson\", \"year\": 1992}"' title="terminal" explain="POST with a JSON body, matching the Book model" />
+
+<ExpectedOutput label="response, 201 Created">
+```json
+{"id": 3, "title": "Snow Crash", "author": "Neal Stephenson", "year": 1992}
+```
+</ExpectedOutput>
+
+That 201 status code is the same one from the last lesson, now attached to a route that actually creates something and says so honestly in its response code. A follow-up GET to `/books` would now list three books, at least until the process restarts and the in-memory list resets to its original two. That reset is the tell that this version isn't finished; a real catalog needs to survive a restart, which is exactly what a database gives it.
+
+<Quiz
+  id="rest-fastapi-behavior"
+  question="A client sends POST /books with a body missing the required year field. What does FastAPI do, given the Book model shown above?"
+  answer={0}
+  options={[
+    "It returns a 422 Unprocessable Entity automatically, before create_book's own code runs, because the body doesn't match the Book model.",
+    "It runs create_book with year set to 0 by default.",
+    "It silently drops the year field and returns 201 anyway.",
+    "It crashes the server process with an unhandled exception."
+  ]}
+  explanation="FastAPI validates the request body against the Pydantic model before the route function executes. A missing required field fails that validation and produces a 422 response describing what's wrong, without ever reaching create_book's code. Nothing here sets a silent default or crashes the process."
+/>
+
+<Callout type="warning" title="Name the resource, not the action">
+The URL should always be a noun naming what's being managed: `/books`, `/orders`, `/users/42`. The verb belongs in the HTTP method, not the path. A route like `/getBooks` or `/deleteBook3` duplicates information the method already carries and breaks the pattern every other resource in the API follows. It also tends to multiply endpoints over time, since every new action gets a new bespoke name instead of reusing GET, POST, PUT, and DELETE on the same path.
+</Callout>
+
+<Exercise title="Add an update and a delete route">
+Extend the app above with two more routes on the same `/books/{book_id}` path. Write a `PUT /books/{book_id}` route that takes a `Book` in the request body and replaces the matching record's fields, returning the updated book. Then write a `DELETE /books/{book_id}` route that removes the matching record and returns a 204 status with no body (set `status_code=204` in the decorator, and return nothing). Test both with curl: update a book with a new title, confirm it stuck with a follow-up GET, then delete it and confirm a GET to that id now returns 404.
+</Exercise>
+
+Everything built here lives in one Python list, sitting in the memory of a single running process. Stop that process and the third book, the fourth book, any edit made along the way, all of it disappears. That's fine for learning the shape of routes and methods, but no real catalog can work that way. The next lesson, connecting the API to a database, replaces that list with actual persistent storage, so the data a client creates today is still there tomorrow, no matter how many times the server restarts in between.
+
+<Notes />

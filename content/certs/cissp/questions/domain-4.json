@@ -1,0 +1,210 @@
+[
+  {
+    "domain": 4,
+    "question": "At which layer of the OSI model does a traditional router make its forwarding decisions?",
+    "options": [
+      "Layer 2, the Data Link layer",
+      "Layer 3, the Network layer",
+      "Layer 4, the Transport layer",
+      "Layer 7, the Application layer"
+    ],
+    "correct": [1],
+    "explanation": "Routers forward packets based on logical addresses such as IP addresses, which live at Layer 3, the Network layer. Layer 2 switches use MAC addresses instead. Layer 4 governs segmentation and ports, and Layer 7 handles application data.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Which transport protocol provides connection-oriented, reliable delivery with sequencing, acknowledgments, and flow control?",
+    "options": [
+      "UDP",
+      "ICMP",
+      "TCP",
+      "IP"
+    ],
+    "correct": [2],
+    "explanation": "TCP is connection-oriented and guarantees ordered, reliable delivery using sequence numbers, acknowledgments, and windowing for flow control. UDP is connectionless and best-effort. ICMP handles control and error messaging, and IP handles addressing and routing.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "In IPsec, which component provides confidentiality by encrypting the payload, in addition to optional integrity and authentication?",
+    "options": [
+      "Authentication Header (AH)",
+      "Encapsulating Security Payload (ESP)",
+      "Internet Key Exchange (IKE)",
+      "Security Association (SA)"
+    ],
+    "correct": [1],
+    "explanation": "ESP provides confidentiality through encryption and can also provide integrity and authentication of the payload. AH provides integrity and authentication but no encryption. IKE negotiates keys and establishes the SA, which is the agreed set of security parameters.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A security architect wants to segment a flat switched network into isolated broadcast domains without adding physical switches. Which technology accomplishes this?",
+    "options": [
+      "Spanning Tree Protocol (STP)",
+      "Virtual LANs (VLANs)",
+      "Port Address Translation (PAT)",
+      "Link aggregation (LACP)"
+    ],
+    "correct": [1],
+    "explanation": "VLANs logically partition a single physical switch infrastructure into separate broadcast domains, isolating traffic between groups. STP prevents switching loops, PAT maps many private addresses to one public address, and LACP bundles links for bandwidth and redundancy.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which statement best describes how a stateful firewall differs from a stateless packet filter?",
+    "options": [
+      "A stateful firewall inspects application-layer payloads while a stateless filter cannot read packets",
+      "A stateful firewall tracks the state of active connections and allows return traffic that matches an established session",
+      "A stateless filter tracks connection state while a stateful firewall evaluates each packet independently",
+      "A stateful firewall operates only at Layer 2 while a stateless filter operates at Layer 3"
+    ],
+    "correct": [1],
+    "explanation": "A stateful firewall maintains a state table of active sessions, so return traffic belonging to an established connection is permitted without a separate explicit rule. A stateless packet filter evaluates each packet in isolation against its ruleset. Deep application inspection is a separate capability found in proxy or next-generation firewalls.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which wireless security standard introduced Simultaneous Authentication of Equals (SAE) to replace the pre-shared key handshake vulnerable to offline dictionary attacks?",
+    "options": [
+      "WEP",
+      "WPA",
+      "WPA2",
+      "WPA3"
+    ],
+    "correct": [3],
+    "explanation": "WPA3 replaces the WPA2 four-way handshake with SAE, a password-authenticated key agreement that resists offline dictionary attacks and provides forward secrecy. WEP and WPA are deprecated, and WPA2 relies on the PSK four-way handshake targeted by attacks such as KRACK.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An attacker sends forged ARP replies on a LAN so that traffic destined for the default gateway is delivered to the attacker instead. What is this attack, and which control most directly mitigates it? (Choose two.)",
+    "options": [
+      "The attack is ARP cache poisoning",
+      "The attack is DNS cache poisoning",
+      "Dynamic ARP Inspection (DAI) on the switch mitigates it",
+      "Enabling Spanning Tree Protocol mitigates it"
+    ],
+    "correct": [0, 2],
+    "explanation": "Forged ARP replies that redirect traffic are ARP cache poisoning, a Layer 2 man-in-the-middle technique. Dynamic ARP Inspection validates ARP packets against DHCP snooping bindings and drops forged ones. DNS poisoning targets name resolution, and STP addresses switching loops, not ARP spoofing.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "Which protocol adds origin authentication and integrity to DNS responses by digitally signing resource records, without encrypting the query itself?",
+    "options": [
+      "DNS over HTTPS (DoH)",
+      "DNSSEC",
+      "DNS over TLS (DoT)",
+      "DNScrypt"
+    ],
+    "correct": [1],
+    "explanation": "DNSSEC signs DNS records so resolvers can verify authenticity and integrity, defending against cache poisoning and spoofed responses. It does not provide confidentiality. DoH and DoT encrypt the query transport for privacy but do not by themselves authenticate the record data.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "In IPsec, what is the primary difference between transport mode and tunnel mode?",
+    "options": [
+      "Transport mode encrypts only the payload while tunnel mode encrypts the entire original packet and adds a new IP header",
+      "Transport mode uses AH only while tunnel mode uses ESP only",
+      "Transport mode works only over UDP while tunnel mode works only over TCP",
+      "Transport mode is used for site-to-site VPNs while tunnel mode is used for host-to-host connections"
+    ],
+    "correct": [0],
+    "explanation": "In transport mode the original IP header is preserved and only the payload is protected, which suits host-to-host communication. In tunnel mode the entire original packet is encapsulated and a new outer IP header is added, which is the standard for gateway-to-gateway VPNs. Both modes can use AH or ESP.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "Which converged protocol encapsulates SCSI storage commands inside TCP/IP packets so that a SAN can run over ordinary Ethernet networks?",
+    "options": [
+      "Fibre Channel over Ethernet (FCoE)",
+      "iSCSI",
+      "MPLS",
+      "InfiniBand"
+    ],
+    "correct": [1],
+    "explanation": "iSCSI carries SCSI storage commands over standard TCP/IP, letting block storage traffic traverse existing Ethernet and IP infrastructure. FCoE maps Fibre Channel frames directly onto Ethernet but is not routable over IP. MPLS is a WAN label-switching technology, and InfiniBand is a separate high-speed interconnect.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "In a software-defined networking (SDN) architecture, which plane is responsible for making forwarding decisions and pushing them to the network devices?",
+    "options": [
+      "The data plane",
+      "The control plane",
+      "The management plane",
+      "The application plane"
+    ],
+    "correct": [1],
+    "explanation": "SDN decouples the control plane from the data plane; a centralized controller in the control plane makes forwarding decisions and programs the devices, often via protocols such as OpenFlow. The data plane simply forwards packets as instructed. Management and application planes handle administration and business logic respectively.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which email authentication mechanisms let a receiving server verify that a message was sent by an authorized host and was not altered in transit? (Choose two.)",
+    "options": [
+      "SPF (Sender Policy Framework)",
+      "DKIM (DomainKeys Identified Mail)",
+      "POP3",
+      "IMAP"
+    ],
+    "correct": [0, 1],
+    "explanation": "SPF publishes which mail servers are authorized to send for a domain, and DKIM cryptographically signs messages so recipients can confirm the sending domain and detect tampering. DMARC builds policy on top of both. POP3 and IMAP are mailbox retrieval protocols and provide no sender authentication.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A network engineer needs a WAN technology that forwards traffic using short path labels rather than performing a full routing table lookup at every hop, enabling traffic engineering and QoS. Which technology fits?",
+    "options": [
+      "Frame Relay",
+      "MPLS (Multiprotocol Label Switching)",
+      "ATM",
+      "X.25"
+    ],
+    "correct": [1],
+    "explanation": "MPLS attaches labels to packets and forwards them along pre-established label-switched paths, avoiding repeated routing lookups and supporting traffic engineering and quality of service. Frame Relay, ATM, and X.25 are older WAN technologies that do not provide MPLS-style label-based path control.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which design principle is central to a zero trust network architecture?",
+    "options": [
+      "Devices inside the corporate perimeter are inherently trusted",
+      "No user or device is trusted by default, and every access request is authenticated and authorized regardless of network location",
+      "A single strong perimeter firewall is sufficient to protect internal resources",
+      "Trust is granted permanently once a device joins the domain"
+    ],
+    "correct": [1],
+    "explanation": "Zero trust assumes no implicit trust based on network location and continuously authenticates and authorizes every request, often enforced through microsegmentation and least privilege. The other options describe the traditional perimeter-based model that zero trust is explicitly designed to replace.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "During a TLS 1.2 handshake, what is the primary purpose of the asymmetric key exchange step?",
+    "options": [
+      "To encrypt the entire session because asymmetric ciphers are faster than symmetric ciphers",
+      "To securely establish a shared symmetric session key used to encrypt the bulk of the data",
+      "To hash the certificate so the client can verify the server name",
+      "To compress the application data before transmission"
+    ],
+    "correct": [1],
+    "explanation": "TLS uses asymmetric cryptography during the handshake to authenticate and securely agree on a symmetric session key, then switches to that faster symmetric key for bulk data encryption. Asymmetric algorithms are computationally expensive, so they are not used for the whole session. Hashing and compression are separate functions.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "Which endpoint security capability isolates a device that fails a posture check (for example, missing patches or antivirus) into a remediation VLAN before granting full network access?",
+    "options": [
+      "Network Access Control (NAC)",
+      "Network Address Translation (NAT)",
+      "Intrusion Detection System (IDS)",
+      "Load balancing"
+    ],
+    "correct": [0],
+    "explanation": "NAC evaluates the security posture of connecting endpoints and can quarantine noncompliant devices into a remediation segment until they meet policy. NAT translates addresses, an IDS detects and alerts on malicious activity without enforcing access decisions, and load balancing distributes traffic across servers.",
+    "difficulty": "MEDIUM"
+  }
+]

@@ -1,0 +1,42 @@
+---
+title: Hex Dump
+summary: A flag got dumped as raw hex bytes. Convert it back to text and recover it.
+track: break
+category: crypto
+difficulty: EASY
+tags: [hex, encoding, ascii]
+daily: true
+answer: "MOB{hex_is_just_base16}"
+answerType: flag
+starterLang: python
+starter: |
+  # Goal: decode this hex string back into ASCII text to recover the flag.
+  # Each pair of hex digits is one byte, which maps to one ASCII character.
+  ciphertext = "4d4f427b6865785f69735f6a7573745f6261736531367d"
+
+  flag = bytes.fromhex(ciphertext).decode("ascii")
+  print(flag)
+hints:
+  - Hex is base 16. Every two characters (like 4d) represent one byte.
+  - In Python, bytes.fromhex(s) turns a hex string into raw bytes, and .decode("ascii") turns those bytes into text.
+  - The flag starts with the byte 4d, which is the ASCII code for the letter M.
+---
+
+Someone dumped a flag straight to hex and forgot to convert it back.
+
+Hex (base 16) is one of the most common ways to write raw bytes as text. Each
+byte is shown as exactly two hex digits, so `4d` is one byte with value 0x4d,
+which equals 77 in decimal, which is the ASCII code for the capital letter `M`.
+
+Here is the hex dump:
+
+```
+4d4f427b6865785f69735f6a7573745f6261736531367d
+```
+
+Split it into pairs of hex digits, turn each pair into a byte, then read those
+bytes as ASCII text. Do that across the whole string and you will recover the
+flag.
+
+Run your code, read the decoded text, and submit the flag exactly as it appears,
+including the `MOB{ }` wrapper.

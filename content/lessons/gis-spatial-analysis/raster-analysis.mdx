@@ -1,0 +1,211 @@
+---
+title: "Raster Analysis: Map Algebra and Terrain"
+module: gis-spatial-analysis
+moduleTitle: Spatial Analysis
+moduleOrder: 3
+moduleIcon: Radar
+order: 5
+summary: "Map algebra runs the same arithmetic on every cell of a raster at once, which is how a grid of elevation turns into slope, slope turns into suitability classes, and several criteria collapse into a single answer."
+estimatedMinutes: 14
+prerequisites: ["spatial-joins"]
+objectives:
+  - Explain what map algebra is and run a local operation, such as adding or thresholding, across every cell of a raster
+  - Derive slope and aspect from a digital elevation model and explain why that calculation needs a cell's neighbors, not just the cell itself
+  - Reclassify a continuous raster into categorical classes and combine multiple criteria into one suitability raster
+  - Explain why NoData cells have to be excluded from raster math instead of treated as ordinary numbers
+---
+
+The previous lesson covered spatial joins: attaching one layer's attributes to another based on where their features sit relative to each other, a polygon's zoning code landing on every point inside it. That whole operation assumes discrete features with edges, parcels and points and lines that a GIS can test one against another. A lot of real geography does not come in discrete pieces. Elevation does not stop at a boundary. Neither does rainfall, temperature, or the reflectance a satellite records off a forest canopy. For continuous surfaces like these, GIS reaches for a raster, the grid of cells covered in an earlier module, and a different set of tools built for grids.
+
+## Doing math on a whole grid at once
+
+A raster stores its values as a grid of cells, each one holding a single number: an elevation in meters, a temperature in degrees, a count of people. **Map algebra** is the practice of running ordinary arithmetic and logic across that grid, one operation applied to every cell at the same time, rather than one calculation done by hand for a single spot. Add two rasters and every cell in the output is the sum of the matching cells in the two inputs. Compare a raster to a number and every cell in the output is a true or false answer to that comparison. The word "algebra" is fitting: the same plus, minus, greater-than, and equals that work on ordinary numbers now work on an entire surface in one pass.
+
+This matters because a grid can easily hold millions of cells, and no analyst is computing each one separately. A elevation raster covering a mid-size county at 30 meter resolution holds tens of millions of cells. Map algebra is what makes asking a question of that whole surface, not just one point on it, actually tractable.
+
+Python's numpy library, and by extension GeoPandas's raster counterpart rasterio, treats a raster as a 2D array, so map algebra there is just array arithmetic:
+
+```python
+import numpy as np
+
+elevation_2024 = np.array([[100, 105], [98, 102]])
+elevation_2020 = np.array([[100, 100], [100, 100]])
+change = elevation_2024 - elevation_2020
+print(change)
+```
+
+<ExpectedOutput label="one subtraction, applied to every matching pair of cells at once">
+```
+[[ 0  5]
+ [-2  2]]
+```
+</ExpectedOutput>
+
+One line, `elevation_2024 - elevation_2020`, and every cell of the output already holds its own difference. Cell (0, 0) rose zero meters between the two surveys. Cell (1, 0) sank two meters. Nobody looped over rows and columns by hand to get there; numpy applies the subtraction to the whole array in one instruction. QGIS ships the same idea as a point-and-click tool, the raster calculator, where an analyst types an expression like `"elevation_2024@1" - "elevation_2020@1"` and gets the same cell-by-cell result without writing any code at all.
+
+## Local operations look at one cell and nothing around it
+
+The subtraction above is an example of a **local operation**: a calculation where the output at a given cell depends only on the input value or values at that exact same position, never on anything nearby. Adding two rasters is local. So is thresholding, turning a continuous value into true or false by comparing it to a cutoff, like flagging every cell where rainfall exceeded 50 millimeters. So is reclassifying, replacing a range of input values with a single output code.
+
+```python
+rainfall_mm = np.array([[30, 62], [55, 12]])
+heavy_rain = rainfall_mm > 50
+print(heavy_rain)
+```
+
+<ExpectedOutput label="a threshold turns a continuous value into true or false, cell by cell">
+```
+[[False  True]
+ [ True False]]
+```
+</ExpectedOutput>
+
+`rainfall_mm > 50` never looks outside a cell's own position to decide its answer. That is the entire definition of local: a cell's neighbors are irrelevant to its own result. Local operations are the workhorse of raster analysis precisely because they are the simplest and fastest kind, but they are not the only kind, and the next section runs into their limit almost immediately.
+
+<Quiz
+  id="raster-local-operation"
+  question="A raster analyst computes new_raster = raster_a * 2 for every cell. What makes this a local operation?"
+  answer={1}
+  options={[
+    "It runs faster than any other kind of raster operation, which is what makes an operation local.",
+    "Each output cell depends only on the input value at that same cell position, never on any neighboring cells.",
+    "It only works on rasters with exactly one row and one column.",
+    "It changes the raster's coordinate reference system to a local, metric one before running.",
+  ]}
+  explanation="Local describes where an operation looks for its inputs, not its speed or the raster's size. Multiplying every cell by 2 only ever reads that one cell's own value, so it is local by definition. The CRS is unrelated: reprojecting is a different kind of operation entirely."
+/>
+
+## A DEM is a grid of heights, and some answers need a cell's neighbors
+
+A **digital elevation model**, almost always shortened to DEM, is a raster where every cell holds a single number: the height of the ground at that spot, usually in meters above sea level. A DEM covering a mountain range looks, printed as an image, like a grayscale photograph of the terrain, dark valleys and pale peaks. Loaded with rasterio, it behaves like any other raster:
+
+```python
+import rasterio
+
+with rasterio.open("dem.tif") as src:
+    print(src.width, src.height)
+    print(src.crs)
+    print(src.res)
+```
+
+<ExpectedOutput label="width and height in cells, the CRS, and the size of one cell in map units">
+```
+1200 900
+EPSG:32610
+(30.0, 30.0)
+```
+</ExpectedOutput>
+
+`EPSG:32610` is UTM zone 10N, a projected, metric CRS covering the U.S. Pacific Northwest, and `(30.0, 30.0)` says each cell is 30 by 30 meters on the ground. That metric CRS is not incidental. Deriving slope from a DEM stored in geographic coordinates, EPSG:4326, would measure rise over degrees of longitude and latitude instead of rise over real distance, and the result would be meaningless. This is the same trap the previous lesson's buffer distances ran into: any calculation involving real-world distance needs a projected CRS first.
+
+Elevation alone answers "how high is this spot." Two questions an analyst asks constantly, how steep is this spot and which way does it face, cannot be answered from one cell in isolation. Steepness only exists as a comparison between a cell and the ground around it. This is a **neighborhood operation**: a calculation where the output at a cell depends on a window of surrounding cells, typically the 3 by 3 block centered on it, not on that cell alone.
+
+**Slope** is how steep the ground is at a cell, computed by comparing that cell's elevation to its eight neighbors and finding the steepest drop among them, usually reported in degrees or as a percent grade. **Aspect** is which compass direction that steepest drop faces, reported in degrees from 0 to 360, where 0 and 360 both mean north. A slope of 30 degrees facing south gets more sun through a day than the same slope facing north, which is exactly why aspect matters for anything from vineyard siting to wildfire spread modeling.
+
+GDAL, the open-source library underneath QGIS and rasterio alike, ships a command built specifically for this:
+
+```bash
+gdaldem slope dem.tif slope.tif
+gdaldem aspect dem.tif aspect.tif
+```
+
+`gdaldem slope` reads every 3 by 3 neighborhood in the input and writes the steepest angle it finds into the matching cell of the output, in degrees by default (add `-p` for percent grade instead). `gdaldem aspect` runs the same neighborhood scan but records direction rather than steepness. Both commands need that metric CRS from a moment ago, because degrees and percent grade are both distance ratios under the hood.
+
+<Callout type="info" title="Local versus neighborhood is about the window, not the topic">
+Slope and aspect are not neighborhood operations because terrain is somehow special. They are neighborhood operations because steepness and direction are relationships between a cell and its surroundings, and no single cell carries that information alone. The same distinction applies well outside terrain: smoothing a noisy raster by averaging each cell with its neighbors is a neighborhood operation on rainfall data, on satellite imagery, on anything gridded. Ask whether the answer needs to look outside the cell. If it does, it's a neighborhood operation.
+</Callout>
+
+<Quiz
+  id="raster-neighborhood-operation"
+  question="Why does computing slope from a DEM require a neighborhood operation rather than a local one?"
+  answer={2}
+  options={[
+    "Slope calculations only work on rasters with more than a million cells.",
+    "gdaldem is slower than numpy, so it processes neighborhoods to save memory.",
+    "Steepness is a relationship between a cell's elevation and its surrounding cells, so no single cell's value is enough to compute it alone.",
+    "DEMs are always stored in a geographic CRS, which forces the use of a neighborhood window.",
+  ]}
+  explanation="Slope measures how much elevation changes across the ground, which by definition compares a cell to the cells around it. A local operation reading only that one cell's height has no drop to measure. Raster size and library speed have nothing to do with the distinction, and a DEM's CRS does not determine which kind of operation slope requires."
+/>
+
+## Turning a continuous slope into low, medium, and high
+
+A slope raster reports a real number for every cell, anywhere from flat to a sheer cliff. Plenty of decisions do not need that much precision. A zoning rule might only care whether a lot is buildable, marginal, or off-limits, three buckets instead of an infinite range. **Reclassification** replaces every value in a continuous raster with a category code, based on which range that value falls into.
+
+```python
+slope_deg = np.array([[2.0, 12.0], [25.0, 6.0]])
+slope_class = np.where(slope_deg < 5, 1, np.where(slope_deg < 15, 2, 3))
+print(slope_class)
+```
+
+<ExpectedOutput label="1 = low slope, 2 = medium, 3 = high, one code per cell">
+```
+[[1 2]
+ [3 2]]
+```
+</ExpectedOutput>
+
+Reading this line from the inside out: the innermost `np.where(slope_deg < 15, 2, 3)` labels anything under 15 degrees as class 2 and anything 15 or over as class 3. The outer `np.where(slope_deg < 5, 1, ...)` then overrides that with class 1 wherever the slope is under 5, leaving the inner result alone everywhere else. A cell at 2 degrees lands in class 1, a cell at 25 degrees lands in class 3, and the map that comes out the other end is a lot easier for a planner to read at a glance than raw degree values ever were. QGIS's raster calculator or its dedicated reclassify tool does the identical job on a shapefile-free, code-free workflow, which is often the faster path for a one-off map.
+
+## Combining several criteria into one suitability raster
+
+Real siting questions rarely rest on a single condition. A wind farm developer wants land that is flat enough to build on and also far enough from any river to satisfy a setback rule. A conservation planner wants forested land that is also on gentle slopes, away from existing roads. Each condition on its own is a local operation, a raster of true and false. **Suitability analysis** stacks several such conditions together with logical AND, and keeps only the cells where every condition holds.
+
+```python
+slope_deg = np.array([[3.0, 14.0], [8.0, 8.0]])
+landcover = np.array([[4, 4], [2, 4]])  # 4 = forest
+
+suitable = (slope_deg < 10) & (landcover == 4)
+print(suitable)
+```
+
+<ExpectedOutput label="only the cell that is both gentle sloped and forested comes back true">
+```
+[[ True False]
+ [False  True]]
+```
+</ExpectedOutput>
+
+`suitable = slope < 10 AND landcover == forest`, written out as a raster expression, is exactly the pseudocode behind that one line of numpy. Cell (0, 0) is gentle and forested, so it passes both tests and comes back true. Cell (0, 1) has a slope of 14 degrees, fails the first test, and is dropped regardless of its land cover. Notice the single ampersand, `&`, rather than the word `and`. Python's plain `and` only ever compares two single values, not two whole arrays, so numpy overloads `&` to mean an element-by-element logical AND across the grid instead. That single-character swap trips up almost everyone the first time they combine raster conditions in Python.
+
+Each new condition added to a suitability expression only shrinks the set of cells that pass, never grows it, since AND requires every test to hold at once. An analyst who wants land that is gentle sloped, forested, and more than 200 meters from the nearest road is really just chaining a third boolean raster onto the same expression with another `&`.
+
+## NoData cells do not play along with the math
+
+A raster covering a coastline, or one clipped to an irregular county boundary, has cells that fall outside the area anything was actually measured. These carry a special placeholder, **NoData**, usually a specific sentinel number like `-9999` chosen precisely because it is nowhere near a plausible real elevation or rainfall value. The trouble is that raw arithmetic has no idea `-9999` is supposed to mean "nothing here." It is just another number to add, subtract, or compare.
+
+```python
+slope_deg = np.array([[3.0, 14.0], [8.0, -9999.0]])
+landcover = np.array([[4, 4], [2, 4]])
+nodata = -9999.0
+
+valid = slope_deg != nodata
+suitable = valid & (slope_deg < 10) & (landcover == 4)
+print(suitable)
+```
+
+<ExpectedOutput label="the NoData cell is excluded outright, never allowed to pass on a technicality">
+```
+[[ True False]
+ [False False]]
+```
+</ExpectedOutput>
+
+Without that `valid` check, cell (1, 1) would sail through the slope test, because `-9999` genuinely is less than 10, and the output would falsely mark a cell with no real data as perfectly suitable. Every raster tool built for this work, rasterio, GDAL, QGIS's raster calculator, tracks a NoData value in the file's metadata and masks it out of statistics and comparisons automatically. Hand-rolled numpy code gets none of that for free; a raster loaded straight into a plain array has to have its NoData masked out by hand, exactly as the `valid` check above does, or every downstream calculation risks quietly treating an empty patch of ground as real terrain.
+
+<Quiz
+  id="raster-nodata-math"
+  question="A slope raster uses -9999 to mark cells outside the study area. Why does slope_deg < 10 alone give a wrong answer for those cells?"
+  answer={0}
+  options={[
+    "-9999 genuinely satisfies the comparison, so those cells get marked suitable even though they were never measured at all.",
+    "NumPy raises an error the moment it encounters a -9999 value in an array.",
+    "The comparison silently skips any cell holding -9999 without being told to.",
+    "-9999 is not a valid number, so Python converts it to zero before comparing.",
+  ]}
+  explanation="Plain arithmetic treats -9999 as an ordinary number, and -9999 is indeed less than 10, so the comparison passes it without complaint. NumPy does not raise an error, does not silently skip it, and does not convert it to zero. The fix is an explicit mask, checking each cell against the NoData value before trusting any comparison built on it."
+/>
+
+## Aggregating a grid by zone, not just by cell
+
+Every operation so far has produced a raster, a result with the same shape and resolution as the inputs it came from. A different, common question flips that around: given a raster of continuous values and a second layer marking out zones, watersheds, counties, forest stands, what is the average, minimum, or total value within each zone. Answering that means collapsing a whole region of cells down to a handful of numbers per zone, rather than keeping one output cell per input cell. That collapsing operation, called zonal analysis, is where raster work meets the vector layers from earlier lessons directly, and it is exactly what comes next.

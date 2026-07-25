@@ -1,0 +1,179 @@
+---
+title: Windows Event Logs
+module: windows-fundamentals
+moduleTitle: Windows Fundamentals
+moduleOrder: 12
+moduleIcon: AppWindow
+order: 5
+summary: "The event log records who signed in, what ran, and which accounts appeared: the same trail an intruder wants gone and a defender watches in near real time."
+estimatedMinutes: 16
+prerequisites: ["windows-architecture","the-windows-registry","windows-permissions","powershell-for-security"]
+objectives:
+  - Explain how the Windows event log system splits into classic logs and modern channels
+  - "Read the event IDs that matter to an attacker and a defender: 4624, 4625, 4688, and 4720"
+  - Query the Security log from a shell with Get-WinEvent and filter it without draining the whole log
+  - Describe what a defender forwards to a SIEM and why clearing a log announces itself
+tags:
+  - windows
+  - logging
+  - detection
+---
+
+Lesson 4 framed PowerShell as an object pipeline and made the point that the same shell the administrator loves is the one the attacker reaches for. Here is the catch nobody mentions in that lesson. Every cmdlet that ran, every process it started, and the logon that let it start at all, left a record on the machine. Those records land in the event log, and on Windows the event log is not an afterthought. It is a running account of who did what.
+
+The record of a logon is written by LSASS, the Local Security Authority process from lesson 1, the moment credentials are checked. An intruder wants that record gone. A defender wants it forwarded off the box before anyone can touch it. Same data, opposite jobs. Reading it well is what separates an operator who understands the terrain from one who trips every wire.
+
+## One service, a stack of logs
+
+The Windows Event Log is a service, listed as `EventLog` and running under the shared `svchost.exe` process. Software components called providers hand it events; the service serializes them to disk. The files are binary, not text, with an `.evtx` extension, and they sit under `C:\Windows\System32\winevt\Logs`. Nothing reads them with `type` or `cat`. They are opened through the Event Log API, which is why the tools later in this lesson exist.
+
+For its first decade Windows had three logs, and they are still the ones most people mean:
+
+- **Security**: authentication, privilege use, object access, account changes. The log an investigator opens first.
+- **System**: the kernel, drivers, services starting and stopping, the boot sequence.
+- **Application**: whatever installed software decides to write.
+
+Windows Vista added a second tier: channels. A channel is a namespaced log tied to one provider, written as `Provider-Name/ChannelType`. The script block logging from lesson 4 does not go in Application. It goes to `Microsoft-Windows-PowerShell/Operational` as event 4104. Scheduled task activity goes to `Microsoft-Windows-TaskScheduler/Operational`. A modern Windows box carries hundreds of these channels, most of them empty most of the time.
+
+The Security log is the odd one out, and the reason matters. Only LSASS is allowed to write to it, which is why it cannot be casually faked from user space. It also only fills up when the audit policy tells it to. Logon auditing is on out of the box, so 4624 and 4625 appear by default. Process-creation auditing usually is not on, so 4688 events are often simply absent. That is the single most misread fact about the Security log: an empty category does not mean nothing happened. It can mean auditing for that category was never turned on.
+
+One event carries a fixed set of parts: the provider that raised it, a numeric event ID, a level (Information, Warning, Error, Critical), the channel it belongs to, a timestamp, a bag of structured fields called EventData, and a rendered Message that stitches those fields into readable text.
+
+<Quiz
+  id="event-log-auditing-off"
+  question="A tester runs several tools on a target, then checks the Security log and finds zero 4688 process-creation events. What is the most likely explanation?"
+  answer={2}
+  options={[
+    "The tools automatically deleted their own 4688 events as they ran.",
+    "Windows never records process creation in any log.",
+    "Process-creation auditing was not enabled, so no 4688 events were ever written.",
+    "The Security log filled up and stopped accepting new events.",
+  ]}
+  explanation="The Security log only records what the audit policy configures. Process-creation auditing is off by default, so 4688 events are commonly missing entirely. Absence of an event is not proof the action did not happen."
+/>
+
+## The event IDs worth knowing cold
+
+An event ID is just a number that names what kind of thing happened, scoped to its provider. A short list covers most of what an attacker and a hunter both care about.
+
+**4624, a successful logon.** The field that makes it useful is Logon Type, a number that says how the session started. Type 2 is interactive, someone at the keyboard. Type 3 is a network logon, the kind that fires when a host reaches in over SMB to read a share. Type 10 is a remote interactive logon, which in practice means RDP. Those three carry most of the meaning. A companion event, 4672, fires alongside 4624 when the new session is handed high-privilege rights, so a 4672 is a fast way to spot an administrator or SYSTEM logon among the noise.
+
+**4625, a failed logon.** One is a typo. Forty in a minute across forty usernames is a password spray, and forty against one username is a brute-force attempt. A 4625 also carries a Source Network Address, which records the connecting machine's IP in plain text. An attacker spraying credentials is writing their own return address into the defender's log with every miss.
+
+**4688, a process was created.** This is the event that catches tooling. It names the new process, its parent process, and, when the extra logging is enabled, the full command line. It also carries a Token Elevation Type, which reports whether the process ran with a full elevated token or a limited one, connecting straight back to the integrity levels and UAC from lesson 3. A `powershell.exe` spawned by `winword.exe` with an encoded command on the line is the kind of parent-child pair that ends careers.
+
+**4720, a user account was created.** A brand new local account appearing on a server nobody provisions by hand is a classic persistence move. It rarely travels alone. Watch for 4732 right after it, which records an account being added to a security-enabled local group. A 4720 followed by a 4732 for the Administrators group is an attacker minting themselves a backdoor admin.
+
+**1102, the Security log was cleared.** Investigators treat this as an alarm in its own right, and the next section explains why clearing the log is a worse idea than it looks.
+
+Put a couple of these together and a pattern appears. A 4624 with Logon Type 3, immediately followed by a 4672, from a service account that has never once logged in remotely, is the signature of a tool like `psexec` or `wmiexec` landing on a fresh box. No single event says intrusion. The sequence does.
+
+<Callout type="info" title="4688 command lines are off by default">
+Process-creation events can record the full command line, but that requires two switches, not one. The audit policy "Audit Process Creation" turns on 4688 itself. Capturing the command-line text needs a separate registry value, `ProcessCreationIncludeCmdLine_Enabled`, set to 1 under `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit`, the kind of policy-under-a-registry-key arrangement lesson 2 covered. When both are on, an attacker's `certutil` download and `powershell -enc` blob are written to the log verbatim.
+</Callout>
+
+<Quiz
+  id="event-log-4720-4732"
+  question="A monitored server logs event 4720, and eight seconds later event 4732 adding that same account to the local Administrators group. What does this pair most likely indicate?"
+  answer={1}
+  options={[
+    "A normal user resetting their own password.",
+    "An intruder creating a new account and granting it administrator rights for persistence.",
+    "The Windows Update service restarting after a patch.",
+    "A failed logon being retried automatically.",
+  ]}
+  explanation="4720 is account creation and 4732 is a group membership change. A new account being dropped straight into Administrators is a textbook persistence pattern: a backdoor admin that survives a password reset on the account the attacker first used."
+/>
+
+## Reading the logs from a shell
+
+The Event Viewer GUI, `eventvwr.msc`, exists, but it is slow to drive and useless over a shell. Two tools read the logs from the command line instead. `wevtutil` is the built-in utility for enumerating, querying, and clearing logs. `Get-WinEvent` is the PowerShell cmdlet, and it is the one to reach for, because it reads both the classic logs and the modern channels. Its predecessor, `Get-EventLog`, only sees the classic three and is effectively deprecated. Reaching for it on a modern box is a common way to miss the PowerShell and Sysmon channels entirely.
+
+`Get-WinEvent -ListLog *` enumerates every log and channel. To pull actual events, the fast path is `-FilterHashtable`, which describes the filter as a set of key-value pairs.
+
+<CommandCard
+  command="Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4625} -MaxEvents 20"
+  title="powershell"
+  explain="Returns the twenty most recent failed-logon events. The filter is applied inside the Security log, so PowerShell only ever receives the twenty matching records, not the whole log."
+/>
+
+<ExpectedOutput label="Get-WinEvent default table, trimmed">
+```
+   ProviderName: Microsoft-Windows-Security-Auditing
+
+TimeCreated              Id LevelDisplayName Message
+-----------              -- ---------------- -------
+7/15/2026 2:14:07 AM   4625 Information      An account failed to log on...
+7/15/2026 2:14:06 AM   4625 Information      An account failed to log on...
+7/15/2026 2:14:05 AM   4625 Information      An account failed to log on...
+```
+</ExpectedOutput>
+
+Every row is one object, exactly as lesson 4 promised. The truncated Message in the table is only the first line of a much longer rendered block. Asking for the full Message of a single event shows what the log actually holds.
+
+<CommandCard
+  command="Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4625} -MaxEvents 1 | Format-List Message"
+  title="powershell"
+  explain="Prints the full rendered message of the newest failed logon, including the structured fields the table hides."
+/>
+
+<ExpectedOutput label="the 4625 Message body, trimmed to what matters">
+```
+An account failed to log on.
+
+Logon Type:            3
+
+Account For Which Logon Failed:
+    Account Name:      administrator
+    Account Domain:    WORKGROUP
+
+Failure Information:
+    Failure Reason:    Unknown user name or bad password.
+    Status:            0xC000006D
+    Sub Status:        0xC000006A
+
+Network Information:
+    Workstation Name:  KALI
+    Source Network Address: 10.10.14.9
+    Source Port:       45120
+```
+</ExpectedOutput>
+
+That `Source Network Address` line is the attacker's IP, logged by the defender's own machine as a courtesy the attacker did not intend to extend. The Logon Type 3 says the attempt came over the network, not the keyboard. The Sub Status `0xC000006A` is Windows' code for a bad password on a valid account, which is a very different signal from `0xC0000064`, the code for a username that does not exist at all.
+
+The efficient-filter point is worth slowing down on, because the wrong habit forms fast. It is tempting to write `Get-WinEvent -LogName Security | Where-Object { $_.Id -eq 4625 }`. That works on a lab box and falls over on a real server. `Where-Object` sits at the end of the pipe, so every event in the log gets read off disk, turned into an object, and shipped into PowerShell before a single one is thrown away. `-FilterHashtable` pushes the same filter down into the Event Log API, which scans the log itself and returns only matches. On a Security log holding millions of records, that is the difference between an instant answer and a query that runs for minutes.
+
+<Quiz
+  id="event-log-filterhashtable"
+  question="On a busy server, why is Get-WinEvent -FilterHashtable @{Id=4625} preferred over Get-WinEvent -LogName Security piped into Where-Object { $_.Id -eq 4625 }?"
+  answer={0}
+  options={[
+    "FilterHashtable filters inside the log before events reach PowerShell, so it reads far fewer records.",
+    "Where-Object cannot compare numeric values like event IDs.",
+    "FilterHashtable automatically clears matched events after reading them.",
+    "The two commands are identical in every way, so it makes no difference.",
+  ]}
+  explanation="FilterHashtable is applied by the Event Log API as it scans the log, returning only matches. Piping the whole log into Where-Object reads and objectifies every event first, then discards most of them, which is far slower on a large log."
+/>
+
+## What defenders watch, and why clearing backfires
+
+In any environment worth attacking, the logs do not stay on the machine that wrote them. They are shipped, in near real time, to a SIEM, a Security Information and Event Management system that collects logs from every host into one searchable place. The transport is either Windows Event Forwarding, a built-in feature that pushes selected events to a collector, or an agent that tails the logs and streams them out. Either way, a record is often off the box within seconds of being written.
+
+That reality is what makes clearing the Security log a beginner's move. Running `wevtutil cl Security` does empty the log, but it writes event 1102 the instant it runs, and 1102 is one of the first alerts any competent defender configures. By the time the clear command executes, the events it was meant to hide have usually already left the building. A forwarded record cannot be unsent, and a Security log that was full a minute ago and is empty now is a louder signal than any of the individual events inside it. Selective tampering is harder still, since editing an `.evtx` in place fights the API and tends to corrupt the file. Skilled operators plan around logging and try to blend in. They do not pretend they can erase it.
+
+<Callout type="security" title="Authorized targets only">
+Reading or altering event logs on a system without ownership or a signed engagement is unauthorized access, and clearing logs can be charged as a separate offense on top of the intrusion. Practice on lab virtual machines and stay inside the scope written into the engagement.
+</Callout>
+
+<Exercise title="Generate and read your own logon events">
+On a Windows virtual machine, sign out and then sign back in at the keyboard, deliberately mistyping the password once before getting it right. Open PowerShell as administrator.
+
+Run `Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4625} -MaxEvents 1 | Format-List Message` and find the Logon Type and the Failure Reason for the attempt you fumbled. Then run the same command with `Id=4624` and read the Logon Type of the successful sign-in.
+
+Write down both Logon Type numbers. Explain, in one sentence each, what a Type 2 tells an investigator versus what a Type 10 would have told them if the logon had come in over RDP instead of the keyboard.
+</Exercise>
+
+Logons and process launches are the local half of the story. The other half is what happens when one Windows machine reaches across the network into another, which is exactly the traffic that raises a Logon Type 3. The next lesson, windows-networking-and-smb, follows that thread: SMB, shares, the NetBIOS and 445 ports it rides on, and how NTLM authentication turns a remote file request into the very 4624 this lesson taught how to read.
+
+<Notes />

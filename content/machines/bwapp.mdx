@@ -1,0 +1,87 @@
+---
+name: bWAPP
+tagline: The buggy Web Application. Over 100 web bugs behind one login.
+description: A deliberately insecure PHP and MySQL application by Malik Mesellem with more than one hundred web vulnerabilities. It exists so you can practice SQL injection, command injection, XSS, and file upload attacks against a target that is safe to break.
+difficulty: EASY
+os: LINUX
+targetType: DOCKER
+tags:
+  - web
+  - sqli
+  - xss
+  - training
+points: 20
+docker:
+  image: raesene/bwapp
+  run: docker run --rm -p 8080:80 raesene/bwapp
+  port: 8080
+  httpPath: /install.php
+flags:
+  - type: USER
+    label: SQL injection
+    value: MOB{bwapp_sqli_dumps_the_logins}
+    points: 10
+  - type: ROOT
+    label: Command execution
+    value: MOB{os_command_injection_is_rce}
+    points: 20
+hints:
+  - title: I loaded it but nothing works
+    body: The container serves the installer first. Open install.php and click the link to install and create the MySQL database. Then go to the login page and sign in with the default account, user bee and password bug.
+    cost: 0
+  - title: Set the security level
+    body: Every bug page in bWAPP has a security level dropdown. Set it to low while you learn. Medium and high add filters you defeat later. Low lets the raw vulnerability show through.
+    cost: 5
+  - title: SQL injection module
+    body: From the bug menu choose SQL Injection (GET/Search). It searches a movies table and drops your input straight into the query. Type a single quote into the search box to break it, then rebuild the query with a UNION so it returns rows from another table.
+    cost: 5
+  - title: User proof token
+    body: The movies query returns seven columns. A UNION SELECT that pulls login and password from the users table prints every credential in the search results, including the bee account hash. Once your single search returns rows that were never movies, submit MOB{bwapp_sqli_dumps_the_logins}
+    cost: 10
+  - title: Toward command execution
+    body: Open the OS Command Injection module. It runs a DNS lookup on whatever host you supply, handing your string straight to the shell. Add a second command after the host with a semicolon.
+    cost: 10
+  - title: Root proof token
+    body: An input like www.nsa.gov; id runs your own command on the server and prints the web user, usually www-data. That is arbitrary command execution. Once the server runs a command you injected, submit MOB{os_command_injection_is_rce}
+    cost: 15
+tasks:
+  - title: Stand up the container and install bWAPP
+    description: Run the installer, create the database, then log in as bee
+  - title: Extract credentials through SQL injection
+    description: Dump the users table from the SQL Injection search module
+  - title: Achieve command execution
+    description: Inject a shell command through the OS Command Injection module
+---
+
+## About this target
+
+bWAPP, the buggy Web Application, is a PHP and MySQL app built by Malik Mesellem
+to be broken on purpose. It packs more than one hundred web vulnerabilities
+behind a single login, from SQL injection to command execution to file upload.
+Like DVWA it has a security level selector, so you can dial a bug from low to
+high and watch the filters change the attack. Start on low, learn the raw bug,
+then climb.
+
+Your two objectives here: **pull credentials out of the database through SQL
+injection** (user), then **make the server run a command you supply** (root).
+
+<Callout type="security" title="Authorized target only">
+You are running this container on your own machine. That is the only reason it
+is legal to attack it. Never point these techniques at an application you do not
+own or have written permission to test.
+</Callout>
+
+<Callout type="info" title="How flags work on Phase A machines">
+Docker and bring-your-own-VM boxes use proof tokens revealed through the hints
+once you have genuinely completed the objective. Capture a flag by doing the
+work, then submitting the token. Phase B hosted machines will issue real
+per-instance flags planted on the target.
+</Callout>
+
+## Getting reachable
+
+Spin the container up and load `http://localhost:8080/install.php`. Click the
+link to install bWAPP, which creates the MySQL database, then log in with bee
+and bug. Pick a bug from the menu, set its security level to low, and work the
+objectives below. Use the hints if you stall; each one costs a few points, so
+try on your own first.

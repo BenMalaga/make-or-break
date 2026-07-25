@@ -1,0 +1,121 @@
+---
+title: Switching and VLANs
+module: networking-deep-dive
+moduleTitle: Networking Deep Dive
+moduleOrder: 2
+moduleIcon: Waypoints
+order: 2
+summary: "How devices on the same network find each other by MAC address, and how one switch gets carved into several isolated networks."
+estimatedMinutes: 15
+prerequisites:
+  - how-routers-move-packets
+objectives:
+  - Explain how a switch forwards frames using MAC addresses instead of IP addresses
+  - Describe how a switch builds and uses its MAC address table
+  - Distinguish a broadcast domain from the routed boundary a router creates
+  - Explain how VLANs segment one physical switch into isolated logical networks for scale and security
+tags:
+  - switching
+  - vlans
+---
+
+The last lesson ended with a laptop on 10.20.4.0/24 handing anything outside its subnet to a default gateway and trusting a chain of routers to get it the rest of the way. That covers the packet's journey once it leaves the local network. It says nothing about how the laptop's frame gets to the gateway in the first place, or how two machines plugged into the same switch fifteen feet apart find each other. That handoff, entirely local, entirely inside one network, is switching, and it runs on a different address than the one routing cares about.
+
+## A switch forwards frames by MAC address, not IP address
+
+Every network interface, on a laptop, a phone, a server, a printer, ships from the factory with a MAC address burned into its hardware: a 48-bit number written as six pairs of hex digits, something like `3c:22:fb:9a:11:04`. It is assigned once, at manufacture, and under normal operation it does not change no matter what network the device joins or what IP address gets handed to it by DHCP. An IP address describes where a device sits in a network's addressing scheme, and that scheme can be reassigned in an instant. A MAC address describes the physical interface itself, and it stays fixed to that hardware.
+
+A switch connects devices within a single local network, and its forwarding decisions never look at an IP address at all. It reads the destination MAC address on each incoming frame, a frame being the Ethernet-level container that carries an IP packet across one physical link, and decides which port to send it out. This is Layer 2 work, one layer below the routing covered last lesson, and it is worth sitting with why the split exists. IP addressing is a logical scheme, assigned by an administrator or a DHCP server, meant to represent where something is in a hierarchy of networks. MAC addressing exists to answer a narrower, more mechanical question: on this one physical segment, which specific piece of hardware is this frame meant for. A switch only ever needs to answer that narrower question, so it only ever needs the narrower address.
+
+This is also why the earlier lesson's description of a router as boundary-crossing and a switch as staying inside one network holds up under closer inspection. Every device plugged into a switch, directly or through other switches chained together, shares the same IP subnet. A frame moving between them never needs a router, never needs a default gateway, and never needs anything beyond a MAC address to find its target.
+
+## A switch learns by watching source addresses go by
+
+A switch is not preloaded with a map of which device sits on which port. It builds that map itself, and it builds it entirely by observation. Every time a frame arrives on any port, the switch looks at the frame's source MAC address, the address of the device that sent it, and records an entry: this MAC address lives on this port. That record goes into a structure called the MAC address table, sometimes called a CAM table on the hardware itself, and it is the single piece of state that makes efficient forwarding possible.
+
+Before a switch has learned where a given destination MAC lives, it has only one option: flood the frame out every port except the one it arrived on, and let whichever device recognizes itself as the intended recipient keep it while everything else ignores it. That is expensive on a busy network, since it means every unknown destination briefly behaves like a shout into every room in the building. Once the switch has seen a reply, or any frame at all originating from that MAC address, the entry lands in the table and every future frame addressed to it goes straight to the one port that needs it. The flooding was a one-time cost paid while the switch was still ignorant of where things lived.
+
+Picture four devices on a small switch: a workstation on port 1, a network printer on port 2, a file server on port 3, and an uplink to another switch on port 4. The first few frames each device sends populate the table, and after that, traffic between the workstation and the printer never touches ports 3 or 4 at all. That containment is the entire value proposition of a switch over a hub, the older device it replaced, which simply repeated every incoming signal out every other port regardless of who needed it. A switch's whole design is built around not doing that.
+
+```text
+MAC Address        Port    Age (sec)
+3c:22:fb:9a:11:04    1       12
+a4:5e:60:c1:88:2f    2       47
+00:1a:2b:3c:4d:5e     3        3
+88:66:5a:12:0d:99     4        1
+```
+
+That age column matters. Entries do not sit in the table forever; a switch times them out, typically after a few minutes of silence from that address, because a device might get unplugged from one port and moved to another, or a network card might get swapped out. If the entry never expired, a moved device would become unreachable until something forced a fresh entry, so the table quietly refreshes itself as long as traffic keeps flowing.
+
+<Quiz
+  id="mac-learning"
+  question="A switch receives a frame on port 5 from a device whose MAC address is not yet in its address table. What does the switch do with that frame?"
+  answer={2}
+  options={[
+    "Drops the frame, since it cannot confirm where the destination lives",
+    "Sends the frame back out port 5 only, asking the sender to resend with more information",
+    "Records the source MAC on port 5, then floods the frame out every other port since the destination is still unknown",
+    "Converts the frame into an IP packet and asks a router to forward it"
+  ]}
+  explanation="Learning and forwarding are two separate actions on the same frame. The switch always records the source address against the port it arrived on, building its table for future use. If the destination MAC is not yet known, the only safe move is flooding out every other port so whichever device owns that address receives it; nothing here involves IP addresses or routers, since a switch operates entirely at Layer 2."
+/>
+
+## Restating the split: one network versus between networks
+
+It helps to put the switch and router side by side one more time, now that both have a full explanation behind them. A switch works within a single network, using MAC addresses, at Layer 2, and its job is getting a frame from one port to another as directly as possible. A router works between networks, using IP addresses, at Layer 3, and its job is deciding which network a packet needs to reach next and which interface gets it started in that direction. A switch never consults a routing table and never makes a longest-prefix-match decision, because every device attached to it is already, by definition, reachable without one. A router never learns MAC addresses the way a switch does, at least not for anything beyond its own directly connected interfaces, because its entire concern is addresses outside the local segment.
+
+This division shows up physically in most real deployments. An office might have a dozen switches spread across floors, all of them feeding into one or two routers that connect that office's network to everything else. Frames move freely and quickly between any two devices on any of those switches, since they all belong to the same local network, chained together by uplinks exactly like the port 4 example above. The moment traffic needs to leave that local network entirely, for the internet or for a separate department's subnet, it has to pass through a router, and only then does IP-level, Layer 3 decision-making enter the picture at all.
+
+## The broadcast domain: what a shout actually reaches
+
+Some frames are not addressed to any single MAC address. A broadcast frame carries the special destination `ff:ff:ff:ff:ff:ff`, and a switch's rule for that address is simple and absolute: send it out every port, no exceptions, no table lookup needed because the destination is, by design, everyone. DHCP requests work this way, since a device that has no IP address yet has no way to send anything except a broadcast, hoping a DHCP server somewhere on the segment answers. ARP requests, the mechanism a device uses to find the MAC address behind a known IP address, work the same way.
+
+The set of devices a broadcast actually reaches is called a broadcast domain, and on a plain switch, with no further configuration, that domain is the entire switch and everything chained to it through other switches. A broadcast sent by a device on port 1 of one switch reaches every device on that switch, crosses the uplink to a second switch, and reaches every device there too, all the way out to wherever the chain of switches ends. A router, notably, does not forward broadcasts between the networks on its different interfaces. That is one of the clean, structural reasons the boundary between "one network" and "different networks" matters: a broadcast domain stops exactly where routing begins.
+
+A large flat network, meaning one big broadcast domain with nothing splitting it, has a real cost that grows with size. Every broadcast, every DHCP request, every ARP lookup from any device reaches every other device on that entire domain, and as the device count climbs into the hundreds or thousands, that background chatter starts consuming real bandwidth and real processing time on every single node, whether or not that node cares about the message. There is also a security dimension worth naming plainly: any device sitting on a shared broadcast domain can see certain kinds of local traffic meant for its neighbors, and a compromised device on a flat network has an easier time reaching everything else on that same segment. Neither problem is solved by adding faster switches. It is solved by making the broadcast domain smaller.
+
+<Quiz
+  id="broadcast-domain"
+  question="Three switches are connected in a chain with no VLANs configured. A device on the first switch sends a broadcast frame. Which devices receive it?"
+  answer={1}
+  options={[
+    "Only the devices on the first switch, since broadcasts do not cross uplinks between switches",
+    "Every device on all three switches, since the whole chain forms one broadcast domain",
+    "Only devices whose MAC address already appears in the first switch's address table",
+    "No devices, since broadcast frames require a router to forward them"
+  ]}
+  explanation="A broadcast frame goes out every port except the one it arrived on, and that rule applies at every switch in the chain, including uplinks to other switches. With no VLAN configuration splitting the network, all three switches and every device attached to them sit in one broadcast domain, so the frame reaches all of them. Routers, not switches, are the devices that stop a broadcast from propagating further."
+/>
+
+## VLANs carve one switch into several isolated networks
+
+A VLAN, virtual LAN, is the feature that lets a single physical switch behave as though it were several separate switches, each with its own broadcast domain, without running a separate cable or buying separate hardware for each one. An administrator assigns each port on a switch to a VLAN, identified by a number, and from that point on the switch treats devices in different VLANs as though they were not connected at all, even though the same physical box and the same physical cabling carry both. A broadcast sent by a device in VLAN 10 reaches every other port assigned to VLAN 10 and stops there. It never reaches a port assigned to VLAN 20, even one sitting right next to it on the same switch.
+
+A guest network and an internal server network sharing one switch is the example that makes this concrete. A small business might put its front-desk visitor Wi-Fi access point on VLAN 20 and its internal file server and accounting workstations on VLAN 10. Both sets of devices plug into the same physical switch, sometimes the same rack unit, and the hardware cost stays the same as running one flat network. But a guest device on VLAN 20 has no path to anything on VLAN 10 without going through a router configured to allow it, and by default nothing is configured to allow it. Segmentation like this limits how far an attacker who compromises one device can actually reach. A compromised guest laptop sitting on VLAN 20 cannot simply scan the local network and discover the accounting server, because as far as that switch's forwarding logic is concerned, VLAN 10 might as well be on a different building's wiring.
+
+A port connected to a single end device, a workstation, a printer, an access point serving one VLAN, is called an access port. It belongs to exactly one VLAN, and every frame arriving on it is treated as belonging to that VLAN with no tagging needed, since there is only ever one VLAN in question on that link. Between switches, though, a single cable often needs to carry traffic for many VLANs at once, since two switches might each have devices on VLAN 10, VLAN 20, and VLAN 30, and running a separate physical cable per VLAN between every pair of switches does not scale. That link is called a trunk port, and it solves the problem with tagging, standardized under 802.1Q: every frame crossing a trunk gets a small tag inserted into its header naming which VLAN it belongs to, so the switch on the receiving end knows exactly which VLAN to deliver it into once it arrives. The tag exists only on the trunk link itself. It gets added the moment a frame leaves an access port headed toward a trunk, and stripped back off the moment it leaves the trunk headed into an access port on the far side, so an ordinary end device never sees a VLAN tag at all.
+
+<Quiz
+  id="vlan-segmentation"
+  question="A company puts its guest Wi-Fi on VLAN 20 and its internal servers on VLAN 10, both connected through the same physical switch. Why can a guest device not simply reach the internal servers directly?"
+  answer={3}
+  options={[
+    "Guest devices are physically incapable of generating IP traffic",
+    "VLAN 20 and VLAN 10 use incompatible cable types",
+    "The switch encrypts all VLAN 10 traffic so VLAN 20 devices cannot read it",
+    "The switch treats each VLAN as its own broadcast domain, so a device in VLAN 20 has no forwarding path to a port in VLAN 10 without a router"
+  ]}
+  explanation="VLANs work by making the switch itself refuse to bridge traffic between VLANs at Layer 2, the same layer that normally handles all local forwarding. There is no encryption involved and no physical incompatibility; the isolation is purely a forwarding rule inside the switch. A device in one VLAN reaching a device in another requires a router configured to permit and forward that specific traffic, exactly the boundary the earlier lessons on routing described."
+/>
+
+<Callout type="warning" title="A misconfigured trunk quietly breaks VLAN isolation">
+The entire security argument for VLANs depends on every trunk port being configured to carry only the VLANs it is supposed to. A trunk port left in its default state on many switches accepts and forwards all VLANs by default, sometimes called the native VLAN handling untagged traffic without a tag at all. A cable plugged into that kind of port, intentionally or by mistake during a physical swap, can end up bridging a guest VLAN and an internal VLAN together without a single alarm firing anywhere, since nothing about the physical link looks unusual. VLAN isolation is a configuration guarantee, not a physical one, and it only holds as long as every trunk and every access port assignment stays correct.
+</Callout>
+
+<Exercise title="Trace the VLAN boundary">
+A switch has four ports. Port 1 is an access port on VLAN 10, connected to an accounting workstation. Port 2 is an access port on VLAN 20, connected to a guest laptop. Port 3 is an access port on VLAN 10, connected to a file server. Port 4 is a trunk port carrying both VLAN 10 and VLAN 20 to a second switch. Work out, without a router anywhere in the picture, which of the three end devices can reach which others directly, and explain in a sentence or two what would have to change for the guest laptop to reach the file server.
+</Exercise>
+
+Switching and VLANs handle everything that happens before a packet ever needs a router: getting a frame to the right device by MAC address, and, with VLANs, deciding which devices even count as being on the same network in the first place. What neither one explains is how an entire building full of devices, each with a private address like 192.168.10.40, manages to reach the public internet through what looks from the outside like a single address. That translation, and the reason private address ranges exist at all, is the next lesson: NAT and private networks.
+
+<Notes />

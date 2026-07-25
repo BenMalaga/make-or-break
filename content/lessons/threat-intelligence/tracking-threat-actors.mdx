@@ -1,0 +1,63 @@
+---
+title: Tracking Threat Actors
+module: threat-intelligence
+moduleTitle: Cyber Threat Intelligence
+moduleOrder: 36
+moduleIcon: Radar
+order: 4
+summary: Fancy Bear, APT28, Sofacy, Forest Blizzard, and Sednit are one group. Attribution is where careful analysts get careless.
+estimatedMinutes: 18
+objectives:
+  - Decode vendor naming schemes and map aliases to one actor
+  - Separate an activity cluster from a confirmed group
+  - Attach a calibrated confidence level to an attribution claim
+tags:
+  - threat-intelligence
+  - cti
+  - attribution
+  - threat-actors
+  - apt
+---
+
+Read five vendor reports on the same Russian military intelligence operation and you will see five names: APT28 from Mandiant, Fancy Bear from CrowdStrike, Sofacy from Kaspersky, Forest Blizzard from Microsoft, Sednit from ESET. Same people. The naming chaos is not a bug you can fix, it is the field you have to work in, and step one of tracking actors is refusing to be confused by it.
+
+Each vendor names by its own scheme. Microsoft uses weather (Blizzard for Russia, Typhoon for China, Sandstorm for Iran). CrowdStrike uses animals tied to suspected origin (Bear for Russia, Panda for China, Kitten for Iran). Mandiant uses APT plus a number for confirmed groups and UNC plus a number for unconfirmed clusters. None of them are wrong. They are just tracking their own visibility, and MITRE ATT&CK's Groups pages exist largely to reconcile the aliases so you can tell when two reports describe one actor.
+
+## Clusters are not groups yet
+
+The most useful distinction in this whole topic is between an activity cluster and a named group. When an analyst sees related activity, shared infrastructure, overlapping tooling, a common victim profile, but cannot yet say who is behind it, they give it a temporary cluster label. Mandiant's UNC (uncategorized) numbers are exactly this. UNC2452 was the SolarWinds intrusion cluster before enough evidence promoted it toward a named actor.
+
+Treat clusters as "these events probably share an operator" and nothing more. Promoting a cluster to a named group is a claim that needs evidence, and analysts who skip that step end up merging two different actors under one name, which then poisons every report downstream.
+
+## Attribution is a spectrum, not a verdict
+
+There is technical attribution, saying this activity is the same operator as that activity, and there is real-world attribution, naming the country or organization behind it. Technical attribution is achievable with diligence. Real-world attribution is hard, political, and rarely something a private analyst nails alone.
+
+State your confidence and mean it. The community convention is low, moderate, and high confidence, and the words matter. "We assess with moderate confidence that this cluster overlaps with APT29 based on shared C2 tradecraft and a reused loader" is honest. "This is APT29" without that scaffolding is a guess wearing a suit.
+
+<CommandCard command="ACH: list every actor the evidence could fit, then hunt for facts that DISPROVE each one." explain="Analysis of Competing Hypotheses fights the instinct to lock onto the first plausible actor. You do not prove your favorite, you knock out the others. Whatever survives disconfirmation is your best-supported call, and you still label its confidence." />
+
+## Stay skeptical, because they want you fooled
+
+Capable actors plant false flags on purpose. They reuse another group's malware, leave code comments in a language they do not speak, register infrastructure through a country they are not in, or borrow a rival crew's TTPs. The Olympic Destroyer attack in 2018 was a master class in this, salted with indicators pointing at several different countries to burn analyst time.
+
+So weigh the whole picture: infrastructure patterns, code lineage, targeting logic, operational hours, and language artifacts, no single one of which is proof. If an attribution rests on one clean, convenient indicator, distrust it. Convenient evidence is the kind adversaries leave for you.
+
+<Callout type="security" title="Tracking actors is not a license to hunt people">
+Attribution research pulls you toward OSINT on individuals: handles, emails, forum personas, reused avatars. Keep it inside your authorized scope and your organization's legal guidance. Do not probe adversary infrastructure you are not cleared to touch, do not dox, and route real-world identification of a person to law enforcement rather than acting on it yourself. The goal is defending your network, not unmasking a stranger.
+</Callout>
+
+<Quiz
+  id="cti-cluster-vs-group"
+  question="A vendor publishes on 'UNC5820,' a set of intrusions with shared infrastructure and tooling but no named operator. What does the UNC label tell you?"
+  answer={1}
+  options={[
+    "It is a confirmed nation-state group with high-confidence attribution",
+    "It is an uncategorized activity cluster that shares traits but has not been attributed to a known actor",
+    "It is a malware family, not an actor at all",
+    "It is an alias for an already-named group like APT28",
+  ]}
+  explanation="UNC (uncategorized) is Mandiant's label for an activity cluster: related events that probably share an operator but lack the evidence to be promoted to a named, attributed group. Treating it as a confirmed actor is exactly the over-attribution mistake to avoid."
+/>
+
+<Notes />

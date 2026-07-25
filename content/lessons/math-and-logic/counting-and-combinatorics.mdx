@@ -1,0 +1,272 @@
+---
+title: Counting Without Counting
+module: math-and-logic
+moduleTitle: Math and Logic
+moduleOrder: 5
+moduleIcon: Sigma
+order: 4
+summary: "The multiplication principle, factorials, permutations, and combinations: how a path-counting problem with billions of cases collapses into one number."
+estimatedMinutes: 16
+prerequisites: ["remainders-and-modular-arithmetic"]
+objectives:
+  - Apply the multiplication principle to count independent choices without listing them
+  - Explain what a factorial counts and use it for permutations where order matters
+  - Compute a combination when order does not matter, and say why it is smaller
+  - Collapse a grid path-counting problem into a single binomial coefficient
+tags:
+  - math
+  - combinatorics
+  - python
+---
+
+The slow way to answer "how many" is to list every possibility and count the list.
+That holds up until the list gets long, and then it falls apart fast. The
+remainders lesson found the last digit of 7 raised to the 100th power without ever
+building that 85-digit number, because modular arithmetic answers a question about
+a huge value without computing the whole value. Counting is the same move aimed at
+possibilities instead of digits. The goal here is to know how many arrangements,
+paths, or teams exist without writing down a single one of them.
+
+## Independent choices multiply
+
+Start small enough to check by hand. A closet has 3 shirts and 2 pants, and an
+outfit is one shirt plus one pant. Listing them is quick: red with jeans, red with
+chinos, blue with jeans, blue with chinos, green with jeans, green with chinos.
+Six outfits. Notice the shape of that list. For each of the 3 shirts there were 2
+pants, so the total is 3 groups of 2, which is 3 times 2.
+
+```python
+shirts = ["red", "blue", "green"]
+pants = ["jeans", "chinos"]
+
+outfits = []
+for shirt in shirts:
+    for pant in pants:
+        outfits.append((shirt, pant))
+
+print(len(outfits))              # 6
+print(len(shirts) * len(pants))  # 6
+```
+
+The nested loop and the multiplication print the same 6. That is the whole idea,
+called the multiplication principle: when a result is built from separate choices,
+and each choice is free of the others, the number of results is the product of the
+number of options at each step. Add a third layer, say 4 pairs of shoes, and the
+count becomes 3 times 2 times 4, which is 24. No new listing required.
+
+The reason this matters is that the product grows in a way listing never keeps up
+with. A 4-digit PIN has 10 options in each of 4 slots, so there are 10 times 10
+times 10 times 10 possibilities. That is 10000, small enough that a computer could
+still spit out every one. Stretch the same rule to an 8-character password drawn
+from 62 letters and digits, and the honest count is 62 to the 8th power.
+
+```python
+print(10 * 10 * 10 * 10)   # 10000
+print(62 ** 8)             # 218340105584896
+```
+
+Two hundred trillion. A loop that printed one password per microsecond would run
+for years. The multiplication told the truth in a millisecond. This is the first
+lesson of counting: the arithmetic scales to sizes that enumeration cannot touch.
+
+<Quiz
+  id="counting-and-combinatorics-multiplication"
+  question="A deli builds a sandwich from exactly one of 5 breads, one of 4 fillings, and one of 3 sauces. How many different sandwiches are possible?"
+  answer={1}
+  options={[
+    "12, because you add the choices: 5 + 4 + 3.",
+    "60, because independent choices multiply: 5 * 4 * 3.",
+    "5, because the bread decides the sandwich and the rest is garnish.",
+    "It cannot be known without listing every sandwich first."
+  ]}
+  explanation="Each choice is free of the others, so the multiplication principle applies: 5 * 4 * 3 = 60. Adding the options would only make sense if a sandwich used one ingredient total, not one from each group."
+/>
+
+## Factorials count arrangements
+
+Multiplication assumes the choices do not interfere. Ordering breaks that
+assumption, because once a thing is placed it is used up. Put 3 books labeled A, B,
+and C on a shelf. The first slot has 3 books to choose from. Once one is placed,
+the second slot has only 2 left, and the last slot has 1. So the count is 3 times 2
+times 1, which is 6. Listing confirms it: ABC, ACB, BAC, BCA, CAB, CBA.
+
+That product, counting down to 1, is common enough to have a name and a symbol. The
+factorial of a whole number n, written n!, is n times every whole number below it
+down to 1. So 3! is 6, and 4! is 24, and 5! is 120. What n! counts is exactly this:
+the number of ways to arrange n distinct things in a row. Python has it built in.
+
+```python
+import math
+from itertools import permutations
+
+books = ["A", "B", "C"]
+print(list(permutations(books)))  # all 6 orderings, listed
+print(math.factorial(3))          # 6
+```
+
+`permutations` hands back every ordering so the 6 can be seen, and `factorial`
+returns the same 6 without building the list. For 3 books that is a fair race. For
+20 books it is not: 20! is about 2.4 billion billion, a number no machine will ever
+finish listing, yet `math.factorial(20)` returns it at once.
+
+<Callout type="warning" title="Factorials explode">
+Factorial growth outruns almost everything. 10! is already 3,628,800. 13! passes a
+billion. By 21! the value is larger than the number of grains of sand estimated on
+Earth. Any plan that loops over "all orderings" of more than about 10 items is a
+plan that never finishes. Count the orderings with a formula, do not generate them.
+</Callout>
+
+Often the whole set does not need arranging, only a piece of it. Eight sprinters
+race, and the first three across the line take gold, silver, and bronze. The gold
+has 8 candidates, the silver 7, the bronze 6, so the podium count is 8 times 7
+times 6, which is 336. That is a factorial that stops early after 3 factors. It is
+called a permutation: an ordered selection of k items from n, and its count is
+n! divided by (n minus k)!, because dividing chops off the tail that was never
+chosen.
+
+```python
+import math
+
+print(8 * 7 * 6)                              # 336
+print(math.factorial(8) // math.factorial(5)) # 336
+print(math.perm(8, 3))                        # 336
+```
+
+All three print 336. The word permutation is the flag that order matters here: gold
+then silver is a different podium from silver then gold.
+
+<Quiz
+  id="counting-and-combinatorics-permutations"
+  question="Eight sprinters race and the first three finishers earn gold, silver, and bronze. How many different podiums are possible?"
+  answer={2}
+  options={[
+    "40320, because that is 8 factorial, the number of ways to arrange all eight.",
+    "24, because 8 times 3 medals.",
+    "336, because the medals are ordered: 8 choices for gold, then 7, then 6.",
+    "56, because which three make the podium is all that matters."
+  ]}
+  explanation="The medals are ranked, so order matters and this is a permutation: 8 * 7 * 6 = 336. 8! counts arranging all eight runners, and 56 would be the answer only if the three medals were identical."
+/>
+
+## When order stops mattering
+
+Change one word in the sprinter problem and the answer shrinks. Instead of three
+ranked medals, pick 3 runners to advance to a final, all equal, no order. Now gold
+then silver then bronze and every reshuffle of those same three names describe one
+outcome, not six. The 336 ordered podiums have been overcounting each group of 3 by
+exactly 3!, the number of ways to shuffle a group of that size. Divide it out: 336
+divided by 6 is 56.
+
+That is a combination: an unordered selection of k items from n. Its count is
+written as n choose k and reads as "from n things, take k, order ignored." The
+formula is the permutation count divided by k!, which works out to n! divided by
+both k! and (n minus k)!. A tiny case makes it concrete. Pick 2 people from a group
+of 4 for a team.
+
+```python
+import math
+
+print(math.comb(4, 2))   # 6   order ignored, this is a team
+print(math.perm(4, 2))   # 12  order counted, this is two ranked seats
+```
+
+The team count is 6 and the ranked count is 12, and the ratio between them is 2!,
+the ways to order 2 chosen people. Listing the 6 teams from people A, B, C, D is a
+fast check: AB, AC, AD, BC, BD, CD. Every pair appears once, and AB never shows up
+again as BA, because the order was thrown away.
+
+This n-choose-k number, the binomial coefficient, turns out to be the exact tool
+for a problem that looks nothing like picking a team.
+
+<Quiz
+  id="counting-and-combinatorics-combinations"
+  question="A study group of 5 needs to send 2 people to ask the professor a question, and the two are equal messengers. How many different pairs could go?"
+  answer={0}
+  options={[
+    "10, which is 5 choose 2, since the two messengers are unordered.",
+    "20, which is 5 times 4, counting a first and second messenger.",
+    "120, which is 5 factorial.",
+    "25, which is 5 times 5."
+  ]}
+  explanation="The two messengers are equal, so order does not matter and this is a combination: 5 choose 2 = 10. The 20 would be right only if the two roles were distinct and ranked."
+/>
+
+## The grid that collapses to one number
+
+Picture a robot in the top-left corner of a grid that can only step right or step
+down, aiming for the bottom-right corner. On a 2 by 2 grid of squares, every trip
+takes exactly 2 steps right and 2 steps down, 4 steps in all. What separates one
+path from another is only the order those steps come in. So a path is nothing more
+than a choice of which 2 of the 4 steps are the right-steps. That is 4 choose 2.
+
+```python
+import math
+from itertools import permutations
+
+# 2 rights and 2 downs, in any order.
+steps = ["R", "R", "D", "D"]
+print(len(set(permutations(steps))))  # 6   every distinct path, enumerated
+print(math.comb(4, 2))                # 6   the same count, no listing
+```
+
+The `set` collapses duplicate orderings, since the two R steps are interchangeable,
+and 6 distinct paths remain. `math.comb(4, 2)` reaches 6 with no enumeration at all.
+The pattern generalizes cleanly. On a grid that needs a total of R rights and D
+downs, a path is any arrangement of those R plus D steps, so the number of paths is
+(R plus D) choose R. One binomial coefficient answers the whole question.
+
+Watch what that buys on a grid too big to walk. A 20 by 20 grid needs 20 rights and
+20 downs, so the count is 40 choose 20.
+
+```python
+import math
+
+print(math.comb(40, 20))   # 137846528820
+```
+
+About 137 billion paths, returned instantly. Enumerating them the robot's way, one
+path at a time, would take a fast machine on the order of an hour of pure
+generating and counting, and a 30 by 30 grid would push past the age of the
+universe. The binomial coefficient does not care about grid size. It is a single
+division of factorials, and Python computes it before a finger leaves the key. This
+is the lattice paths result, and it is the sharpest example in this lesson of the
+core trade: a formula that knows the count beats a loop that discovers it.
+
+The Challenges tab has a lattice-paths problem waiting. It is a single binomial
+coefficient once the grid is read as a count of rights and downs, so it is the
+cleanest place to turn this idea into a solved problem.
+
+<Exercise title="Count the paths, do not walk them">
+Open the Build tab and write a Python function `paths(width, height)` that returns
+the number of right-or-down paths across a grid of that size. Import `math` and
+return `math.comb(width + height, width)`. Print `paths(2, 2)` and confirm you get
+6, matching the six paths you can draw by hand. Then print `paths(20, 20)` and
+`paths(30, 30)`. Watch the second one land instantly even though it counts a number
+with 17 digits. If you feel ambitious, write a slow version with `itertools` that
+actually enumerates the paths for a small grid, and time how quickly it becomes
+unusable as the grid grows. That gap between the two versions is the entire point.
+</Exercise>
+
+Every one of these counts, from the shirts to the 137 billion paths, was a formula
+standing in for a list nobody could write. There is a second way to reach the same
+grid number that does not use a formula at all: give each cell a count equal to the
+cell above plus the cell to its left, and let the answer build up corner by corner.
+The binomial coefficient obeys that exact rule, which is why the trick works. Any
+n choose k equals (n minus 1 choose k minus 1) plus (n minus 1 choose k), a small
+identity worth seeing land once.
+
+```python
+import math
+
+print(math.comb(5, 2))                       # 10
+print(math.comb(4, 1) + math.comb(4, 2))     # 10   the same number, split in two
+```
+
+Both print 10, because choosing 2 from 5 splits into two cases: the first item is
+in the group or it is not. That cell-equals-the-sum-of-two-smaller-cells structure,
+where the same subproblem gets asked again and again, is exactly the ground the next
+lesson stands on. Recursion and memoization is how a program solves a big problem by
+leaning on the smaller ones inside it, and the lattice grid is the first place that
+pays off.
+
+<Notes />

@@ -1,0 +1,84 @@
+---
+title: AWS IAM in Depth
+module: aws-security
+moduleTitle: AWS Security
+moduleOrder: 30
+moduleIcon: CloudCog
+order: 2
+summary: One over-broad policy statement is how a read-only key becomes admin.
+estimatedMinutes: 22
+objectives:
+  - Read an IAM policy and name the exact actions it grants
+  - Assume a role with the CLI and understand what sts:AssumeRole really does
+  - Spot the classic privilege escalation paths hiding in a set of permissions
+tags:
+  - aws
+  - iam
+  - privesc
+  - assume-role
+  - policies
+---
+
+Almost every AWS compromise ends the same way: someone had permissions they should not have, and an attacker found the one action that turned a small foothold into full control. IAM is where all of that is decided. It is a policy engine, and a policy is just JSON that says which identities may call which API actions on which resources. Read the JSON well and you can see the whole attack path before you run anything.
+
+A policy statement has four parts that matter. `Effect` is Allow or Deny. `Action` is the API call, like `s3:GetObject` or `iam:CreateAccessKey`. `Resource` is the ARN it applies to. `Condition` is optional extra rules. A `*` in Action or Resource is the thing you hunt for, because it means "everything."
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "iam:*",
+  "Resource": "*"
+}
+```
+
+That block on a user you control is game over. It says this identity can perform any IAM action on any resource, which includes creating a new admin user or attaching AdministratorAccess to itself.
+
+## Roles and assume-role
+
+A role is an identity with no long-term password or key. Nobody logs in as a role. Instead, an allowed principal calls `sts:AssumeRole` and STS hands back temporary credentials that expire, usually in an hour. Roles are how EC2 instances, Lambda functions, and cross-account access all work.
+
+<CommandBlock
+  title="assume a role and use the temporary creds"
+  commands={[
+    { cmd: "aws sts assume-role --role-arn arn:aws:iam::123456789012:role/deploy --role-session-name test", comment: "returns AccessKeyId, SecretAccessKey, SessionToken" },
+    { cmd: "export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=...", comment: "paste the three values from the response" },
+    { cmd: "aws sts get-caller-identity", comment: "confirm you are now the assumed-role session" },
+  ]}
+/>
+
+The gate on assume-role is the role's trust policy, a separate document that names who is allowed to assume it. A trust policy with `"Principal": {"AWS": "*"}` and no condition lets anyone in any account assume that role. That misconfiguration is rare in production and pure gold when you find it.
+
+## The privilege escalation paths
+
+Rhino Security published the canonical list of IAM privesc methods, and they still work because they are features, not bugs. You do not need admin to become admin. You need one of a couple dozen specific permissions on the wrong resource.
+
+The cleanest is `iam:CreateAccessKey` on another user. If you can create an access key for the admin user, you just log in as admin.
+
+<CommandCard command="aws iam create-access-key --user-name admin" explain="If your policy allows iam:CreateAccessKey against that user, this hands you a working key pair for the admin account. No password, no MFA prompt." />
+
+`iam:AttachUserPolicy` is just as good: attach AdministratorAccess to yourself and you are done. `iam:PutUserPolicy` lets you write an inline policy granting whatever you want. `iam:PassRole` combined with a service that runs code, like `lambda:CreateFunction` or `ec2:RunInstances`, lets you launch a resource carrying a high-privilege role and read its credentials. `iam:CreatePolicyVersion` lets you quietly swap a policy's active version for one you write.
+
+The fastest way to check for all of these at once is Rhino's enumerate-iam tool, which brute-forces which API calls your key can make.
+
+<CommandCard command="python3 enumerate-iam.py --access-key AKIA... --secret-key ..." explain="Enumerates the actions your credentials can call by trying each one and watching for AccessDenied. It surfaces the exact permissions you have without needing iam:ListAttachedUserPolicies." />
+
+<Callout type="security" title="Authorized targets only">
+IAM privesc is real privilege escalation on real infrastructure. Run these only inside an account you own or a CloudGoat scenario built to be attacked. Creating an access key or attaching a policy in a client account without written scope is unauthorized and traceable in CloudTrail to you.
+</Callout>
+
+Defenders should read this list as a deny list. No human user needs `iam:*`. Scope IAM permissions to specific resources, keep `PassRole` locked to named roles, and alarm on `iam:CreateAccessKey` and `iam:AttachUserPolicy` in CloudTrail, because a legitimate admin does those rarely and an attacker does them immediately.
+
+<Quiz
+  id="iam-passrole"
+  question="Your key can call lambda:CreateFunction and iam:PassRole, and there is a Lambda execution role with AdministratorAccess. Why is that a full account takeover?"
+  answer={1}
+  options={[
+    "Lambda functions always run as root on the host",
+    "You can create a function that passes the admin role, then run code as that role to act as admin",
+    "CreateFunction automatically grants you the role's console password",
+    "PassRole rewrites the role's trust policy to include you",
+  ]}
+  explanation="PassRole lets you hand an existing role to a new resource. Create a Lambda that assumes the admin role, invoke it, and your code now runs with AdministratorAccess. This is why PassRole must be scoped to specific, low-privilege roles."
+/>
+
+<Notes />

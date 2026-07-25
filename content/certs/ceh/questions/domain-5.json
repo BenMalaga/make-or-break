@@ -1,0 +1,266 @@
+[
+  {
+    "domain": 5,
+    "question": "A tester appends a single quote to a login field's username parameter and the application returns a database syntax error revealing the backend query. Which vulnerability class does this behavior most directly indicate?",
+    "options": [
+      "Cross-site scripting (XSS)",
+      "SQL injection",
+      "Server-side request forgery (SSRF)",
+      "Insecure direct object reference (IDOR)"],
+    "correct": [1],
+    "explanation": "A verbose database error triggered by injecting a single quote is the classic signature of SQL injection, because unsanitized input is being concatenated into a SQL statement. XSS injects into HTML/JavaScript output, SSRF abuses server-side requests, and IDOR involves manipulating object references without breaking query syntax.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "An attacker wants to extract data from an application that returns no error messages and no query output, so they inject payloads using WAITFOR DELAY and observe the server's response time. Which SQL injection technique is being used?",
+    "options": [
+      "Union-based SQL injection",
+      "Error-based SQL injection",
+      "Time-based blind SQL injection",
+      "Out-of-band SQL injection"],
+    "correct": [2],
+    "explanation": "Time-based blind SQL injection infers data one bit at a time by forcing conditional delays (such as WAITFOR DELAY or SLEEP) and measuring how long the server takes to respond. Union-based and error-based both rely on visible output or errors, and out-of-band exfiltrates data over a separate channel like DNS.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A user submits a comment to a forum, and every visitor who later loads that page has their session cookie sent to an attacker's server. The malicious script was saved in the site's database. Which attack is this?",
+    "options": [
+      "Reflected XSS",
+      "Stored XSS",
+      "DOM-based XSS",
+      "Cross-site request forgery (CSRF)"],
+    "correct": [1],
+    "explanation": "Stored (persistent) XSS occurs when the malicious script is saved server-side and served to every user who views the affected page, giving it broad, repeatable impact. Reflected XSS requires a victim to click a crafted link, DOM-based XSS executes entirely in the browser without server storage, and CSRF forces actions rather than injecting scripts.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A web application allows a logged-in user to change their email by submitting a form, but it performs no verification that the request originated from the site's own pages. An attacker emails the victim a page that auto-submits this form. Which control most directly prevents this attack?",
+    "options": [
+      "Anti-CSRF token",
+      "Input length validation",
+      "HTTP Strict Transport Security (HSTS)",
+      "Content-Security-Policy (CSP) header"],
+    "correct": [0],
+    "explanation": "This is cross-site request forgery, and a per-session anti-CSRF token that the attacker cannot predict or read is the primary defense, often paired with the SameSite cookie attribute. HSTS enforces HTTPS, CSP restricts script sources to mitigate XSS, and length validation does not verify request origin.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "During a cloud assessment, a tester exploits a web application to make the server request the URL http://169.254.169.254/latest/meta-data/ and receives temporary IAM credentials. Which vulnerability made this possible?",
+    "options": [
+      "Directory traversal",
+      "Server-side request forgery (SSRF)",
+      "Cross-site scripting (XSS)",
+      "Command injection"],
+    "correct": [1],
+    "explanation": "SSRF tricks the server into making requests to attacker-chosen destinations, and reaching the 169.254.169.254 link-local metadata endpoint is a hallmark cloud SSRF impact that can leak instance credentials. Directory traversal reads local files, XSS runs in the victim's browser, and command injection executes OS commands rather than issuing HTTP requests.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "A tester requests the URL http://target/download?file=../../../../etc/passwd and the server returns the contents of the system password file. Which web attack succeeded?",
+    "options": [
+      "Local file inclusion via remote code execution",
+      "Path (directory) traversal",
+      "SQL injection",
+      "Server-side template injection"],
+    "correct": [1],
+    "explanation": "Path traversal uses ../ sequences to escape the intended directory and read arbitrary files such as /etc/passwd. It reads files rather than executing code, which distinguishes it from remote code execution, SQL injection, and template injection.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "An attacker uploads a file named shell.php through an image-upload form that fails to validate content type, then browses to it to run operating-system commands on the server. What has the attacker planted?",
+    "options": [
+      "A logic bomb",
+      "A web shell",
+      "A rootkit",
+      "A honeypot"],
+    "correct": [1],
+    "explanation": "A web shell is a server-side script uploaded through a vulnerable upload feature that gives the attacker command execution and persistence via the browser. A logic bomb triggers on a condition, a rootkit hides at the OS level, and a honeypot is a defensive decoy.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A wireless network still uses WEP. Which specific design weakness allows an attacker who captures enough traffic to recover the key with a tool like aircrack-ng?",
+    "options": [
+      "Use of AES-CCMP with a weak passphrase",
+      "The 24-bit initialization vector (IV) reused with the RC4 stream cipher",
+      "Reliance on the SAE handshake",
+      "Lack of a pre-shared key entirely"],
+    "correct": [1],
+    "explanation": "WEP's fatal flaw is its short 24-bit IV combined with RC4; IVs are reused frequently, and collecting enough IV-laden frames lets tools statistically recover the key. AES-CCMP and SAE belong to WPA2 and WPA3 respectively, and WEP does use a shared key.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "To crack a WPA2-PSK network, an attacker runs airodump-ng to capture traffic and sends deauthentication frames to a connected client. What is the purpose of the deauthentication frames?",
+    "options": [
+      "To permanently disable the access point",
+      "To force the client to reconnect so the four-way handshake can be captured",
+      "To downgrade the network from WPA2 to WEP",
+      "To inject a malicious firmware update into the client"],
+    "correct": [1],
+    "explanation": "Deauth frames knock the client off the network so it must reassociate, letting the attacker capture the WPA2 four-way handshake needed for an offline dictionary or brute-force attack. It does not disable the AP, downgrade encryption, or push firmware.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "An attacker uses Reaver against a home router to brute-force an eight-digit setup PIN and recover the WPA2 passphrase. Which feature is being exploited?",
+    "options": [
+      "Wi-Fi Protected Setup (WPS)",
+      "Protected Management Frames (PMF, 802.11w)",
+      "Simultaneous Authentication of Equals (SAE)",
+      "MAC address filtering"],
+    "correct": [0],
+    "explanation": "WPS PIN authentication is exploitable because the router validates the PIN in two halves, cutting the effective keyspace to about 11,000 guesses, which tools like Reaver brute-force. PMF and SAE are protections, and MAC filtering is a separate weak access control.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "In a coffee shop, an attacker sets up an access point broadcasting the same SSID as the legitimate hotspot, with a stronger signal, to lure clients into connecting through the attacker. What is this attack called?",
+    "options": [
+      "Wardriving",
+      "Evil twin",
+      "Bluejacking",
+      "KRACK"],
+    "correct": [1],
+    "explanation": "An evil twin is a rogue access point that impersonates a legitimate one by cloning its SSID, so victims connect through the attacker for interception. Wardriving is mapping wireless networks, bluejacking sends unsolicited Bluetooth messages, and KRACK is a key-reinstallation flaw in the WPA2 handshake.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A tester wants to capture WPA2 credentials without waiting for a client to connect, by requesting a single frame from the access point and cracking the resulting hash with hashcat. Which attack does this describe?",
+    "options": [
+      "KRACK key-reinstallation attack",
+      "PMKID (clientless) attack",
+      "Deauthentication flood",
+      "Chopchop attack"],
+    "correct": [1],
+    "explanation": "The PMKID attack extracts the PMKID from a single EAPOL frame in the first handshake message, so no connected client or full handshake is required, and the hash is cracked offline in hashcat. KRACK reinstalls keys during the handshake, deauth targets clients, and chopchop is a WEP technique.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "A security team must reduce the risk of 802.11 deauthentication and disassociation attacks against their WPA2 enterprise network. Which standard was designed to address this by authenticating management frames?",
+    "options": [
+      "802.11i",
+      "802.11w (Protected Management Frames)",
+      "802.1X",
+      "802.11ac"],
+    "correct": [1],
+    "explanation": "802.11w adds Protected Management Frames, which authenticate deauth and disassociation frames so attackers cannot forge them. 802.11i defined WPA2 encryption, 802.1X handles port-based authentication, and 802.11ac is a throughput standard.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "An analyst gains full filesystem access on an Android device by exploiting it to obtain elevated privileges beyond the manufacturer's restrictions. What is this process called on Android, and its iOS equivalent? (Choose two.)",
+    "options": [
+      "Rooting (Android)",
+      "Sideloading (Android)",
+      "Jailbreaking (iOS)",
+      "Provisioning (iOS)"],
+    "correct": [0, 2],
+    "explanation": "Rooting grants superuser (root) access on Android, and jailbreaking is the equivalent privilege-escalation process on iOS that removes Apple's sandbox restrictions. Sideloading only installs apps outside the store, and provisioning refers to enrolling or configuring a device.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A mobile banking app stores the user's authentication token in plaintext in a world-readable file on the device. Which OWASP Mobile Top 10 category best classifies this flaw?",
+    "options": [
+      "Insecure data storage",
+      "Improper platform usage",
+      "Insufficient cryptography",
+      "Reverse engineering"],
+    "correct": [0],
+    "explanation": "Storing sensitive data such as tokens in cleartext where other apps or an attacker with device access can read it is the definition of insecure data storage. Improper platform usage misuses OS features, insufficient cryptography concerns weak algorithms, and reverse engineering targets the app binary.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Employees receive a text message claiming to be from IT with a link to re-enter their credentials on a spoofed portal. What is this social-engineering technique specifically called?",
+    "options": [
+      "Vishing",
+      "Smishing",
+      "Pharming",
+      "Whaling"],
+    "correct": [1],
+    "explanation": "Smishing is phishing delivered via SMS text messages, often with a malicious link. Vishing uses voice calls, pharming redirects victims via DNS or hosts-file poisoning, and whaling targets high-value executives.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "The Mirai botnet spread by scanning the internet for IoT devices and logging in with a built-in list of factory credentials over Telnet. Which IoT weakness did it primarily exploit?",
+    "options": [
+      "Insecure over-the-air firmware updates",
+      "Weak, guessable, or hardcoded default passwords",
+      "Lack of transport-layer encryption",
+      "Insufficient physical hardening"],
+    "correct": [1],
+    "explanation": "Mirai's core technique was brute-forcing a short table of default and hardcoded credentials that owners never changed, which is OWASP IoT's top weakness. The other items are real IoT risks but were not the mechanism Mirai used to build its army of bots.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A tester wants to find internet-exposed industrial control systems and IoT devices by searching service banners rather than actively scanning the client's network. Which resource is purpose-built for this?",
+    "options": [
+      "Shodan",
+      "Wireshark",
+      "Metasploit",
+      "Burp Suite"],
+    "correct": [0],
+    "explanation": "Shodan is a search engine that continuously indexes banners of internet-connected devices, making it ideal for passively discovering exposed ICS and IoT systems. Wireshark captures packets, Metasploit is an exploitation framework, and Burp Suite is a web proxy.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "During an OT assessment, a tester finds that a PLC on the plant network accepts Modbus TCP commands from any host with no authentication or encryption. Why is this a significant risk in industrial environments?",
+    "options": [
+      "Modbus encrypts payloads but reuses a static key",
+      "Modbus was designed without authentication or encryption, so any reachable host can issue control commands",
+      "Modbus requires a signed certificate that attackers can forge",
+      "Modbus only runs over serial and cannot be reached over TCP"],
+    "correct": [1],
+    "explanation": "Legacy OT protocols like Modbus were built for isolated, trusted networks and include no authentication or encryption, so any host that can reach a PLC can read or write control registers. Modbus does not encrypt, use certificates, and it is commonly carried over TCP in modern plants.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A company moves to AWS on an IaaS model and assumes the provider will patch the guest operating systems of its EC2 instances. Under the cloud shared responsibility model, is this assumption correct?",
+    "options": [
+      "Yes, the provider patches everything in IaaS",
+      "No, in IaaS the customer is responsible for the guest OS, applications, and data",
+      "Yes, but only for the network layer",
+      "No, in IaaS the provider handles applications while the customer handles hardware"],
+    "correct": [1],
+    "explanation": "In IaaS the provider secures the physical infrastructure and hypervisor, while the customer remains responsible for the guest OS, patching, applications, configuration, and data. The provider does not patch customer-managed operating systems, so the assumption is wrong.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A researcher discovers a cloud storage bucket configured for public read access that exposes sensitive customer files. Which misconfiguration category and remediation apply? (Choose two.)",
+    "options": [
+      "The bucket has an overly permissive access policy",
+      "The exposure is caused by a hypervisor escape",
+      "Applying least-privilege access controls and blocking public access remediates it",
+      "Enabling a longer TLS cipher suite remediates it"],
+    "correct": [0, 2],
+    "explanation": "Publicly readable object storage is an access-control misconfiguration where the bucket policy or ACL grants access far beyond what is needed. The fix is to apply least privilege and enable public-access blocking, not to change ciphers, and it has nothing to do with a hypervisor escape.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "An attacker who has compromised a container in a Kubernetes cluster attempts to break out of the container to gain access to the underlying host node and other pods. This technique is best described as which of the following?",
+    "options": [
+      "Container escape",
+      "Cross-site scripting",
+      "DNS tunneling",
+      "Session fixation"],
+    "correct": [0],
+    "explanation": "A container escape exploits a misconfiguration or kernel flaw to break out of container isolation and reach the host and neighboring workloads, a key cloud-native attack path. XSS, DNS tunneling, and session fixation are unrelated web and network techniques.",
+    "difficulty": "HARD"
+  }
+]

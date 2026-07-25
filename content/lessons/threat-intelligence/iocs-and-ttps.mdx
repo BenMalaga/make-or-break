@@ -1,0 +1,70 @@
+---
+title: IOCs and TTPs
+module: threat-intelligence
+moduleTitle: Cyber Threat Intelligence
+moduleOrder: 36
+moduleIcon: Radar
+order: 3
+summary: The indicators you put in a report age in days. The behaviors you describe age in years. Write for the years.
+estimatedMinutes: 18
+objectives:
+  - Rank indicator types by how painful they are for an attacker to change
+  - Map an intrusion to ATT&CK techniques a report reader can act on
+  - Structure a finding with the Diamond Model
+tags:
+  - threat-intelligence
+  - cti
+  - ioc
+  - ttp
+  - pyramid-of-pain
+---
+
+Two threat reports land on the same actor. The first is a wall of 300 file hashes and 80 IPs. The second is four paragraphs describing how the group phishes, what they run for persistence, and how they move laterally, each tied to an ATT&CK ID. Six weeks from now the first report is dead, because the attacker recompiled and rehosted. The second still works, because the group still has to do the same things to reach the same goals. As a CTI producer, your job is to write more of the second kind.
+
+David Bianco's Pyramid of Pain is the model that explains why. It ranks indicator types by how much it hurts the adversary when you take that indicator away from them.
+
+## The pyramid, bottom to top
+
+At the base sit hash values. Trivial. One recompile, one changed byte, and every hash you catalogued is worthless. IP addresses come next, easy, a new cloud instance costs pennies. Domain names are a small step up, a registration and some setup time. All three are cheap for the attacker to rotate, which means low value for you to hunt on.
+
+Higher up you find network and host artifacts: a specific user-agent string, a named mutex, a registry key the malware always writes, a distinctive C2 URI pattern. Now the attacker has to change their tooling, which is annoying but doable. Above that sit tools, the actual malware family or off-the-shelf kit. Take away their tool and they have to find or build another one.
+
+At the peak: TTPs. Tactics, techniques, and procedures. Not what they touched, but how they operate. Dumping credentials from LSASS. Using WMI for lateral movement. Persisting through a scheduled task that calls back on a jitter. Force an attacker to abandon a technique and you have made them retrain and rebuild, not just re-register. Bianco's label for that top tier is "tough," and that is the pain worth inflicting.
+
+## Write the report so it ages well
+
+IOCs still belong in the report. They are the cheap, fast, machine-matchable first pass, and blocking a known-bad hash costs you nothing. The mistake is stopping there. A report that is all indicators hands the reader a tripwire that the attacker steps over the next morning.
+
+Map the behavior to ATT&CK so the reader can build a durable detection. "The actor uses `rundll32.exe` to proxy execution of a malicious DLL" becomes T1218.011, and now the reader can hunt the technique class, not one filename.
+
+<CommandBlock
+  title="turning an intrusion into a report a reader can act on"
+  commands={[
+    { cmd: "grep -i 'lsass' host_events.log", comment: "found: a non-security process opening LSASS with read access" },
+    { cmd: "# map it: T1003.001 OS Credential Dumping: LSASS Memory", comment: "the technique, not just the tool name" },
+    { cmd: "# publish both: the sample hash (fast block) AND the behavior (durable hunt)", comment: "IOC for today, TTP for the year" },
+  ]}
+/>
+
+## The Diamond Model keeps a finding organized
+
+For each intrusion, the Diamond Model gives you four corners to fill: adversary, capability, infrastructure, and victim. The capability and infrastructure corners are your IOCs and tooling. The adversary corner is attribution and intent. The victim corner is who and why. Filling all four forces you to state what you actually know versus what you are guessing, and it makes two separate reports comparable when you pivot between them later.
+
+<Callout type="security" title="Extracting IOCs means handling live malware">
+Pulling indicators and behaviors out of a sample usually means running it. Detonate malware only in an isolated sandbox you own, with no path back to production or the internet you care about, and treat the sample as radioactive on disk. Enrich hashes and domains through services like VirusTotal only when your sharing rules allow it, because an upload can tip off an actor watching for their own sample.
+</Callout>
+
+<Quiz
+  id="ioc-ttp-report-value"
+  question="You are writing a threat report and can only fully develop one section before the deadline. Which section gives the reader detections that survive the attacker re-tooling?"
+  answer={3}
+  options={[
+    "A complete list of the sample's file hashes",
+    "Every C2 IP address observed during the campaign",
+    "The set of registration domains the actor used",
+    "The ATT&CK-mapped techniques for persistence and credential access",
+  ]}
+  explanation="Hashes, IPs, and domains sit at the bottom of the Pyramid of Pain and rotate cheaply, so detections built on them decay fast. Techniques tied to the attacker's goals sit at the top, so a reader who builds behavioral detections keeps catching the actor after every artifact changes."
+/>
+
+<Notes />

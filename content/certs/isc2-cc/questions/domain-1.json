@@ -1,0 +1,186 @@
+[
+  {
+    "domain": 1,
+    "question": "Which element of the CIA triad is directly violated when an attacker reads customer credit card numbers stored in a database they were never authorized to access?",
+    "options": ["Integrity", "Confidentiality", "Availability", "Non-repudiation"],
+    "correct": [1],
+    "explanation": "Confidentiality is the prevention of unauthorized disclosure of information, so reading data you should not see breaks it. Integrity concerns unauthorized alteration, availability concerns access when needed, and non-repudiation is not part of the CIA triad.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A hash value stored alongside a downloaded file lets a user confirm the file was not modified in transit. Which security principle does this hash primarily support?",
+    "options": ["Confidentiality", "Availability", "Integrity", "Authentication"],
+    "correct": [2],
+    "explanation": "Integrity ensures data has not been altered in an unauthorized way, and a hash detects any change to the file. Confidentiality hides data, availability keeps it reachable, and authentication proves identity rather than verifying data was unchanged.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An organization deploys redundant servers and daily backups so that services stay reachable even during a hardware failure. Which part of the CIA triad is being addressed?",
+    "options": ["Availability", "Integrity", "Confidentiality", "Accountability"],
+    "correct": [0],
+    "explanation": "Availability ensures authorized users can access systems and data when needed, and redundancy plus backups directly protect uptime. Integrity and confidentiality address alteration and disclosure, and accountability is about tracing actions to users.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A digital signature on an email allows the sender to be held responsible for having sent it and prevents the sender from later denying it. This property is known as:",
+    "options": ["Authorization", "Non-repudiation", "Confidentiality", "Redundancy"],
+    "correct": [1],
+    "explanation": "Non-repudiation ensures a party cannot deny having performed an action, which a digital signature provides by binding the message to the sender. Authorization grants access rights, confidentiality hides content, and redundancy supports availability.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "In the AAA framework, what does the first A (Authentication) establish?",
+    "options": ["What resources a subject is permitted to use", "That a subject is who it claims to be", "A record of what the subject did on the system", "The dollar value of a subject's access rights"],
+    "correct": [1],
+    "explanation": "Authentication is the process of verifying a claimed identity, for example with a password or biometric. Deciding permitted resources is authorization, keeping a record is accounting, and access rights have no assigned dollar value in AAA.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A system logs every file a user opens, edits, or deletes, creating an audit trail tied to that user's identity. Which AAA component does this support?",
+    "options": ["Authentication", "Authorization", "Accounting", "Encryption"],
+    "correct": [2],
+    "explanation": "Accounting (also called accountability or auditing) records the actions a subject takes, producing an audit trail. Authentication proves identity, authorization sets permissions, and encryption is a control rather than an AAA component.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "In quantitative risk terms, risk is most commonly expressed as a function of which two factors?",
+    "options": ["Threat and control", "Likelihood and impact", "Asset and policy", "Vulnerability and standard"],
+    "correct": [1],
+    "explanation": "Risk is generally described as the combination of the likelihood of an event and its impact if it occurs. Controls reduce risk but are not the formula, and assets, policies, and standards are related concepts but not the two factors that define risk level.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Which statement correctly distinguishes a threat from a vulnerability?",
+    "options": ["A threat is a weakness that could be exploited; a vulnerability is the event that exploits it", "A threat is anything with potential to cause harm; a vulnerability is a weakness that could be exploited", "A threat and a vulnerability mean the same thing", "A threat is an internal control; a vulnerability is an external control"],
+    "correct": [1],
+    "explanation": "A threat is any circumstance or event with the potential to cause harm to an asset, while a vulnerability is a weakness or gap that a threat can exploit. The first option reverses the two definitions, and the others are simply incorrect.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A company buys cyber insurance to cover potential financial losses from a data breach. Which risk treatment strategy is this?",
+    "options": ["Risk avoidance", "Risk mitigation", "Risk transference", "Risk acceptance"],
+    "correct": [2],
+    "explanation": "Risk transference shifts the financial impact of a risk to a third party, and insurance is the classic example. Avoidance stops the risky activity, mitigation reduces the risk with controls, and acceptance means taking no action to reduce it.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "After analysis, management decides that a low-impact risk costs more to fix than it could ever cause in damage, so they take no further action and document the decision. This is an example of:",
+    "options": ["Risk acceptance", "Risk avoidance", "Risk transference", "Risk mitigation"],
+    "correct": [0],
+    "explanation": "Risk acceptance is the informed decision to tolerate a risk without applying additional controls, usually because the risk falls within tolerance. Avoidance eliminates the activity, transference moves the impact to another party, and mitigation applies controls to reduce it.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A business decides to completely cancel a planned product feature because the security risk it introduces cannot be reduced to an acceptable level. Which risk treatment does this represent?",
+    "options": ["Risk mitigation", "Risk acceptance", "Risk avoidance", "Risk transference"],
+    "correct": [2],
+    "explanation": "Risk avoidance eliminates the risk by not engaging in the activity that creates it, such as canceling the feature entirely. Mitigation would keep the feature but add controls, acceptance would keep it as is, and transference would shift the impact elsewhere.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "How many canons are contained in the ISC2 Code of Ethics?",
+    "options": ["Three", "Four", "Five", "Ten"],
+    "correct": [1],
+    "explanation": "The ISC2 Code of Ethics has a preamble followed by exactly four canons. Three, five, and ten do not match the published code.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Which of the following is the FIRST canon of the ISC2 Code of Ethics?",
+    "options": ["Advance and protect the profession", "Provide diligent and competent service to principals", "Protect society, the common good, necessary public trust and confidence, and the infrastructure", "Act honorably, honestly, justly, responsibly, and legally"],
+    "correct": [2],
+    "explanation": "The first canon is to protect society, the common good, necessary public trust and confidence, and the infrastructure. Acting honorably is the second canon, diligent service is the third, and advancing the profession is the fourth.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "The ISC2 Code of Ethics states that its canons should be applied in what manner when they appear to conflict?",
+    "options": ["Whichever canon best serves the member's employer takes priority", "The canons are listed in order of precedence and applied in that order", "All canons carry equal weight and the member chooses freely", "The most recently published canon overrides earlier ones"],
+    "correct": [1],
+    "explanation": "The canons are presented in order of importance, so when they seem to conflict they are resolved in the order in which they appear, with protecting society first. Serving the employer, free choice, and publication date are not the tie-breaking rule.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "Security controls are commonly grouped into three broad categories. Which set lists those three categories?",
+    "options": ["Preventive, detective, corrective", "Technical, administrative, physical", "Confidential, integral, available", "Mandatory, discretionary, role-based"],
+    "correct": [1],
+    "explanation": "Controls are classified by type as technical (logical), administrative (managerial), and physical. Preventive, detective, and corrective describe control functions rather than categories, and the other two options describe the CIA triad and access control models.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A company requires all new hires to complete security awareness training and sign an acceptable use policy. What type of control are these?",
+    "options": ["Physical controls", "Technical controls", "Administrative controls", "Compensating controls"],
+    "correct": [2],
+    "explanation": "Administrative (managerial) controls are policies, procedures, and training that direct people's behavior. Physical controls protect facilities, technical controls are enforced by systems, and a compensating control is an alternative used when a primary control is not feasible.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which two of the following are examples of technical (logical) controls? (Choose two.)",
+    "options": ["A firewall filtering network traffic", "A locked server room door", "File encryption on a laptop", "A written incident response policy"],
+    "correct": [0, 2],
+    "explanation": "Technical or logical controls are implemented through technology, and both a firewall and file encryption are enforced by systems. A locked door is a physical control and a written policy is an administrative control.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An organization cannot implement multifactor authentication on a legacy system, so it isolates that system on a separate network segment with strict monitoring instead. The network isolation is best described as a:",
+    "options": ["Deterrent control", "Compensating control", "Directive control", "Recovery control"],
+    "correct": [1],
+    "explanation": "A compensating control is an alternative measure used when the primary or preferred control cannot be implemented, which is exactly the case here. A deterrent discourages action, a directive instructs behavior, and a recovery control restores systems after an incident.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "In a governance hierarchy, which document is a high-level statement of management intent that sets the overall direction for security, from which more detailed rules are derived?",
+    "options": ["Procedure", "Standard", "Policy", "Guideline"],
+    "correct": [2],
+    "explanation": "A policy is a high-level statement of management's intent and direction, and standards, procedures, and guidelines flow down from it. A procedure gives step-by-step instructions, a standard specifies mandatory requirements, and a guideline offers recommendations.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which governance document type provides recommended, non-mandatory advice rather than requirements that must be followed?",
+    "options": ["Standards", "Guidelines", "Procedures", "Regulations"],
+    "correct": [1],
+    "explanation": "Guidelines are recommendations and best practices that are discretionary rather than mandatory. Standards and procedures are mandatory internal documents, and regulations are legally enforceable requirements imposed by government.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A step-by-step set of instructions describing exactly how to configure a new laptop before issuing it to an employee is an example of which governance document?",
+    "options": ["Policy", "Standard", "Procedure", "Regulation"],
+    "correct": [2],
+    "explanation": "A procedure is a detailed, step-by-step description of how to carry out a specific task. A policy states intent, a standard specifies mandatory requirements, and a regulation is an externally imposed legal rule.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Assigning each user only the access rights needed to perform their job, and no more, is the direct application of which security principle?",
+    "options": ["Defense in depth", "Least privilege", "Separation of duties", "Non-repudiation"],
+    "correct": [1],
+    "explanation": "Least privilege limits every user to the minimum access required to do their work, reducing the potential damage from misuse or compromise. Defense in depth layers controls, separation of duties splits a task among people, and non-repudiation prevents denial of an action.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Information that can be used to identify a specific individual, such as a Social Security number or biometric record, is referred to by which term?",
+    "options": ["Personally Identifiable Information (PII)", "Intellectual property", "Metadata", "Ciphertext"],
+    "correct": [0],
+    "explanation": "Personally Identifiable Information (PII) is data that can identify a specific person and is a core focus of privacy protection. Intellectual property covers creative and proprietary works, metadata is data about data, and ciphertext is encrypted data.",
+    "difficulty": "EASY"
+  }
+]

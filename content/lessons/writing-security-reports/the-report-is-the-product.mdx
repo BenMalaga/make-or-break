@@ -1,0 +1,61 @@
+---
+title: The Report Is the Product
+module: writing-security-reports
+moduleTitle: Writing Security Reports
+moduleOrder: 44
+moduleIcon: NotebookPen
+order: 1
+summary: You got domain admin in two hours, then spent three days writing. The three days are what the client paid for.
+estimatedMinutes: 15
+objectives:
+  - Explain why the written report, not the exploitation, is the paid deliverable
+  - Collect evidence during the test instead of reconstructing it afterward
+  - Budget engagement time so the report gets the hours it needs
+tags:
+  - reporting
+  - pentest
+  - deliverable
+  - evidence
+---
+
+You popped domain admin before lunch on day one. Golden ticket, DCSync, the whole path fell over in about two hours. It felt incredible. Then you spent the next three days writing it up, and that felt like a chore. Here is the part that stings: the client never watched you get DA. They were not in your terminal. The only thing they ever see is the PDF you hand over at the end, and that PDF is the entire product they bought.
+
+The engagement is not the hack. The engagement is a document that tells an organization where they are exposed and what to do about it. Everything you did in the shell is raw material. The report is the manufactured good.
+
+Think about who actually opens the file. The sysadmin who has to fix the finding, and has never met you. The CISO who signs off on the remediation budget. An auditor who files it in a compliance folder. A developer six months from now who inherits the ticket. Not one of them saw your screen. If the writing does not carry the finding to them cleanly, the finding may as well not exist.
+
+This is why a modest set of findings written clearly beats a spectacular compromise written badly. A client who gets a report they can act on renews. A client who gets a wall of unstructured tool output, no matter how deep you went, quietly finds another firm next year. The report is your reputation in printed form.
+
+## Collect evidence as you go, never after
+
+The single habit that separates people who dread report day from people who coast through it: capture proof while you work, not when you sit down to write.
+
+<CommandBlock
+  title="build the evidence trail during the test"
+  commands={[
+    { cmd: "asciinema rec dc-compromise.cast", comment: "record the terminal session so command history is preserved" },
+    { cmd: "scrot -s ~/engagement/evidence/dcsync-$(date +%s).png", comment: "screenshot the moment it works, timestamped" },
+    { cmd: "tee -a ~/engagement/notes.md", comment: "pipe key output into a running notes file as you find it" },
+  ]}
+/>
+
+Reconstructing a finding three days later means rerunning the exploit to re-screenshot it, and half the time the environment has drifted or the client already patched it. Now you are writing from memory, which is where invented request numbers and vague reproduction steps come from. Capture the request, the response, the screenshot, and the exact payload at the moment it lands.
+
+## Budget the writing like real work
+
+Plan for report writing to eat 30 to 40 percent of the engagement. A five-day test is not five days of hacking, it is roughly three days of testing and two days of writing and review. Teams that scope zero days for writing ship rushed reports and burn the last night before delivery. Put the writing days in the statement of work so nobody, including you, pretends they do not exist.
+
+<Callout type="security" title="The report is a sensitive artifact you created">
+A pentest report is a map of exactly how to break into a system you were authorized to test. Treat it like the loaded document it is. Deliver it encrypted, not as a plain email attachment. Store it under the retention and destruction terms in your contract, and never keep client evidence on your box past the engagement. The authorization that let you find these holes does not extend to leaving a how-to guide lying around.
+</Callout>
+
+<Exercise
+  id="report-time-budget"
+  prompt="A client scopes a 5-day web app assessment and expects a full report at the end. You know reporting takes roughly a third of the effort. Roughly how many days should you actually spend hands-on testing, and why does under-budgeting writing hurt the client more than you?"
+  answer="About 3 to 3.5 days testing, ~1.5 to 2 days writing and QA"
+  placeholder="give the split and the reason"
+>
+Reserve close to two days for writing, evidence assembly, and review, leaving about three for testing. Under-budgeting writing means the client gets findings they cannot reproduce or act on, so the value they paid for, an actionable report, is exactly what gets cut when time runs out.
+</Exercise>
+
+<Notes />

@@ -1,0 +1,66 @@
+---
+title: Static Analysis With Ghidra
+module: reverse-engineering
+moduleTitle: Reverse Engineering
+moduleOrder: 34
+moduleIcon: Microscope
+order: 2
+summary: The decompiler turns assembly back into readable C, and cross-references take you straight to the code that matters.
+estimatedMinutes: 22
+objectives:
+  - Load a binary into Ghidra and reach the decompiled main function
+  - Use string and function cross-references to jump to the interesting code
+  - Rename and retype variables so the decompilation stops fighting you
+tags:
+  - reverse-engineering
+  - ghidra
+  - static-analysis
+  - decompiler
+---
+
+Ghidra is the NSA's disassembler and decompiler, released free in 2019, and it is the reason you no longer need a $2,000 IDA Pro license to read a binary like C. The decompiler is the headline feature. Point it at a stripped function full of `mov` and `jne` and it hands you back a C-ish approximation you can actually reason about. It is not perfect, but it turns hours of assembly reading into minutes.
+
+Start it, create a new project, and import the file with File then Import File. When it asks to run the auto-analyzers, say yes and take the defaults. Auto-analysis is Ghidra walking the whole binary, finding functions, resolving cross-references, and propagating types. On a small crackme it finishes in seconds. Let it run before you touch anything.
+
+## Get to main, then get to the point
+
+The left panel is the Symbol Tree. If the binary kept its symbols, expand Functions and double-click `main`. If it is stripped, Ghidra invents names like `FUN_00101189`, and you find the real entry another way. The `entry` function sets up the C runtime and calls `main` as one of its arguments to `__libc_start_main`, so follow that call.
+
+The decompiler output shows up in the center panel the moment your cursor lands on a function. Read it like C, because that is the point. When you see a comparison against a magic constant or a call to `strcmp`, you are close to the logic that decides pass or fail.
+
+The real accelerator is cross-references. Ghidra tracks every place a string, function, or address is used.
+
+<CommandBlock
+  commands={[
+    { cmd: "Search > For Strings...", comment: "list every string; double-click 'Access denied' to jump to it" },
+    { cmd: "right-click a string > References > Show References to Address", comment: "who uses this string" },
+    { cmd: "highlight a function, press X", comment: "XREF: every caller of this function" },
+    { cmd: "press G, type an address", comment: "Go To: jump anywhere by address or symbol name" },
+  ]}
+/>
+
+Find the "Wrong password" string, show references to it, and double-click the one hit. You land inside the exact function that prints it, usually a few lines below the check that triggers it. That single move skips the entire "read main top to bottom" slog.
+
+## Make the decompiler readable
+
+Raw decompiler output is full of `uVar4`, `local_28`, and casts that hurt to look at. Fix it as you understand it, because a named variable you understood an hour ago saves you re-deriving it now.
+
+Click a variable in the decompiler and press L to rename it. Press T to retype it, which matters most when Ghidra guessed `undefined4` and it is really a `char *` or an `int`. Rename functions the same way with L from the listing. Ghidra propagates your changes everywhere that variable or function appears, so `FUN_00101189` becoming `check_key` cleans up every caller at once.
+
+<Callout type="security" title="Reverse binaries you are allowed to reverse">
+Use crackmes, CTF challenge files, or your own builds. Reverse engineering shipped commercial software usually violates its license, and in some jurisdictions circumventing a protection can break the law on its own. Confirm you have permission before you import the file.
+</Callout>
+
+One habit pays off constantly: read the assembly listing next to the decompiler when the C looks wrong. The decompiler occasionally mislabels a signed compare, drops a side effect, or turns a jump table into spaghetti. The listing window on the left is ground truth. If the decompiled `if` does not match the `jg` you see in the disassembly, trust the `jg`.
+
+<Exercise
+  id="ghidra-xref-key"
+  prompt="You imported a crackme and want the password-check function fast. What is the single most reliable first move inside Ghidra?"
+  answer="Search for strings, find the failure/success message, and show references to it to jump to the code that uses it"
+  placeholder="What do you search for, and what do you do with the result?"
+>
+The failure message has to be referenced by the code that decides to print it.
+Follow that reference and you are inside the check.
+</Exercise>
+
+<Notes />

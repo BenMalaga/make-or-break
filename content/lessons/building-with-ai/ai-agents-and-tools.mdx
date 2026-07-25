@@ -1,0 +1,282 @@
+---
+title: AI Agents and Tools
+module: building-with-ai
+moduleTitle: Building with AI
+moduleOrder: 3
+moduleIcon: Brain
+order: 5
+summary: "A model that can only talk becomes software that acts once it gets tools and a loop: how tool calls actually work, and where agents break."
+estimatedMinutes: 17
+prerequisites: ["how-language-models-work", "prompt-engineering", "building-on-the-api", "rag-and-embeddings"]
+objectives:
+  - Define an AI agent as a model plus tools plus a loop, and say what each part does
+  - Trace a single tool call from the model's request through the code that runs it and back into the context
+  - Walk the agent loop of think, act, observe, repeat, and name what makes it stop
+  - Name the three ways agents fail in practice and the guardrails that keep them cheap and safe
+tags:
+  - ai
+  - llm
+---
+
+Ask a plain language model what the weather is in Tokyo right now, and the honest
+answer is that it cannot know. A model, recall, is the trained system that reads
+text and predicts the next token, the small chunk of text it emits one piece at a
+time. Its training data froze at some past date, and even if it were current,
+predicting text is not the same as looking something up. The model has no window
+on the world.
+
+The previous lesson, RAG, patched one version of this. It retrieved documents and
+pasted them into the prompt before the model answered, so the answer could lean on
+text the model was never trained on. That works when the answer sits in a document
+somewhere. It does nothing for a question whose answer has to be fetched,
+computed, or acted on in the moment. Live weather is not sitting on a shelf.
+Somebody has to go get it.
+
+An agent is what closes that gap.
+
+## From talking to doing
+
+An AI agent is a language model wired up so it can take actions, not only produce
+text. The wiring has two parts: a set of tools, and a loop. A tool is a function
+the model is allowed to ask for, and a function is just a named block of code that
+does one job when it is called: fetch the weather for a city, run a calculation,
+search a set of files. The loop is the plain program that runs the model over and
+over, carries out the tool requests, and feeds the results back.
+
+Neither part is the model. This is the point the whole lesson hangs on, so it is
+worth stating plainly. The model cannot run code, open a file, or reach the
+network. It emits text. An agent is the arrangement of ordinary code around the
+model that turns some of that text into real actions and hands the outcomes back
+for the model to read. Strip the tools and the loop away and what is left is the
+same text predictor from the first lesson of this module.
+
+## How a tool call actually works
+
+Start from a real tool. A weather tool is just a function:
+
+```python
+def get_weather(city):
+    # A real version calls a weather service over the network.
+    # This stand-in returns fixed data so the example runs anywhere.
+    readings = {"Tokyo": "18C, light rain", "Cairo": "34C, clear"}
+    return readings.get(city, "no data for that city")
+
+print(get_weather("Tokyo"))
+```
+
+<ExpectedOutput label="running the weather tool on its own">
+```
+18C, light rain
+```
+</ExpectedOutput>
+
+That function runs fine by itself. The model cannot run it. So the request sent to
+the API carries one extra thing. The API, the application programming interface
+covered in the building-on-the-api lesson, is the endpoint a program sends the
+prompt to and gets the model's response back from. Alongside the prompt, the
+program now also sends a description of each tool: a name, a sentence saying what
+the tool does, and a schema, which is a machine-readable list of the inputs the
+tool takes and their types. The weather tool's schema says it needs one input,
+`city`, and that input is a string, meaning plain text.
+
+Now the sequence. A user asks "what's the weather in Tokyo." The API sends that
+question plus the tool descriptions to the model. The model does not answer with
+weather. It answers with a request to run a tool, which the API returns as
+structured data. Stripped to its bones, that request looks like this:
+
+```json
+{"tool": "get_weather", "arguments": {"city": "Tokyo"}}
+```
+
+The exact field names vary by provider, but the content is always the same: which
+tool, and what arguments. The model read "Tokyo" out of the question and filled in
+the argument. It did not run anything, and it could not. It produced text that
+happens to name a tool.
+
+The code around the model reads that request, finds the matching Python function,
+runs `get_weather("Tokyo")`, and gets back `18C, light rain`. Then it adds that
+result to the conversation as a new message and calls the model again. This second
+time the model has the reading in front of it and writes the sentence a person
+wanted: it is 18C and raining lightly in Tokyo. The result went into the context,
+the running transcript of the conversation that the model re-reads on every call,
+and the model finished the job on the next pass.
+
+<Callout type="info" title="The model never leaves the sandbox">
+Every action an agent takes happens in the code around the model, never inside it.
+The model's entire contribution is text: sometimes a final answer, sometimes a
+request to call a tool. Reading a file, hitting the network, doing math: all of
+that is normal code the program runs, and the outcome is fed back to the model as
+just more text to read. Keeping that line clear is what stops agents from feeling
+like magic.
+</Callout>
+
+<Quiz
+  id="agent-who-runs-tool"
+  question="A user asks an agent for the weather, the model returns a request to run get_weather, and moments later the user sees a plain-English weather sentence. Which part actually executed the get_weather function?"
+  answer={1}
+  options={[
+    "The model ran it internally and wrote the result into its own answer.",
+    "The code around the model ran it, then fed the result back for the model to read on the next call.",
+    "The API server ran the function as a step in generating the model's text.",
+    "The weather service ran it and replied straight to the model.",
+  ]}
+  explanation="The model only produces text, including the text that requests a tool. Ordinary code around the model matches that request to a Python function, runs it, and appends the result to the conversation. The model reads that result on its next turn and writes the final sentence."
+/>
+
+## The loop: think, act, observe, repeat
+
+One tool call is the easy case. Real tasks take several, and the agent does not
+know in advance how many. That is what the loop is for. Each time around, the model
+looks at the conversation so far and picks one of two moves: call a tool, or give a
+final answer. If it calls a tool, the code runs the tool, appends the result, and
+goes around again. If it gives a final answer, the loop stops. Think, act, observe,
+repeat.
+
+Here is the whole loop, small enough to read at once. To keep it runnable without
+an API key, the real model call is replaced by a scripted stand-in named
+`fake_model` that plays back the two decisions a real model would make for one
+task. Everything else, the tool dispatch and the loop itself, is exactly what a
+real agent runs.
+
+```python
+def calculator(expression):
+    # Arithmetic only. Running model-supplied text like this is a real
+    # hazard, kept here just to make the example short.
+    return eval(expression, {"__builtins__": {}})
+
+TOOLS = {"calculator": calculator}
+
+# A real agent calls the model here. The stand-in returns the same two
+# decisions a model would make for "What is 348 times 27, plus 15?".
+def fake_model(messages):
+    step = len([m for m in messages if m["role"] == "tool"])
+    if step == 0:
+        return {"action": "call_tool", "tool": "calculator",
+                "arguments": {"expression": "348 * 27 + 15"}}
+    return {"action": "final", "text": "348 times 27 plus 15 is 9411."}
+
+messages = [{"role": "user", "content": "What is 348 times 27, plus 15?"}]
+
+for _ in range(5):  # a hard cap so a stuck agent cannot loop forever
+    reply = fake_model(messages)
+    if reply["action"] == "final":
+        print(reply["text"])
+        break
+    result = TOOLS[reply["tool"]](**reply["arguments"])
+    print("ran", reply["tool"], "->", result)
+    messages.append({"role": "tool", "content": str(result)})
+```
+
+<ExpectedOutput label="running the agent loop">
+```
+ran calculator -> 9411
+348 times 27 plus 15 is 9411.
+```
+</ExpectedOutput>
+
+Trace it. First pass: the model asks for the calculator with the expression `348 *
+27 + 15`. The code runs it, gets `9411`, prints the line, and appends the result to
+`messages`. Second pass: the model now sees that result in the conversation and
+returns a final answer, so the loop breaks. Two trips through the loop for a task
+that needed one tool.
+
+Two details in that code are load-bearing, not decoration. The `range(5)` is a hard
+ceiling on how many times the model may act. Without it, a model that keeps
+deciding to call one more tool would run until someone killed the process. And the
+calculator uses `eval`, which runs whatever string it is handed. That is a
+deliberate shortcut to keep the example short, and it is a genuine hazard: a tool
+that executes model-produced text is a door an attacker can walk through, which the
+Break track pulls apart later.
+
+<Quiz
+  id="agent-loop-stop"
+  question="On each pass through the agent loop, the model chooses between two moves. What are they, and which one ends the loop?"
+  answer={1}
+  options={[
+    "It chooses a temperature or a top-p value, and a low temperature ends the loop.",
+    "It chooses to call a tool or to give a final answer, and the final answer ends the loop.",
+    "It chooses which model to run next, and picking the smallest one ends the loop.",
+    "It chooses whether to read or write the context, and a read ends the loop.",
+  ]}
+  explanation="Each pass, the model either requests a tool (the code runs it, appends the result, and the loop repeats) or returns a final answer, which stops the loop. The step cap is a separate safety net for the case where the model never decides it is done."
+/>
+
+## Where agents earn their keep, and where they break
+
+Agents pay off when a task needs current or private data the model never saw in
+training, or a computation the model is bad at doing in its head. Arithmetic is the
+clean case. A model predicts the digits of 348 times 27 the way it predicts any
+text, by guessing what looks right, and it often guesses wrong. Hand it a calculator
+tool and the answer is exact every time. The same holds for a weather reading, a
+database lookup, sending an email, editing a file: anything where the model should
+defer to a system that actually knows.
+
+They break in specific, repeatable ways, and pretending otherwise burns money.
+
+The first is wrong tool calls. The model picks the wrong tool, or the right tool
+with a bad argument: the wrong city, a malformed date, a search query that matches
+nothing. It is choosing from a short text description, so two similar tools or one
+vague description produces confident mistakes.
+
+The second is loops. An agent can get stuck calling the same tool over and over, or
+two tools that undo each other, never deciding it is finished. This is exactly why
+the hard step cap exists. Without a ceiling, a stuck agent keeps paying for API
+calls until a human notices.
+
+The third is cost and latency. Every trip through the loop is another API call, and
+each call re-sends the whole conversation so far, which keeps growing as past tool
+results pile into the context. A ten-step task can process many times the tokens of
+a single question. Providers bill per token read and written, so the bill tracks
+total tokens, not how long the task felt. A slow tool makes it worse, because the
+user waits on the tool and the model at every step.
+
+None of this makes agents a bad idea. It makes them a tool with sharp edges. The
+teams that ship them keep the tool set small and clearly described, cap the loop,
+log every call, and test against the wrong-argument cases instead of hoping they
+never come up.
+
+<Quiz
+  id="agent-cost"
+  question="A ten-step agent task costs far more than asking the same model a single question. Why?"
+  answer={1}
+  options={[
+    "Longer tasks are billed at a higher per-token rate than short ones.",
+    "Each step is a separate API call, and every call re-sends the growing conversation, so the total tokens processed climb with each step.",
+    "Each tool charges a fee every time it runs.",
+    "The model runs slower on long tasks and bills for the extra thinking time.",
+  ]}
+  explanation="Every pass through the loop is its own API call that re-sends the whole conversation, and that conversation grows as tool results accumulate in the context. Ten steps can mean many times the tokens of one question. Billing is per token read and written, not per second."
+/>
+
+<Exercise title="Trace a two-tool task by hand">
+Give the agent both tools from this lesson: `get_weather` and `calculator`. A user
+asks, "Is Cairo warmer than 30 degrees, and if so by how much?"
+
+Write out, in order, what you expect the model to request on each pass and what
+result goes back into the context. Your trace should have the model call
+`get_weather("Cairo")` first, get back `34C, clear`, then call the calculator to
+work out `34 - 30`, get `4`, and only then give a final answer. Count the passes
+through the loop.
+
+Now find the break. The `get_weather` function only knows the key `"Cairo"` with a
+capital C. Suppose the model instead requests `get_weather("cairo")`. What string
+comes back, and what would the model most likely do on the next pass with that
+result in front of it? You have just reproduced the wrong-argument failure mode on
+paper.
+</Exercise>
+
+That is the whole module standing up as one system. The model predicts text (how
+language models work). A careful prompt steers what it predicts (prompt
+engineering). The API is how a program sends that prompt and gets the answer back
+(building on the API). RAG puts the right documents in front of the model before it
+answers. An agent adds tools and a loop so the model can act on what it reads
+instead of only describing it. Together they turn a text predictor into software
+that does things.
+
+The rest of the Make track builds on that, wiring these pieces into projects people
+actually use. And every capability here is also an opening. A tool that runs code, a
+loop that trusts the model's next request, a context an attacker can slip text into:
+the Break track's AI Security module goes straight at these systems, and it lands
+harder once the machinery is clear from the inside.
+
+<Notes />

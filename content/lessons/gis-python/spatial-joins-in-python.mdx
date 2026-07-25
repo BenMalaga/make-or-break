@@ -1,0 +1,225 @@
+---
+title: Spatial Joins, Dissolve, and Overlay in GeoPandas
+module: gis-python
+moduleTitle: GIS Programming with Python
+moduleOrder: 4
+moduleIcon: FileCode
+order: 4
+summary: "GeoPandas answers which polygon each point falls in, merges features that share an attribute, and cuts one polygon layer by another, all from a script instead of a menu."
+estimatedMinutes: 15
+prerequisites: ["reprojecting-in-code"]
+objectives:
+  - Tag point features with the polygon that contains them using gpd.sjoin() and a within predicate
+  - Choose how="left" or how="inner" based on whether unmatched rows should survive the join
+  - Summarize a spatial join with groupby to get a count or an average per polygon
+  - Merge features that share an attribute with dissolve() and cut one polygon layer by another with overlay()
+tags:
+  - gis
+  - python
+  - geopandas
+---
+
+The previous lesson made reprojecting a habit: check the CRS of every layer before doing anything with it, and reproject whichever one does not match. That habit pays off directly here, because a spatial join is really just a question about distance and containment, and both of those go wrong silently on data in the wrong CRS. A join between bus stops in EPSG:4326 and census tracts in EPSG:3857 will not raise an error. It will just return nonsense, because "within" means something different when one layer measures in degrees and the other in meters.
+
+With both layers on the same CRS, the question a spatial join answers is one that comes up constantly: given a table of points and a table of polygons, which polygon does each point sit inside? A city has thousands of addresses and a few hundred zoning districts. A delivery service has thousands of drop-off pins and a few dozen service zones. An analyst working by hand in QGIS would run Vector Analysis, Join Attributes by Location, and click through a dialog. The same operation in GeoPandas is one function call, and because it is code, it can run again tomorrow on a fresh export without anyone touching a mouse.
+
+## Tagging points with the polygon they fall in
+
+GeoPandas calls this operation `sjoin`, short for spatial join, and it lives in the `geopandas` module itself rather than on a single GeoDataFrame, because it needs two of them.
+
+```python
+import geopandas as gpd
+
+stops = gpd.read_file("bus_stops.gpkg")
+tracts = gpd.read_file("census_tracts.gpkg")
+
+# both layers must already share a CRS, or the join is meaningless
+stops = stops.to_crs(tracts.crs)
+
+joined = gpd.sjoin(stops, tracts, predicate="within")
+print(joined[["stop_name", "GEOID"]].head(3))
+```
+
+<ExpectedOutput label="each stop now carries the GEOID of the tract it falls inside">
+```
+        stop_name        GEOID
+0   Elm & 4th          34013001200
+1   Riverside Loop     34013001200
+2   Courthouse Sq      34013001500
+```
+</ExpectedOutput>
+
+`predicate` is the argument that names the spatial relationship being tested. `"within"` asks, for every row in the left GeoDataFrame (`stops`), whether its geometry sits entirely inside a geometry in the right GeoDataFrame (`tracts`). Other predicates exist, `"intersects"` and `"contains"` among them, but `"within"` is the natural choice for points against polygons, since a point cannot partly overlap anything. It is either inside a tract or it is not.
+
+The result, `joined`, is a new GeoDataFrame with every column from `stops` plus every column from `tracts` for the matching row, including an `index_right` column that records which row of `tracts` supplied the match. A stop that falls inside tract 001200 now carries that tract's GEOID (the Census Bureau's geographic identifier) sitting right next to its own name and coordinates, without the tract's polygon geometry itself, which GeoPandas drops from the right side to avoid carrying two geometry columns at once.
+
+<Callout type="info" title="Both layers need the same CRS before a spatial join">
+`sjoin` does not check units for the analyst and warn about a mismatch. It just measures containment using whatever numbers each geometry happens to hold, so a join between degrees and meters silently returns wrong or empty results instead of an error. Call `.to_crs()` on one layer to match the other's `.crs` before ever calling `sjoin`, the same rule from the reprojecting lesson, applied here instead of to a distance calculation.
+</Callout>
+
+<Quiz
+  id="sjoin-predicate-choice"
+  question="An analyst is joining pothole report points to city ward polygons to find which ward reported each pothole. Which predicate fits this join?"
+  answer={2}
+  options={[
+    "contains, because the ward contains the pothole",
+    "touches, because the point touches the ward boundary",
+    "within, because each point either sits entirely inside one ward or it does not",
+    "crosses, because the report crosses into the ward",
+  ]}
+  explanation="within tests whether the left geometry sits entirely inside the right one, which is exactly the point-in-polygon question a pothole-to-ward join is asking. contains would be the correct predicate if the roles were reversed, wards joined to points. touches and crosses describe boundary and line relationships that do not apply to a point falling inside an area."
+/>
+
+## Keeping every row or only the matches
+
+`sjoin` takes a `how` argument that decides what happens to a row on the left side that finds no match at all, a bus stop sitting just outside every tract boundary, say, because of a sliver of bad digitizing or a stop technically in the water.
+
+`how="inner"`, the default, drops any stop that matches no tract. The result only contains rows that found a home. `how="left"` keeps every stop regardless, filling `GEOID` and the other tract columns with `NaN` (pandas's marker for a missing value) wherever no match turned up.
+
+```python
+inner_joined = gpd.sjoin(stops, tracts, how="inner", predicate="within")
+left_joined = gpd.sjoin(stops, tracts, how="left", predicate="within")
+
+print(len(stops), len(inner_joined), len(left_joined))
+```
+
+<ExpectedOutput label="inner drops unmatched rows, left keeps every original row">
+```
+412 409 412
+```
+</ExpectedOutput>
+
+Three fewer rows in the inner join than in the original 412 stops means three stops matched no tract at all. The left join still reports all 412, because it keeps them with blank tract columns instead of dropping them. Which one to reach for depends on the question being asked. Counting stops per tract calls for `inner`, since a stop with no tract contributes nothing to any tract's count anyway. Auditing data quality, finding which stops need a second look, calls for `left`, because the whole point is to see the unmatched rows, not lose them.
+
+## Turning a join into a count or an average
+
+A join by itself answers "which polygon does this point belong to." The more common question is one step further: how many points landed in each polygon, or what is the average of some point attribute per polygon. That second step is an ordinary pandas `groupby`, run on the result of the join exactly as it would run on any other table, because once the join has attached a `GEOID` to every stop, the geometry has already done its job.
+
+```python
+counts = joined.groupby("GEOID").size().reset_index(name="stop_count")
+print(counts.sort_values("stop_count", ascending=False).head(4))
+```
+
+<ExpectedOutput label="stop counts per tract, busiest tracts first">
+```
+         GEOID  stop_count
+0  34013001200          14
+1  34013001500           9
+2  34013000800           7
+3  34013002100           5
+```
+</ExpectedOutput>
+
+`groupby("GEOID")` gathers every row that shares the same tract identifier into one bucket. `.size()` counts the rows in each bucket, which here means the number of bus stops in that tract, and `.reset_index(name="stop_count")` turns the result back into an ordinary two-column table instead of pandas's grouped-index format. The same pattern with `.mean()` in place of `.size()` would average a numeric column instead, average ridership per tract, say, if the stops carried a ridership figure. Nothing about this step is spatial anymore. The spatial work already happened in the join; the aggregation is plain tabular arithmetic riding on top of it.
+
+<Quiz
+  id="groupby-after-sjoin"
+  question="After joining delivery stops to zip code polygons with sjoin, an analyst runs joined.groupby(&quot;ZIP&quot;).size(). What does the result represent?"
+  answer={0}
+  options={[
+    "The number of delivery stops that fell inside each zip code polygon",
+    "The area in square kilometers of each zip code polygon",
+    "The number of zip code polygons that contain at least one stop",
+    "The average distance between stops within the same zip code",
+  ]}
+  explanation="size() counts how many rows share each group's key after a groupby, and since the join already attached each stop's containing ZIP, grouping by ZIP and counting rows counts the stops per zip code. It says nothing about polygon area or inter-stop distance, and it counts stops per zip, not zip codes per anything."
+/>
+
+## Merging features that share an attribute
+
+A spatial join attaches a category to individual features without changing their shapes. `dissolve` does the opposite kind of merge: it takes many polygons that share a value in some column and fuses them into one polygon per distinct value, unioning their geometries together.
+
+```python
+tracts = gpd.read_file("census_tracts.gpkg")
+regions = tracts.dissolve(by="region", aggfunc={"population": "sum"})
+print(regions[["population"]])
+```
+
+<ExpectedOutput label="one merged polygon per region, with tract populations summed">
+```
+          population
+region
+North          184532
+South          221904
+East           156780
+```
+</ExpectedOutput>
+
+Passing `by="region"` tells `dissolve` which column names the groups. Every tract sharing the same `region` value gets its geometry unioned into a single multipart or single-part polygon, and the returned GeoDataFrame has one row per distinct region instead of one row per tract. The `aggfunc` argument decides what happens to the other columns during that collapse, since population cannot simply be picked from one of the merged tracts, it has to be added up across all of them. `"sum"` does that addition; other columns could use `"mean"`, `"max"`, or a custom function depending on what the column actually measures. This is the scripted version of drawing a county map by grouping and dissolving a parcel layer by hand in QGIS, except it runs on a schedule and never drifts from a documented rule about how the aggregation works.
+
+## Cutting one polygon layer by another
+
+`overlay` solves a different problem again: combining two polygon layers by their geometry, not by a shared attribute column. Flood zones and parcels rarely share any identifier at all, but an analyst still needs to know exactly which piece of each parcel sits inside the flood zone, because a parcel that is only ten percent inside the zone is a very different risk than one that is fully inside it.
+
+```python
+flood_zones = gpd.read_file("flood_zones.gpkg")
+parcels = gpd.read_file("parcels.gpkg").to_crs(flood_zones.crs)
+
+flooded_parts = gpd.overlay(parcels, flood_zones, how="intersection")
+flooded_parts["flood_area_m2"] = flooded_parts.geometry.area
+print(flooded_parts[["parcel_id", "flood_area_m2"]].head(2))
+```
+
+<ExpectedOutput label="only the overlapping slice of each parcel survives, with its own new geometry">
+```
+   parcel_id  flood_area_m2
+0    A-00114        842.3
+1    A-00119       1590.7
+```
+</ExpectedOutput>
+
+`how="intersection"` keeps only the geometry where the two input layers actually overlap, and it clips each parcel down to exactly that overlapping shape, which is why `flooded_parts["parcel_id"]` can now carry a brand new, smaller area than the original parcel had. Other overlay modes exist. `"union"` keeps every piece from both layers, overlapping and not. `"difference"` keeps only the part of the first layer that does not overlap the second, the parts of each parcel safely outside the flood zone, in this example. `overlay` is the scripted twin of running Vector Overlay, Intersection in a desktop GIS, with the advantage that the exact CRS, predicate, and column handling are written down in a file instead of remembered by whoever ran the tool last.
+
+<Callout type="warning" title="Overlay and dissolve are not the same operation">
+It is easy to reach for the wrong one. `dissolve` merges rows within a single layer based on a shared attribute value, and it needs no second layer at all. `overlay` combines two separate layers based purely on where their geometries physically intersect, and it does not care whether either layer has a matching attribute column. Merging every parcel in the same zoning district calls for `dissolve`. Finding where parcels and flood zones physically overlap calls for `overlay`.
+</Callout>
+
+## A worked example: bus stops per census tract
+
+Putting the pieces from this lesson together produces a small, repeatable report: how many bus stops fall in each census tract, sorted from the busiest tract down.
+
+```python
+import geopandas as gpd
+
+stops = gpd.read_file("bus_stops.gpkg")
+tracts = gpd.read_file("census_tracts.gpkg")
+stops = stops.to_crs(tracts.crs)
+
+joined = gpd.sjoin(stops, tracts, how="inner", predicate="within")
+report = (
+    joined.groupby("GEOID")
+    .size()
+    .reset_index(name="stop_count")
+    .merge(tracts[["GEOID", "NAME"]], on="GEOID")
+    .sort_values("stop_count", ascending=False)
+)
+print(report[["NAME", "stop_count"]].head(5))
+```
+
+<ExpectedOutput label="tracts ranked by how many bus stops they contain">
+```
+              NAME  stop_count
+0     Downtown Core          14
+1  Riverside East           9
+2   College Hill             7
+3    Courthouse Sq            5
+4    Maple Terrace            4
+```
+</ExpectedOutput>
+
+Every line in that script maps to something covered above. Reprojecting brings both layers onto one CRS. `sjoin` with `how="inner"` and `predicate="within"` attaches each stop's tract to it and drops any stop that landed outside every tract. `groupby` and `size` turn that attachment into a count per tract. The final `merge` is an ordinary pandas join, not a spatial one, that pulls in the tract's human-readable name so the report reads as "Downtown Core" instead of a fourteen-digit GEOID. A city planner asking "which neighborhoods are best served by transit" gets an answer built entirely from open data and four lines of real work, and the exact same script runs again next year on a refreshed stops file without anyone re-clicking a single dialog box.
+
+<Quiz
+  id="dissolve-vs-overlay-choice"
+  question="An analyst has a parcels layer with a zoning_district column and a separate wetlands layer with no shared columns at all. Which tool merges all parcels in the same zoning district into one shape, and which tool finds where parcels physically overlap the wetlands?"
+  answer={1}
+  options={[
+    "overlay merges parcels by zoning district, dissolve finds the wetland overlap",
+    "dissolve merges parcels by zoning district, overlay finds the wetland overlap",
+    "Both jobs use dissolve, since overlay only works on point layers",
+    "Both jobs use overlay, since dissolve requires a shared identifier between the two layers",
+  ]}
+  explanation="dissolve groups rows within one layer by an attribute value they already share, which is exactly what merging parcels by zoning_district needs. overlay combines two layers based on where their geometries actually intersect, with no shared column required, which is what finding the wetland overlap needs. Neither tool is limited to points, and dissolve is the one that needs a shared column, not overlay."
+/>
+
+The next lesson turns to rasters instead of vectors, reading a satellite image band with rasterio and pulling the pixel value under a specific point. The join, dissolve, and overlay covered here only ever combine vector features with other vector features. Rasters need their own tools, because a grid of cells has no attribute table and no polygon boundaries to test containment against, just a value sitting at every location on a regular lattice.

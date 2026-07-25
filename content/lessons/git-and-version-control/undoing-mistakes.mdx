@@ -1,0 +1,270 @@
+---
+title: Undoing Mistakes
+module: git-and-version-control
+moduleTitle: Version Control with Git
+moduleOrder: 3
+moduleIcon: GitBranch
+order: 5
+summary: "Almost nothing in Git is permanent, if the right undo is used: restore, amend, revert, reset, and the one that really loses data."
+estimatedMinutes: 15
+prerequisites: [github-and-working-with-others]
+objectives:
+  - Discard uncommitted edits with git restore and unstage a file without losing the work
+  - Fix the most recent unshared commit using git commit --amend
+  - Choose git revert for shared history and git reset for local-only history
+  - Keep secrets and build output out of a repo with .gitignore, and know why a committed secret needs more
+tags:
+  - git
+  - recovery
+---
+
+A pushed commit is a public fact. The last lesson, github and working with
+others, showed that `git push` copies the commits sitting on one computer up to
+a shared server, where teammates pull them down and build on them. That is the
+entire point of pushing. It is also the trap: push shares the careful commits
+and the embarrassing ones with exactly the same speed. A password pasted into a
+config file, a commit message that just says `asdf`, a change that deletes the
+wrong function, all of it travels the instant push runs.
+
+So the real payoff of version control is worth saying plainly: almost nothing is
+permanent, as long as the right undo is used. Git keeps a history, and a history
+means most mistakes can be walked back. The catch is that "undo" is not one
+command. Different mistakes need different tools, and reaching for the wrong one
+is exactly how a small slip turns into a lost afternoon. Here they are, from the
+gentlest to the most dangerous.
+
+## Throw away changes you have not committed yet
+
+The smallest mistake is an edit that never became a commit. A file got changed,
+saved in an editor, and then the change turned out to be wrong before any
+`git add` or `git commit` ever happened. That edit lives only in the working
+directory, the ordinary folder of files Git is watching, and Git has a command
+pointed straight at it.
+
+`git restore <file>` takes the named file and overwrites it with the version
+from the last commit. The working-directory edit is discarded, cleanly and
+completely. This is the command for "forget what I just did to this file, put it
+back the way it was." It is quick, and it is quiet: on success it prints nothing
+at all, which throws people off the first time.
+
+<CommandCard command="git status --short" title="terminal" explain="Shows a compact list of changed files. An M in the first column means the file was modified since the last commit." />
+
+<ExpectedOutput label="one modified, unstaged file">
+```
+ M config.py
+```
+</ExpectedOutput>
+
+That `M` says config.py has drifted from the last committed version. One command
+rewinds it, and the file snaps back to exactly what the last commit held.
+
+<CommandCard command="git restore config.py" title="terminal" explain="Replaces the working copy of config.py with the last committed version. It prints nothing on success, so running git status again is how you confirm it worked." />
+
+<ExpectedOutput label="git status, run again afterward">
+```
+On branch main
+nothing to commit, working tree clean
+```
+</ExpectedOutput>
+
+There is a real cost hiding in that quietness, and it deserves respect. The
+discarded edit was never in a commit, so Git kept no copy of it anywhere. Once
+`git restore` overwrites the file, the old text is gone with no way back. restore
+is safe for changes nobody wants, and unforgiving for anything else.
+
+Older tutorials and answers online often show `git checkout -- config.py` for
+this same job, and it still works. `git restore` arrived in Git 2.23 in 2019
+specifically to split that one overloaded `checkout` command into clearer pieces,
+because `checkout` also switches branches and confused people who only wanted to
+undo a file. Both do the same thing here. New writing should reach for `restore`,
+and old writing that says `checkout` is not wrong, just from before the split.
+
+A close cousin handles a different half-mistake. Sometimes a file was staged with
+`git add`, meaning it was marked to go into the next commit, but it does not
+actually belong there yet. `git restore --staged <file>` unstages it. The key
+difference is what each one touches: `--staged` only moves the file out of the
+staging area, it leaves the file's contents completely alone. The edit stays
+safe in the working directory, just no longer lined up for the next commit.
+Unstaging loses nothing. Restoring the working file can lose everything. Same
+command, one flag apart, very different stakes.
+
+<Quiz
+  id="undo-restore-vs-staged"
+  question="A developer edited settings.py and saved it, but never ran git add or git commit. They now want the file back exactly as the last commit had it, and understand the edit will be lost. Which command does that?"
+  answer={1}
+  options={[
+    "git restore --staged settings.py, which safely keeps the edit intact.",
+    "git restore settings.py, which overwrites the file with the committed version and discards the uncommitted edit for good.",
+    "git commit --amend, which rewrites the last commit to include the change.",
+    "git revert settings.py, which makes a new commit that reverses the file."
+  ]}
+  explanation="git restore <file> resets the working copy to the last commit, and because the edit was never committed, Git kept no copy, so it is gone. restore --staged only unstages a file, it does not change its contents. amend and revert both act on commits, not on an unsaved working-directory edit, and revert takes a commit, not a filename."
+/>
+
+## Fix the last commit before anyone sees it
+
+The next mistake up is a commit that already happened but is not quite right, and
+has not been shared yet. A typo in the message. A file that should have been part
+of it but got left out. Making a second commit that says "oops, fixed typo"
+works, but it clutters the history with noise nobody wants to read later. There
+is a cleaner way.
+
+`git commit --amend` replaces the most recent commit with a new one. Run with no
+extra arguments, it opens the commit message in an editor so the wording can be
+fixed. To fold in a forgotten file instead, stage it first with `git add`, then
+run `git commit --amend`, and the file joins the commit as if it had been there
+from the start. Either way, the old commit is swapped out for a corrected one.
+
+The word "replaces" is the load-bearing part, and it is where the danger sits.
+Amend does not edit the existing commit in place. It builds a brand new commit,
+with a new identifier, and quietly drops the old one. That is completely fine
+while the commit lives only on one computer. It becomes a problem the moment the
+commit has been pushed, because teammates already hold the original, and amending
+leaves the local history and the shared history disagreeing about what the last
+commit even is. The rule is short: amend freely before a push, and treat a pushed
+commit as off limits.
+
+## Undo a commit: revert adds, reset removes
+
+Once a whole commit has to be undone, Git offers two tools that look similar and
+behave like opposites. Telling them apart is the single most useful idea in this
+lesson, so it is worth slowing down on.
+
+`git revert <commit>` undoes a commit by making a new commit. It reads everything
+the target commit changed and creates a fresh commit that does the exact reverse:
+lines it added get removed, lines it deleted come back. The original commit stays
+in the history, untouched, with its reversal sitting right after it. Because
+revert only ever adds to the history, it is safe on commits other people already
+have. Their history and the reverted history still agree about the past. There is
+just one more commit on the end.
+
+<CommandCard command="git revert 8c2f1a9 --no-edit" title="terminal" explain="Creates a new commit that reverses everything commit 8c2f1a9 changed. --no-edit uses a default message instead of opening an editor." />
+
+<ExpectedOutput label="the reversing commit is created">
+```
+[main 4b7d2e0] Revert "add verbose logging to the payment path"
+ 1 file changed, 14 deletions(-)
+```
+</ExpectedOutput>
+
+The commit 8c2f1a9 added fourteen lines of logging, so its revert deletes those
+same fourteen lines and lands as commit 4b7d2e0. Nothing was erased. The history
+grew by one honest step that anyone can pull.
+
+`git reset` works differently: it moves the branch pointer backward to an earlier
+commit, so the commits after that point drop off the end of the branch. Where
+reset gets interesting is what it does with the changes from those dropped
+commits, and that is controlled by one of three flags:
+
+- `--soft` moves the pointer back but keeps the changes staged, ready to be
+  recommitted. Good for "let me redo the last two commits as one cleaner commit."
+- `--mixed`, the default, moves the pointer back and keeps the changes in the
+  working directory but unstaged. Good for "undo the commit, let me rework the
+  files first."
+- `--hard` moves the pointer back and throws the changes away entirely, leaving
+  no trace of them in the working directory.
+
+The everyday one is `--soft`. Say the last commit was made too early, before a
+related fix was ready. `git reset --soft HEAD~1` rewinds the branch by one commit
+while leaving every change from that commit staged and waiting. The fix gets added
+on top, and a single clean commit replaces the premature one. No work was ever at
+risk, because `--soft` never touches the files, only the pointer.
+
+Reset rewrites where the branch points, which makes it the wrong tool for
+anything already shared. Rewinding past commits that teammates have pulled leaves
+the branch disagreeing with theirs, and the only way to push a rewrite like that
+is to force it, which stomps on everyone else's copy. On a branch that lives only
+on one computer, reset is a fine everyday tool. On a shared branch, revert is the
+honest answer.
+
+<Callout type="warning" title="git reset --hard is how people actually lose work">
+The `--hard` flag discards changes with no confirmation prompt and no trash can
+to fish them out of. Committed work can usually be recovered afterward, because
+the commit still exists in Git's internal logs for a while. Work that was never
+committed cannot: a `git reset --hard` over uncommitted edits deletes them for
+good. Never run it on a shared branch, and never run it while uncommitted work
+worth keeping is sitting in the tree. Commit or stash first, then reset.
+</Callout>
+
+<Quiz
+  id="undo-revert-vs-reset"
+  question="A bad commit was pushed to main an hour ago, and three teammates have already pulled it. What is the safe way to undo it?"
+  answer={1}
+  options={[
+    "git reset --hard HEAD~1 followed by git push --force, to erase the commit from history.",
+    "git revert on the bad commit, which adds a new commit that reverses it and can be pushed like any other.",
+    "Delete the repository and clone a fresh copy of it.",
+    "git commit --amend to rewrite the pushed commit's contents."
+  ]}
+  explanation="revert makes a new commit that undoes the changes, so the shared history only grows and every teammate can pull it cleanly. reset --hard plus a force push rewrites history others already have, which breaks their copies. amend also rewrites a commit that is already shared. Deleting and re-cloning changes nothing, since the bad commit is still in the history everyone pulled."
+/>
+
+## Keep mistakes out with .gitignore
+
+The cleanest mistake is the one that never enters the repository at all. Some
+files should never be tracked: secrets like API keys and passwords, build output
+that gets regenerated on every build, dependency folders holding thousands of
+files, huge binaries that bloat the history. Committing them sits somewhere
+between clutter and a security incident.
+
+`.gitignore` is a plain text file, usually at the top of the repository, that
+lists paths Git should refuse to track. Each line is a name or a pattern: `.env`
+ignores a secrets file, `node_modules/` ignores a whole dependency folder,
+`*.log` ignores every log file, `build/` ignores a build directory. When Git
+scans for untracked files, it skips anything matching a line in `.gitignore`, so
+those files never get staged by accident in the first place.
+
+Here is the sharp edge that catches nearly everyone once. `.gitignore` only
+affects files Git is not already tracking. Adding a name to it does nothing to a
+copy that is already committed. If an API key was committed and pushed last week,
+it is sitting in the history, in every clone anyone made, and ignoring the file
+today changes none of that. The key has to be treated as compromised and rotated,
+and pulling it out of the old commits means rewriting history with a dedicated
+tool such as git filter-repo. A secret in a commit is not undone by a later
+commit. It has to be scrubbed from the past and replaced in the present.
+
+That idea of rewriting the past leads to one last safety net most people never
+learn about. `git reflog` prints a log of every position the branch has pointed
+to: every commit, reset, amend, and checkout, each with its own identifier. When
+an accidental `git reset --hard` looks like it destroyed a commit, the commit is
+usually still there, listed in the reflog, and resetting back to its identifier
+brings it home. The reflog only remembers states that were committed at least
+once, so it cannot resurrect a never-committed edit, but for a lost commit it is
+often the whole difference between a scare and a real loss.
+
+<Quiz
+  id="undo-gitignore-secret"
+  question="An API key was committed and pushed last week. A developer now adds the file holding it to .gitignore and commits that change. Is the key safe?"
+  answer={2}
+  options={[
+    "Yes, adding it to .gitignore removes the file from the entire history.",
+    "Yes, once a file is ignored Git deletes every past copy of it automatically.",
+    "No. .gitignore only stops future tracking, so the key still sits in every past commit and must be rotated and scrubbed from history.",
+    "No, but simply renaming the file fixes the problem."
+  ]}
+  explanation="A .gitignore entry only tells Git to skip an untracked file going forward. It does nothing to commits that already exist, so the key is still in the history everyone pulled. The real fix is to rotate the key as compromised and rewrite history with a tool like git filter-repo. Renaming changes nothing, since the old commits still hold the original file and its contents."
+/>
+
+<Exercise title="Break something on purpose, then walk it back">
+In an empty folder, run `git init`, create a file with `echo "one" > notes.txt`,
+then `git add notes.txt` and `git commit -m "first note"`. Now edit the file:
+`echo "two" > notes.txt`. Run `git restore notes.txt`, then `cat notes.txt`, and
+watch the "two" edit vanish because it was never committed. That is restore
+throwing away uncommitted work.
+
+Next, make a real commit to undo. Run `echo "bad line" >> notes.txt`, then
+`git add notes.txt` and `git commit -m "add a bad line"`. Undo it the safe way
+with `git revert HEAD --no-edit`, then `git log --oneline`. Notice the history
+now has three commits, not two: the bad one and its reversal both stayed, which
+is exactly why revert is safe to share. Finish by running `git reflog` to see the
+full trail of everywhere the branch has been. Keep this throwaway repo around to
+experiment with reset before ever pointing it at real work.
+</Exercise>
+
+Code that can be written, run, versioned, and shared is a real toolkit, and it
+has all been about the code itself so far. The next path, Building Apps, turns
+that code into something other people can open. Its first module, web
+development, starts where this one leaves off: a project safe in Git is ready to
+be put online, and that is the step that makes an app real instead of local.
+
+<Notes />

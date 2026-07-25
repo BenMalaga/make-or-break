@@ -1,0 +1,227 @@
+---
+title: "Getting Input from the User"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 5
+summary: "The input() function hands back a string no matter what was typed, and skipping the conversion to a number is the single most common beginner bug in Python."
+estimatedMinutes: 12
+prerequisites: ["python-strings"]
+objectives:
+  - Read a line of text from the user with input() and use it in a program
+  - Explain why input() always returns a string, even when the text looks like a number
+  - Convert input to a number with int() so it can be added, doubled, or compared
+  - Recognize the string-concatenation bug that shows up when a conversion is skipped
+tags:
+  - python
+  - input
+  - io
+---
+
+The previous lesson, working with strings, showed how Python stores and reshapes text that already exists in the code, things like `name = "Ada"` typed directly into a script. That covers exactly nothing about text a person types while the program is running. A program that only works with text baked in ahead of time is not much of a program. It cannot greet a stranger by name, cannot total up a grocery bill someone reads off, cannot ask anything at all. Python needs a way to pause, wait for someone to type something, and hand that text back to the code. That function is `input()`.
+
+## Pausing the program to wait for a line of text
+
+Calling `input()` stops the program right there and waits. Whatever gets typed before the enter key is pressed comes back as the function's result, ready to be stored in a variable:
+
+```python
+name = input("What is your name? ")
+print("Hello, " + name + "!")
+```
+
+Run that and Python prints `What is your name? ` without a line break after it, then waits. Whatever gets typed appears right after that prompt, and pressing enter hands the whole line over to `input()`, which returns it. The text inside the parentheses is the prompt, a message shown right before the cursor waits, and it is optional. `input()` with nothing inside it still waits for a line, it just does not print anything first.
+
+<ExpectedOutput label="typing Grace at the prompt, then pressing enter">
+```
+What is your name? Grace
+Hello, Grace!
+```
+</ExpectedOutput>
+
+That first line shows both what Python printed (`What is your name? `) and what got typed back (`Grace`), the way it would look in a real terminal. The second line is the program's own output once `name` held `"Grace"`. The whole exchange happens over `input()` doing two jobs in one call: print a prompt, then wait and capture a line.
+
+## The one fact to memorize: input() always returns a string
+
+Whatever gets typed, whether it looks like a word, a sentence, or a number, `input()` hands it back as a string, meaning Python's text type. Type `42` at the prompt and the program does not receive the number 42. It receives the three characters `"4"`, `"2"`, wrapped as one string `"42"`. Nothing about how the text looks changes what type it comes back as.
+
+```python
+age = input("How old are you? ")
+print(type(age))
+```
+
+<ExpectedOutput label="typing 42 at the prompt">
+```
+How old are you? 42
+<class 'str'>
+```
+</ExpectedOutput>
+
+`type(age)` asks Python what kind of value `age` is holding, and the answer is `<class 'str'>`, string, even though a person reading `42` off the screen would call it a number without a second thought. Python is not being difficult here. It has no way to know in advance whether the next thing typed is meant to be a number, a name, or a sentence, so it always plays it safe and returns text. Turning that text into a number, when a number is what the program actually needs, is a separate step the program has to take on purpose.
+
+<Quiz
+  id="input-always-string"
+  question="A program runs age = input(\"Age: \") and someone types 30. What type does age hold right after that line runs?"
+  answer={2}
+  options={[
+    "An integer, because 30 looks like a whole number",
+    "A float, because Python guesses the most flexible numeric type",
+    "A string, because input() always returns text no matter what was typed",
+    "It depends on whether the prompt asks for a number",
+  ]}
+  explanation="input() has no way to know what the typed text is meant to represent, so it always hands back a string. The digits '3' and '0' come back as the two-character string '30', not the number 30. The prompt's wording changes nothing about the type, and Python never guesses a numeric type on its own here."
+/>
+
+## Turning that string into a number with int()
+
+A program that wants to do math on what someone typed needs an actual number, not a string that happens to look like one. The `int()` function takes a string, or another value, and converts it into an integer, meaning a whole number. Wrapping the call to `input()` inside a call to `int()` does the conversion the moment the text comes back:
+
+```python
+number = int(input("Give me a number: "))
+doubled = number * 2
+print(f"Double that is {doubled}")
+```
+
+<ExpectedOutput label="typing 7 at the prompt">
+```
+Give me a number: 7
+Double that is 14
+```
+</ExpectedOutput>
+
+Reading that inside out helps: `input("Give me a number: ")` runs first and returns the string `"7"`. `int("7")` then runs on that string and returns the integer `7`. That integer gets stored in `number`, and `number * 2` is now ordinary multiplication on two integers, giving `14`. Nothing unusual happens once the conversion is done. The whole trick is doing it at all, right where the string first arrives, instead of trying to do math on it later and hoping Python will figure out what was meant.
+
+A full example makes the pattern concrete: asking for a name to greet, then asking for a number to double, in the same short program.
+
+```python
+name = input("What is your name? ")
+print(f"Hello, {name}!")
+
+number = int(input("Pick a number: "))
+print(f"{number} doubled is {number * 2}")
+```
+
+<ExpectedOutput label="typing Ada, then 9">
+```
+What is your name? Ada
+Hello, Ada!
+Pick a number: 9
+9 doubled is 18
+```
+</ExpectedOutput>
+
+Two calls to `input()`, two different jobs. The name stays a string all the way through, because greeting someone never needed math, only the text itself dropped into an f-string. The number went through `int()` immediately, because doubling a value is arithmetic, and arithmetic needs an actual number to work on. Deciding whether a piece of input needs converting comes down to one question: is the program about to do math with it, or compare it as a number? If yes, convert it. If the program is only ever going to print it back or use it as a label, leave it as the string it already is.
+
+## What int() does with text that is not a number
+
+`int()` only succeeds when the string it is given actually looks like a whole number, digits and nothing else, maybe a leading minus sign. Hand it anything else and it does not guess or fall back to zero. It stops the program with an error, the same way a missing dictionary key stops a program with a KeyError.
+
+```python
+age = int(input("How old are you? "))
+print(f"In ten years you will be {age + 10}")
+```
+
+<ExpectedOutput label="typing thirty instead of 30">
+```
+How old are you? thirty
+Traceback (most recent call last):
+  File "age.py", line 1, in <module>
+    age = int(input("How old are you? "))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'thirty'
+```
+</ExpectedOutput>
+
+`ValueError: invalid literal for int() with base 10: 'thirty'` is Python explaining exactly what went wrong: `int()` was asked to read `'thirty'` as a number and the word has no digits in it to read. The program stops on that line. Nothing after it runs. This is worth knowing before it happens by accident, because a real person typing at a real prompt eventually fat-fingers a letter into a number field, or types "n/a," or leaves it blank, and the program needs to survive that instead of crashing on the spot. Handling that gracefully, catching the bad input and asking again instead of stopping cold, is a job for a tool this lesson has not covered yet. For now the fact to hold onto is narrower: `int()` is strict, it either produces a whole number or it raises, and a program that calls it on text a person typed is trusting that person to type digits.
+
+## The bug that shows up the moment the conversion gets skipped
+
+Skipping `int()` on purpose, just to see what happens, is worth doing once because the failure is so common in real code. Python does not refuse to combine two strings with `+`. It joins them end to end, which is a completely different operation from adding two numbers, and it will not warn that anything is wrong.
+
+```python
+first = input("First number: ")
+second = input("Second number: ")
+total = first + second
+print(total)
+```
+
+<ExpectedOutput label="typing 2 and 3, without converting either one">
+```
+First number: 2
+Second number: 3
+23
+```
+</ExpectedOutput>
+
+`first` and `second` are both strings, `"2"` and `"3"`, because neither one went through `int()`. The line `first + second` does not add two, meaning it does not run 2 + 3 to get 5. It concatenates two strings, meaning it glues `"2"` and `"3"` together end to end, and the result is the three-character string `"23"`. Python is doing exactly what `+` means for strings. It has no idea two numbers were intended, because by the time `+` runs, both values are just text and the numeric meaning of the digits is gone. This is not a rare edge case. It is the single most common bug beginners write with `input()`, and it slips by quietly because the program runs without crashing. It just prints the wrong thing.
+
+Fixing it takes one change: convert each piece of input to a number as soon as it arrives, before it gets used in any arithmetic.
+
+```python
+first = int(input("First number: "))
+second = int(input("Second number: "))
+total = first + second
+print(total)
+```
+
+<ExpectedOutput label="same 2 and 3, converted this time">
+```
+First number: 2
+Second number: 3
+5
+```
+</ExpectedOutput>
+
+Same prompts, same two digits typed, a completely different result, because `first` and `second` are now the integers `2` and `3` rather than the strings `"2"` and `"3"`. `+` on two integers does what everyone expects. The rule worth keeping close: `input()` returns text, and `+` behaves differently depending on whether it is joining text or adding numbers. Deciding which one is happening is the programmer's job, not Python's, and `int()` is how that decision gets made explicit.
+
+<Quiz
+  id="input-plus-strings"
+  question="a = input(\"A: \") and b = input(\"B: \") run, and someone types 4 then 5, with neither value converted. What does print(a + b) show?"
+  answer={0}
+  options={[
+    "45, because + joins two strings end to end rather than adding them as numbers",
+    "9, because Python detects the text looks numeric and adds it",
+    "A TypeError, because Python refuses to combine two strings with +",
+    "4, because + on strings keeps only the first one",
+  ]}
+  explanation="a and b are both strings here since neither one was passed through int(). The + operator on two strings concatenates them, gluing '4' and '5' into '45', it does not add them as numbers. Python never inspects a string's contents to guess a numeric meaning, and + on two strings is completely valid, so there is no error and nothing gets dropped."
+/>
+
+## Practicing without a real keyboard in the loop
+
+Running these examples in the Build tab works the same way it would on any machine: `input()` pauses, a prompt shows up, and typing a line and pressing enter sends it back to the program. That is worth trying directly, typing different names and numbers to see the prompts and results change.
+
+There is also a second way to practice that does not require typing anything at every single run: replace a call to `input()` with a plain string or number already sitting in a variable, and run the rest of the program unchanged.
+
+```python
+# Practicing without typing at a prompt: hardcode the value input() would have returned
+name = "Katherine"
+print(f"Hello, {name}!")
+
+number = 12  # stands in for int(input(...))
+print(f"{number} doubled is {number * 2}")
+```
+
+<ExpectedOutput label="same program, values hardcoded instead of typed">
+```
+Hello, Katherine!
+12 doubled is 24
+```
+</ExpectedOutput>
+
+That comment marks the trick clearly: whatever value a real person would have typed at the prompt gets written directly into the code instead, and every line after it runs exactly the same way, because Python cannot tell the difference between a string that came from a keyboard and one that was already sitting in the source. This is a genuinely useful habit, not just a workaround. Testing a program by hardcoding a handful of tricky values, an empty line, a negative number, a name with a space in it, is often faster and more thorough than typing them in one at a time.
+
+<Quiz
+  id="input-hardcode-practice"
+  question="A program has number = int(input(\"Pick: \")). For quick testing, a line is changed to number = 12 instead. What happens to the rest of the program?"
+  answer={1}
+  options={[
+    "It cannot run anymore, since input() is required for the program to work at all",
+    "It runs exactly the same way, since number now holds the integer 12 either way, and Python does not track where a value came from",
+    "It runs, but every later use of number is treated as a string because it skipped input()",
+    "It raises an error, since a program can only assign a value to a variable through input() once",
+  ]}
+  explanation="Once a value is stored in a variable, Python has no memory of whether it arrived from input(), from int(), or straight from the source code. number = 12 puts the same integer in place that int(input(...)) would have, so multiplication and everything downstream behaves identically. Nothing about the type is affected by hardcoding, and there is no rule limiting how a variable gets its value."
+/>
+
+`input()` and `int()` together are the whole doorway between a program and the person running it: one function to pause and listen, one to turn what came back into something arithmetic can use. The next lesson picks up from a value already sitting in a variable and asks a program to make a decision about it, comparing it, branching on it, and choosing what runs next based on what the answer turns out to be.

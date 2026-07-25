@@ -1,0 +1,313 @@
+---
+title: Windows Networking and SMB
+module: windows-fundamentals
+moduleTitle: Windows Fundamentals
+moduleOrder: 12
+moduleIcon: AppWindow
+order: 6
+summary: "SMB on TCP 445 is how Windows shares files and how it proves identity over the network. It leaks shares, users, and sometimes a foothold."
+estimatedMinutes: 17
+prerequisites:
+  - windows-architecture
+  - the-windows-registry
+  - windows-permissions
+  - powershell-for-security
+  - windows-event-logs
+objectives:
+  - Explain what SMB is, which ports it uses, and where NetBIOS still fits
+  - Describe NTLM challenge-response at a high level and why the NT hash, not the password, is what matters
+  - Enumerate shares and users over SMB, including anonymous null sessions
+  - Connect SMB signing status to the risk of an NTLM relay
+  - Recognize what SMB activity looks like in the defender's event logs
+tags:
+  - windows
+  - smb
+  - enumeration
+---
+
+The last lesson, windows event logs, ended on event 4624: a successful logon
+written to the Security channel. It left a question sitting there. Where do all
+those logons come from? A large share of them never involve a keyboard at all.
+They arrive over the network, and most of that network traffic on a Windows
+estate is one protocol. SMB.
+
+Port `445` open on a Windows host is one of the most productive things a scan
+can turn up on an internal network. That single open port is the front door to
+file shares, printer sharing, remote administration, and a big slice of the
+machine-to-machine chatter that holds a Windows domain together. It is also
+where a misconfigured share hands over a backup archive to anyone who asks, and
+where the authentication that guards it can be turned against the network itself.
+
+## The protocol behind the file share
+
+SMB stands for Server Message Block. It is the protocol Windows uses to share
+files and printers between hosts and to carry a lot of administrative traffic
+alongside them. When a user maps a drive to `\\FILE01\Finance` and it shows up
+as another folder, that path is SMB doing its job. The double-backslash prefix
+is called a UNC path, Universal Naming Convention, and it is how Windows names a
+resource on another machine: two backslashes, the host, then the share.
+
+The client and the server speak in a request-and-response rhythm. The client
+opens a connection, negotiates which version of the protocol both sides support,
+authenticates, then asks to open a share and read or write files inside it. The
+server, which is any Windows machine with the Server service running, decides at
+each step whether the caller is allowed to do what it asked. That decision is
+not new machinery. It is the same security descriptor, ACL, and token model from
+the windows permissions lesson, applied to a file that happens to live on
+another host.
+
+SMB rides on TCP `445`. That is the port that matters on anything built in the
+last twenty years. A scan that reports 445 open is reporting a Windows
+file-sharing surface, full stop.
+
+Two older ports show up on legacy setups and are worth recognizing. TCP `139`
+and UDP `137` and `138` belong to NetBIOS, a naming and session layer that
+predates SMB running on its own. Before Windows could carry SMB directly over
+TCP, it wrapped SMB inside a NetBIOS session on port 139, and used UDP 137 to
+resolve short computer names like `FILE01` into addresses. Modern Windows still
+answers on 139 for compatibility, but 445 is the real channel. If a host shows
+445 and 139 both open, they are two front doors into the same house.
+
+<Callout type="info" title="139 and 445 are not two protocols">
+A common early mistake is to treat port 139 and port 445 as different services.
+They carry the same SMB. Port 139 wraps it in an extra NetBIOS session layer;
+port 445 drops that wrapper and speaks SMB straight over TCP. Same file shares,
+same authentication, one legacy envelope on the difference.
+</Callout>
+
+<Quiz
+  id="smb-ports"
+  question="A scan of a modern Windows server reports TCP 445 open and TCP 139 closed. What is the correct reading of that result?"
+  answer={2}
+  options={[
+    "SMB is disabled, because file sharing needs port 139 to work",
+    "The host is running an ancient version of Windows that predates NetBIOS",
+    "SMB is available over its own TCP port, without the legacy NetBIOS session layer",
+    "The server can share printers but not files",
+  ]}
+  explanation="Port 445 carries SMB directly over TCP and is all a modern host needs. Port 139 is the legacy NetBIOS-wrapped path, and a closed 139 with an open 445 is the normal, current configuration."
+/>
+
+## Shares, and who is allowed through
+
+A share is a folder on the server that has been published over SMB under a name.
+The name is not always the folder name. An admin can export `D:\Accounting` as a
+share called `Finance`, and clients see only `Finance`. Publishing a folder this
+way is what turns a local directory into something the rest of the network can
+reach.
+
+Every Windows machine also creates hidden administrative shares automatically. A
+share name that ends in a dollar sign, like `C$`, `ADMIN$`, or `IPC$`, is hidden
+from casual browsing and, in the case of `C$` and `ADMIN$`, usable only by an
+account with administrative rights. `C$` maps to the whole system drive.
+`ADMIN$` maps to the Windows directory. `IPC$` is the odd one out: it carries no
+files at all. It is the inter-process communication channel that SMB uses to
+pass control messages, and it is the pipe that anonymous enumeration rides on,
+which matters later.
+
+Access to a share is governed by two layers of permission stacked on top of each
+other. Share permissions decide who may connect to the share name. The NTFS ACL,
+the access control list from the windows permissions lesson, decides what each
+file and folder inside allows. A caller has to pass both. A share can be open to
+everyone while the files inside stay locked by their ACLs, and the reverse: a
+tightly permissioned share wrapping files that would otherwise be readable. The
+effective access is the more restrictive of the two.
+
+From a Windows command prompt, the built-in `net` command drives all of this.
+`net view` lists the shares a host offers. `net use` connects to one, optionally
+with a username and password, and maps it to a drive letter.
+
+<CommandCard
+  command="net view \\FILE01"
+  title="windows"
+  explain="Lists the shared resources FILE01 is offering to the calling account. Hidden dollar-sign shares do not appear here."
+/>
+
+<ExpectedOutput label="net view against a file server">
+```
+Shared resources at \\FILE01
+
+Share name  Type  Used as  Comment
+-------------------------------------------------------------------------------
+Finance     Disk           Finance team files
+Backups     Disk           Nightly backups
+The command completed successfully.
+```
+</ExpectedOutput>
+
+`net use` is the other half. Called with a UNC path and credentials, it
+authenticates and attaches the share. Called with no arguments, it prints the
+connections the current session already holds, which is a fast way to see what a
+machine is talking to.
+
+<CommandCard
+  command="net use Z: \\FILE01\Finance /user:CORP\jdoe"
+  title="windows"
+  explain="Authenticates to FILE01 as CORP\jdoe and maps the Finance share to drive Z:. Windows prompts for the password, then Z: behaves like a local folder."
+/>
+
+## Proving who is calling: NTLM
+
+Mapping that drive required a logon, and no password crossed the wire in the
+clear. SMB authenticates most often with NTLM, a challenge-response protocol, and
+the way it works explains half of Windows attack technique.
+
+The goal is for the client to prove it knows a password without sending the
+password. NTLM does it in three messages. The client announces it wants to
+authenticate. The server replies with a challenge, a random number generated
+fresh for this attempt. The client takes that challenge, combines it with the NT
+hash of the user's password, runs the result through a cryptographic function,
+and sends back the answer. The server does the same math using the hash it has
+on file. If the two answers match, the client proved it holds the right hash,
+and no password was ever transmitted.
+
+Two pieces from earlier lessons snap into place here. The NT hash is the stored
+form of the password, and on a standalone machine it lives in the SAM, the
+account database from the windows architecture lesson. LSASS, the process that
+guards credentials in that same lesson, is what performs this math and holds the
+hashes in memory while a user is logged on. In a domain, the server does not
+verify the response itself; it forwards the challenge and response to a domain
+controller, which owns the hashes and answers yes or no.
+
+The consequence is the thing to hold onto. NTLM never checks the password. It
+checks whether the caller can compute a response from the hash. So an attacker
+who steals the NT hash, from LSASS memory or the SAM, can authenticate as that
+user without ever cracking it back to a password. That technique is called
+pass-the-hash, and it is why a stolen hash is as good as a stolen password on a
+Windows network.
+
+<Callout type="warning" title="SMB signing is the tamper seal">
+SMB signing attaches a cryptographic signature to every message in a session, so
+neither side can be spoofed or have its traffic altered in flight. When signing
+is off, an attacker who intercepts an NTLM authentication can forward it,
+unchanged, to a different server and be accepted as that user. That is an NTLM
+relay, one of the most dependable ways to move across a Windows network, and it
+works only where signing is not enforced.
+</Callout>
+
+<Quiz
+  id="ntlm-hash"
+  question="An attacker recovers a user's NT hash from LSASS memory but cannot crack it into a plaintext password. Why is the hash still enough to authenticate over SMB?"
+  answer={0}
+  options={[
+    "NTLM proves knowledge of the hash, not the password, so the plaintext is never needed to answer the server's challenge",
+    "The NT hash is the same string as the password, just written in hexadecimal",
+    "SMB sends the plaintext password once the hash is presented",
+    "The hash disables SMB signing, which logs the attacker in automatically",
+  ]}
+  explanation="NTLM is challenge-response over the NT hash. The server checks whether the caller can compute the correct response from that hash, and the hash is what does it. Recovering the plaintext is unnecessary, which is exactly what makes pass-the-hash work."
+/>
+
+## Enumeration, and the tools that do it
+
+Before any of that, an attacker has to learn what a host offers, and SMB is
+unusually willing to tell. A null session is an SMB connection made with an empty
+username and an empty password, ridden in over that `IPC$` pipe. Older Windows
+allowed null sessions by default and would return the user list, the share list,
+and the password policy to a caller who never authenticated at all. Modern,
+locked-down systems refuse them. Plenty of internal servers, print devices, and
+appliances still do not, so it is checked every time.
+
+The attacker's tooling for this usually runs on a Linux host, not a Windows one.
+`smbclient` gives a quick anonymous look. The `-L` flag lists shares and `-N`
+means no password, so the two together attempt a null-session share listing.
+
+<CommandCard
+  command="smbclient -L //10.10.10.5 -N"
+  title="linux"
+  explain="Attempts an anonymous share listing over a null session. A host that answers is leaking its share names to an unauthenticated caller."
+/>
+
+<ExpectedOutput label="smbclient -L over a null session, trimmed">
+```
+Sharename       Type      Comment
+---------       ----      -------
+ADMIN$          Disk      Remote Admin
+C$              Disk      Default share
+IPC$            IPC       Remote IPC
+Finance         Disk      Finance team files
+Backups         Disk      Nightly backups
+```
+</ExpectedOutput>
+
+The dollar-sign shares are administrative and off limits without admin rights, so
+they get skipped. `Finance` and `Backups` are the interesting rows: non-default
+names an admin created deliberately, and the ones most likely to carry sensitive
+files behind weak permissions.
+
+At scale, `netexec`, the tool formerly named CrackMapExec, is the workhorse. It
+sweeps a whole subnet, reports each host's OS and hostname, tests credentials,
+lists shares, and, critically, reports the SMB signing status on every box.
+
+<CommandCard
+  command="netexec smb 10.10.10.0/24"
+  title="linux"
+  explain="Sweeps the subnet and prints hostname, OS build, and signing status per host. Every line showing signing:False is a candidate for an NTLM relay."
+/>
+
+<ExpectedOutput label="netexec subnet sweep, one line per host">
+```
+SMB  10.10.10.5   445  FILE01  [*] Windows Server 2019 Build 17763 x64 (name:FILE01) (domain:CORP.LOCAL) (signing:False) (SMBv1:False)
+SMB  10.10.10.7   445  DC01    [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:CORP.LOCAL) (signing:True) (SMBv1:False)
+```
+</ExpectedOutput>
+
+That `signing:False` on `FILE01` is the finding to write down. Reading this
+output is the real skill. Every host is a row, the domain name tells the attacker
+these machines belong to a directory worth mapping, and the signing column sorts
+targets into relay-vulnerable and not. With a valid credential added, the same
+tool reports read and write access per share, which turns a share list into a
+ranked list of where to look first.
+
+For a defender, none of this is quiet. An SMB logon writes event 4624 with logon
+type 3, the code for a network logon, and a failed attempt writes 4625, both
+from the windows event logs lesson. When a caller actually opens a share, the
+server can write event 5140, a network share object being accessed. A burst of
+type-3 logons from one source across many hosts, or a run of 4625 failures
+followed by a 4624 success, is the shape of exactly this enumeration, and it is
+what share-access monitoring is tuned to catch.
+
+<Callout type="security" title="Authorized targets only">
+Enumerating SMB shares, attempting null sessions, or sweeping a subnet against
+hosts without written permission to test is unauthorized access under laws like
+the US CFAA. A lab range or a set of personal virtual machines is the place to
+practice this, and nothing outside a signed scope is fair game.
+</Callout>
+
+<Quiz
+  id="null-session"
+  question="A null session against an internal server returns its full share list and user names. What made that possible?"
+  answer={1}
+  options={[
+    "The attacker supplied stolen NTLM hashes to open the IPC$ pipe",
+    "The server accepts anonymous SMB connections over IPC$ and answers them",
+    "SMB signing was enabled, which forces the server to disclose shares",
+    "Port 139 was closed, which switches SMB into anonymous mode",
+  ]}
+  explanation="A null session is an SMB connection with no username and no password, carried over the IPC$ pipe. A host that answers one is configured to allow anonymous access, and it hands its shares and users to a caller who never authenticated."
+/>
+
+<Exercise title="Enumerate a lab share two ways">
+On an SMB host in a lab you are authorized to test, run
+`smbclient -L //TARGET -N` to attempt an anonymous share listing. Note whether
+the null session is refused or whether it returns share names.
+
+Now run the same enumeration with a real account:
+`netexec smb TARGET -u USER -p PASS --shares`. Compare the two results. The null
+session shows what an unauthenticated stranger can see; the authenticated run
+shows your read and write access per share.
+
+Pick the one non-default share you would open first, and write down why. Then
+check the target's Security log for the event 4624 your authenticated connection
+just wrote. That single line is what a defender would have seen you do.
+</Exercise>
+
+Everything in this lesson stops at the front door: finding the host, listing its
+shares, understanding how it decides to let a caller in. What comes next is what
+an attacker does once inside with a low-privilege foothold. Turning a normal
+user's access into SYSTEM is Windows privilege escalation, and stitching many
+machines together through the domain controllers and hashes glimpsed here is
+Active Directory. Both build directly on the shares, tokens, and NTLM this lesson
+laid out.
+
+<Notes />

@@ -1,0 +1,71 @@
+---
+title: Writing a Finding
+module: writing-security-reports
+moduleTitle: Writing Security Reports
+moduleOrder: 44
+moduleIcon: NotebookPen
+order: 3
+summary: A finding a stranger can reproduce and fix is worth ten findings only you understand.
+estimatedMinutes: 18
+objectives:
+  - Write a finding title that states location and impact in one line
+  - Separate business impact from evidence from reproduction steps
+  - Give remediation specific enough that a developer can act without asking you
+tags:
+  - reporting
+  - findings
+  - remediation
+  - evidence
+---
+
+The sysadmin reading your finding has never met you and cannot ask you a question. Your finding either carries everything they need or it fails. That constraint is the whole discipline of writing one. A finding is not a note to yourself, it is a self-contained unit that has to survive being read cold, six weeks later, by someone under deadline pressure who has forty other tickets.
+
+Every good finding answers the same questions in the same slots: what is it, where is it, how bad is it, how do I see it for myself, and how do I make it go away. Fill every slot. Skip one and the finding bounces back to you with a "can you clarify" email, which is the failure state.
+
+## The title does real work
+
+A title is not a category label. "SQL Injection" tells the reader nothing they can act on. The title should name the location and the effect so someone scanning the findings list knows what they are dealing with before they read a word of the body.
+
+<CommandCard command="Weak: 'SQL Injection'  |  Strong: 'SQL injection in the invoice search parameter allows read of the entire customer database'" explain="The strong version gives location (invoice search) and impact (full customer DB read) in one line. A reader triaging twenty findings can prioritize from the titles alone, which is exactly what they do." />
+
+## Impact is business language, not a restated score
+
+The impact field explains what an attacker can actually do to the business. Not "this is a high severity vulnerability," which is circular, but "an attacker with no account can read every customer's name, email, and hashed password, which is a reportable breach under most privacy regimes." Tie it to something the organization cares about losing.
+
+Keep impact separate from evidence. Impact is the argument. Evidence is the proof.
+
+## Evidence proves it happened
+
+Evidence is the request and response, the screenshot, the exact payload that worked. Show the real transaction, trimmed to what matters, so the reader believes you without rerunning anything.
+
+<ExpectedOutput label="evidence: the request that pulled the data">
+GET /invoices?q=1' UNION SELECT username,password,3 FROM users-- - HTTP/1.1
+Host: app.example.internal
+
+HTTP/1.1 200 OK
+...
+&lt;td&gt;admin&lt;/td&gt;&lt;td&gt;$2b$12$Rk9...redacted...&lt;/td&gt;
+</ExpectedOutput>
+
+## Reproduction is a recipe, not a hint
+
+Reproduction steps are numbered, literal, and complete enough that the sysadmin reproduces the finding on the first try. Include the URL, the parameter, the payload, and what a successful result looks like. If they have to guess a step, they will guess wrong and conclude the finding is not real.
+
+## Remediation has to be specific
+
+"Sanitize user input" is useless. The developer already thought they were. Tell them the actual fix: use parameterized queries or prepared statements so input never gets parsed as SQL, and name the library function if you know their stack. Point at the specific endpoint, not the whole app. A remediation the developer can turn into a code change without a meeting is the mark of someone who has fixed these before, not just found them.
+
+<Callout type="security" title="Scrub live secrets and PII out of your evidence">
+Your evidence often contains real credentials, session tokens, personal data, or password hashes you pulled from a system you were authorized to test. The report is a new document with its own life, and it will sit in inboxes and file shares. Redact or mask live secrets before they go in: replace real hashes with a truncated sample, blank out customer PII, and rotate any credential you demonstrate. Proving the hole exists does not require shipping working keys to everyone on the distribution list.
+</Callout>
+
+<Exercise
+  id="finding-rewrite-title"
+  prompt="A junior tester wrote a finding titled 'XSS'. The bug is a stored cross-site scripting flaw in the support-ticket comment field that runs in an admin's browser when they view the ticket. Rewrite the title so it states location and impact."
+  answer="Stored XSS in the support-ticket comment field executes in an admin's browser and can hijack admin sessions"
+  placeholder="write a location + impact title"
+>
+A strong title names where (support-ticket comment field), the type (stored XSS), and the real consequence (runs in an admin's browser, session hijack). A reader triaging the findings list now knows this is an admin-session risk before opening the body, which is the entire job of a title.
+</Exercise>
+
+<Notes />

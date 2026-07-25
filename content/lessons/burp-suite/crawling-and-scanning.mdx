@@ -1,0 +1,69 @@
+---
+title: Crawling and Scanning
+module: burp-suite
+moduleTitle: Burp Suite
+moduleOrder: 16
+moduleIcon: Bug
+order: 3
+summary: Map every page and parameter, and know when the active scanner is safe to unleash.
+estimatedMinutes: 17
+objectives:
+  - Build a site map by browsing and set a target scope
+  - Tell passive scanning apart from active scanning
+  - Understand why the active scanner is a loud, authorization-gated tool
+tags:
+  - web
+  - burp
+  - scanning
+---
+
+Before you attack an app you need its shape: every page, every endpoint, every parameter that takes input. Burp keeps that picture under Target > Site map, a tree of hosts and paths on the left with the requests and responses on the right.
+
+## Fill the map by browsing
+
+In Community there's one way to populate it: you browse. Click through the app with interception off, and every request drops into the tree, sorted by host and path. Hit the links, submit the forms, log in, exercise every feature you can find. Burp only knows about what your browser actually touched, so a checkout flow you never walked, or an admin page you never opened, stays invisible. Browse thoroughly.
+
+Pro adds an automated crawler under Dashboard > New scan > Crawl that follows links for you. It's useful, but it never fully replaces walking the app by hand, because a crawler can't guess its way through a five-step checkout or a form that needs a valid coupon code.
+
+## Draw the fence first: scope
+
+Set your scope before anything else, under Target > Scope settings. Add the target host, then turn on "show only in-scope items". Now Burp stops logging every CDN, ad network, font host, and telemetry beacon your browser fires on the side. You get a clean history, and you stop yourself from accidentally aiming a tool at a domain you were never authorized to touch.
+
+<Callout type="tip" title="Scope is a safety rail, not just tidiness">
+A tight scope keeps tooling from wandering off-target. When you later right-click a request and pick a scan or an Intruder run, an in-scope filter is the difference between hitting the client's app and hitting their payment processor by mistake.
+</Callout>
+
+## Passive versus active scanning
+
+These are not the same thing, and conflating them is how people cause outages.
+
+Passive scanning only reads traffic that already passed through Burp. It flags missing security headers, cookies without HttpOnly, values reflected back into responses, that class of thing. It sends nothing extra, so it's safe to leave running on in-scope traffic all day.
+
+Active scanning is a different animal. It fires its own crafted requests: injection payloads, malformed inputs, probes built to trigger errors. It submits forms, hammers parameters, and as a side effect it can create records, delete data, send emails, or lock accounts. It is loud, aggressive, and it announces itself to any monitoring the target has.
+
+<Callout type="warning" title="The active scanner is Pro, and it bites">
+Community has passive checks and manual tooling only, no one-click active scan. Even on Pro, the active scanner has caused real damage: databases filled with junk rows, password-reset floods, WAF bans that locked the whole testing team out. Point it at a staging copy when one exists, scope it tight, and run it off-hours.
+</Callout>
+
+## Scan like someone who has to explain it later
+
+Authorization to test is not authorization to break production. Tell the client before you start an active scan, agree a window, and know how to stop it fast. The site map and passive findings will already hand you most of the low-hanging fruit; the manual work in Repeater and Intruder is where the interesting bugs actually get confirmed.
+
+<Callout type="security" title="Authorized targets only">
+Crawling and active scanning both generate traffic that hits the target hard. Only run them against systems you have explicit, written permission to test.
+</Callout>
+
+<Quiz
+  id="passive-scan-truth"
+  question="Which statement is true of passive scanning in Burp?"
+  answer={1}
+  options={[
+    "It sends crafted injection payloads to trigger errors",
+    "It only analyzes traffic that already passed through, adding no requests of its own",
+    "It is the loudest tool in Burp and often takes a site down",
+    "It can delete records and lock accounts as a side effect",
+  ]}
+  explanation="Passive scanning inspects existing traffic and sends nothing new, so it is safe to leave on. Sending crafted payloads and the risk of destructive side effects belong to the active scanner."
+/>
+
+<Notes />

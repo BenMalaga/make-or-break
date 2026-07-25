@@ -1,0 +1,92 @@
+---
+title: Audits and Compliance
+module: grc-and-frameworks
+moduleTitle: Governance, Risk, and Compliance
+moduleOrder: 35
+moduleIcon: Scale
+order: 4
+summary: PCI, HIPAA, SOC 2. An audit is not about being secure, it is about proving you did what you said.
+estimatedMinutes: 17
+objectives:
+  - Match PCI DSS, HIPAA, and SOC 2 to the data and situations that trigger them
+  - Explain what an auditor is actually testing and what evidence they want
+  - Prepare for an audit without scrambling the week before
+tags:
+  - grc
+  - compliance
+  - pci
+  - hipaa
+  - soc2
+  - audit
+---
+
+An auditor asks one question in fifty different ways: "you said you do X, show me you actually do X." That is the whole job. Not "are you secure," which is unanswerable, but "does the evidence match the claim." Once you see auditing as a matching exercise between what a policy says and what the logs, tickets, and screenshots prove, the whole thing gets less mysterious.
+
+The three regimes you will trip over depend entirely on what data the company touches and who it sells to. Handle the wrong one and the fines or lost deals are real. Let me put each in its lane.
+
+## PCI DSS: you take card payments
+
+If a company stores, processes, or transmits payment card data, PCI DSS applies. It is not a law, it is a contract requirement from the card brands, and violating it means fines and losing the ability to take cards, which for a merchant is a death sentence.
+
+The single most useful move in PCI is shrinking scope. Every system that touches card data is in scope and must be audited. Push card handling to a compliant third party like Stripe so the card number never lands on your servers, and your PCI burden collapses from "audit the whole network" to "audit the redirect." Smart teams design the card data out of their environment on purpose.
+
+<Callout type="info" title="Your PCI level depends on transaction volume">
+PCI has four merchant levels set by annual transaction count. A giant processor at Level 1 needs a Qualified Security Assessor and an on-site audit every year. A small shop at Level 4 may just fill out a Self-Assessment Questionnaire. Same standard, wildly different effort, so know the level before you scope the work.
+</Callout>
+
+## HIPAA: you touch US health data
+
+HIPAA governs protected health information in the US: medical records, anything that ties a person to their care. It is a federal law, so violations bring government penalties, not just contract losses, and they scale into the millions for willful neglect.
+
+HIPAA is less prescriptive than PCI, which trips people up. It tells you to protect PHI with administrative, physical, and technical safeguards, then leaves a lot of "how" to your risk assessment. That flexibility is a trap: "we did a risk assessment and here is what we chose" is your defense, and if you never did one, you have nothing to stand on when the Office for Civil Rights comes asking after a breach.
+
+## SOC 2: you sell software to enterprises
+
+SOC 2 is the one you will meet most in tech. It is an attestation report from a CPA firm saying your controls around the Trust Services Criteria hold up. Enterprise buyers demand it before they will sign, so for a B2B SaaS company, the SOC 2 report is a sales document as much as a security one.
+
+Know the two types, because they are not the same product. Type I says your controls are designed correctly at a single point in time. Type II says they actually operated over a period, usually six to twelve months, which is far stronger and what serious buyers want. A Type II means the auditor pulled samples across months and checked you really did the thing every time, not just on audit day.
+
+<CommandCard command="SOC 2 Type I = designed right on one day | SOC 2 Type II = operated right over 6-12 months" explain="Type I is a snapshot, cheaper and faster, fine as a first step. Type II is the film, and it is what enterprise procurement asks for because it proves the control ran consistently, not that you cleaned up the morning of the audit." />
+
+## Surviving the audit: evidence, not vibes
+
+An auditor lives on evidence. They will pick a control, ask you to prove it operated, and expect an artifact: a log, a ticket, a config screenshot, an access review with a date and a signature. "We definitely do that" is worth nothing without the receipt.
+
+<CommandBlock
+  title="what an auditor asks for a single access-control claim"
+  commands={[
+    { cmd: "show me the quarterly access review for Q2", comment: "expects a dated, signed list of who was reviewed" },
+    { cmd: "pull the offboarding ticket for a terminated employee", comment: "proves access was revoked on their last day" },
+    { cmd: "export the MFA enforcement config", comment: "proves the control is on, not just written down" },
+  ]}
+/>
+
+The teams that scramble the week before an audit are the ones treating evidence as a one-time collection. The teams that coast built the evidence trail into daily work: access reviews happen on a calendar, offboarding closes a ticket, changes leave an approval record. Compliance is a byproduct of good operations logged, not a fire drill.
+
+<Callout type="security" title="Audit access is scoped access">
+When you are the pentester or assessor inside an audit, you are handling live cardholder data, PHI, or production systems under a signed engagement. Stay strictly inside the agreed scope and data-handling terms. Pulling more than the audit authorizes, or copying regulated data off-scope, turns a compliance engagement into a violation you caused. Handle regulated data only as the contract permits.
+</Callout>
+
+<Exercise
+  id="audit-which-regime"
+  prompt="A B2B SaaS company stores no card data (Stripe handles payments) and no health data, but a large enterprise prospect refuses to sign until the company can prove its security controls have operated reliably over the past year. Which compliance report does the prospect almost certainly want?"
+  answer="SOC 2 Type II"
+  placeholder="name the report and type"
+>
+No card data rules out PCI, no health data rules out HIPAA, and the buyer wants proof of controls operating over a period, not a point in time. That is a SOC 2 Type II report.
+</Exercise>
+
+<Quiz
+  id="audit-evidence"
+  question="During a SOC 2 audit, the auditor asks you to prove terminated employees lose access on their last day. What do they actually want to see?"
+  answer={2}
+  options={[
+    "A written policy stating that access is revoked on termination",
+    "A verbal confirmation from the IT manager",
+    "A dated offboarding ticket showing access was revoked, matched to a termination record",
+    "A screenshot of the current employee list",
+  ]}
+  explanation="Auditors test whether controls operated, not just whether a policy exists. The evidence is an artifact tying the revocation to the termination with dates, proving the control actually ran for a real case."
+/>
+
+<Notes />

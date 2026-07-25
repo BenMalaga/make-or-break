@@ -1,0 +1,67 @@
+---
+title: What Threat Intelligence Actually Is
+module: threat-intelligence
+moduleTitle: Cyber Threat Intelligence
+moduleOrder: 36
+moduleIcon: Radar
+order: 1
+summary: A feed of 40,000 IPs is data. Intelligence is the part that changes a decision.
+estimatedMinutes: 16
+objectives:
+  - Tell intelligence apart from raw data and information
+  - Place a product at the strategic, operational, or tactical tier
+  - Match an intel tier to the person who consumes it
+tags:
+  - threat-intelligence
+  - cti
+  - strategic
+  - operational
+  - tactical
+---
+
+Someone drops a CSV of 40,000 "malicious" IPs in your channel and calls it threat intelligence. It is not. It is a list. Nobody told you which of those addresses touch your network, what they were used for, whether they are still live, or what you are supposed to do now that you have them. You cannot act on a list. You can only act on an answer to a question you were already asking.
+
+That gap is the whole subject. Threat intelligence is not a feed you buy, it is analyzed information that helps a specific person make a specific decision in time to matter.
+
+## The ladder from data to intelligence
+
+Data is a raw observation with no context. The IP `185.220.101.4`. A file hash. One line in a proxy log. True, but inert.
+
+Information is data with some context bolted on. That IP hosted a Cobalt Strike team server for two weeks in March. Now it means something, but it still does not tell you what to do.
+
+Intelligence is information that has been analyzed against a real requirement and delivered to someone who can act. "A group that targets our sector used that infrastructure, they favor the same phishing lure two of our vendors just reported, and here are the three detections we are missing." That changes a decision. That is intelligence.
+
+The test is blunt. If the product does not change what someone does, you produced a report, not intelligence.
+
+## Three tiers, three audiences
+
+Tactical is the machine-readable layer. IOCs, hashes, domains, JA3 fingerprints, Sigma rules. The consumers are your SIEM, your EDR, your firewall, and the tier-1 analyst working the queue. Shelf life is short, often days, because attackers rotate this stuff cheaply.
+
+Operational sits in the middle. It describes campaigns and TTPs: who is hitting your industry right now, what tooling they run, what they do in the first hour after landing on a host. The consumers are your SOC lead, threat hunters, and the IR team. It stays useful for weeks or months.
+
+Strategic is the top. Low on hex, high on business risk. Which adversaries care about your company and why, how a new sanctions regime shifts ransomware targeting, where next year's security budget should go. The consumers are the CISO and the board, and it is written in the language of risk, not packets.
+
+## The failure mode is a tier mismatch
+
+The most common mistake in this whole field is handing a product to the wrong reader. Ship the board a STIX bundle of file hashes and you have wasted everyone's time. Ship your firewall a paragraph about geopolitical tension and it does nothing with it. Same underlying intrusion, three completely different products for three different desks.
+
+Good intel teams start from the reader and work backward. Ask who decides what, then produce the thing that decision needs.
+
+<Callout type="security" title="Sourcing intel has its own rules">
+Some tactical intel comes from adversary infrastructure, criminal forums, or malware you detonate. Only collect from sources and systems you are authorized to touch, detonate samples in a sandbox you own, and respect the sharing markings on anything you receive. The Traffic Light Protocol (TLP:RED, TLP:AMBER, TLP:GREEN, TLP:CLEAR) tells you who you may forward a report to. Ignoring it burns sources and trust.
+</Callout>
+
+<Quiz
+  id="cti-tier-match"
+  question="Your CISO asks which nation-state groups are likely to target the company after it wins a defense contract, so she can brief the board. Which tier of intelligence answers that?"
+  answer={2}
+  options={[
+    "Tactical, because it deals with specific IOCs",
+    "Operational, because it describes current campaigns",
+    "Strategic, because it maps adversary intent and risk to a business decision",
+    "None, because that question cannot be answered with intelligence",
+  ]}
+  explanation="A board-level question about who will target the company and why, tied to a business change, is a strategic requirement. Tactical IOCs and operational campaign detail feed the SOC, not the boardroom."
+/>
+
+<Notes />

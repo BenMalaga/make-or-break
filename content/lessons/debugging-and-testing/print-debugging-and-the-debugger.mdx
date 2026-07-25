@@ -1,0 +1,224 @@
+---
+title: Print Debugging and the Debugger
+module: debugging-and-testing
+moduleTitle: Debugging and Testing
+moduleOrder: 5
+moduleIcon: Bug
+order: 2
+summary: "A bug hides where the code's real behavior and the mental model disagree, so the fix is to make the real behavior visible."
+estimatedMinutes: 15
+prerequisites: ["what-a-bug-really-is"]
+objectives:
+  - Place labeled print statements to expose a variable's real value at the moment it goes wrong
+  - Explain the limits of print debugging and when it stops being enough
+  - Set a breakpoint and inspect a program's state while it is paused
+  - Choose between a quick print and a debugger based on how tangled the state is
+tags:
+  - debugging
+  - tools
+---
+
+The last lesson, what a bug really is, landed on one idea: a bug is the spot where what the code
+does and what someone intended it to do first pull apart. That framing is useful right up until the
+moment of actually finding the spot. The code is not going to announce it. It runs, it does
+something, and somewhere in the middle a value is not what the person writing it assumed. The whole
+job is to see the real value instead of the assumed one.
+
+That is the trick. The mind holds a story about what the program is doing. The machine is doing
+something else. Debugging is closing the gap between the two, and the only way to close it is to look
+at what actually happened, not at what should have happened. There are two tools for looking, and
+learning both is worth the afternoon it takes.
+
+## The humble print
+
+The oldest debugging tool is a line that shows a value on the screen. In Python that line is
+`print`, the function that writes text out. Drop one in next to the code under suspicion, run the
+program, and the value it holds at that moment appears in plain sight.
+
+The difference between a useless print and a useful one is the label. A bare `print(count)` throws a
+number onto the screen with no clue what it is, and after three of them nobody can tell which is
+which. A labeled print says what it is showing.
+
+```python
+def average(scores):
+    total = sum(scores)
+    print("count =", len(scores))
+    print("total =", total)
+    return total / len(scores)
+```
+
+Run that against a list of five scores and the two lines report exactly what the function is working
+with before it does the division.
+
+<ExpectedOutput label="calling average([90, 80, 100, 70, 60])">
+```
+count = 5
+total = 400
+```
+</ExpectedOutput>
+
+Placement is the other half. A print only helps where the guess is. Put it right before the line
+that produces the wrong result, and inside the loop or the branch that is under suspicion, not at the
+top of the file where nothing has happened yet. The goal is to catch the value at the exact instant
+it turns wrong. If the number is right on the line above and wrong on the line below, the bug lives
+between them, and the search just got a lot smaller.
+
+<Quiz
+  id="dbg-labeled-print"
+  question="Why is print(&quot;count =&quot;, count) a better debugging line than print(count)?"
+  answer={2}
+  options={[
+    "It runs faster because the label is cached.",
+    "It changes the value of count so the bug goes away.",
+    "It labels what is being shown, so several prints in one run stay readable instead of a stack of bare numbers.",
+    "Python refuses to print a variable without a label.",
+  ]}
+  explanation="A bare print dumps a value with no clue what it is. When a run has several prints, labeled output tells them apart. The label costs nothing and saves the confusion of a screen full of unlabeled numbers."
+/>
+
+## Where print runs out
+
+Print debugging is fast and it works, which is why every programmer reaches for it. It also has real
+limits, and knowing them is what keeps a person from fighting it.
+
+The output gets noisy. A print inside a loop that runs ten thousand times prints ten thousand lines,
+and the one that matters is buried. The prints are easy to leave behind, so code ends up littered
+with debug lines that ship to real users by accident. And print is slow to move: seeing a different
+variable means editing the file, saving, and running the whole thing again, then again for the next
+variable, and again. Each question costs a full round trip.
+
+For a quick "is this value what I think it is," none of that matters and a print wins. For a bug
+buried in tangled state, where the question is not one value but how six of them relate at one
+instant, the round trips pile up and print starts to feel like squinting through a keyhole. That is
+the point to reach for the other tool.
+
+<Quiz
+  id="dbg-print-limits"
+  question="A bug appears somewhere inside a loop that runs 50,000 times, and it depends on how several variables interact at the failing iteration. Why does print debugging struggle here?"
+  answer={0}
+  options={[
+    "The output is buried in tens of thousands of lines, and inspecting several related variables means editing and re-running for each one.",
+    "print cannot display more than one variable at a time.",
+    "Loops disable print inside Python.",
+    "print rounds numbers, so the values are always wrong.",
+  ]}
+  explanation="print scales badly with loop size and with the number of things to inspect. Fifty thousand lines hide the one that matters, and every new question is another edit-save-run cycle. That is exactly the case a debugger handles better."
+/>
+
+## The debugger: pause and look around
+
+A debugger is a tool that pauses a running program so its state can be inspected while it is frozen
+in place. Instead of printing values as they fly past, the program stops at a chosen line and waits,
+and every variable in scope can be read right there, at that instant, without touching the code.
+
+Three moves cover most of it. A breakpoint is a marked line where the program pauses when it reaches
+that line. Stepping runs the code one line at a time from the pause, so the exact path through the
+program is visible, including which branch a condition took. Inspecting means reading any variable's
+current value while the program sits paused. Together they answer the question print struggles with:
+not "what is this one value" but "what is the whole situation right here."
+
+Python ships a debugger built in. The `breakpoint()` function, dropped on a line, pauses the program
+there and opens an interactive prompt called pdb, the Python debugger.
+
+```python
+def average(scores):
+    total = sum(scores)
+    breakpoint()          # program pauses here
+    return total / len(scores)
+```
+
+When the program hits that line it stops and shows a `(Pdb)` prompt. Typing a variable name prints
+its current value. The command `n` (next) runs the following line. The command `c` (continue) lets
+the program run on to the end or the next breakpoint. A short session reads like a conversation with
+the frozen program.
+
+<ExpectedOutput label="a pdb session">
+```
+> average.py(4)average()
+-> return total / len(scores)
+(Pdb) total
+400
+(Pdb) len(scores)
+5
+(Pdb) c
+```
+</ExpectedOutput>
+
+Most code editors put the same power behind a click. In an editor like VS Code, clicking in the
+margin next to a line sets a breakpoint, and running in debug mode pauses there with every variable
+laid out in a panel, no `breakpoint()` line to add or remove. Same idea, less typing. The mental
+model is identical: stop the program, look at the truth, step forward one line at a time until the
+value that was supposed to be one thing turns out to be another.
+
+Both tools share a strategy that beats staring at code: narrow the search by halves. A bug lives
+somewhere in a stretch of code, and rather than read every line, the move is to check the value at a
+point in the middle. If the value is already wrong there, the bug is in the first half, so the whole
+second half can be ignored. If it is still right, the bug is in the second half. One print or one
+breakpoint at the midpoint cuts the suspect region in two, and repeating that a few times drives a
+hunt through hundreds of lines down to a handful in a minute or two. This is the same halving idea
+behind a fast search, applied to a codebase instead of a sorted list, and it is the difference
+between debugging that feels systematic and debugging that feels like flailing. Pick a midpoint, ask
+"is the value right here yet," and let the answer throw away half the code.
+
+The strategy is why placement beats volume. Ten prints scattered everywhere produce ten lines to sift
+through and no clear signal. One print at the right midpoint, chosen on purpose, answers a real
+question and halves the work. The skill is not typing more prints or setting more breakpoints. It is
+choosing where to look so each look eliminates as much as possible.
+
+<Callout type="warning" title="Left-behind breakpoints halt everything">
+A `breakpoint()` line forgotten in the code does not just slow things down, it stops the program
+cold at that line and waits for input that a script or a server has no way to give. A program that
+mysteriously hangs with no output is often a `breakpoint()` someone left in. Pull debug pauses out
+the moment the bug is found, the same discipline that applies to stray print lines.
+</Callout>
+
+## Which tool, when
+
+The choice is not religious. It is about how tangled the state is.
+
+A print or two is right when the question is small and specific: is this list empty here, did this
+branch run, what did the function actually return. The answer is one value, the edit is trivial, and
+the round trip is cheap. Reaching for a debugger to check one number is like renting a crane to hang
+a picture.
+
+The debugger earns its setup when the state is thick: many variables that only make sense together,
+a loop where the bug shows up on some unknown iteration, or a path through several functions where it
+is unclear which one goes wrong. Pausing once and reading the whole situation beats a dozen edit-run
+cycles. Good programmers use both, and the mark of experience is reaching for the right one without
+thinking about it. The wrong instinct is loyalty to one tool: a print die-hard who refuses the
+debugger burns hours on state a breakpoint would have shown in seconds, and a debugger purist sets up
+a full session to check one value a print would have answered instantly. The tool is not the point.
+Seeing the truth with the least effort is.
+
+<Quiz
+  id="dbg-tool-choice"
+  question="When does a debugger clearly beat a quick print statement?"
+  answer={1}
+  options={[
+    "Whenever the code is longer than ten lines, since print does not scale past that.",
+    "When the bug depends on many variables at once or an unknown iteration, so pausing and reading the whole state beats many edit-run cycles for single values.",
+    "Never; print is always the better choice.",
+    "Only in languages other than Python, since Python has no debugger.",
+  ]}
+  explanation="A debugger shines when the situation is complex: lots of related state, or a failure at an unknown point. It lets a program pause once so everything can be read together, instead of editing and re-running for each single value a print would show."
+/>
+
+<Exercise title="Watch a value turn wrong">
+Take a short function you have written that returns something wrong, or write a tiny one on purpose,
+like a loop that is supposed to sum a list but starts its total at 1 instead of 0. Add a labeled
+print inside the loop that shows the running total each pass. Run it and watch the total. The first
+number it prints is where the story breaks: if the loop should start at 0 and the first print says 1,
+the bug is in the starting value, not the loop.
+
+Now add `breakpoint()` on the line just before the return, run it again, and at the `(Pdb)` prompt
+type the name of the total to read it, then type `c` to let the program finish. Notice that the
+debugger showed the same truth the print did, with no code to delete afterward except the one
+breakpoint line. Remove it when you are done.
+</Exercise>
+
+Both tools do the same thing at heart: they make the program's real behavior visible so the gap
+between intent and reality can be seen and closed. Finding a bug this way fixes it once. The next
+lesson, what a test is, is about the follow-through: writing a small piece of code that checks the
+fix and keeps checking it, so the same bug can never quietly come back.
+
+<Notes />

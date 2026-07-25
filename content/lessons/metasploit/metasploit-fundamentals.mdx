@@ -1,0 +1,103 @@
+---
+title: Metasploit Fundamentals
+module: metasploit
+moduleTitle: The Metasploit Framework
+moduleOrder: 17
+moduleIcon: Zap
+order: 1
+summary: One console, a few thousand modules, and a mental model that makes all of it click.
+estimatedMinutes: 15
+objectives:
+  - Start msfconsole and read its module counts
+  - Load a module, set its options, and inspect them
+  - Organize hosts and loot with workspaces
+tags:
+  - metasploit
+  - msfconsole
+  - modules
+---
+
+Metasploit is the single tool people mean when they say "just fire it off in msf." It bundles thousands of exploits, payloads, scanners, and post-exploitation tools behind one console, and it keeps track of every host and credential you touch. The framework is huge, but the mental model is small. Learn the model and the rest is lookup.
+
+Start the database first, then the console. On Kali the database is PostgreSQL, and Metasploit uses it to store hosts, services, and loot across sessions.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "sudo msfdb init", comment: "one-time: create the msf database" },
+    { cmd: "msfconsole -q", comment: "-q skips the banner and loads faster" },
+    { cmd: "db_status", comment: "confirm the console is wired to postgres" },
+  ]}
+/>
+
+<ExpectedOutput label="What db_status prints when it worked">
+```
+[*] Connected to msf. Connection type: postgresql.
+```
+</ExpectedOutput>
+
+## Everything is a module
+
+The whole framework is organized into module types, and every command you run is really "pick a module, configure it, run it." Five types cover almost everything you'll do:
+
+- **exploit** takes advantage of a specific vulnerability to get code running.
+- **payload** is the code that runs after the exploit lands, like a reverse shell.
+- **auxiliary** does everything that is not exploitation: scanners, fuzzers, login brute-forcers.
+- **post** runs against a session you already have, for looting and pivoting.
+- **encoder** reshapes a payload's bytes, usually to dodge a bad character.
+
+When msfconsole starts it prints the counts, something like `2300 exploits`, `1200 auxiliary`, `400 post`. Those numbers are your library.
+
+## Load one and read it
+
+You select a module with `use`, and your prompt changes to show what you're holding. Then `info` tells you what it does and `options` tells you what it needs.
+
+<CommandBlock
+  title="msf6"
+  commands={[
+    { cmd: "use auxiliary/scanner/ssh/ssh_version", comment: "load an SSH version scanner" },
+    { cmd: "info", comment: "description, author, references" },
+    { cmd: "options", comment: "the settings this module needs" },
+    { cmd: "set RHOSTS 10.10.10.5", comment: "target(s), space or CIDR separated" },
+    { cmd: "run", comment: "or 'exploit' for exploit modules" },
+  ]}
+/>
+
+Options with `yes` in the Required column must be filled before the module will run. `RHOSTS` is the remote target, `RPORT` its port, `LHOST` your listening address for callbacks, `LPORT` your listening port. Get in the habit of running `options` right before `run` so you catch a blank `RHOSTS` before it wastes your time.
+
+Some settings apply to every module in the session. Set your own IP once with `setg LHOST 10.10.14.7` (the `g` is for global) and you won't retype it for the rest of the engagement. Clear one with `unset`, or wipe all globals with `unsetg`.
+
+## Workspaces keep engagements apart
+
+By default everything lands in the `default` workspace. On a real assessment you want each client or box separated so `hosts` and `loot` don't blur together. Workspaces are how you do that, and it takes two commands.
+
+<CommandBlock
+  title="msf6"
+  commands={[
+    { cmd: "workspace -a acme_internal", comment: "create and switch to a new workspace" },
+    { cmd: "workspace", comment: "list them; the * marks the active one" },
+    { cmd: "db_nmap -sV 10.10.10.5", comment: "nmap results feed straight into this workspace" },
+    { cmd: "hosts", comment: "everything you've discovered here" },
+  ]}
+/>
+
+`db_nmap` is regular nmap with its output piped into the database, so after a scan the `hosts` and `services` tables fill themselves. That is the payoff of running the database: your recon becomes queryable instead of scrolling back through terminal history.
+
+<Callout type="security" title="Authorized targets only">
+Metasploit throws real exploits at real machines. Only point it at systems you own or have explicit written permission to test, like Hack The Box, a local lab VM, or a scoped engagement. Running an exploit module against a host you are not authorized to touch is a crime in most places, full stop.
+</Callout>
+
+<Quiz
+  id="msf-module-types"
+  question="You have a Meterpreter session on a box and want to dump its saved credentials. Which module type do you reach for?"
+  answer={3}
+  options={[
+    "exploit",
+    "auxiliary",
+    "encoder",
+    "post",
+  ]}
+  explanation="post modules run against an existing session to loot, enumerate, and pivot. Exploits get you the session; post modules work it once you have it."
+/>
+
+<Notes />

@@ -1,0 +1,334 @@
+[
+  {
+    "domain": 1,
+    "question": "An organization is redesigning access so that a user connected to the corporate VPN no longer automatically reaches internal file shares. Every request must be independently authenticated and authorized regardless of its network origin. Which principle best describes this design?",
+    "options": [
+      "Implicit trust based on network location",
+      "Never trust, always verify",
+      "Perimeter-based defense",
+      "Trust but verify"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Zero trust removes the implicit trust granted by network position and requires every access request to be authenticated, authorized, and continuously validated. Perimeter and implicit-trust models assume anything inside the boundary is safe, which is exactly what this redesign rejects.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "In a NIST SP 800-207 zero trust architecture, which two components work together to evaluate an access request against policy and then allow or block the resulting connection? (Choose two.)",
+    "options": [
+      "Policy decision point (PDP)",
+      "Policy enforcement point (PEP)",
+      "Certificate authority (CA)",
+      "Security information and event management (SIEM)"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explanation": "The policy decision point evaluates the request against policy and makes the grant or deny determination, while the policy enforcement point sits in the data path and actually permits or blocks the connection. A CA issues certificates and a SIEM aggregates logs, neither of which makes or enforces the per-request access decision.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A security architect wants to contain east-west movement inside a flat data center network so that a compromised web server cannot reach the database tier unless a policy explicitly allows it. Which approach directly achieves this?",
+    "options": [
+      "Increasing the DHCP lease time",
+      "Microsegmentation",
+      "Deploying a single perimeter firewall",
+      "Enabling jumbo frames"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Microsegmentation applies granular, workload-level policies that restrict east-west traffic between systems, so a compromised host cannot freely pivot. A single perimeter firewall only inspects north-south traffic, and DHCP lease time and jumbo frames are unrelated to segmentation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A company with a distributed remote workforce wants a single cloud-delivered service that combines SD-WAN connectivity with security functions such as secure web gateway, CASB, and zero trust network access. Which model describes this?",
+    "options": [
+      "Secure Access Service Edge (SASE)",
+      "Demilitarized zone (DMZ)",
+      "Network access control (NAC)",
+      "Virtual desktop infrastructure (VDI)"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "SASE converges wide-area networking (SD-WAN) with cloud-delivered security services such as SWG, CASB, ZTNA, and FWaaS into one framework delivered close to the user. A DMZ, NAC, and VDI each cover only a narrow piece and do not describe this converged cloud model.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An enterprise wants visibility and policy enforcement over sanctioned and unsanctioned SaaS applications, including discovering shadow IT and enforcing data loss prevention on cloud data. Which control category is purpose-built for this?",
+    "options": [
+      "Cloud access security broker (CASB)",
+      "Intrusion prevention system (IPS)",
+      "Host-based firewall",
+      "Trusted platform module (TPM)"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A CASB sits between users and cloud services to provide visibility, compliance, data security, and threat protection across SaaS usage, including discovery of shadow IT. An IPS, host firewall, and TPM do not provide cloud application governance.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A cloud security team keeps discovering publicly exposed storage buckets and overly permissive IAM roles across multiple cloud accounts. They want a tool that continuously assesses the cloud control plane for misconfigurations against benchmarks. Which solution best fits?",
+    "options": [
+      "Cloud workload protection platform (CWPP)",
+      "Cloud security posture management (CSPM)",
+      "Web application firewall (WAF)",
+      "Endpoint detection and response (EDR)"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "CSPM continuously evaluates cloud configuration and the control plane, including storage permissions, IAM policies, and network settings, against best-practice benchmarks and flags misconfigurations. A CWPP protects running workloads such as VMs and containers, while a WAF and EDR protect applications and endpoints, not cloud posture.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "Under the cloud shared responsibility model for an Infrastructure as a Service (IaaS) deployment, which task remains the customer's responsibility?",
+    "options": [
+      "Physical security of the data center",
+      "Patching the guest operating system",
+      "Maintaining the hypervisor",
+      "Securing the underlying storage hardware"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "In IaaS the provider secures the physical facility, hardware, and hypervisor, while the customer owns the guest OS, applications, and data, including patching the operating system. The other tasks belong to the provider under IaaS.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "To administer servers in a sensitive management subnet, engineers must first connect to a single hardened, heavily logged host that is the only system permitted to reach that subnet. What is this host called?",
+    "options": [
+      "Jump server (bastion host)",
+      "Proxy ARP responder",
+      "Split-horizon DNS server",
+      "Captive portal"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A jump server, or bastion host, is a hardened and monitored intermediary that provides the single controlled entry point into a protected segment for administrative access. The other options describe DNS, ARP, or guest-network functions, not administrative access brokering.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A data loss prevention deployment is commonly described as protecting data in three states. Which set correctly names those states?",
+    "options": [
+      "Data at rest, data in transit, data in use",
+      "Data hot, data warm, data cold",
+      "Data public, data private, data secret",
+      "Data raw, data staged, data archived"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "DLP solutions address data at rest (stored), data in transit (moving across networks), and data in use (being processed on endpoints). The other groupings describe storage tiers or classification levels, not the DLP data states.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A retailer wants to remove primary account numbers from its internal systems so that stored values have no exploitable mathematical relationship to the original card numbers, reducing PCI DSS scope. Which technique best achieves this?",
+    "options": [
+      "Format-preserving encryption",
+      "Tokenization",
+      "Base64 encoding",
+      "Hashing with a static salt"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Tokenization replaces sensitive values with non-sensitive surrogate tokens that have no algorithmic relationship to the original data, so the real card numbers live only in a separate secured vault and scope shrinks. Encryption still yields recoverable ciphertext tied to a key, encoding is trivially reversible, and hashing cannot restore values that must be reused.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Developers need realistic-looking customer records in a test environment, but real names and Social Security numbers must never appear there. Which technique replaces the sensitive fields with fictional yet structurally valid values?",
+    "options": [
+      "Data masking",
+      "Full disk encryption",
+      "Digital watermarking",
+      "Steganography"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Data masking substitutes sensitive fields with realistic but fake values so non-production environments keep usable structure without exposing real information. Encryption protects confidentiality but keeps recoverable data, watermarking marks ownership, and steganography hides data inside other media.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "What is the primary purpose of assigning labels such as Public, Internal, Confidential, and Restricted to organizational data?",
+    "options": [
+      "To compress the data for storage efficiency",
+      "To determine the level of protection and handling each dataset requires",
+      "To speed up database indexing",
+      "To convert data into a machine-readable format"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Data classification assigns sensitivity levels so the organization can apply appropriate handling, access, and protection controls to each category. Classification governs protection and handling, not compression, indexing performance, or format conversion.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A large enterprise connects dozens of heterogeneous applications through a central messaging backbone that handles routing, protocol translation, and message transformation between services. Which integration component is described?",
+    "options": [
+      "Enterprise service bus (ESB)",
+      "Content delivery network (CDN)",
+      "Reverse proxy cache",
+      "Network time server"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "An enterprise service bus provides a central integration backbone that routes, transforms, and mediates messages between disparate applications in a service-oriented architecture. A CDN distributes content, a reverse proxy cache accelerates web responses, and a time server synchronizes clocks.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An organization exposing internal microservices to external partners wants a single managed entry point that enforces authentication, rate limiting, and request routing for its APIs. Which component provides this?",
+    "options": [
+      "API gateway",
+      "Layer 2 switch",
+      "DHCP relay",
+      "Syslog collector"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "An API gateway acts as a single managed entry point for API traffic, enforcing authentication, throttling, routing, and often logging for backend services. A switch, DHCP relay, and syslog collector serve networking and logging roles unrelated to API management.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "After decomposing a monolith into many microservices, an architect notes that internal service-to-service traffic has grown and needs mutual authentication and encryption without modifying each application. Which technology most directly addresses this?",
+    "options": [
+      "A service mesh with mutual TLS",
+      "A single shared database connection pool",
+      "A larger monolithic load balancer",
+      "Disabling all east-west traffic"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A service mesh injects sidecar proxies that transparently enforce mutual TLS, identity, and policy for east-west service traffic without changing application code. A shared connection pool or larger load balancer does not provide per-service mTLS, and disabling east-west traffic would break the microservices.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "A defender plants a fake set of credentials in a document that has no legitimate use, so that any attempt to use those credentials immediately signals an intrusion. What is this deception artifact called?",
+    "options": [
+      "Honeytoken",
+      "Honeynet",
+      "Sinkhole",
+      "Tarpit"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A honeytoken is bait data, such as fake credentials or a decoy record, whose only purpose is to trigger an alert when it is accessed or used. A honeynet is a whole decoy network, a sinkhole redirects malicious traffic, and a tarpit deliberately slows connections.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Layering multiple independent controls such as firewalls, endpoint protection, network segmentation, and multifactor authentication so that the failure of one control does not lead to full compromise describes which strategy?",
+    "options": [
+      "Defense in depth",
+      "Security through obscurity",
+      "Single sign-on",
+      "Fail-open design"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Defense in depth uses multiple overlapping layers of controls so that if one fails, others still provide protection. Security through obscurity relies on secrecy of design, single sign-on is an authentication convenience, and fail-open removes protection on failure.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A design team wants both nodes of a firewall pair to process traffic simultaneously and share the load, rather than keeping one node idle as a standby. Which high-availability configuration is this?",
+    "options": [
+      "Active-active",
+      "Active-passive",
+      "Cold standby",
+      "Warm site"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "In an active-active configuration all nodes handle traffic at the same time, providing load sharing and higher aggregate throughput. Active-passive keeps a standby idle until failover, and cold standby and warm site describe disaster-recovery site readiness.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A security review flags that containers on a host share the same operating system kernel. Compared with full virtual machines, what is the most significant security implication of this design?",
+    "options": [
+      "Containers cannot be scanned for vulnerabilities",
+      "A kernel vulnerability could enable a container escape that affects other containers on the host",
+      "Containers always require more memory than virtual machines",
+      "Containers cannot use network isolation"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Because containers share the host kernel, a kernel-level vulnerability or misconfiguration can enable a container escape that compromises the host and sibling containers, giving weaker isolation than VMs with separate kernels. Containers can still be scanned, are typically lighter than VMs, and do support network isolation.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "In a SAML-based federation, a user authenticates once at their own organization and is then granted access to a partner's cloud application. Which role does the partner's application play?",
+    "options": [
+      "Identity provider (IdP)",
+      "Service provider (SP)",
+      "Certificate authority (CA)",
+      "Registration authority (RA)"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "In SAML federation the service provider is the relying party that consumes the assertion and grants access to its application, while the identity provider authenticates the user and issues the assertion. A CA and RA are PKI roles, not SAML federation parties.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An architect is tasked with reducing a server's attack surface. Which two actions directly support this objective? (Choose two.)",
+    "options": [
+      "Disabling unused services and closing unnecessary ports",
+      "Removing default and unused user accounts",
+      "Increasing the monitor's screen resolution",
+      "Adding more RAM to the server"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explanation": "Attack surface reduction means eliminating unnecessary exposure, so disabling unused services and ports and removing unneeded accounts both remove potential entry points. Screen resolution and added RAM are performance or hardware attributes that do not change the exploitable surface.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "A company needs to block SQL injection and cross-site scripting attempts against a public web application by inspecting HTTP requests at the application layer. Which control is specifically designed for this?",
+    "options": [
+      "Web application firewall (WAF)",
+      "Traditional stateful packet-filtering firewall",
+      "Layer 2 switch access control list",
+      "Network load balancer"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A WAF inspects and filters Layer 7 HTTP and HTTPS traffic to detect and block application attacks such as SQL injection and cross-site scripting. A stateful packet filter works at lower layers and does not parse application payloads, and a switch ACL and load balancer do not perform application attack filtering.",
+    "difficulty": "MEDIUM"
+  }
+]

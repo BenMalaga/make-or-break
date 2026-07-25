@@ -1,0 +1,150 @@
+---
+title: Tiles, Slippy Maps, and Zoom Levels
+module: gis-web-mapping
+moduleTitle: Web Mapping
+moduleOrder: 6
+moduleIcon: Globe
+order: 1
+summary: "Web maps are stitched together from small square tiles addressed by zoom, x, and y, all drawn in Web Mercator, so panning and zooming never reload the whole page."
+estimatedMinutes: 14
+prerequisites: ["analysis-in-sql"]
+objectives:
+  - Explain what a slippy map is and how tiles let it pan and zoom without reloading
+  - Compute how many tiles exist at a given zoom level using the XYZ addressing scheme
+  - Explain why web maps almost universally use the Web Mercator projection, EPSG:3857
+  - Distinguish raster tiles from vector tiles, and a basemap from an overlay layer
+tags:
+  - gis
+  - web
+  - tiles
+---
+
+The previous lesson ran a spatial query in PostGIS and got back a table of parcels sitting inside a flood zone. That table is only useful once someone can see it drawn on a map, and the map most people reach for lives in a browser: a page that lets a finger or a mouse drag the view sideways, pinch or scroll to zoom in, and never seems to reload from scratch. That kind of map has a name in the industry: a slippy map, because the whole view slides under the cursor instead of jumping to a new static image. Google Maps, openstreetmap.org, and the map inside a delivery app are all slippy maps. Understanding how one is built explains why panning feels instant and why a picture of the whole Earth fits comfortably inside a phone screen.
+
+## A map built from hundreds of small images
+
+A single image of the entire Earth sharp enough to read street names would be enormous, gigabytes for one zoom level alone, and wasteful to send to a phone that is only looking at three city blocks. Slippy maps avoid this by never sending the whole picture. Instead the map is cut into a grid of small square pieces called tiles, and the browser only requests the tiles that fall inside the current view.
+
+A raster tile is usually 256 by 256 pixels, though 512 by 512 has become common on high density phone screens, where a single physical pixel is really four. Each tile shows one square patch of the Earth at one zoom level, pre-rendered as a small image file. Zoom in one level and the same ground area gets covered by four tiles instead of one, each holding twice the detail of before. This is the whole trick behind a map that loads quickly at any zoom: only a screenful of tiles, usually a dozen or so, ever needs to be fetched at once.
+
+## Addressing a tile: zoom, x, and y
+
+Every tile needs an address so software can ask for exactly the right one, and the scheme almost every provider settled on is called XYZ, after its three coordinates. The first, z, is the zoom level. The second and third, x and y, are the tile's column and row inside the grid at that zoom level.
+
+Zoom level 0 is the simplest case: the entire world drawn on a single tile, one image 256 pixels square holding every continent at a resolution too coarse to make out a country's border cleanly. Zoom level 1 splits that single tile into a 2 by 2 grid, four tiles total, each now covering a quarter of the globe at twice the detail. Zoom level 2 splits again into a 4 by 4 grid, sixteen tiles. The pattern holds at every step: each increase in zoom doubles the number of tiles along each axis, so the tile count at zoom z is 2 raised to the power z, squared. By zoom level 10, detailed enough to make out individual streets in a city, the grid is 1024 by 1024, over a million tiles covering the planet, though a single browser tab only ever pulls in the handful that are actually on screen.
+
+Working out which tile covers a given point is a small, well known formula rather than a lookup table. Longitude maps directly onto the x column, since it already runs in a straight line from negative 180 to positive 180. Latitude needs more math, because the standard tile grid is drawn in a projection that stretches near the poles, covered in the next section.
+
+```python
+import math
+
+def deg2num(lat_deg, lon_deg, zoom):
+    lat_rad = math.radians(lat_deg)
+    n = 2.0 ** zoom
+    xtile = int((lon_deg + 180.0) / 360.0 * n)
+    ytile = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
+    return xtile, ytile
+
+print(deg2num(41.8781, -87.6298, 10))
+```
+
+<ExpectedOutput label="the tile that covers downtown Chicago at zoom level 10">
+```
+(262, 380)
+```
+</ExpectedOutput>
+
+That single pair of integers, together with the zoom level 10, uniquely names one 256 pixel square somewhere over Illinois. Every tile server on the internet, whatever company runs it, understands this same three number address, which is exactly why a mapping library can point at any provider's tiles with one line of configuration.
+
+<Quiz
+  id="tiles-zoom-doubling"
+  question="A slippy map holds 64 tiles total at zoom level 3, an 8 by 8 grid. How many tiles make up the full grid at zoom level 4?"
+  answer={2}
+  options={[
+    "128, because each zoom level adds 64 more tiles to the previous count.",
+    "64, because the tile count stays the same and only the images get sharper.",
+    "256, because the grid doubles along both the x axis and the y axis, turning 8 by 8 into 16 by 16.",
+    "32, because zooming in covers less ground, so the grid shrinks by half."
+  ]}
+  explanation="Each step up in zoom doubles the grid in both directions, so an 8 by 8 grid becomes 16 by 16, which is 256 tiles. The count does not grow by a fixed amount, stay flat, or shrink. Zooming in means more, smaller tiles cover the same ground at higher detail, not fewer of them."
+/>
+
+## Why almost every tile speaks Web Mercator
+
+The deg2num formula above did something specific with latitude, running it through a tangent and an inverse hyperbolic sine before dividing by pi. That is not an arbitrary detour. It is the definition of a particular way of flattening the round Earth onto a flat grid of square tiles, called Web Mercator and registered as EPSG:3857. Nearly every basemap tile on the web, from OpenStreetMap to Google Maps to the free public tiles behind most JavaScript mapping libraries, is pre-rendered in this exact projection.
+
+Web Mercator earns its dominance from one narrow, practical property: it keeps the tile grid square. A projection that is conformal, meaning it preserves angles and the local shape of small features, lets a square patch of the Earth stay a recognizable square on the map, so a 256 pixel tile can sit edge to edge with its neighbors without warping into a wedge or a trapezoid. Standard Mercator, the centuries old projection Web Mercator borrows its math from, has exactly this property, which is why it survived the jump from paper nautical charts to browser tiles even though modern cartographers rarely reach for it on a printed map.
+
+The tradeoff is area. A conformal projection cannot also preserve area, so Web Mercator stretches land more and more the further it sits from the equator. Greenland reads as roughly the size of Africa on a Web Mercator map, when Africa is actually about fourteen times larger. Nobody measures real distances or areas by eyeballing a Web Mercator basemap for exactly this reason. The projection is a display convenience built for square tiles, not a tool for measurement.
+
+<Callout type="info" title="4326 for the data, 3857 for the picture on screen">
+GeoJSON, the format most spatial data moves around the web in, stores every coordinate as plain longitude and latitude, the EPSG:4326 reference system, with no projection math applied at all. The tiles drawn underneath that data are in EPSG:3857. Nothing breaks, because the mapping library reprojects the GeoJSON coordinates into Web Mercator pixel space on the fly, every time it draws a frame. The confusion shows up later, when someone tries to measure a real distance or area straight off the screen and gets a number that is far off near the poles, because they measured in the display projection instead of a proper equal area projection or a local UTM zone.
+</Callout>
+
+## Two ways to build the picture: raster and vector tiles
+
+For a long time, every tile on the web was a raster tile: a plain image file, PNG or JPEG, rendered once on a server and cached, with the roads, labels, and colors already baked into the pixels. A raster basemap is simple to serve, since a web server can hand out a folder of static image files with no logic beyond routing the request to the right file. It is also inflexible. Changing the color scheme, hiding a layer of labels, or rotating the map to match a compass heading all mean re-rendering the image, because the tile is just a picture with no memory of what any given pixel represents.
+
+A vector tile flips that around. Instead of a picture, the tile server sends compact binary data, most often in the Mapbox Vector Tile format, describing the actual roads, buildings, and land parcels inside that tile's square: their shapes and their attributes, packed tightly rather than drawn out as pixels. The browser, running a library such as MapLibre GL, does the drawing itself, applying a style sheet that says roads should be gray, water should be blue, and labels should only appear once a certain zoom level. Because the data and the style stay separate, the same vector tiles can be restyled into a dark theme, rotated, or tilted into a 3D perspective, all without asking the server for anything new. Vector tiles also tend to be smaller than an equivalent raster image, since geometry compresses better than pixels do, and they stay sharp on a high density screen where a raster tile would need a much larger image to avoid looking blurry.
+
+The tradeoff runs the other way from raster: a vector tile needs a capable browser doing real styling work on every frame, where a raster tile only ever needs an image tag. Most modern basemaps, including the default styles behind MapLibre and Mapbox, ship as vector tiles now, but plenty of specialty basemaps, aerial imagery in particular, are still raster, because a satellite photo has no discrete features to turn into vector shapes in the first place. It is already just pixels.
+
+<Quiz
+  id="tiles-raster-vs-vector"
+  question="A team wants a basemap that can switch between a light theme and a dark theme instantly, with no new network request, and that stays sharp when rotated. Which kind of tile fits that requirement?"
+  answer={1}
+  options={[
+    "Raster tiles, because pre-rendered images load faster than any other format.",
+    "Vector tiles, because the browser draws the roads and labels itself from a style sheet, so restyling or rotating needs no new data from the server.",
+    "Either kind works identically, since both are requested with the same XYZ addressing scheme.",
+    "Neither, because switching themes always requires a fresh page load regardless of tile type."
+  ]}
+  explanation="Vector tiles carry geometry and attributes, not finished pixels, so a style change or rotation is just the browser redrawing the same data differently, with no server round trip. Raster tiles are baked images: a theme change means fetching an entirely new set of pre-rendered tiles. The two do share the XYZ addressing idea, but that does not make their capabilities the same."
+/>
+
+## Basemap versus overlay
+
+Every web map worth looking at is built from at least two kinds of layer stacked on top of each other, and the distinction matters for anyone deciding what belongs where.
+
+The basemap is the bottom layer: streets, terrain, country borders, place labels, whatever gives a viewer geographic bearings. It rarely changes and is almost never the point of the map on its own. A team building a flood risk map does not usually render its own basemap tiles from scratch. It points to a free or paid basemap provider, such as OpenStreetMap's tile servers, Stamen, or a vendor like MapTiler, and treats the basemap as context, not content.
+
+Everything drawn above that is an overlay: the parcels from the previous lesson's PostGIS query, a route drawn between two addresses, a heat map of reported potholes. Overlays are usually the analyst's own data, delivered as GeoJSON for a modest number of features or as a custom set of vector tiles when the dataset runs into the millions of rows and a browser cannot reasonably hold it all in memory at once. The basemap answers where the viewer is looking. The overlay answers the actual question the map was built to answer.
+
+<Quiz
+  id="tiles-basemap-overlay"
+  question="A flood risk map shows OpenStreetMap streets underneath a set of parcel polygons pulled from a PostGIS query. Which layer is the overlay?"
+  answer={0}
+  options={[
+    "The parcel polygons, because they are the analyst's own data and the actual point of the map.",
+    "The OpenStreetMap streets, because overlays are always the layer drawn first.",
+    "Both layers equally, since overlay and basemap describe the file format, not the drawing order.",
+    "Neither, because a map can only have one layer type active at a time."
+  ]}
+  explanation="The overlay is whatever sits above the basemap and carries the map's actual content, here the parcel polygons. The streets are the basemap, drawn first for context. Overlay and basemap describe role and stacking order, not file format, and a map routinely holds several layers of each kind at once."
+/>
+
+## Reading a tile URL
+
+A tile server exposes its tiles through a URL template with three placeholders standing in for the zoom, x, and y values, something like this:
+
+```
+https://tile.openstreetmap.org/{z}/{x}/{y}.png
+```
+
+A mapping library figures out, from the current pan and zoom, exactly which z, x, y combinations are visible, substitutes the real numbers into that template, and fires off one request per tile. Pan the map ten pixels to the left and most of the previously visible tiles are still needed, unchanged. Only a thin new strip along the right edge needs fresh requests. That is the entire reason a slippy map never looks like it is reloading: it almost never is. It is filling in the sliver of new tiles the pan just exposed and dropping the ones that scrolled off the other side.
+
+Vector tile sources look the same in shape, just pointed at a different file extension, commonly `.pbf` for the Mapbox Vector Tile binary format:
+
+```javascript
+map.addSource("basemap", {
+  type: "vector",
+  tiles: ["https://example.com/tiles/{z}/{x}/{y}.pbf"],
+  maxzoom: 14
+});
+```
+
+<Callout type="warning" title="Public tile servers are not free infrastructure">
+OpenStreetMap's own tile servers are meant for light, occasional use, not as the backbone of a production app. The project's usage policy asks anyone with real traffic to run a self hosted tile server or pay a hosting provider instead. It is an easy trap: a demo built against the free OSM tiles works fine during development, then falls over or gets blocked the day real traffic shows up. Budgeting for a real tile provider, or self hosting tiles from an open dataset, belongs on the checklist before anything ships.
+</Callout>
+
+The next lesson in this module takes an overlay from raw data to something drawn on screen, adding a GeoJSON layer on top of a tile basemap in the browser with MapLibre GL and styling it, the same `addSource` pattern shown above put to actual use.

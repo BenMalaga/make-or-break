@@ -1,0 +1,107 @@
+---
+title: Sigma and YARA
+module: detection-engineering
+moduleTitle: Detection Engineering
+moduleOrder: 37
+moduleIcon: BellRing
+order: 3
+summary: Write a detection once, run it on any SIEM or any file on disk.
+estimatedMinutes: 22
+objectives:
+  - Write a Sigma rule and convert it to your SIEM's query language
+  - Write a YARA rule that matches malware by strings and structure
+  - Choose Sigma for logs and YARA for files and memory
+tags:
+  - detection-engineering
+  - sigma
+  - yara
+  - portable-rules
+---
+
+You wrote a detection for Cobalt Strike beacon activity in Splunk SPL, and next quarter the company migrates to Sentinel. Rewrite everything by hand, or write it once in a portable format and let a converter emit the dialect you need. Sigma and YARA are the two portable formats that matter, and they cover the two things you hunt: log events and files.
+
+Sigma is for logs. YARA is for files and memory. Learn which question you are asking and the tool is obvious.
+
+## Sigma: one rule, every SIEM
+
+A Sigma rule is a YAML file that describes a log source and a detection condition in vendor-neutral terms. A converter turns it into SPL, KQL, Elastic DSL, or whatever backend you run. The SigmaHQ repo on GitHub ships thousands of community rules you can adapt instead of starting cold.
+
+Here is a rule for the Office-spawns-a-shell behavior from the earlier lessons:
+
+```yaml
+title: Office Application Spawns Command Shell
+id: 8f2b0e11-3a4c-4d5e-9f01-2a3b4c5d6e7f
+status: experimental
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    ParentImage|endswith:
+      - '\winword.exe'
+      - '\excel.exe'
+      - '\powerpnt.exe'
+    Image|endswith:
+      - '\cmd.exe'
+      - '\powershell.exe'
+  condition: selection
+falsepositives:
+  - Legitimate document macros in finance workflows
+level: high
+```
+
+The `condition` field is the logic. Everything under `detection` is a named block of matches, and the condition combines them. Convert it with the sigma CLI:
+
+<CommandBlock
+  title="detection-eng@lab"
+  commands={[
+    { cmd: "pip install sigma-cli", comment: "the current pySigma-based tool, replaces the old sigmac" },
+    { cmd: "sigma convert -t splunk office_spawns_shell.yml", comment: "emit a ready-to-paste SPL search" },
+    { cmd: "sigma convert -t kusto office_spawns_shell.yml", comment: "same rule, Sentinel/Defender KQL out the other side" },
+  ]}
+/>
+
+Same YAML, two SIEMs, zero rewriting. That is the entire reason Sigma exists.
+
+## YARA: match the file, not the log
+
+YARA answers a different question: is this specific badness present in a file, a process, or a memory dump? You describe it with strings and a condition, and the YARA engine scans. Incident responders and malware analysts live in it.
+
+```yara
+rule Suspicious_PowerShell_Downloader {
+    meta:
+        author = "lab"
+        description = "Flags PowerShell scripts that download and execute"
+    strings:
+        $a = "DownloadString" nocase
+        $b = "IEX" nocase
+        $c = "FromBase64String" nocase
+    condition:
+        2 of ($a, $b, $c)
+}
+```
+
+The `condition` says match when at least two of those three strings appear, which is loose enough to catch variants and tight enough to skip a script that merely mentions one keyword. Run it across a directory:
+
+<CommandCard command="yara -r downloader.yar /mnt/evidence/" explain="The -r walks the tree recursively. YARA prints the rule name and the path of every file that matched, so you get a target list out of a folder full of unknowns in one pass." />
+
+YARA scans live memory too, which is where fileless malware hides. `yara -r rules.yar <pid>` matches against a running process, catching payloads that never touched disk.
+
+## Which one, when
+
+If your data is an event in a log, that is Sigma. If your data is bytes in a file or a process, that is YARA. Plenty of real detections use both: a Sigma rule flags the suspicious process creation in your SIEM, and a YARA rule confirms what the dropped file actually is once you pull it.
+
+<Callout type="security" title="Scan only what you are authorized to touch">
+YARA rules get pointed at file systems and memory that hold other people's data, and Sigma rules run against production logs. Scan hosts, images, and log stores only when you own them or have written authorization for the engagement. Grabbing a malware sample to test a rule is fine in an isolated lab, never on a shared or production machine.
+</Callout>
+
+<Exercise
+  id="sigma-vs-yara-choice"
+  prompt="You need to detect a known ransomware binary sitting on disk across 500 endpoints by its byte patterns. Sigma or YARA?"
+  answer="yara"
+  placeholder="one word"
+>
+The signal is bytes in a file, not an event in a log. Which tool scans files and memory?
+</Exercise>
+
+<Notes />

@@ -1,0 +1,271 @@
+---
+title: Service and Version Detection
+module: recon-and-scanning
+moduleTitle: Recon and Scanning
+moduleOrder: 3
+moduleIcon: ScanSearch
+order: 4
+summary: "An open port names a door. The version behind it is the lead worth acting on."
+estimatedMinutes: 15
+prerequisites: ["recon-methodology", "host-discovery", "port-scanning-deep-dive"]
+objectives:
+  - Read a service banner off the wire by hand with netcat and curl
+  - Run nmap -sV and explain how its probe-and-match database turns a port into a named product
+  - Turn one exact version string into a concrete list of known vulnerabilities
+  - Pull extra findings from a host with the default NSE scripts under -sC
+tags:
+  - recon
+  - enumeration
+  - nmap
+---
+
+The last lesson ended with a list of open ports. That list is thinner than it
+looks. `22/tcp open` means something is listening on
+<Term id="port">port</Term> 22, and `80/tcp open` means something is listening on
+port 80, and that is the whole of the message. It does not say the program on 22
+is a current release or a five-year-old build with a public break-in already
+written for it. It does not say the thing on 80 is Apache, nginx, or a printer's
+admin page. An open port names a door. It says nothing about the lock.
+
+Service and version detection reads the lock. It turns `80/tcp open` into
+`Apache httpd 2.4.49`, and that exact string is the thing worth searching,
+because a version number maps to a list of published flaws in a way the word
+"open" never can.
+
+The program listening behind a port is its service. The web
+<Term id="server">server</Term> behind 80 is a service, the
+<Term id="ssh">SSH</Term> <Term id="daemon">daemon</Term> behind 22 is a
+service, the mail server behind 25 is a service.
+<Term id="port-scanning">Port scanning</Term> found the ports. This lesson names
+what sits on them.
+
+## A service often announces itself
+
+Many services greet a fresh connection before the client sends a single byte.
+The greeting is a banner, and it frequently carries the software name and its
+exact version in plain text. Reading it is the oldest form of version detection, and it needs
+nothing but a way to open a raw connection.
+
+netcat is that way. It opens a bare <Term id="tcp">TCP</Term> connection and
+hands the raw bytes straight to the screen, with no protocol of its own getting
+in between.
+
+<CommandCard command="nc -nv 10.10.14.23 22" title="linux" explain="netcat opens a raw connection to port 22. -n skips DNS lookups, -v prints the connection status. The SSH daemon sends its banner the instant the socket opens." />
+
+<ExpectedOutput label="What the SSH daemon says on connect">
+```
+SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5
+```
+</ExpectedOutput>
+
+One line, and it is a lot. `OpenSSH_8.2p1` is the exact build, and
+`Ubuntu-4ubuntu0.5` is the distribution's package revision, which pins the host
+to a specific Ubuntu release and patch level. The server volunteered all of it
+before asking for a username.
+
+Not every service is that chatty. A web server usually waits to be asked, so the
+move there is to send a request and read the reply headers instead of the page
+body. curl does it in one line.
+
+<CommandCard command="curl -sI http://10.10.14.23" title="linux" explain="-I sends an HTTP HEAD request, which asks for headers only and no body. -s hides the progress meter. The Server header names the web server and often its version." />
+
+<ExpectedOutput label="The response headers, body discarded">
+```
+HTTP/1.1 200 OK
+Date: Wed, 15 Jul 2026 14:02:11 GMT
+Server: Apache/2.4.49 (Unix)
+Content-Type: text/html; charset=UTF-8
+```
+</ExpectedOutput>
+
+The `Server: Apache/2.4.49 (Unix)` header is the same kind of gift the SSH
+banner handed over: a named product and an exact version, straight off the wire.
+Grabbing banners by hand is the fallback when no scanner is installed on the host
+doing the looking, and it is the confirmation step when a scanner's guess needs a
+second opinion.
+
+<Quiz
+  id="sv-banner"
+  question="A connection to port 22 prints `SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5` before anyone types a thing. What did that one line give up?"
+  answer={0}
+  options={[
+    "The exact SSH software and build version, sent by the server as its banner",
+    "A password prompt ready to be brute forced",
+    "Confirmation that the port is closed",
+    "The server's MAC address",
+  ]}
+  explanation="Many services send a banner the moment a connection opens. This one names the software (OpenSSH), the exact version (8.2p1), and the distribution's package revision, all before authentication even starts."
+/>
+
+## nmap -sV probes what does not volunteer
+
+Plenty of services say nothing useful on connect, or speak a binary protocol
+that means nothing to a human staring at raw bytes. Doing this by hand across
+dozens of ports is slow. <Term id="nmap">nmap</Term> automates the whole job with
+one flag.
+
+`-sV` turns on version detection. For each open port, nmap sends a sequence of
+probes designed to make the service reveal itself, captures whatever comes back,
+and matches it against a large signature database.
+
+<CommandCard command="nmap -sV -p 22,80,443 10.10.14.23" title="linux" explain="-sV probes each listed port for its service and version. Point it only at ports an earlier scan already reported open, so it is not wasting probes on closed ones." />
+
+<ExpectedOutput label="nmap -sV against three open ports">
+```
+PORT    STATE SERVICE  VERSION
+22/tcp  open  ssh      OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
+80/tcp  open  http     Apache httpd 2.4.49 ((Unix))
+443/tcp open  ssl/http nginx 1.18.0
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+```
+</ExpectedOutput>
+
+The `VERSION` column is the payoff. nmap did the banner reading for every port at
+once and folded the results into a clean table, one row per service.
+
+How it reaches those answers is worth knowing, because it explains the times it
+fails. nmap ships a plain-text file called `nmap-service-probes`. Inside are
+hundreds of probes (some just wait for a banner, others send a specific string
+like an HTTP `GET` request or a TLS hello) paired with thousands of match lines.
+Each match line is a regular expression, and when a response fits one, it
+resolves to a product name, a version, and often a CPE. CPE, Common Platform
+Enumeration, is a standardized identifier like
+`cpe:/a:apache:http_server:2.4.49` that a vulnerability database can look up
+directly.
+
+When nothing matches, nmap admits it. It prints the raw response as an
+unrecognized fingerprint and invites a submission upstream, which is honest but
+leaves that port unidentified for now. How hard nmap tries is tunable: `--version-intensity`
+takes a value from 0 to 9, the default is 7, and `--version-all` (intensity 9)
+throws every probe at the port. Louder and slower, but it cracks the stubborn
+services that stay quiet at the default.
+
+## The version is the actual lead
+
+A service name is mildly interesting. The exact version is the thing that gets an
+attacker in, because published <Term id="vulnerability">vulnerabilities</Term>
+are filed against specific versions, not against "Apache" in general.
+
+Take the `Apache httpd 2.4.49` from the scan above. That is not a random build.
+Apache 2.4.49 carries CVE-2021-41773, a path traversal flaw that reaches files
+outside the web root and, on a server with mod_cgi enabled, becomes remote code
+execution, meaning an attacker runs commands on the machine. A CVE, Common
+Vulnerabilities and Exposures, is the industry's unique ID for one publicly known
+flaw, and CVE-2021-41773 belongs to exactly this version line.
+
+The exact number matters more than it looks. Apache's first fix, 2.4.50, turned
+out to be incomplete, so CVE-2021-42013 followed and slipped past it. 2.4.51 was
+the release that actually closed the hole. So `2.4.49` on a banner is a trivial,
+well-documented break-in, `2.4.51` is a patched server, and the two strings
+differ by two characters. Guessing "it is some kind of Apache" tells an attacker
+none of that.
+
+Turning the version into leads is a single move: search the exact string against
+a vulnerability source.
+
+<CommandCard command='searchsploit "Apache 2.4.49"' title="linux" explain="searchsploit queries a local copy of the Exploit-DB archive that ships with Kali. For this string it returns a path traversal and remote code execution entry matching exactly that build." />
+
+searchsploit needs no network because the database sits on disk. Online, the same
+CPE from the `-sV` output feeds the National Vulnerability Database and returns
+the same CVEs with more context. Either way the loop is identical: exact version
+in, known <Term id="vulnerability">vulnerabilities</Term> out. A named
+<Term id="exploit">exploit</Term> with a working proof of concept is often the
+shortest path from a foothold to a <Term id="shell">shell</Term>. This is the
+hinge where <Term id="enumeration">enumeration</Term> becomes attack.
+
+<Callout type="warning" title="A banner is evidence, not proof">
+Banners lie, and not rarely. An administrator can edit the `Server` header to
+read `nginx` on an Apache box, or blank it out entirely. A reverse proxy sitting
+in front reports its own version, not the application behind it. Treat a version
+string as strong evidence, then confirm it a second way before committing to an
+exploit that only works against one exact build. A failed exploit is often a
+truthful attacker running against a faked banner.
+</Callout>
+
+<Quiz
+  id="sv-version-matters"
+  question="A scan reports `Apache httpd 2.4.49` on port 80. Apache 2.4.51 patched a flaw that 2.4.49 still has. Why does that two-character difference matter to an attacker?"
+  answer={1}
+  options={[
+    "It does not. Every Apache version is exploited the same way.",
+    "Vulnerabilities are filed against specific versions, so 2.4.49 has a known exploit that 2.4.51 does not.",
+    "Newer versions are always the easier ones to exploit.",
+    "The version only changes how fast the site loads.",
+  ]}
+  explanation="CVEs are tied to exact version ranges. 2.4.49 carries CVE-2021-41773; 2.4.51 is the fix. Reading 'some Apache' off a banner is nothing to act on. Reading 2.4.49 hands over a documented way in."
+/>
+
+## -sC pulls the details the version number hides
+
+nmap carries a scripting engine, the Nmap Scripting Engine (NSE), and a library
+of scripts sorted into categories. The `-sC` flag runs the ones in the `default`
+category: probes chosen to be useful and unlikely to crash anything. They dig out
+detail a version string alone would never show.
+
+<CommandCard command="nmap -sV -sC -p 21,22,80 10.10.14.23" title="linux" explain="-sV names the versions, -sC runs the default scripts on top of the same open ports. Combining the two is the standard second-pass scan." />
+
+<ExpectedOutput label="-sV -sC, with script output under the ports">
+```
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 3.0.3
+|_ftp-anon: Anonymous FTP login allowed (FTP code 230)
+22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
+80/tcp open  http    Apache httpd 2.4.49 ((Unix))
+|_http-title: Index of /
+|_http-server-header: Apache/2.4.49 (Unix)
+```
+</ExpectedOutput>
+
+The indented lines under each port are the script findings, and one of them is
+already a door. `ftp-anon` reports `Anonymous FTP login allowed`, meaning anyone
+can log into that FTP service with no password at all. The version number on 21
+never said that. On 80, `http-title` reads back the page title, and `Index of /`
+is a directory listing left exposed. Small gifts, and the scripts hand them over
+for free.
+
+There is a shorthand that bundles the lot. `-A` runs `-sV`, `-sC`, OS detection,
+and traceroute in one aggressive pass. It is loud and it is thorough, which makes
+it a fine first look at a lab machine and a poor choice on an engagement where
+staying quiet matters.
+
+<Callout type="tip" title="The two-step scan most people actually run">
+A fast sweep of every port first, then version and script detection aimed only at
+what came back open. The wide scan finds the doors, `-sV -sC` reads what is behind
+them. Skip the second step and the result is a list of open ports and no idea
+what any of them are, which is where a lot of beginners stall.
+</Callout>
+
+<Quiz
+  id="sv-sc-scripts"
+  question="Adding `-sC` to a version scan surfaces a line under port 21: `|_ftp-anon: Anonymous FTP login allowed (FTP code 230)`. What did the default scripts reveal that `-sV` alone would not?"
+  answer={2}
+  options={[
+    "The FTP server's exact version number",
+    "That the port is filtered by a firewall",
+    "That anyone can log into the FTP service with no password",
+    "That the FTP service has crashed",
+  ]}
+  explanation="-sV names the service and version; -sC runs the default NSE scripts on top. The ftp-anon script actually attempted an anonymous login and it worked, which is an open door the version string alone would never reveal."
+/>
+
+<Exercise
+  id="sv-scanme"
+  prompt="Run nmap -sV against scanme.nmap.org, the host the Nmap project keeps online for people to practice scanning. Then grab the same SSH banner by hand with netcat and check that the two agree."
+>
+The Nmap project runs `scanme.nmap.org` as a legal target for exactly this kind
+of practice, so aim at it, not at machines you have no permission to touch. Run
+`nmap -sV scanme.nmap.org` and note the version in the SSH row. Then run
+`nc -nv scanme.nmap.org 22` and read the raw banner. The build string netcat
+prints by hand should match what `-sV` reported. Watching the same answer arrive
+from a database match and from a plain banner read is this whole lesson in two
+commands.
+</Exercise>
+
+Everything to this point drills into one host: its ports, the services on them,
+the versions, and the flaws those versions carry. But one web server rarely
+serves one site. It answers to subdomains nobody linked, virtual hosts that never
+show up in <Term id="dns">DNS</Term>, and directories left off every page. The
+next lesson widens the target from a single machine to everything hiding behind
+it.
+
+<Notes />

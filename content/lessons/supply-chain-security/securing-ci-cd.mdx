@@ -1,0 +1,77 @@
+---
+title: Securing CI/CD
+module: supply-chain-security
+moduleTitle: Software Supply Chain Security
+moduleOrder: 52
+moduleIcon: Truck
+order: 4
+summary: Your CI runner holds deploy keys, cloud tokens, and signing secrets, and it runs whatever a pull request tells it to.
+estimatedMinutes: 22
+objectives:
+  - Explain why a CI runner is one of the highest-value targets in your infrastructure
+  - Recognize the pull_request_target and self-hosted runner traps
+  - Apply least privilege to pipeline tokens and secrets
+tags:
+  - ci-cd
+  - github-actions
+  - secrets
+  - least-privilege
+---
+
+A CI runner is a machine that holds your deploy credentials, your cloud tokens, and often your signing keys, and then executes code from your repository automatically on every push. Sit with that. You built a box with the keys to production and wired it to run scripts on demand. If an attacker gets code execution on that runner, they do not need to break into production. Production trusts the runner already.
+
+The Codecov breach in 2021 is the clean example. Attackers modified the Codecov Bash uploader script, which ran inside thousands of customers' CI pipelines. Every one of those pipelines dutifully executed the tampered script, which scooped up environment variables (the secrets) and shipped them out. The customers were not hacked directly. Their CI ran the malicious code for them, exactly as designed.
+
+## The pull_request_target trap
+
+GitHub Actions has a footgun so common it has a name. A normal `pull_request` workflow from a fork runs with a read-only token and no secrets, which is safe. So maintainers switch to `pull_request_target` to get secrets and write access for things like labeling PRs. The catch: `pull_request_target` runs in the context of the base repo, with its secrets, but if the workflow checks out and runs code from the PR branch, it just handed a total stranger's code your secrets and a write token.
+
+Security researchers call this a "pwn request." An attacker opens a PR that edits a build script, your workflow runs it under `pull_request_target`, and their code reads `secrets.DEPLOY_KEY` and ships it out. The fix is blunt: never check out and run untrusted PR code in a privileged workflow context.
+
+<CommandBlock
+  title="the pattern to hunt for in workflows"
+  commands={[
+    { cmd: "on: pull_request_target", comment: "privileged context, has secrets and write token" },
+    { cmd: "  uses: actions/checkout@v4 with: ref: PR head", comment: "danger: checking out untrusted code" },
+    { cmd: "  run: npm install && npm test", comment: "that untrusted code now runs with your secrets" },
+  ]}
+/>
+
+## Self-hosted runners are a soft target
+
+Self-hosted runners are convenient and dangerous. By default, if a self-hosted runner is attached to a public repo, a fork PR can run jobs on it, which means an attacker's code runs on your hardware, inside your network. Worse, the default runner is non-ephemeral, so one job can leave a backdoor, a modified toolchain, or a poisoned cache for the next job to trip over. If you run self-hosted, make them ephemeral, one clean VM per job, and never attach them to public repos without isolation.
+
+## Least privilege, applied
+
+Most pipelines run with far more power than the job needs. The default `GITHUB_TOKEN` used to grant broad write scope. Lock it down per workflow and hand back only what the job uses. Set the block at the top of the workflow so the token drops to read-only on contents while still allowing OIDC minting:
+
+```yaml
+permissions:
+  contents: read
+  id-token: write
+```
+
+A workflow that only builds and tests should not carry write access to your repo. Declare the minimum and nothing else.
+
+Stop pasting long-lived cloud keys into CI secrets. Use OIDC instead: the runner requests a short-lived token from your cloud provider, scoped to that exact workflow, that expires in minutes. There is no static `AWS_SECRET_ACCESS_KEY` sitting in the settings for an attacker to steal, because the credential does not exist until the job asks for it and is dead before the job ends.
+
+<Callout type="security" title="Break pipelines you are authorized to break">
+Test these attacks only against repos and runners you own or have explicit written scope to assess. A spare GitHub org with a public test repo and a throwaway self-hosted runner in a disposable VM is the right lab. Firing pwn-request payloads at another project's Actions, or attaching to a runner you were not given, is unauthorized access and it is logged in detail. Learn the attack on your own pipeline so you can find it in someone else's with permission.
+</Callout>
+
+The mindset shift is to treat CI/CD as production, because it is. Scope every token to the single job that needs it, keep secrets out of any context that runs untrusted code, make runners ephemeral, and prefer short-lived OIDC tokens over static keys. A pipeline that follows those four rules turns a Codecov-style compromise from a company-ending secret dump into a contained, boring failure.
+
+<Quiz
+  id="cicd-oidc"
+  question="Why is OIDC-based cloud authentication in CI safer than storing a long-lived AWS_SECRET_ACCESS_KEY as a pipeline secret?"
+  answer={1}
+  options={[
+    "OIDC tokens are encrypted and static keys are not",
+    "The credential is short-lived and minted per job, so there is no standing secret to steal",
+    "OIDC removes the need for any permissions on the token",
+    "Static keys cannot be used with cloud providers",
+  ]}
+  explanation="With OIDC the runner requests a short-lived, workflow-scoped token that expires in minutes. There is no persistent secret sitting in settings, so a runner compromise cannot exfiltrate a durable cloud credential."
+/>
+
+<Notes />

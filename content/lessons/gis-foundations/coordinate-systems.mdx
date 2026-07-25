@@ -1,0 +1,131 @@
+---
+title: Coordinate Reference Systems and the Shape of the Earth
+module: gis-foundations
+moduleTitle: GIS Foundations
+moduleOrder: 1
+moduleIcon: Compass
+order: 3
+summary: "A pair of coordinates only means something once a coordinate reference system says what model of the Earth those numbers are measured against."
+estimatedMinutes: 15
+prerequisites: ["spatial-data-models"]
+objectives:
+  - Explain why a bare pair of coordinates is meaningless without a stated coordinate reference system
+  - Describe why the Earth is modeled as an ellipsoid rather than a sphere, and what a datum adds on top of that model
+  - Read an EPSG code and state which datum and coordinate system it identifies, including EPSG:4326 and EPSG:4269
+  - Recognize the beginner mistake of treating any two sets of latitude and longitude values as automatically aligned
+tags:
+  - gis
+  - crs
+  - coordinates
+---
+
+Two datasets can each be perfectly accurate and still land in different places the moment they are stacked on the same map. A county survey crew hands over the coordinates of a property corner. A phone's GPS app records coordinates for that same corner. Both numbers are correct by their own rules, and both can sit ten or more meters apart on screen. The previous lesson covered the two ways a GIS stores the world: features built from points, lines, and polygons on one side, grids of cells on the other. Neither model means anything if the numbers inside it are not tied to an agreed frame. This lesson is about that frame.
+
+## A bare coordinate is not a location
+
+The pair 40.7128, -74.0060 looks like a location, and it is one, somewhere in New York City. It only works because everyone reading it silently agrees on the rules behind those two numbers: which direction they count from, and what shape of the Earth they are measured against. Change either rule and the same two numbers can point somewhere else entirely, sometimes a city block away, sometimes an ocean away.
+
+A coordinate reference system, shortened to CRS, is that set of agreed rules. It defines a model of the Earth's shape, an anchor tying that model to the real planet, and the units used to measure against it, degrees of latitude and longitude, or meters on a flat grid. A coordinate with no stated CRS is just two numbers with no meaning attached to them. Every well-built GIS file carries its CRS alongside the data for exactly this reason. A GeoPackage stores it in its own metadata table, a GeoJSON file assumes one by convention without writing it down, and a column in a PostGIS table records it as a numeric code next to every geometry. The coordinates travel, and the rulebook that explains them has to travel with them.
+
+Most beginners meet one flavor of CRS first, because latitude and longitude are the coordinates almost everyone already recognizes. A geographic CRS places every point directly on a model of the Earth using angles: latitude for north-south position, longitude for east-west. There is no flattening involved and no flat grid, just angles measured outward from the center of the modeled Earth to its surface. That phrase, model of the Earth, is carrying more weight than it looks like.
+
+## The Earth is not a sphere
+
+A classroom globe is a sphere, and treating the planet as one is close enough for a mental picture. It is not close enough for a coordinate that has to line up with a real fence line or a real flood gauge. The Earth spins, and that spin bulges the equator outward while flattening the poles slightly inward. The result is not a sphere. It is an ellipsoid: a shape like a sphere, squashed a little along its axis.
+
+The squashing is small, a difference of roughly 21 kilometers between the equatorial radius and the polar radius on a planet about 6,371 kilometers across on average, but it is not small enough to ignore. A calculation that assumes a perfect sphere drifts from reality by hundreds of meters over a long distance. Every serious CRS defines its ellipsoid with two specific numbers instead: the length of the equatorial radius, and how much the shape flattens toward the poles. WGS84, the ellipsoid nearly all modern GIS work is built on, sets the equatorial radius at 6,378,137.0 meters and a flattening of about one part in 298.257.
+
+An ellipsoid by itself is still just a mathematical shape floating in space. It has to be pinned to the actual, lumpy, mountain-and-trench planet underneath it, and that pinning is the job of a datum.
+
+## A datum ties the model to the ground
+
+A datum is the specific choice of how an ellipsoid sits against the real Earth: which point or points on the actual surface anchor it, and how it is oriented. Two datums can share the exact same ellipsoid and still disagree about where that ellipsoid sits relative to real ground, which means one latitude and longitude value can point at two different real spots depending on which datum produced it.
+
+WGS84, short for World Geodetic System 1984, is a global datum, originally developed by the US Department of Defense and refined over time as measurements of the Earth improve. It is anchored to the planet's actual center of mass, which makes it usable anywhere on Earth without a regional adjustment. NAD83, the North American Datum of 1983, is a regional datum built to fit North America specifically, anchored differently, and historically very close to WGS84 across the continental United States, typically within a meter or two.
+
+The gap that actually surprises beginners shows up with an older datum: NAD27, the North American Datum of 1927, which predates satellite measurement entirely and was built by chaining ground surveys across the continent by hand. A coordinate recorded in NAD27 commonly sits somewhere between 20 and 100 meters away from the same real-world point expressed in WGS84, depending on where in North America it falls. Load an old NAD27 survey file next to a modern WGS84 basemap without reprojecting it first, and roads that should overlap sit noticeably offset, buildings land in the wrong yard, and a property line drawn to a real fence misses that fence by the length of a car.
+
+<Callout type="info" title="Datums keep drifting, even the modern ones">
+NAD83 and WGS84 are close enough to treat as identical for a walking-tour map, but the North American tectonic plate drifts a few centimeters a year relative to the Earth's center of mass, which is what WGS84 is anchored to. Newer realizations of each datum have pulled slowly apart, and the gap between NAD83 and current WGS84 now reaches one to two meters in parts of the continental US. That is nothing for a tourist map and everything for a survey crew staking a foundation.
+</Callout>
+
+<Quiz
+  id="crs-datum-purpose"
+  question="An ellipsoid describes a mathematical shape for the Earth. What does a datum add on top of that?"
+  answer={2}
+  options={[
+    "A datum converts latitude and longitude into meters on a flat grid.",
+    "A datum makes the ellipsoid perfectly spherical so calculations are simpler.",
+    "A datum anchors the ellipsoid to the real Earth, fixing where and how it sits relative to actual ground.",
+    "A datum is just another name for an ellipsoid, the two terms mean the same thing.",
+  ]}
+  explanation="The ellipsoid is only a shape. A datum pins that shape to the real planet at a specific anchor point and orientation, which is why two datums sharing the same ellipsoid can still disagree about where a given latitude and longitude actually falls on the ground. Converting to meters on a flat grid is the job of a projection, covered in the next lesson, and an ellipsoid is never made perfectly spherical, that is the whole reason it exists."
+/>
+
+## EPSG codes name a CRS without spelling it out
+
+Writing out an ellipsoid, its anchor point, and its units every time a dataset needs to state its CRS would be unworkable. GIS software instead uses EPSG codes: short numeric IDs maintained by a registry, originally kept by the European Petroleum Survey Group and now by the International Association of Oil and Gas Producers, where each number stands for one fully specified CRS.
+
+EPSG:4326 is WGS84 in plain latitude and longitude, with no projection applied. It is the single most common code in GIS, the default assumption behind GeoJSON, and the coordinate system a raw GPS reading comes back in. EPSG:4269 is NAD83, geographic coordinates fit to North America. Typing "EPSG:4326" into QGIS, GeoPandas, or a PostGIS query is instant and unambiguous, where describing the same CRS in a sentence would take a paragraph and still leave room to get it wrong. A site like epsg.io looks up any code and shows exactly what it defines.
+
+Software leans on these codes constantly. A GeoPandas GeoDataFrame carries its CRS as a `crs` attribute holding an EPSG reference. A PostGIS geometry column stores an SRID, the same kind of numeric code, right alongside every row. Reprojecting a dataset in Python is often one line once both EPSG codes are known:
+
+```python
+import geopandas as gpd
+
+parcels = gpd.read_file("parcels.gpkg")
+print(parcels.crs)
+parcels_wgs84 = parcels.to_crs(epsg=4326)
+```
+
+<ExpectedOutput label="the dataset reports its current CRS before any conversion runs">
+```
+EPSG:4269
+```
+</ExpectedOutput>
+
+That single printed line tells an analyst the parcels file arrived in NAD83, not WGS84, before a single distance or overlay calculation runs against it. Skipping that check is exactly how two files that each look fine on their own end up misaligned the moment they are drawn together.
+
+## Datum and projection are not the same job
+
+Two words get blurred together constantly in early GIS work: datum and projection. A datum, everything covered above, decides what model of the Earth a set of numbers is measured against, and where that model sits relative to the real ground. A projection, the subject of the next lesson, is a different job entirely: taking coordinates off the curved surface of that model and flattening them onto a flat plane, the kind of flat x and y a screen or a printed page actually needs.
+
+A geographic CRS like EPSG:4326 has a datum, WGS84, but no projection. Its coordinates are still angles on a curved surface, degrees of latitude and longitude, not flat meters. A projected CRS, such as EPSG:3857, the Web Mercator projection behind most web maps, or a UTM zone used for local metric work, starts from a geographic CRS and applies a mathematical projection on top of it to produce flat coordinates in meters or feet. Every projected CRS depends on a datum underneath it. A datum on its own does not depend on any projection at all.
+
+<Quiz
+  id="crs-epsg-lookup"
+  question="A dataset's metadata reports its CRS as EPSG:4326. What does that tell an analyst?"
+  answer={0}
+  options={[
+    "The coordinates are latitude and longitude on the WGS84 datum, unprojected, the same system a raw GPS reading and most GeoJSON files use by default.",
+    "The coordinates are already flattened into meters using the Web Mercator projection.",
+    "The dataset uses the NAD83 datum fit specifically to North America.",
+    "The EPSG code only describes units, so the underlying datum is still unknown.",
+  ]}
+  explanation="EPSG:4326 is the code for WGS84 geographic coordinates: latitude and longitude on the WGS84 ellipsoid and datum, with no projection applied. Web Mercator carries a different code, EPSG:3857. NAD83 geographic coordinates carry the code EPSG:4269, a separate registry entry entirely. An EPSG code fully specifies a CRS, including its datum, not just a unit of measurement."
+/>
+
+## GPS, and the mistake almost everyone makes once
+
+Every GPS satellite broadcasts its own position in WGS84, and every consumer GPS receiver, in a phone, a car, a fitness watch, computes and reports its fix in WGS84 by default. That is why WGS84 and EPSG:4326 show up everywhere in modern GIS work: it is the coordinate system the entire global satellite positioning network speaks natively, and most current data collection inherits it without anyone choosing it on purpose.
+
+The mistake nearly every beginner makes at least once is assuming any two sets of latitude and longitude numbers are automatically comparable, just because they look like the same kind of number. A historical survey layer digitized from a 1960s paper map, a parcel boundary pulled from an older county records system, an aerial photograph georeferenced years ago: any of these can carry a datum other than WGS84, sometimes NAD27, sometimes a national datum from outside North America entirely, such as ED50 across parts of Europe or the Tokyo Datum still lurking in some older Japanese data. Two files that both name their columns "lat" and "lon" are not necessarily speaking the same language.
+
+The fix is not complicated once the trap is known. An analyst checks the CRS a file declares before combining it with anything else, reprojects it to a shared CRS if it does not already match, and never assumes a coordinate pair is safe to compare against another just because the numbers fall in a familiar range. QGIS shows a layer's CRS in its properties panel and in the bottom right corner of the map canvas. GeoPandas exposes it through `.crs`. A PostGIS table exposes it through the SRID on its geometry column. The check costs one line or one glance. Skipping it costs an afternoon spent debugging a map where nothing quite lines up.
+
+<Quiz
+  id="crs-gps-assumption"
+  question="A beginner loads two datasets, both with columns named latitude and longitude, and overlays them without checking anything else. What is the most likely source of misalignment if the layers do not match up?"
+  answer={3}
+  options={[
+    "GPS receivers report coordinates in a randomly chosen datum, so nothing can ever be trusted without manual correction.",
+    "Latitude and longitude values are always interchangeable between datasets, so the layers should already align.",
+    "GeoJSON files can never carry an implied coordinate reference system, which makes this kind of mismatch unfixable.",
+    "The two datasets may be recorded in different datums, so the same-looking numbers point at different real locations until both are reprojected to a shared CRS.",
+  ]}
+  explanation="Same-looking latitude and longitude columns do not guarantee the same datum. One file might be modern WGS84 while another carries an older datum like NAD27, and the fix is to check each file's CRS and reproject to a common one before overlaying them. GPS receivers consistently default to WGS84 rather than a random choice, GeoJSON does carry an implied CRS convention by default, and coordinates from different datums are exactly not interchangeable, which is the entire problem here."
+/>
+
+## What carries forward
+
+A coordinate reference system answers where a number sits on a model of the Earth. It does not yet answer how that number gets drawn on a flat screen or a printed page, which takes a separate step: a projection, a mathematical recipe for flattening a curved surface, and the tradeoffs baked into every one of those recipes. That is the next lesson.

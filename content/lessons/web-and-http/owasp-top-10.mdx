@@ -1,0 +1,262 @@
+---
+title: The OWASP Top 10
+module: web-and-http
+moduleTitle: Web and HTTP
+moduleOrder: 5
+moduleIcon: Globe
+order: 5
+summary: "The ten most common classes of web bug, what each one means, and the order a tester works them."
+estimatedMinutes: 17
+prerequisites: ["http-fundamentals", "how-web-apps-work", "cookies-sessions-auth", "intercepting-proxies"]
+objectives:
+  - Explain what the OWASP Top 10 is and how OWASP builds it from real data
+  - Describe each of the ten 2025 categories in a sentence
+  - Match a symptom, like a 200 where a 403 belonged, to the right category
+  - Turn the list into a testing order that starts with access control
+tags:
+  - web
+  - owasp
+  - vulnerabilities
+---
+
+The last lesson left you in the middle of the traffic with an intercepting
+proxy, able to catch one request in Repeater, change a single field, and resend
+it to watch the <Term id="server">server</Term> react. That is a scalpel. What
+it does not tell you is where to cut. The OWASP Top 10 is the map that answers
+that. It names the ten kinds of mistake web applications make most often, so a
+tester knows what to poke at before wasting an afternoon on the wrong thing.
+
+## What the list actually is
+
+OWASP, the Open Worldwide Application Security Project, is a nonprofit that
+publishes free security material. Its best-known document is the Top 10: a
+ranked list of the most common categories of weakness in web applications. OWASP
+rebuilds the list every few years from data submitted by hundreds of
+organizations, counting how often each kind of flaw actually shows up in real
+code, then checks the ranking against a survey of working practitioners. The
+current edition is 2025. The one before it was 2021, and plenty of older
+tutorials still quote that version, so the numbers shift depending on when
+something was written.
+
+Two things the list is not. It is not a full inventory of everything that can go
+wrong, and it is not a standard anyone gets certified against. It is an awareness
+document. A defender reads it as a checklist of what to harden. A tester reads
+the same list as a menu of questions to ask a target, ordered roughly by how
+much trouble each one causes.
+
+One point trips people up early. Each entry is a category, not a single bug.
+Injection is not one <Term id="vulnerability">vulnerability</Term>. It is a
+family that holds SQL injection, command injection, and cross-site scripting,
+grouped because they share one root cause. So a finding written up as "A05
+Injection" is naming the family a specific bug belongs to, not the exact bug
+itself.
+
+<Quiz
+  id="owasp-category-not-bug"
+  question="The OWASP Top 10 lists Injection as a single entry, yet SQL injection and cross-site scripting are different attacks. What does one entry on the list represent?"
+  answer={0}
+  options={[
+    "A category of related weaknesses that share a root cause, not one specific bug",
+    "The single most common individual vulnerability found that year",
+    "A specific tool used to detect that weakness",
+    "A patch that removes the weakness from a framework",
+  ]}
+  explanation="Every entry is a family. Injection covers SQL injection, command injection, cross-site scripting, and more, grouped because they all come from mixing untrusted input into code. The list ranks families, not individual bugs."
+/>
+
+## A01 to A05, the top of the list
+
+**A01 Broken Access Control** sits at number one, where it sat in 2021 too. The
+app checks who someone is when they log in, then forgets to check what that
+person is allowed to reach on the requests that follow. A user logged into an
+ordinary account sends GET /api/orders/1002 when only order 1001 is theirs, and
+the server answers 200 OK with someone else's data instead of 403 Forbidden.
+Calling an admin-only route directly, or flipping a role=user field to
+role=admin, lives here too. New in 2025, Server-Side Request Forgery folded into
+this category: tricking the server into fetching a <Term id="url">URL</Term> it
+should never touch, such as the cloud metadata address
+http://169.254.169.254/, reaches straight past the
+<Term id="firewall">firewall</Term> to internal-only services.
+
+**A02 Security Misconfiguration** climbed from fifth in 2021 to second in 2025.
+Nothing here is a coding bug. It is a setting left in an unsafe default: a
+directory that lists its own files to any visitor, a debug console still switched
+on in production, a stack trace printed straight into a 500 Internal Server
+Error, or a default admin login nobody changed. A missing response
+<Term id="header">header</Term> like Strict-Transport-Security belongs here as
+well, and so does the Server header that helpfully announces the exact software
+version running.
+
+**A03 Software Supply Chain Failures** is the 2025 rename and expansion of what
+used to be Vulnerable and Outdated Components. Almost no app is written from
+scratch. It is assembled from libraries, frameworks, and container images built
+by other people. When one of those pieces has a published flaw, or was tampered
+with before it ever reached the project, the app inherits the problem. An
+attacker reads a version string off a page or a header, looks it up in a public
+vulnerability database, and finds a ready-made <Term id="exploit">exploit</Term>.
+The 2025 scope widened past "old library" to cover the whole chain, including
+poisoned build pipelines and malicious packages pulled from a registry.
+
+**A04 Cryptographic Failures** dropped from second to fourth, which does not make
+it small. This is sensitive data protected badly or not at all. A login form
+served over plain <Term id="http">HTTP</Term> instead of
+<Term id="https">HTTPS</Term> sends the password across the wire in the clear for
+anyone on the path to read. Passwords stored with a fast, unsalted hash fall to
+cracking in hours. Secrets hard-coded into a page, or
+<Term id="tls">TLS</Term> configured to accept a decade-old cipher, sit here too.
+The failure is rarely the math itself. It is data that should have been
+encrypted and was not, or was encrypted in a way that no longer holds.
+
+**A05 Injection** fell from third to fifth, and only because other categories
+rose, not because it got rare. The app takes input and drops it straight into a
+query, a shell command, or an HTML page without keeping data and code apart. A
+single quote typed into a login field that makes the database throw an error is
+the classic tell of SQL injection. A script tag stored in a comment that then
+runs in the next visitor's browser is cross-site scripting. Different targets,
+same root mistake: the app never drew a line between the input and the
+instructions around it.
+
+<Quiz
+  id="owasp-symptom-a01"
+  question="Logged in as an ordinary user, a tester changes a request from GET /api/orders/1001 to GET /api/orders/1002 and the server replies 200 OK with another customer's order. Which 2025 category is this?"
+  answer={0}
+  options={[
+    "A01 Broken Access Control",
+    "A05 Injection",
+    "A07 Authentication Failures",
+    "A04 Cryptographic Failures",
+  ]}
+  explanation="The tester authenticated fine. The server just never checked whether that account owned order 1002. Reaching another user's record by editing an identifier is broken access control, the pattern known as an insecure direct object reference."
+/>
+
+## A06 to A10, the rest of the list
+
+**A06 Insecure Design** is the flaw no patch fixes, because nothing was
+implemented wrong. The design itself is the problem. A password-reset flow that
+lets anyone reset anyone's account, a checkout that trusts the price the
+<Term id="client">client</Term> sends instead of looking it up on the server, a
+coupon with no cap on how many times it applies. The code does exactly what it
+was told to do. What it was told to do was unsafe, so the fix is a rethink, not a
+one-line change.
+
+**A07 Authentication Failures**, renamed from Identification and Authentication
+Failures in 2025, is the login itself being weak. No lockout, so an attacker can
+try stolen username and password pairs all day, an attack called credential
+stuffing. A <Term id="session-id">session id</Term> short or predictable enough
+to guess. No second factor on an admin account. A
+<Term id="cookie">cookie</Term> that carries a <Term id="session">session</Term>
+and never expires. The identity is checked, but checked so loosely that an
+attacker can walk in wearing it.
+
+**A08 Software or Data Integrity Failures** is the app trusting code or data it
+never verified. An auto-update that installs a package without checking a
+signature, so a swapped file runs as if it were genuine. A program that rebuilds
+an object out of serialized data supplied by the user and executes whatever that
+data describes, the bug known as insecure deserialization. The common thread is a
+missing integrity check on something that arrived from outside.
+
+**A09 Security Logging and Alerting Failures** was renamed in 2025 to stress the
+second half. If the app does not record failed logins, identifier tampering, and
+server errors, and nothing raises an alarm when those pile up, an attacker can
+probe for weeks and no one notices. A log nobody reads and no alert fires on is
+barely better than no log at all. This is the category that decides whether an
+attack is caught in an hour or surfaces in a breach report a year later.
+
+**A10 Mishandling of Exceptional Conditions** is brand new in 2025. It covers how
+an app behaves when something goes wrong. An error that spills a stack trace or
+an internal file path to the user. A permission check that fails open, so a
+denied action quietly goes through when the check itself errors. Logic that comes
+apart on an input the developer never planned for. Normal operation looks fine.
+The cracks show only when the app is pushed off the happy path, which is exactly
+where an attacker aims.
+
+## How the list guides a test
+
+The ranking is not decoration. It runs roughly from most damage to least, which
+is also a sane order to test in. Start at the top and work down.
+
+A01 earns first place on a real engagement because it needs no exploit code at
+all, only a valid low-privilege login and the patience to try every identifier,
+every route, and every action the interface tried to hide. Every one of these
+questions gets sharper after <Term id="enumeration">enumeration</Term>, the step
+where a tester maps the app's routes, parameters, cookies, and software versions
+before touching any of them.
+
+The simplest access-control probe is changing an identifier and reading the
+status code that comes back.
+
+<CommandCard
+  command="curl -s -b cookies.txt -o /dev/null -w '%{http_code}\n' https://shop.example.com/api/orders/1002"
+  title="linux"
+  explain="Sends the saved session cookie with a request for an order id that is not this account's. The -w flag prints only the response status code, so the answer is one number. A 200 where a 403 belonged is broken access control."
+/>
+
+<ExpectedOutput label="the order belonged to another user, and the server served it anyway">
+```
+200
+```
+</ExpectedOutput>
+
+Two of the categories, misconfiguration and supply chain, often give themselves
+away in the response headers before any probing starts. A HEAD request pulls the
+headers without the body.
+
+<CommandCard
+  command="curl -sI https://shop.example.com/"
+  title="linux"
+  explain="The -I flag sends a HEAD request and prints only the response headers. The Server and X-Powered-By lines name the software, and sometimes the exact version, which is the first thing to check against a vulnerability database."
+/>
+
+<ExpectedOutput label="illustrative headers from one target; every server answers differently">
+```
+HTTP/1.1 200 OK
+Server: nginx/1.18.0
+X-Powered-By: PHP/7.4.3
+Content-Type: text/html; charset=UTF-8
+```
+</ExpectedOutput>
+
+That version disclosure is two findings in one. The exposed banner is A02
+Security Misconfiguration, and if either version has a public advisory, chasing
+it is A03 Software Supply Chain Failures. The list is a set of question types.
+For each request a target answers, a tester asks which of the ten mistakes this
+app might be making right here.
+
+<Quiz
+  id="owasp-ssrf-2025"
+  question="A feature lets a user submit a URL and the server fetches it. A tester points it at http://169.254.169.254/ and the server returns internal cloud metadata. In the 2025 list, which category covers this?"
+  answer={1}
+  options={[
+    "A02 Security Misconfiguration",
+    "A01 Broken Access Control",
+    "A09 Security Logging and Alerting Failures",
+    "A10 Mishandling of Exceptional Conditions",
+  ]}
+  explanation="Server-Side Request Forgery was folded into A01 Broken Access Control in the 2025 edition. The server reaches a resource it should never be allowed to touch, on the attacker's behalf, which is an access-control failure at heart."
+/>
+
+<Exercise title="Turn the list into a test plan">
+Pick a target you are authorized to test, such as the OWASP Juice Shop lab or a
+practice range you set up yourself. Never point this at a site you do not own or
+have written permission to attack.
+
+Start at A01, the top of the list, because it needs no exploit. Log in as a
+low-privilege account and browse until you find a request that carries an
+identifier you control, like GET /api/orders/1001. Send it to Repeater in your
+proxy, change the id to 1002, and resend.
+
+Read the status code. A 403 Forbidden means the check held. A 200 OK carrying
+someone else's data means you found broken access control. Write down the
+request, both responses, and the category it falls under. That one note is the
+seed of a real finding.
+</Exercise>
+
+The Top 10 is the map. It tells a tester what exists and roughly what to reach
+for first, but it stops at the category boundary and hands over nothing about how
+to actually break in. That is the next module, Web Application Attacks, where
+each of these risks stops being a name on a list and becomes a hands-on attack:
+building the injection string that dumps a database, stealing the session cookie
+that logs you in as someone else, and forcing the server-side request that walks
+past the firewall.
+
+<Notes />

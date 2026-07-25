@@ -1,0 +1,108 @@
+---
+title: tcpdump Fundamentals
+module: traffic-analysis
+moduleTitle: Traffic Analysis
+moduleOrder: 4
+moduleIcon: Activity
+order: 1
+summary: Capture, read, and save packets from the command line before you ever open a GUI.
+estimatedMinutes: 17
+objectives:
+  - Capture live traffic on a chosen interface with tcpdump
+  - Read tcpdump's output line by line without guessing
+  - Save a capture to a pcap file for later analysis
+tags:
+  - traffic-analysis
+  - tcpdump
+  - packets
+---
+
+Before you can attack a network you have to see it. `tcpdump` is the fastest way
+to watch raw packets go by, and it lives on almost every Linux box you will ever
+land on. No GUI, no dependencies, just a socket and a screen. Learn it here and
+you can read traffic on a headless target the moment you get a shell.
+
+## Pick the right interface
+
+Packets arrive on an interface, so tcpdump needs to know which one to listen on.
+List them first, then capture.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "ip -brief address", comment: "list interfaces and their IPs" },
+    { cmd: "sudo tcpdump -D", comment: "interfaces tcpdump can actually open" },
+    { cmd: "sudo tcpdump -i eth0", comment: "start sniffing on eth0" },
+  ]}
+/>
+
+Capturing needs root because you are reading traffic below the normal socket
+layer. On a target where you are not root yet, tcpdump may simply refuse, which
+is itself a useful signal about your privilege level.
+
+## Read a single line
+
+tcpdump prints one line per packet. It looks dense until you learn the shape:
+
+<ExpectedOutput label="A single TCP packet">
+```
+14:02:11.503342 IP 10.10.14.23.51514 > 10.10.14.5.80: Flags [S], seq 1053, win 64240
+```
+</ExpectedOutput>
+
+Read it left to right: timestamp, protocol, then `source.port > dest.port`,
+then the TCP flags and sequence info. `Flags [S]` is a lone SYN, the opening
+knock of a handshake. `[S.]` is SYN-ACK, `[.]` is a bare ACK, `[P.]` carries
+data, and `[F.]` starts a graceful close. Those five cover most of what you will
+see scroll past.
+
+<Diagram type="tcp-handshake" />
+
+## The flags that keep it readable
+
+Raw tcpdump is a firehose. Three flags tame it:
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "sudo tcpdump -i eth0 -n", comment: "-n: do not resolve names, way faster and quieter" },
+    { cmd: "sudo tcpdump -i eth0 -nn -v", comment: "-nn: no name or port lookups, -v: more detail" },
+    { cmd: "sudo tcpdump -i eth0 -c 20 -A", comment: "-c 20: stop after 20 packets, -A: print payload as ASCII" },
+  ]}
+/>
+
+`-A` is the one that makes credentials fall out of cleartext protocols. Point it
+at HTTP or FTP traffic and you will see usernames and passwords in plain view.
+
+## Save it for later
+
+Watching live is fine for a quick look, but real analysis happens on a saved
+file you can replay and filter without touching the wire again.
+
+<CommandCard command="sudo tcpdump -i eth0 -w capture.pcap" explain="-w writes raw packets to a pcap file instead of printing. Read it back later with tcpdump -r capture.pcap or open it in Wireshark." />
+
+<Callout type="security" title="Capture first, analyze later">
+On an engagement you often get one shot at live traffic. Write everything to a
+pcap with -w, then do your filtering and stream-following offline. You keep the
+evidence, you can hand it to Wireshark, and you never miss a packet because you
+were busy typing a filter.
+</Callout>
+
+<Quiz
+  id="tcpdump-write"
+  question="Which tcpdump flag saves raw packets to a file for later analysis?"
+  answer={2}
+  options={["-A", "-nn", "-w", "-c"]}
+  explanation="-w writes raw packets to a pcap file. -A prints ASCII payload, -nn disables lookups, and -c limits the packet count."
+/>
+
+<Exercise
+  id="tcpdump-flags"
+  prompt="You want to sniff eth0, stop after 50 packets, and skip all DNS name lookups so it stays fast. Write the command."
+  answer="sudo tcpdump -i eth0 -nn -c 50"
+  placeholder="sudo tcpdump ..."
+>
+-i picks the interface, -nn disables name and port resolution, and -c sets the packet limit.
+</Exercise>
+
+<Notes />

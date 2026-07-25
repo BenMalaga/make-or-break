@@ -1,0 +1,64 @@
+---
+title: What a SIEM Does
+module: siem-and-log-analysis
+moduleTitle: SIEM and Log Analysis
+moduleOrder: 25
+moduleIcon: ScrollText
+order: 1
+summary: One search box over every log your network produces, if you feed it right.
+estimatedMinutes: 18
+objectives:
+  - Explain the collection, normalization, and correlation pipeline a SIEM runs
+  - Recognize why raw logs from a dozen sources are useless until they share a schema
+  - Read a single correlated alert and trace it back to the events that built it
+tags:
+  - siem
+  - logging
+  - blue-team
+  - detection
+---
+
+An attacker logs into a workstation with stolen creds, pivots to a file server, and dumps a database. That is three machines, three log formats, and three timestamps in three time zones. Without a SIEM you are grepping each box by hand and hoping you notice they are the same story. With one, that whole chain lands in one search and lines up on one timeline.
+
+A SIEM (Security Information and Event Management) platform does three jobs in order: collect, normalize, correlate. Splunk, Elastic Security, Microsoft Sentinel, and Wazuh all differ in price and query language, but every one of them runs that same pipeline. Get the pipeline wrong and the fanciest correlation rules in the world fire on garbage.
+
+## Collection: get the logs off the box
+
+Logs are worthless sitting on the machine that made them, because that is the first thing an attacker wipes. So you ship them off. A Windows endpoint runs a forwarder (the Splunk Universal Forwarder, Elastic's Winlogbeat, or the Wazuh agent) that reads the Event Log and streams it to the indexer. Linux boxes and network gear usually push syslog over UDP 514 or TCP 6514 to a collector.
+
+The rule that matters: if it is not being forwarded, it does not exist as far as your detection goes. Half of real incident response is discovering the one server whose logs were never onboarded.
+
+## Normalization: make them speak one language
+
+Windows calls it `TargetUserName`. Your firewall calls it `src_user`. Zeek calls it `user`. Same field, three names, and a correlation rule cannot join across them until they match. Normalization maps every source into one schema so `user=jdoe` means the same thing everywhere.
+
+Splunk uses the Common Information Model (CIM). Elastic uses the Elastic Common Schema (ECS), where a source IP is always `source.ip` no matter which sensor produced it. This mapping happens at ingest or search time, and it is the least glamorous, most important work in the whole platform.
+
+<Callout type="info" title="Parsing is where SIEMs go to die">
+A field that parses wrong is worse than a missing field, because it looks fine in the search bar and silently breaks every rule that depends on it. When a detection stops firing, suspect the parser before you suspect the rule.
+</Callout>
+
+## Correlation: turn events into a story
+
+One failed login is noise. Two hundred failed logins from one IP, then one success, then a new admin account created ninety seconds later, is a password spray that worked. Correlation is the SIEM watching multiple normalized events across sources and firing a single alert when they form a known pattern.
+
+That is the payoff for all the collection and normalization grind. The analyst does not see two hundred rows. They see one alert that says "brute force followed by account creation on HR-FS01," with every underlying event one click away.
+
+<Callout type="security" title="Log data is sensitive, treat it that way">
+Only pull, query, or export logs from systems you are authorized to monitor. Logs carry usernames, internal IPs, session tokens, and sometimes credentials in plaintext from misconfigured apps. Handle them like the sensitive data they are, and never move them off approved infrastructure.
+</Callout>
+
+<Quiz
+  id="siem-pipeline-order"
+  question="A correlation rule that joins events on the username field stops matching after a new firewall is onboarded. What is the most likely cause?"
+  answer={2}
+  options={[
+    "The correlation engine is overloaded",
+    "The attacker deleted the firewall logs",
+    "The firewall's username field was not normalized to the shared schema",
+    "The search covers too short a time window",
+  ]}
+  explanation="If the new source maps its user field to a name the rule does not expect (src_user instead of the normalized user), the join silently fails. Normalization is what lets rules match across sources, and a fresh source is the classic place it breaks."
+/>
+
+<Notes />

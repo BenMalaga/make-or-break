@@ -1,0 +1,58 @@
+---
+title: Why Email Is a Target
+module: email-security
+moduleTitle: Email Security
+moduleOrder: 50
+moduleIcon: MailWarning
+order: 1
+summary: One click on the wrong link can hand an attacker a live inbox and a wire transfer.
+estimatedMinutes: 14
+objectives:
+  - Explain why SMTP trusts the sender by default and what that costs you
+  - Tell phishing, spear phishing, and business email compromise apart
+  - Trace how a single click turns into account takeover and lateral movement
+tags:
+  - email
+  - phishing
+  - bec
+  - social-engineering
+---
+
+An accounts-payable clerk gets an email from a vendor she has paid a dozen times. Same signature, same thread, same friendly tone. The only new thing is a line about updated banking details. She pays the invoice. The $180,000 lands in an attacker's account, and nobody notices for three weeks. No malware, no exploit, no alert fired. That is business email compromise, and it is the most expensive thing that happens over email.
+
+Email is the soft target because it was never built to prove who is talking. SMTP dates to 1982, and the protocol lets any server claim to send as anyone. The `MAIL FROM` in the envelope and the `From:` header your user actually sees are two different fields, and by default nothing checks that either one is true. Spoofing a sender is not a hack. It is typing a different string.
+
+That single design gap is why email is the number one way attackers get their first foothold. Year after year the Verizon DBIR puts phishing and pretexting near the top of confirmed initial-access vectors, and the FBI's IC3 reports BEC losses in the billions of dollars a year. Attackers go where the door is open, and the inbox is standing open.
+
+## The three shapes of the attack
+
+Phishing at scale is the spray. Millions of identical messages, a fake login page, and a bet that some fraction of people type their password into it. Cheap, loud, and still effective because you only need one.
+
+Spear phishing narrows it. The attacker researches one person, references a real project or a real coworker, and sends a message tuned to that context. Higher effort, far higher hit rate. This is what lands on executives and finance teams.
+
+BEC drops the payload entirely. No link, no attachment for a scanner to catch, just a well-written request to move money or change bank details, usually while spoofing or impersonating someone with authority. Because there is nothing malicious to detect in the file sense, your antivirus and your attachment sandbox never see it. The whole attack is trust.
+
+## The cost of one click
+
+Follow what happens after someone enters credentials on a fake Microsoft 365 page. The attacker now has a valid username and password. If there is no MFA, they log in directly. If there is MFA, they either replay a stolen session token or spam the user with push prompts until one gets approved out of annoyance.
+
+Once inside a mailbox, the first move is almost always a mailbox rule: auto-forward everything from "finance" to an external address, or silently delete replies so the victim never sees the fraud unfold. Then they read months of email to learn how the company talks, who approves what, and which vendor is due to be paid next. The inbox is not the prize. It is the map to the next one.
+
+<Callout type="security" title="Study this on systems you are cleared to touch">
+Everything in this module is for defending your own mail and for authorized testing. Running a phishing simulation against a company, spoofing a real sender, or logging into a mailbox that is not yours is illegal without written permission. Practice on a lab tenant, a test domain you control, or a range with explicit rules of engagement.
+</Callout>
+
+<Quiz
+  id="email-bec-vs-phish"
+  question="Why do most attachment sandboxes and antivirus engines fail to catch a business email compromise attempt?"
+  answer={2}
+  options={[
+    "BEC emails are always encrypted end to end",
+    "The gateway only scans inbound mail, and BEC is always internal",
+    "A BEC message carries no malicious link or file, it is pure social engineering",
+    "Sandboxes cannot read the From header",
+  ]}
+  explanation="BEC works without a payload. There is no link to detonate and no attachment to explode in a sandbox, so signature and behavioral file analysis have nothing to fire on. Stopping it takes sender authentication, impersonation detection, and a process that verifies money movement out of band."
+/>
+
+<Notes />

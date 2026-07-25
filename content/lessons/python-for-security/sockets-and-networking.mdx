@@ -1,0 +1,279 @@
+---
+title: Sockets and Networking
+module: python-for-security
+moduleTitle: Python for Security
+moduleOrder: 13
+moduleIcon: FileCode
+order: 3
+summary: Below requests and nmap there is a socket. This is how to open one, and how each call lines up with the TCP handshake.
+estimatedMinutes: 15
+prerequisites: ["python-for-hackers", "http-with-python"]
+objectives:
+  - Create a TCP socket and connect to a host and port, and see how connect runs the three-way handshake
+  - Send and receive raw bytes, and turn a service banner into a readable string
+  - Use settimeout and connect_ex to probe a port without hanging or throwing an exception
+tags:
+  - python
+  - sockets
+  - networking
+---
+
+Talking HTTP with Python treated a web server as an object. `requests.get`
+returned a response, a `Session` carried the login, a status code told the
+script what happened. What that lesson never showed is the thing `requests`
+opens underneath every one of those calls. A socket. nmap opens one. A browser
+opens one. So does the `ssh` command and every mail client on the machine. Strip
+away the library and every network tool is doing the same four steps to a socket:
+create it, connect it, move bytes through it, close it.
+
+The reason to open one by hand is that not everything speaks HTTP, and sometimes
+the exact bytes on the wire are the point. `requests` will not connect to an SSH
+server or a database. A raw socket connects to anything listening on a TCP port,
+and it hands back precisely what the service said, byte for byte, with no library
+deciding what matters.
+
+## A socket is an object with four steps
+
+A socket is one endpoint of a network conversation, the same word TCP, UDP, and
+Ports defined as an IP address paired with a port. In Python it is also a literal
+object, built by the `socket` module. That module ships with the language, so
+there is no `pip3 install` the way `requests` needed one. A single import and
+it's there.
+
+Creating the object takes two arguments that name the kind of socket to build:
+
+```python
+import socket
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(3)
+s.connect(("10.10.10.1", 22))
+print("connected")
+s.close()
+```
+
+`AF_INET` is the address family, and it means IPv4, the `10.10.10.1` style of
+address. `SOCK_STREAM` is the socket type, and it means TCP. That second constant
+is the whole difference between this and a UDP socket: swap in `SOCK_DGRAM` and
+the object speaks UDP instead, with all the no-handshake, no-guarantee behavior
+the networking module warned about. For everything in this module, `SOCK_STREAM`
+is the right choice.
+
+The address goes into `connect` as one argument, a tuple of host and port. The
+double parentheses are not a typo. The outer pair is the function call, and the
+inner pair builds the `(host, port)` tuple that `connect` expects as a single
+value. The host is a string, either an IP or a name Python will resolve. The port
+is a plain integer.
+
+Here is the part that matters, and it's the bridge back to the networking module.
+`connect` is not a local operation that flips a flag. It runs the TCP three-way
+handshake. Python's socket sends the SYN, waits for the SYN-ACK, and sends the
+ACK, the exact three messages TCP, UDP, and Ports walked through on paper. When
+`connect` returns without raising anything, all three completed. That is the
+precise definition of an open port: a program was listening and it finished the
+handshake. Five characters of Python stand in for the whole exchange. `close`
+tears the connection back down when the work is finished.
+
+`settimeout(3)` is the line that beginners skip and then wonder why a script
+hangs. It sets a ceiling, in seconds, on how long `connect` and later `recv` will
+wait. Without it, a `connect` to a host that never answers blocks until the
+operating system exhausts its own retries, which on Linux can run well past a
+minute for a single port. Three seconds is generous for a real connection and
+plenty for a lab.
+
+<Quiz
+  id="connect-handshake"
+  question="A script calls s.connect((host, 22)) and it returns with no error raised. What is the most precise thing that proves?"
+  answer={2}
+  options={[
+    "The host is powered on and reachable, nothing more",
+    "The SSH service accepted a login",
+    "A full TCP three-way handshake completed, so a program is listening on port 22",
+    "Port 22 is filtered by a firewall",
+  ]}
+  explanation="connect performs the handshake: SYN, SYN-ACK, ACK. A clean return means all three finished, which is the definition of an open port with something listening. It does not mean a login happened, and a filtered port would have timed out instead of returning."
+/>
+
+## Sockets move bytes, not strings
+
+A Python string is text. A socket carries raw bytes. Those are two different
+types, and the socket module never blurs them, which is the first thing that
+trips people coming from `requests`, where everything looked like a string. Data
+sent through a socket goes out as bytes, and data read back arrives as bytes.
+
+The `b` prefix on a literal is how Python writes bytes instead of text: `b"HEAD"`
+is four bytes, `"HEAD"` is a string. A socket sends with `sendall`, which takes
+bytes, and reads with `recv`, which returns bytes. The number handed to `recv` is
+the maximum to pull in one read, a buffer size, not a promise of how much will
+arrive. If the service sends more than that ceiling, the leftover bytes wait for
+the next `recv` call.
+
+Many services announce themselves the instant a connection opens. The server
+speaks first, before the client says anything. SSH does this, and so do FTP and
+plenty of mail servers. That opening line is the banner, and it's often the single
+most useful piece of reconnaissance a port gives up, because it names the software
+and frequently the version.
+
+```python
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(3)
+s.connect(("10.10.10.1", 22))
+banner = s.recv(1024)
+print(banner.decode(errors="ignore"))
+s.close()
+```
+
+<ExpectedOutput label="Grabbing the banner from an SSH service (version string is whatever that host runs)">
+```
+SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6
+```
+</ExpectedOutput>
+
+The `.decode(errors="ignore")` turns the raw bytes into a readable string.
+`errors="ignore"` tells Python to drop any byte that is not valid text instead of
+crashing on it, which matters because a banner can carry stray non-text bytes that
+would otherwise raise an exception and kill the script. The shell has a one-line
+version of this whole program, worth knowing because it does the same thing:
+
+<CommandCard
+  command="nc 10.10.10.1 22"
+  title="linux"
+  explain="netcat opens the same TCP socket to host and port, then prints whatever the service sends and forwards whatever is typed. The Python above is nc rebuilt so it can loop."
+/>
+
+HTTP is the opposite case. A web server says nothing on connect. It waits for the
+client to send a request first, exactly the request that `requests` built
+automatically in the last lesson. Spelled out in raw bytes, that request looks
+like this:
+
+```python
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(3)
+s.connect(("10.10.10.1", 80))
+s.sendall(b"HEAD / HTTP/1.0\r\n\r\n")
+print(s.recv(2048).decode(errors="ignore"))
+s.close()
+```
+
+<ExpectedOutput label="Raw HTTP HEAD banner grab (server and version strings are illustrative)">
+```
+HTTP/1.1 200 OK
+Server: nginx/1.18.0 (Ubuntu)
+Date: Wed, 15 Jul 2026 14:02:11 GMT
+Content-Type: text/html
+Content-Length: 612
+```
+</ExpectedOutput>
+
+The `\r\n\r\n` at the end is load-bearing. `\r\n` is a carriage return plus a line
+feed, the line ending HTTP requires, and the doubled pair is the blank line that
+marks the end of the request. Leave it off and the server keeps waiting for more,
+the `recv` hits its timeout, and the script prints nothing. Protocols are strict
+about their line endings in a way that feels petty until it costs an hour.
+
+<Quiz
+  id="recv-buffer"
+  question="A service sends 2000 bytes of response, but the script calls s.recv(1024). What does the 1024 mean for what comes back?"
+  answer={1}
+  options={[
+    "recv failed, so only garbage returns",
+    "1024 is the most one recv call returns, so it hands back up to 1024 bytes and the rest waits for the next recv",
+    "recv always returns exactly 1024 bytes, padding with zeros if needed",
+    "The service is forced to truncate its reply to 1024 bytes",
+  ]}
+  explanation="The number is a per-read ceiling, not a total. One recv returns up to that many bytes. To read a full 2000-byte response, the code calls recv again, or loops until it returns empty. This is why reading a whole reply often means a loop, not a single call."
+/>
+
+## Probing without hanging or throwing
+
+Everything above assumed the port was open. A scanner has to handle the other two
+outcomes, and both map straight onto states from the networking module. When
+`connect` reaches a closed port, the host's stack sends back an RST, and Python
+turns that into a `ConnectionRefusedError`. When `connect` reaches a filtered
+port, nothing comes back at all, the probe hits silence, and Python raises a
+timeout once the `settimeout` window expires. Closed is a fast exception. Filtered
+is a slow one.
+
+Catching exceptions works for one port. Wrapping a `try`/`except` around every
+check in a loop over a thousand ports is noise. `connect_ex` removes the need. It
+runs the same handshake attempt but returns an integer instead of raising:
+`0` means the connection succeeded, and any non-zero value is the system error
+number for whatever went wrong. That single behavior is what keeps a scanning loop
+clean.
+
+```python
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(1)
+code = s.connect_ex(("10.10.10.1", 445))
+if code == 0:
+    print("445 open")
+s.close()
+```
+
+Line up the return value with what happened on the wire and the mapping is exact.
+A return of `0` means the SYN-ACK came back and the handshake finished: the port
+is open. A quick non-zero return means an RST came back and the stack refused:
+the port is closed. A non-zero return that arrives only after the full timeout
+means nothing came back: the port is filtered, almost always by a firewall
+dropping the probe. The three port states from TCP, UDP, and Ports are now three
+Python outcomes, which is the entire foundation of the scanner in the next lesson.
+
+The timeout is what makes filtered survivable. `settimeout` governs both `connect`
+and `recv`, so a small value caps how long the loop stalls on each silent port. A
+scanner uses something tight, around one second, because most of that second is
+spent waiting on nothing and a shorter wait sweeps more ports per minute. A single
+careful banner grab can afford three or five seconds. Set it too low and a slow
+but real service gets misread as filtered.
+
+<Callout type="security" title="A connect and a banner grab both touch the target">
+A completed TCP connect is a full connection and it lands in the target's logs.
+A banner grab sends real traffic that a service records. Neither is passive, and
+raw sockets are noisier than they feel. Only point these at a host that is owned
+or covered by written authorization to test. Scanning a machine without that is
+the offense, not the code.
+</Callout>
+
+<Callout type="info" title="One socket, one connection">
+A socket object is single-use for a connection. After connect and close, the next
+port needs a fresh socket.socket(...) call. Reusing a closed object raises an
+error rather than reconnecting, which is exactly why the scanner in the next
+lesson builds a new socket inside the loop for every port it checks.
+</Callout>
+
+<Quiz
+  id="connect-ex-filtered"
+  question="A scan calls connect_ex on a port. The call blocks for the full one-second timeout, then returns a non-zero number. In the networking module's terms, what most likely happened on the wire?"
+  answer={2}
+  options={[
+    "The host sent an RST immediately, so the port is closed",
+    "The three-way handshake completed and the port is open",
+    "No reply came back at all, so a firewall probably dropped the probe and the port is filtered",
+    "The service sent a banner but no data",
+  ]}
+  explanation="A closed port answers with an RST fast, so connect_ex would return almost instantly. Blocking for the whole timeout before returning non-zero means silence: nothing replied. That is the signature of a filtered port, where a firewall drops the probe instead of refusing it."
+/>
+
+<Exercise title="Grab a banner, then watch a timeout do its job">
+On a host you control, save the SSH banner grab above and point it at a machine
+running SSH, such as `127.0.0.1` on port 22 if that machine runs `sshd`. Run it
+with `python3 grab.py` and read the banner it prints. That string is the first
+fact a scanner would report about the port.
+
+Now change the port to one nothing is listening on, like `4444`, and run it again.
+It returns fast with a connection-refused error: that is the RST, the closed case.
+
+Last, set `settimeout(1)` to `settimeout(30)`, point it at an address that does
+not answer at all, and start it. Watch it sit there. That silence is the filtered
+case, and the timeout is the only thing that will ever end the wait. Ctrl-C it,
+put the timeout back to something small, and the reason a scanner sets it low
+stops being abstract.
+</Exercise>
+
+This connects one socket to one port and reads what comes back. Build a Port
+Scanner wraps that single check in a loop over a range of ports, hands the ports
+to a pool of threads so the timeouts overlap instead of stacking up one after
+another, and folds the banner grab back in so every open port also reports what is
+answering. The socket code does not change. Only the number of them running at
+once does.
+
+<Notes />

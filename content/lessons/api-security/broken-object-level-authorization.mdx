@@ -1,0 +1,67 @@
+---
+title: Broken Object Level Authorization
+module: api-security
+moduleTitle: API Security
+moduleOrder: 32
+moduleIcon: Webhook
+order: 3
+summary: Change one number in the request and read every other customer's data. That is BOLA.
+estimatedMinutes: 20
+objectives:
+  - Find BOLA by tampering with object identifiers in paths, bodies, and headers
+  - Automate id enumeration to pull a full dataset
+  - Test the sneaky variants that live in UUIDs and secondary keys
+tags:
+  - api
+  - bola
+  - idor
+  - authorization
+---
+
+You are logged in as customer 4021. The app calls `GET /api/v1/customers/4021/cards` and shows your saved cards. Change the path to `4020` and resend. If another customer's card data comes back, you found Broken Object Level Authorization, and you can now walk the entire customer table one integer at a time. This is the same bug as IDOR on the web, and on APIs it is number one on the OWASP list because APIs expose object ids everywhere and re-check ownership almost nowhere.
+
+The server did check something. It confirmed your token is valid, that you are a logged-in user. What it never did was confirm that customer 4020 is you. Authentication passed, authorization was skipped, and that gap is the whole bug.
+
+## Find the object references
+
+Object ids hide in more places than the URL. Before you tamper, map every identifier the app hands you, because any one of them is a candidate.
+
+The obvious one is the path: `/orders/8890`, `/users/1042`, `/documents/551`. The next is the JSON body, where an `account_id` or `owner` field decides whose record you touch. Then the sneaky ones: an `X-User-Id` header, a `customer` query parameter, an id buried in a base64 blob.
+
+<CommandBlock
+  title="tamper with every reference, not just the URL"
+  commands={[
+    { cmd: "curl .../api/v1/customers/4020/cards -H \"Authorization: Bearer $TOKEN\"", comment: "decrement the path id, keep your own valid token" },
+    { cmd: "curl -X POST .../api/transfer -d '{\"from\":\"4020\",\"amount\":1}'", comment: "swap the id in the body, the UI only ever sent your own" },
+    { cmd: "curl .../api/profile -H \"X-User-Id: 4020\"", comment: "some apps trust an id header over the token" },
+  ]}
+/>
+
+Keep your own token attached the whole time. That is the point: a valid session for you, pointed at someone else's object. You are proving the server authorizes by identity-of-caller when it should authorize by ownership-of-resource.
+
+## Automate the walk
+
+One swap proves the bug. To show impact, you enumerate. Sequential integer ids make this a loop, and a loop that pulls thousands of records is what turns a finding into a critical.
+
+<CommandCard command={`for id in $(seq 4000 4100); do curl -s -o "out_$id.json" -w "%{http_code} $id\n" "https://target.tld/api/v1/customers/$id/cards" -H "Authorization: Bearer $TOKEN"; done`} explain="Iterate a range of ids with your own token and save each response. Grep the 200s for real data. This is the difference between one leaked record and a full dataset in your report." />
+
+Burp Intruder does the same thing with a slider on the id position, and it is easier to triage the results there. Either way, sort by status code and response length. A 200 with a fat body where you expected a 403 is a hit.
+
+<Callout type="security" title="Authorized targets only">
+Enumerating ids across live customer data is exactly the act that gets people charged, even when the door was left wide open. Do this only inside a scope you have written authorization for: OWASP crAPI, VAmPI, PortSwigger's API labs, or your own app. Pull the minimum records needed to prove impact, then stop.
+</Callout>
+
+## When ids are not sequential
+
+UUIDs like `9f1c...` break the simple loop, and developers treat that as a fix. It is not. A UUID is an unguessable number, not an access control, and it leaks constantly: in a shared-link feature, an autocomplete response, an email, a different endpoint that lists other users' ids. Collect UUIDs from one endpoint, feed them to another, and BOLA is back on the table.
+
+Watch for the reverse too. An endpoint might reject `/users/4020` but accept the same object through a secondary key, like `/users/by-email?email=bob@x.tld` or a `GET /export?account=4020`. Developers guard the main route and forget the alternates. Test every path that reaches the same object.
+
+<Exercise
+  id="bola-prove"
+  prompt="You own object 4021 and suspect BOLA. Write the single curl request that proves it, and say which two response fields you compare to confirm the hit."
+  answer={`curl -s -w "%{http_code} %{size_download}\n" https://target.tld/api/v1/customers/4020/cards -H "Authorization: Bearer $TOKEN"`}
+  placeholder="one curl command plus what you compare"
+/>
+
+<Notes />

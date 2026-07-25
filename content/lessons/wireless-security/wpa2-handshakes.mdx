@@ -1,0 +1,69 @@
+---
+title: WPA2 and the Four-Way Handshake
+module: wireless-security
+moduleTitle: Wireless Security
+moduleOrder: 20
+moduleIcon: Wifi
+order: 2
+summary: What the four-way handshake actually exchanges, and why capturing it hands you an offline password guess.
+estimatedMinutes: 16
+objectives:
+  - Trace the four messages of the WPA2 handshake and what each carries
+  - Explain why the PMK never crosses the air but the handshake still leaks enough to crack
+  - Distinguish WPA2-Personal (PSK) from WPA2-Enterprise
+tags:
+  - wireless
+  - wpa2
+  - handshake
+  - psk
+---
+
+The handshake is why WPA2 cracking works at all, and it works offline. You capture four small frames once, then you can guess passwords against them forever on your own hardware with the AP none the wiser. Understanding what those four frames carry tells you exactly why a weak passphrase is dead and a strong one is fine.
+
+WPA2-Personal starts from a shared secret. The passphrase everyone types plus the SSID get run through PBKDF2 with 4096 iterations to produce the **PMK** (Pairwise Master Key), a 256-bit value. Same passphrase, same SSID, same PMK every time. That PMK never travels over the air. Neither does the passphrase. So what does the handshake actually move?
+
+## The four messages
+
+The handshake derives a fresh per-session key, the **PTK** (Pairwise Transient Key), from the PMK plus a few public values. Here is the exchange after a client associates:
+
+1. **AP to client:** the AP's random nonce, the **ANonce**. Sent in the clear.
+2. **Client to AP:** the client's nonce, the **SNonce**, plus a **MIC** (message integrity code) proving the client computed the PTK.
+3. **AP to client:** the group key and another MIC.
+4. **Client to AP:** an ACK that the keys are installed.
+
+The PTK is a hash of the PMK, both MAC addresses, and both nonces. The two MACs and both nonces cross the air in plaintext. The MIC is the tell: it is computed with the PTK, which means it is computed with the PMK, which means it is computed with the passphrase.
+
+## Why that lets you crack it
+
+You now hold everything except the passphrase: both MACs, both nonces, and a MIC that is a function of the passphrase. So you run the loop yourself. Take a candidate passphrase, derive its PMK for this SSID, derive the PTK from the captured nonces and MACs, compute the MIC, and compare it to the captured MIC. Match means you found the passphrase. No match, try the next word.
+
+None of this touches the AP. The AP already gave you the answer key when you captured the handshake. This is why WPA2 cracking is an offline dictionary attack, and why capturing message 2 (which carries the client's MIC) is the part that actually matters.
+
+The cost that protects a good passphrase is the PBKDF2 work. Those 4096 iterations mean each guess is expensive, so throughput is thousands to a few hundred thousand guesses per second per GPU, not billions. Against `rockyou.txt` that finishes fast. Against a random 12-character passphrase it never finishes in your lifetime. The math punishes lazy passwords and rewards strong ones, nothing in between.
+
+<Callout type="info" title="You do not need the whole handshake">
+Modern tools crack from message 2 alone because that frame carries the client MIC and the SNonce, and the ANonce came from message 1. In practice you want to capture messages 1 and 2 cleanly. Some tools also crack the newer PMKID that some APs volunteer in a single frame, no client required, but the classic path is the four-way handshake.
+</Callout>
+
+## Personal is not Enterprise
+
+Everything above is WPA2-Personal, the pre-shared-key mode home and small-office networks use. WPA2-Enterprise (802.1X) is a different animal: each user authenticates through a RADIUS server, there is no shared passphrase, and the PMK is derived per-session from that exchange. The handshake capture-and-crack in the next lesson targets PSK networks. Enterprise resists it because there is no single shared password to guess.
+
+<Callout type="security" title="Only test networks you own">
+Capturing a handshake requires being in radio range of someone's AP and often forcing a client off. Do this only against your own network or an authorized engagement. Passive capture of a network you do not own is still interception.
+</Callout>
+
+<Quiz
+  id="wpa2-offline"
+  question="Why can a captured WPA2 handshake be cracked offline, with no further contact with the access point?"
+  answer={2}
+  options={[
+    "The handshake contains the passphrase in encrypted form",
+    "The handshake transmits the PMK, which decrypts to the passphrase",
+    "The handshake exposes both MACs, both nonces, and a MIC that is a function of the passphrase, so guesses can be verified locally",
+    "The AP replies to each password guess you send it",
+  ]}
+  explanation="The MACs and nonces are plaintext and the MIC is derived from the passphrase. That is enough to test candidate passphrases entirely on your own machine, no AP needed."
+/>
+
+<Notes />

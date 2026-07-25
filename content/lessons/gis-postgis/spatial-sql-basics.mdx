@@ -1,0 +1,264 @@
+---
+title: Querying Geometry with ST_ Functions
+module: gis-postgis
+moduleTitle: Spatial SQL with PostGIS
+moduleOrder: 5
+moduleIcon: Database
+order: 2
+summary: "PostGIS adds ST_ functions to ordinary SQL, so a SELECT can measure, inspect, reproject, and build geometry the same way it already filters rows."
+estimatedMinutes: 15
+prerequisites: ["why-spatial-databases"]
+objectives:
+  - Read a geometry column with ST_AsText, ST_GeometryType, and ST_SRID
+  - Explain why ST_Area on a raw 4326 geometry returns a meaningless number
+  - Reproject a geometry with ST_Transform so ST_Area and ST_Length return real meters
+  - Build new geometry with ST_Buffer and ST_Centroid and measure it in the same query
+tags:
+  - gis
+  - postgis
+  - sql
+---
+
+The last lesson, why spatial databases, put a geometry column inside an ordinary Postgres table: one row per park, one column holding coordinates, the rest holding names and other attributes. That column sits there the same way any other column does. The difference shows up the moment a query tries to do something with it, because a geometry cannot be summed or averaged the way a price or a count can. PostGIS answers that with a set of SQL functions built specifically for geometry, and every one of them starts with the same two letters.
+
+## Every spatial function starts with ST_
+
+Open the PostGIS documentation and the function names all follow one pattern: ST_Area, ST_Length, ST_Transform, ST_Buffer, dozens more. The prefix stands for spatial type, and it comes from the OGC Simple Features specification, the industry standard that defines how geometry should be stored and queried in a database. PostGIS did not invent the prefix. It implements a spec that several other spatial databases also follow, so the same ST_Area call works, with only small differences, in Oracle Spatial or SQL Server's geometry type.
+
+That consistency matters less for portability and more for a simpler reason: once the prefix is familiar, a new function is guessable. A geometry's boundary length is ST_Perimeter. The distance between two geometries is ST_Distance. A query that needs the shortest path is unusual. A query that needs the area of a polygon, the length of a line, or the distance between two points comes up constantly, and PostGIS groups its answers into a few clear jobs: measuring a geometry, inspecting what it actually is, transforming it into a different coordinate system, and constructing a new geometry out of an old one.
+
+## Inspecting a geometry before trusting it
+
+Before measuring anything, it helps to see what is actually stored in a column. Three functions answer that: ST_AsText prints the geometry as readable text, ST_GeometryType names the kind of shape, and ST_SRID reports which coordinate reference system the geometry claims to use.
+
+Here is a parks table with three small polygons, all stored in EPSG 4326, the longitude and latitude system most data arrives in.
+
+| id | name | rough size |
+|----|------|------------|
+| 1 | Liberty Common | about 1.4 hectares |
+| 2 | Sparrow Corner | about 0.45 hectares |
+| 3 | Mill Pond Park | about 2.26 hectares |
+
+A query against that table can check the type and reference system of every row at once:
+
+```sql
+SELECT
+  name,
+  ST_GeometryType(geom) AS geom_type,
+  ST_SRID(geom) AS srid
+FROM parks;
+```
+
+<ExpectedOutput label="every park is a polygon in EPSG 4326">
+```
+      name       | geom_type  | srid
+------------------+------------+------
+ Liberty Common   | ST_Polygon | 4326
+ Sparrow Corner   | ST_Polygon | 4326
+ Mill Pond Park   | ST_Polygon | 4326
+(3 rows)
+```
+</ExpectedOutput>
+
+The srid column is the useful one to build a habit around. An SRID, short for spatial reference identifier, is just the number a coordinate system is registered under. 4326 always means WGS84 longitude and latitude, the same system GPS and GeoJSON use. Trusting that number instead of guessing it is what makes every later step, especially reprojection, safe to automate.
+
+ST_AsText goes further and prints the actual coordinates as well known text, the same plain-text format most spatial tools can read and write.
+
+```sql
+SELECT ST_AsText(geom) FROM parks WHERE name = 'Liberty Common';
+```
+
+<ExpectedOutput label="the polygon as readable text, one ring of five points">
+```
+                                st_astext
+--------------------------------------------------------------------
+ POLYGON((-74.078 40.735,-74.077 40.735,-74.077 40.7365,-74.078 40.7365,-74.078 40.735))
+(1 row)
+```
+</ExpectedOutput>
+
+Five points, the first and last identical, closing the ring into a rectangle. Longitude comes before latitude in that text, matching the column order GeoJSON and most GIS tools expect. A row that came back with SRID 0, or a geometry type of ST_LineString where a polygon was expected, is a sign the data loaded wrong before a single measurement is even attempted.
+
+<Quiz
+  id="postgis-srid-meaning"
+  question="A query returns ST_SRID(geom) as 4326 for every row in a parks table. What does that number actually confirm?"
+  answer={1}
+  options={[
+    "The coordinates are already stored in meters, ready to measure directly.",
+    "The geometry's coordinates are longitude and latitude in the WGS84 reference system, the same system GPS uses.",
+    "The table has exactly 4326 rows loaded so far.",
+    "PostGIS will automatically convert the geometry to meters whenever it is measured.",
+  ]}
+  explanation="4326 is the registered code for WGS84 longitude and latitude, nothing more. It says nothing about the row count and it does not mean the values are in meters, since 4326 coordinates are angular degrees. PostGIS also never converts units on its own; a query has to ask for that explicitly, which is exactly the next problem this lesson solves."
+/>
+
+## Why ST_Area lies on a 4326 geometry
+
+Measuring is where PostGIS earns its keep. ST_Area returns a polygon's area, ST_Length returns a line's length, ST_Perimeter returns a polygon's boundary length, and ST_Distance returns how far apart two geometries sit. All four take a geometry and hand back a plain number.
+
+Running ST_Area straight on the parks table looks like it should just work.
+
+```sql
+SELECT name, ST_Area(geom) AS area_raw
+FROM parks
+WHERE name = 'Liberty Common';
+```
+
+<ExpectedOutput label="a number, but not one anyone can use">
+```
+      name       |   area_raw
+------------------+----------------
+ Liberty Common   |     0.0000015
+(1 row)
+```
+</ExpectedOutput>
+
+That number is not wrong. It is honest about what it measured: square degrees, because the geometry's coordinates are degrees of longitude and latitude, and ST_Area multiplied them exactly as given. The trouble is that a degree of longitude is not a fixed distance. Near the equator it spans about 111 kilometers. Near a pole it shrinks toward zero, because meridians converge. A degree of latitude stays close to constant, but a degree of longitude does not, so squaring the two together produces a figure with no real-world meaning at all.
+
+<Callout type="info" title="A degree is not a distance">
+Longitude and latitude describe a location on a sphere, not a flat surface with a fixed grid size. Any function that measures area, length, or distance needs a coordinate system where a unit really does mean a fixed unit of ground distance, everywhere in the data. That is the whole reason reprojection exists, and it is the single most common mistake in a spatial query: measuring straight off 4326 data and trusting the number.
+</Callout>
+
+The fix is ST_Transform, which reprojects a geometry into a different coordinate system inside the query itself, without touching the stored data. Feeding its result into ST_Area produces a number in the new system's units. UTM, the Universal Transverse Mercator system, splits the globe into zones and gives each one a metric, meters-based projection accurate over a few hundred kilometers. These three parks sit in UTM zone 18N, EPSG code 32618.
+
+```sql
+SELECT
+  name,
+  round(ST_Area(ST_Transform(geom, 32618))::numeric, 1) AS area_sq_m
+FROM parks
+ORDER BY name;
+```
+
+<ExpectedOutput label="the same three parks, now in real square meters">
+```
+      name       | area_sq_m
+------------------+-----------
+ Liberty Common   |  14105.3
+ Mill Pond Park   |  22566.4
+ Sparrow Corner   |   4514.6
+(3 rows)
+```
+</ExpectedOutput>
+
+Those figures line up with the rough hectare sizes in the earlier table: 14,105 square meters is 1.41 hectares, 22,566 is 2.26, 4,514 is 0.45. The reprojection did not change what the parks look like. It changed the ruler the query measured them with, from degrees to meters, which is the only ruler ST_Area's answer can be trusted against.
+
+There is a second way to get meters without picking a zone by hand. A column can be declared as the geography type instead of geometry, still holding the same longitude and latitude coordinates, but telling PostGIS to run its default calculations on the sphere directly rather than on flat, projected coordinates. Casting a geometry to geography with `geom::geography` and calling ST_Area on that gives square meters immediately, no ST_Transform required.
+
+```sql
+SELECT
+  name,
+  round(ST_Area(geom::geography)::numeric, 1) AS area_sq_m_geog
+FROM parks
+ORDER BY name;
+```
+
+<ExpectedOutput label="geography math skips the manual reprojection step">
+```
+      name       | area_sq_m_geog
+------------------+-----------------
+ Liberty Common   |         14104.9
+ Mill Pond Park   |         22565.2
+ Sparrow Corner   |          4514.5
+(3 rows)
+```
+</ExpectedOutput>
+
+The numbers barely move, a difference measured in tenths of a square meter here, because the geodesic calculation on the sphere and the UTM projection agree closely at city block scale. That gap widens for features that span a wide area, like a whole state or an ocean current, which is why an analyst working at national or global scale often reaches for geography from the start, while an analyst doing detailed local work often reaches for geometry with the correct UTM zone, since it runs faster and every other spatial operation, buffering included, has clearer behavior on projected coordinates.
+
+The same reprojection habit applies to ST_Length, ST_Perimeter, and ST_Distance. A query comparing two parks by straight-line separation reprojects both sides first:
+
+```sql
+SELECT
+  round(
+    ST_Distance(
+      ST_Transform(a.geom, 32618),
+      ST_Transform(b.geom, 32618)
+    )::numeric, 1
+  ) AS meters_apart
+FROM parks a, parks b
+WHERE a.name = 'Liberty Common' AND b.name = 'Mill Pond Park';
+```
+
+<ExpectedOutput label="straight-line distance between two park boundaries, in meters">
+```
+ meters_apart
+--------------
+       2250.3
+(1 row)
+```
+</ExpectedOutput>
+
+<Quiz
+  id="postgis-transform-before-area"
+  question="Why does the query call ST_Transform(geom, 32618) before ST_Area, instead of calling ST_Area(geom) directly?"
+  answer={0}
+  options={[
+    "ST_Area on the raw 4326 geometry returns square degrees, a unit with no fixed real-world size, so the number is not usable as an area in meters or acres.",
+    "ST_Area only works on geometries that have already been buffered.",
+    "ST_Transform is required by PostgreSQL syntax any time a function name starts with ST_.",
+    "Calling ST_Area on 4326 data raises an error and stops the query.",
+  ]}
+  explanation="4326 coordinates are angular degrees, and a degree of longitude covers a different ground distance depending on latitude, so ST_Area on that geometry returns a number in square degrees that nobody can use directly. ST_Area does not require a buffer first, ST_Transform is not a blanket syntax rule for every ST_ function, and the raw query runs fine, it just returns the wrong kind of number rather than an error."
+/>
+
+## Constructing new geometry inside the query
+
+Measuring and inspecting both read what is already stored. A third group of functions builds new geometry on the fly, without changing a single row in the table. ST_Centroid returns a polygon's center point, useful any time an analysis needs one representative location instead of a whole shape, for labeling a map or measuring distance from a park without dragging its full boundary along.
+
+```sql
+SELECT
+  name,
+  ST_AsText(ST_Centroid(geom)) AS center
+FROM parks
+WHERE name = 'Sparrow Corner';
+```
+
+<ExpectedOutput label="one point standing in for the whole polygon">
+```
+      name       |            center
+------------------+-------------------------------
+ Sparrow Corner   | POINT(-74.0607 40.7294)
+(1 row)
+```
+</ExpectedOutput>
+
+ST_Buffer builds a larger polygon by expanding a geometry outward by a fixed distance, the way a compass draws a circle around every point on a shape's boundary and unions the result. It is the function behind almost every "within walking distance" or "within a mile" question a GIS answers. The distance argument is in whatever unit the geometry's current coordinate system uses, which is exactly why the reprojection habit from the last section matters here too.
+
+```sql
+SELECT
+  round(
+    ST_Area(
+      ST_Buffer(ST_Transform(geom, 32618), 500)
+    )::numeric, 1
+  ) AS buffered_area_sq_m
+FROM parks
+WHERE name = 'Sparrow Corner';
+```
+
+<ExpectedOutput label="a 500 meter buffer around a small park, in square meters">
+```
+ buffered_area_sq_m
+--------------------
+           929652.8
+(1 row)
+```
+</ExpectedOutput>
+
+Sparrow Corner itself covers about 4,515 square meters. Its 500 meter buffer covers over 929,000, close to 93 hectares, because the buffer distance is large relative to the park's own size. That gap is worth sitting with for a second: a walking-distance buffer around a small feature is dominated by the buffer distance, not by the feature's original shape. It is also a straight-line buffer, a proxy for actual walking distance along real streets, which almost always run a longer, bent path than a compass circle assumes.
+
+<Quiz
+  id="postgis-buffer-units-trap"
+  question="A parks table stores geom in EPSG 4326. A query runs ST_Buffer(geom, 500) without transforming first. What actually happens?"
+  answer={2}
+  options={[
+    "PostGIS detects the SRID automatically and expands the polygon by exactly 500 meters.",
+    "The query raises an error, since ST_Buffer requires a geography column.",
+    "The polygon expands by 500 degrees, not 500 meters, producing a buffer absurdly larger than intended, since it uses whatever unit the geometry's current coordinate system is in.",
+    "ST_Buffer silently ignores the distance argument and returns the original geometry unchanged.",
+  ]}
+  explanation="ST_Buffer takes its distance in the geometry's own coordinate units, and it does not check whether that unit makes sense for the value given. On 4326 data the unit is degrees, so a value of 500 means 500 degrees, a distance that would wrap most of the way around the planet. PostGIS raises no error and returns no silent no-op, it just computes exactly what was asked for in the wrong unit, which is why reprojecting to a metric CRS before buffering is not optional."
+/>
+
+## It is still just SQL
+
+None of this replaced anything an analyst already knows about SQL. WHERE still filters rows, ORDER BY still sorts them, JOIN still connects tables, and GROUP BY still aggregates. The only addition is a family of functions that happen to take a geometry as an argument instead of a number or a string, and that always spell their name starting with ST_. Once ST_Area, ST_Transform, and ST_Buffer feel like ordinary function calls rather than a separate language, the door opens to the more powerful class of question a spatial database exists for: not just measuring one geometry at a time, but asking how two layers relate to each other, which parks a proposed development falls inside, which sensors sit within range of a leak. That is where PostGIS spends most of its real work, and it is the next thing this module covers.

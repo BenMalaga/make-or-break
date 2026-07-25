@@ -1,0 +1,75 @@
+---
+title: Log Sources That Matter
+module: siem-and-log-analysis
+moduleTitle: SIEM and Log Analysis
+moduleOrder: 25
+moduleIcon: ScrollText
+order: 2
+summary: A firehose of logs and only a few of them ever catch an attacker.
+estimatedMinutes: 20
+objectives:
+  - Name the Windows and Sysmon event IDs that carry the most detection value
+  - Explain why authentication, process creation, and DNS logs beat volume metrics
+  - Spot the gaps a default logging config leaves wide open
+tags:
+  - siem
+  - logging
+  - sysmon
+  - windows-events
+---
+
+Ship every log you can and you will drown before you detect anything. Web server access logs alone can hit millions of lines a day, and almost none of them matter for catching an intrusion. The skill is not collecting everything. It is knowing the handful of sources where attacker behavior actually shows up, and making sure those are turned on and forwarded before the incident, not after.
+
+## Authentication logs are the crown jewels
+
+Nearly every attack touches auth at some point. On Windows domain controllers, the Security Event Log carries the events you cannot live without:
+
+<CommandBlock
+  commands={[
+    { cmd: "Event ID 4624", comment: "successful logon, note the Logon Type: 3 is network, 10 is RDP" },
+    { cmd: "Event ID 4625", comment: "failed logon, a wall of these from one source is a brute force or spray" },
+    { cmd: "Event ID 4768 / 4769", comment: "Kerberos TGT and service ticket requests, feeds Kerberoasting detection" },
+    { cmd: "Event ID 4720 / 4728", comment: "user account created, user added to a privileged group" },
+  ]}
+/>
+
+Logon Type 3 with local admin creds hitting a dozen hosts in a minute is lateral movement. A 4720 followed by a 4728 into Domain Admins at 3 a.m. is persistence. You cannot see either without these forwarded and normalized.
+
+## Process creation is where malware announces itself
+
+Malware runs processes, and process creation logging catches the command line it ran with. Windows Event ID 4688 gives you this, but only if you have enabled command-line auditing in Group Policy. Out of the box, 4688 shows `powershell.exe` and nothing about what it ran, which is useless.
+
+Sysmon is the upgrade. It is a free Microsoft Sysinternals driver that logs richer telemetry than the default Windows channels, and it is the single highest-value thing you can deploy on endpoints.
+
+<CommandBlock
+  commands={[
+    { cmd: "Sysmon Event ID 1", comment: "process creation with full command line, parent process, and hashes" },
+    { cmd: "Sysmon Event ID 3", comment: "network connection, ties a process to the IP it talked to" },
+    { cmd: "Sysmon Event ID 11", comment: "file create, catches dropped payloads and staged data" },
+    { cmd: "Sysmon Event ID 22", comment: "DNS query made by a process, gold for spotting beaconing" },
+  ]}
+/>
+
+Event ID 1 showing `winword.exe` as the parent of `powershell.exe -enc <base64>` is a phishing macro detonating. That parent-child relationship is invisible in plain 4688 and obvious in Sysmon.
+
+## DNS and network logs catch the callback
+
+C2 traffic has to resolve a domain and phone home. DNS query logs, whether from Sysmon Event 22, a Windows DNS Server debug log, or Zeek's `dns.log`, let you hunt for beaconing: the same host querying the same weird domain every sixty seconds like clockwork. Zeek's `conn.log` gives you the connection metadata (duration, bytes sent, bytes received) that reveals a slow exfil channel humans never notice by eye.
+
+<Callout type="warning" title="Cloud has its own must-haves">
+If your environment lives in cloud, the endpoint list is not enough. AWS CloudTrail, Azure Activity Logs, and Microsoft 365 Unified Audit Log are the control-plane equivalents of the Security Event Log. An attacker with stolen API keys never touches an endpoint, and CloudTrail is the only place their actions show up.
+</Callout>
+
+<Callout type="security" title="Onboard only what you are cleared to">
+Enabling Sysmon, command-line auditing, or DNS logging on hosts you do not own or administer is not your call to make. Deploy detection logging only across systems in your authorized scope, and coordinate with the system owners, because verbose logging has real performance and privacy implications.
+</Callout>
+
+<Exercise
+  id="siem-sysmon-gap"
+  prompt="Your SOC has Windows Security logs but every 4688 shows only the executable name, no arguments. An analyst says 'we already log process creation, we're covered.' Why are they wrong, and what is the fix?"
+  answer="Default 4688 does not include the command line, so encoded PowerShell, LOLBin abuse, and script arguments are invisible. Fix: enable command-line process auditing in Group Policy, and better yet deploy Sysmon for Event ID 1 with parent process and hashes."
+>
+Logging that a process ran tells you almost nothing without what it ran. The whole detection value is in the command line and the parent-child chain, which default 4688 omits and Sysmon Event ID 1 captures.
+</Exercise>
+
+<Notes />

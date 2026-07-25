@@ -1,0 +1,188 @@
+---
+title: Docker Compose
+module: docker-and-containers
+moduleTitle: Docker and Containers
+moduleOrder: 14
+moduleIcon: Container
+order: 3
+summary: "One file describes a whole multi-container stack, and one command makes it real: services, the private network they share, ports, volumes, and a clean teardown."
+estimatedMinutes: 17
+prerequisites: ["what-containers-are", "images-and-dockerfiles"]
+objectives:
+  - Explain why running several containers by hand falls apart and what Compose replaces
+  - Read a compose file and say what services, image, build, ports, environment, and volumes each do
+  - Describe how services reach each other by name over the private network Compose creates
+  - Tell a published port from container-to-container traffic, and a named volume from a bind mount
+  - Bring a stack up and tear it down, and say exactly what down and down -v each destroy
+tags:
+  - docker
+  - compose
+  - networks
+  - volumes
+---
+
+The last lesson, images-and-dockerfiles, ended with one image and one `docker run`. That launches a single container, which is fine when the whole program fits in one. Most software does not. A web application talks to a database. The database might sit behind a cache. A background worker pulls jobs off a queue. That is four containers that have to find each other, start in a sensible order, and share some state, and none of it happens on its own.
+
+Standing those four up by hand means a sequence like this, run in the right order every time:
+
+```bash
+docker network create appnet
+docker run -d --name db --network appnet -e POSTGRES_PASSWORD=changeme postgres:16
+docker run -d --name web --network appnet -p 8080:80 -e DB_HOST=db myapp-web
+```
+
+Every flag there is load-bearing. Drop `--network appnet` on one container and it lands on a different network where the name `db` means nothing, so the web container starts and then cannot reach the database. Tearing the stack down is the same dance in reverse: stop each container, remove each container, remove the network. Add the cache and the queue and the command list doubles. This is the orchestration problem in miniature, on a single machine: not "how do I run a container" but "how do I run several as one unit."
+
+## One file for the whole stack
+
+Compose answers that by turning the pile of commands into a description. A single file, `compose.yaml`, lists what the stack contains. One command reads the file and makes the running system match it. Nothing is typed in sequence and nothing is remembered by hand, because the file is the memory.
+
+Here is the same web-plus-database stack as a compose file:
+
+```yaml
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: db
+    depends_on:
+      - db
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: changeme
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+```
+
+Each entry under `services` becomes one container. The name on the left, `web` and `db`, is the service name, and it matters more than it looks, as the next section shows.
+
+`build: .` and `image: postgres:16` are the two ways a service gets its image, and the split comes straight from the previous lesson. `image:` names a prebuilt image to pull from a registry, exactly as `docker pull` did. `build: .` runs a build from the Dockerfile in the current directory, the build context, exactly as `docker build` did, before starting the container. The web service is the app being written here, so it is built. Postgres is an off-the-shelf image nobody needs to rebuild, so it is pulled.
+
+`depends_on: [db]` sets start order: Compose starts `db` before `web`. That single line earns a warning further down, because it does less than it looks like it does.
+
+Bringing the stack up is one command:
+
+<CommandCard command="docker compose up -d" title="shell" explain="Reads compose.yaml, builds any service that has a build entry, creates the shared network and named volumes, then starts every service. -d detaches, so the terminal prompt comes back." />
+
+On the first run Compose prints one line as it creates the network, one as it creates the `pgdata` volume, and one per container as it starts them in dependency order. After that, `docker compose ps` reports what is running:
+
+<CommandCard command="docker compose ps" title="shell" explain="Lists the services in this project, their container names, current status, and which ports are published to the host." />
+
+<ExpectedOutput label="docker compose ps, columns trimmed to fit (names come from the directory)">
+```
+NAME          SERVICE   STATUS         PORTS
+myapp-db-1    db        Up 9 seconds   5432/tcp
+myapp-web-1   web       Up 9 seconds   0.0.0.0:8080->80/tcp
+```
+</ExpectedOutput>
+
+Two containers, both up. The PORTS column already tells the whole networking story. The web container shows `0.0.0.0:8080->80/tcp`, a port reachable from the host. The db container shows only `5432/tcp`, with no `0.0.0.0` mapping, which means the port exists inside the private network but is not published to the host at all. That gap is deliberate, and the next section is why.
+
+One spelling note. Modern Docker ships Compose as a built-in subcommand, `docker compose` with a space. An older standalone program, `docker-compose` with a hyphen, still turns up in tutorials and CI files. They are close but not identical, and the space is the current one. That is the version to use.
+
+<Quiz
+  id="compose-image-vs-build"
+  question="The db service is defined with image: postgres:16 and the web service with a build entry pointing at the current directory. What does docker compose up do with each at start?"
+  answer={2}
+  options={[
+    "Both are built from a Dockerfile, since every service needs one before it can start",
+    "It builds postgres:16 locally and pulls web from a registry",
+    "It pulls postgres:16 as a prebuilt image from a registry, and builds web from the Dockerfile in that directory before starting web's container",
+    "image and build are two names for the same step, so the services are handled identically",
+  ]}
+  explanation="image: names a prebuilt image to pull, the same source docker pull uses. build: points at a build context and runs a build from its Dockerfile first, the same thing docker build did, then starts the container. Postgres is off the shelf, so it is pulled. The app is being written here, so it is built."
+/>
+
+## Services find each other by name
+
+When Compose brings a stack up, it creates one private network for the project and attaches every service to it. That network is what lets the containers talk at all, and it is created and destroyed with the stack rather than managed by hand.
+
+The useful part is the naming. Compose runs a small DNS resolver on that network and registers each service under its service name. Inside the `web` container, the hostname `db` resolves to whatever internal address the database container currently holds. The application's connection string is literally `postgres://postgres:changeme@db:5432/postgres`, where `db` is the service name from the file, not an IP address anyone typed in. Restart the stack, let the database come up on a different internal address, and the name still resolves. Names are stable. Addresses are not.
+
+Resolution is visible from inside a running container:
+
+<CommandCard command="docker compose exec web getent hosts db" title="shell" explain="Runs getent inside the already-running web container to resolve the hostname db, the same lookup the application does every time it connects." />
+
+<ExpectedOutput label="the service name resolves to an internal address">
+```
+172.18.0.2      db
+```
+</ExpectedOutput>
+
+The address `172.18.0.2` lives on the project's private network and means nothing outside it. It differs on any other machine and can change between runs. The name `db` does not.
+
+This is the distinction people miss coming from single-container work. Publishing a port and container-to-container traffic are two different mechanisms. `ports: ["8080:80"]` maps port 8080 on the host to port 80 inside the web container, so a browser on the host can reach the app. Container-to-container traffic does not use that mapping at all. It rides the private network directly, on the container's own port. The database in the file has no `ports:` entry, which is exactly why `docker compose ps` showed it without a host mapping: `web` reaches it at `db:5432` over the private network, and nothing outside the stack can reach it.
+
+That default is the safe one. A database with no published port is reachable by the services that need it and invisible to everything else on the machine. Publishing 5432 to the host, just so two containers can talk, would expose the database to anything that can reach the host, for no benefit.
+
+The `environment:` block is how configuration reaches a service. Each key becomes an environment variable inside the container, read by the process the same way any program reads its environment. Postgres reads `POSTGRES_PASSWORD` on first start to set the superuser password. The web service reads `DB_HOST=db` to learn which host to connect to. That is also the catch: values written under `environment:` sit in the compose file as plain text and are readable by anyone who can open the file or inspect the running container. A weak default password in a practice stack is fine. A real secret does not belong there.
+
+<Callout type="warning" title="depends_on waits for start, not for ready">
+`depends_on` controls the order containers start, and nothing more. It starts the db container before the web container, but a container being started is not the same as the service inside it being ready to answer. Postgres takes a moment to initialize before it accepts connections, and `depends_on` does not wait for that. A web service that connects the instant it starts can hit a database that is up but not yet listening, and crash on the first query. The fix lives in the application: it retries the connection, or a healthcheck gates the dependent service until the database reports ready. Reading depends_on as "wait until ready" is one of the most common Compose mistakes.
+</Callout>
+
+<Quiz
+  id="compose-networking"
+  question="web publishes a host port and db publishes none. A browser on the host reaches web but cannot reach the database, yet web still queries the database without trouble. Why?"
+  answer={0}
+  options={[
+    "Publishing a port only exposes a service to the host. Container-to-container traffic uses the shared private network directly, so web reaches db by name while the host cannot reach db at all",
+    "The database is only reachable while a query is actively running",
+    "web is quietly forwarding the browser's requests on to the database",
+    "db must be broken, since a service with no published port cannot run",
+  ]}
+  explanation="ports: maps a container port to the host and has nothing to do with how containers reach each other. Services talk over the private network Compose creates, addressing each other by service name, whether or not any port is published. db needs no published port for web to reach it, and leaving it unpublished keeps it off the host entirely."
+/>
+
+## Volumes outlive the container
+
+The first lesson, what-containers-are, described the container lifecycle: a container has a thin writable layer on top of its read-only image, and that layer is destroyed when the container is removed. That is correct behavior for the program and wrong behavior for its data. Remove the database container and every row it held vanishes with the writable layer. A stack that loses its database on every teardown is not much of a stack.
+
+A named volume is the fix. It is storage that Docker manages separately from any container, living outside the container lifecycle entirely. In the compose file, `pgdata:/var/lib/postgresql/data` mounts a named volume called `pgdata` at the path where Postgres keeps its files, and the top-level `volumes:` block declares that `pgdata` exists. The database writes to that path as normal, the bytes land in the volume, and the volume is untouched when the container is removed. The next `up` reattaches the same volume, and the data is still there.
+
+A bind mount looks similar and does something different. Instead of a Docker-managed volume, it maps a specific directory from the host into the container, written as `./src:/app`. An edit to `./src` on the host shows up instantly inside the container, which is why bind mounts are the standard way to develop against live code without rebuilding the image on every change. Named volume for data the stack owns, bind mount for a host directory the stack should see: that is the split.
+
+Tearing down is where the two teardown commands differ, and the difference is the whole point for practice targets:
+
+<CommandCard command="docker compose down" title="shell" explain="Stops and removes the stack's containers and the private network. Named volumes are left alone, so their data survives." />
+
+<CommandCard command="docker compose down -v" title="shell" explain="Same as down, and also removes the named volumes declared in the file. Everything the stack wrote is gone." />
+
+Plain `down` removes the containers and the network but leaves named volumes in place. A second `up` brings the stack back with the database still holding its rows, because `pgdata` was never deleted. Adding `-v` deletes the named volumes too, which drops the stack back to the exact state of a first-ever `up`: empty database, nothing remembered.
+
+That second command is how a deliberately broken practice target gets reset between attempts. Running the target, poking at it, corrupting its data, then `docker compose down -v` followed by `docker compose up -d`, hands back a clean copy with none of the previous mess carried over.
+
+<Callout type="security" title="Practice stacks belong only on machines in scope">
+A compose file often ships a database with a weak default password and services bound to the host, which is convenient for practice and dangerous anywhere else. Practice stacks belong only on machines the tester owns or is explicitly authorized to assess. Where a port must be published, binding it to `127.0.0.1` (written `127.0.0.1:8080:80`) limits it to the local machine, unlike `0.0.0.0`, which accepts connections from anything that can route to the host.
+</Callout>
+
+<Quiz
+  id="compose-volumes"
+  question="Postgres data lives in a named volume, pgdata. After docker compose down, then docker compose up again, what is true of the data?"
+  answer={1}
+  options={[
+    "It is gone. down destroys everything the stack created, volumes included",
+    "It survives. down removes the containers and the network but leaves named volumes, so the next up reattaches pgdata with its rows intact",
+    "It survives only if the containers were still running when down ran",
+    "It is gone unless the volume was declared as a bind mount instead",
+  ]}
+  explanation="down stops and removes containers and the project network, but named volumes are left in place on purpose, so the data comes back on the next up. Only docker compose down -v removes the named volumes, and that is the command that resets the stack to an empty first-run state."
+/>
+
+<Exercise title="Stand one up, then reset it">
+On any machine with Docker installed, save the compose file above as `compose.yaml` in an empty directory. Replace `build: .` on the web service with `image: nginx:alpine` so there is nothing to build, then run `docker compose up -d` followed by `docker compose ps`. Confirm the db line shows a port with no `0.0.0.0` in front of it.
+
+Now run `docker compose exec web getent hosts db`. The name resolves to an internal address, which is the private network doing its job. Notice there is no IP address anywhere in the file.
+
+Run `docker compose down`, then `docker compose up -d` again, and watch the stack come back. Finally run `docker compose down -v`. That last command removes the pgdata volume, and the next `up` starts from an empty database. Pay attention to which teardown keeps your data and which wipes it, because on a real target that is the difference between resuming and starting over.
+</Exercise>
+
+That reset loop, plus the port control and the private network, is exactly what makes containers the right place to run software built to be attacked. The next lesson, running-targets-in-docker, uses all three at once: publishing a port to reach a deliberately vulnerable target, keeping it on an isolated network so it cannot reach anything it should not, and tearing it down cleanly when the work is done.
+
+<Notes />

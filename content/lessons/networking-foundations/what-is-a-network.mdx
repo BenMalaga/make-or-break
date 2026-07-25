@@ -1,0 +1,267 @@
+---
+title: What Is a Network
+module: networking-foundations
+moduleTitle: Networking Foundations
+moduleOrder: 1
+moduleIcon: Network
+order: 1
+summary: "Hosts, addresses, packets, and the equipment in between: the picture every other lesson draws on."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - Define a network, a host, and an IP address without reaching for an analogy
+  - Split a packet into its header and its payload and say what each one is for
+  - Explain why a protocol has to exist before two machines can say anything useful
+  - Tell a LAN from a WAN, and a switch from a router, by what each one uses to make its decision
+  - Name the three misconceptions that make beginners misread every tool they run later
+tags:
+  - networking
+  - fundamentals
+---
+
+Someone types an address into a browser. About a second later a page fills the
+screen. In that second, a request left one machine, crossed equipment owned by
+companies that have no idea who sent it, arrived at a machine possibly on
+another continent, and came back with an answer that arrived in the right order
+with nothing missing.
+
+None of that is magic. It's a handful of small, unglamorous rules, applied by
+machines that are individually pretty stupid. This lesson lays out the rules.
+Every tool in every later lesson is just an application of them, so the tools
+stop looking clever once the rules are clear.
+
+## Machines that can reach each other
+
+A <Term id="network">network</Term> is a set of machines that can send each
+other messages. That is the entire definition. There's no minimum size: two
+laptops connected by a cable are a network, and so is the internet.
+
+Every machine attached to a network is a <Term id="host">host</Term>. A laptop
+is a host. A phone is a host. A printer is a host. The web server answering the
+browser is a host, and so is the plastic box in the corner of the room that the
+Wi-Fi comes out of. If it's on the network and it can send or receive data, it's
+a host. The word says nothing about size, importance, or whether a person is
+sitting at it.
+
+Hosts need a way to refer to each other, and the network needs something it can
+act on mechanically. That's the <Term id="ip-address">IP address</Term>: a
+numeric label like `192.168.1.42` or `93.184.216.34` that identifies one machine
+on a network. A street address is the usual comparison and it's a decent one,
+with one warning attached. A street address is more or less permanent. An IP
+address is not. Most hosts are handed an address when they join a network and
+lose it when they leave, and the same address gets handed to a different machine
+next week. The address describes where a host currently sits, not who it is.
+
+One more limit worth setting early. An IP address answers exactly one question:
+which machine. It says nothing about which program on that machine should get
+the data. A single host might be running a web server, a mail server, and a
+remote login service at once, and the IP address alone cannot tell them apart.
+Something else has to, and a later lesson covers what.
+
+<Quiz
+  id="net-what-is-host"
+  question="A home router sits between a laptop and the internet and forwards packets in both directions. Is the router itself a host?"
+  answer={1}
+  options={[
+    "No. A host is a machine a person actually uses.",
+    "Yes. It's attached to a network and it sends and receives data, which is the whole test.",
+    "No. Only the two endpoints of a conversation are hosts.",
+    "Yes, but only while it's forwarding something.",
+  ]}
+  explanation="Host means any machine attached to a network that can send or receive data. Routers, printers, and phones all pass that test. The word carries no judgment about what the machine is for."
+/>
+
+## Data travels in small labeled chunks
+
+No host sends a 4 MB photo as one continuous blob. The sending host chops the
+data into <Term id="packet">packet</Term>s, each one a few hundred to a few
+thousand bytes, and sends them one after another.
+
+Two reasons for that, and both matter. A link is shared, so one machine
+transmitting a giant unbroken block would freeze everyone else on that link
+until it finished. And data gets damaged in transit. When a 4 MB blob is one
+unit, any single flipped bit means resending 4 MB. When it's chopped up, one
+damaged chunk means resending that chunk.
+
+Every packet has two parts. The <Term id="header">header</Term> is the labels
+stuck on the front: where the packet came from, where it's going, and a set of
+bookkeeping fields that let the receiver put things back together. The
+<Term id="payload">payload</Term> is everything after the header, meaning the
+actual data being carried. Postcard, roughly: the address side is the header,
+the message side is the payload. The carrier reads only the address side, and
+does not care at all what the message says.
+
+Real numbers make this concrete. A common Ethernet link carries at most 1500
+bytes per packet. A standard IP header eats 20 of those bytes and a standard TCP
+header eats another 20, which leaves 1460 bytes of payload. So a 4 MB photo
+(4,194,304 bytes) leaves the sending host as roughly 2,900 packets, each one
+independently addressed, each one making its own way across.
+
+<Callout type="info" title="The network does less than most people assume">
+The network's job is to carry individual packets from a source address toward a
+destination address. That's it. It does not promise they arrive in order, it
+does not promise they arrive at all, and it does not know they were ever part of
+the same photo. Reassembly, ordering, and re-sending the lost ones are somebody
+else's problem.
+</Callout>
+
+That "somebody else" is the point of the next idea.
+
+## Both sides have to agree first
+
+Two machines exchanging bytes is useless unless each one knows what the other's
+bytes mean. A <Term id="protocol">protocol</Term> is the agreed set of rules for
+a conversation: what each side may say, in what order, and what each message
+means. Both ends run the same rules or neither is understood. A machine sending
+perfectly valid web traffic to a program expecting mail traffic gets nowhere,
+even though every packet arrives intact.
+
+Protocols stack. One set of rules gets packets from address to address. A
+different set sits on top and handles the reassembly and re-sending the network
+itself refuses to do. A third sits on top of that and defines what a request for
+a web page looks like. Each layer trusts the one below to do its narrow job.
+
+In almost every exchange, one side asks and the other answers. The asker is the
+<Term id="client">client</Term>. The answerer is the
+<Term id="server">server</Term>, a word that means both the program that listens
+and the machine it runs on, which is a lifelong source of confusion and is not
+going to get fixed. A browser is a client. The machine that hands it the page is
+a server. The asymmetry matters more than it looks: the server is the side
+sitting there accepting messages from strangers, which is exactly why servers,
+not browsers, are what gets attacked.
+
+<Quiz
+  id="net-packet-split"
+  question="A host sends a 3 MB file. Why doesn't it put the whole file into a single packet?"
+  answer={2}
+  options={[
+    "Headers can't be attached to payloads larger than a few kilobytes.",
+    "The receiving host can only hold 1500 bytes of data at a time.",
+    "Links cap how much one packet may carry, and small chunks mean damage costs one chunk instead of the whole file.",
+    "IP addresses are only valid for small transfers.",
+  ]}
+  explanation="Two forces: a per-packet size limit on the link, and the cost of re-sending. Chopping data up keeps one machine from monopolizing a shared link and keeps the price of a damaged chunk small."
+/>
+
+## Nearby, and far away
+
+A <Term id="lan">LAN</Term>, local area network, is the small network shared by
+machines in one place: a house, an office floor, a lab. Hosts on the same LAN
+reach each other directly, without anything in between making routing decisions
+about them.
+
+A <Term id="wan">WAN</Term>, wide area network, connects separate local networks
+across distance. The internet is the largest one that exists. It is not a
+different kind of thing, just LANs joined up at enormous scale.
+
+Two pieces of equipment do the joining, and they're constantly confused with
+each other.
+
+A <Term id="switch">switch</Term> moves data between machines inside one LAN. It
+does not use IP addresses at all. It uses the
+<Term id="mac-address">MAC address</Term>, a hardware identifier burned into
+each network interface at the factory and written as six hex pairs like
+`00:1a:2b:3c:4d:5e`. A MAC address means something only on the local network,
+and it does not survive a trip to another one.
+
+A <Term id="router">router</Term> forwards packets between different networks,
+picking where each packet goes next based on its destination IP address. The
+specific router a host sends to when the destination is not on its own LAN has a
+name: the <Term id="gateway">default gateway</Term>. It's the exit door. On a
+home network, the switch, the router, the gateway, and the Wi-Fi radio are
+usually all the same plastic box, which is exactly why the four words get
+blurred together.
+
+On a Linux host, `ip route` prints where packets go.
+
+<CommandCard
+  command="ip route"
+  title="linux"
+  explain="Lists the host's routing decisions. The 'default' line names the gateway, meaning where anything not on the local network gets handed off."
+/>
+
+<ExpectedOutput label="ip route on a laptop joined to a home network">
+```
+default via 192.168.1.1 dev eth0 proto dhcp metric 100
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.42 metric 100
+```
+</ExpectedOutput>
+
+Two lines, two rules, and the second one is read first. Anything addressed
+inside `192.168.1.0/24` goes straight out of the interface named `eth0` to the
+local network, no router involved. Everything else falls to `default` and gets
+handed to `192.168.1.1`, the gateway. The `/24` is how the host knows where its
+LAN stops, and the next lesson takes that apart properly. The addresses here
+come from one specific machine and will differ on any other.
+
+The MAC addresses of local neighbors are visible too.
+
+<CommandCard
+  command="ip neigh"
+  title="linux"
+  explain="Prints the local hardware addresses the host has learned, one line per neighbor on the same LAN."
+/>
+
+<ExpectedOutput label="ip neigh on the same laptop">
+```
+192.168.1.1 dev eth0 lladdr 3c:37:86:1f:0a:b4 REACHABLE
+192.168.1.17 dev eth0 lladdr 00:1a:2b:3c:4d:5e STALE
+```
+</ExpectedOutput>
+
+Every entry is a machine on the same LAN. Nothing beyond the gateway ever shows
+up here, and that's not a limitation of the command. It's the shape of the
+system: hardware addresses stop at the edge of the local network.
+
+<Quiz
+  id="net-mac-scope"
+  question="A packet leaves a laptop headed for a server on the other side of the internet. What happens to the laptop's MAC address after the first router?"
+  answer={0}
+  options={[
+    "It's stripped and replaced at every hop, because a MAC address only means something on one local network.",
+    "It rides along to the server, which reads it to know where to send the reply.",
+    "The router converts it into an IP address.",
+    "It stays fixed while the destination IP gets rewritten at each hop.",
+  ]}
+  explanation="MAC addresses are local. Each hop rewrites them for the next link. The IP addresses are what stay put end to end, which is the division of labor between a switch and a router."
+/>
+
+## Three things that trip people up later
+
+The network does not deliver files. It delivers packets, and it's allowed to
+lose them, duplicate them, and hand them over in the wrong order. Every
+guarantee that feels like the network's doing is a protocol running on the hosts
+at either end, cleaning up after it. Tools that look broken are often just
+showing this honestly.
+
+Reaching a host is not the same as reaching a service on it. A machine can
+answer at its IP address while nothing on it is willing to talk, or while a
+filter in between silently drops the request. "The address responds" and "the
+thing there will speak to me" are two separate questions, and a lot of early
+confusion comes from treating them as one.
+
+An IP address is not an identity. It's a lease. It changes when a host moves
+networks, it changes when the lease expires, and equipment along the way rewrites
+addresses as a matter of routine. Any conclusion built on "this address is that
+machine" is standing on sand unless something else backs it up.
+
+<Exercise title="Find your own edges">
+On any Linux or macOS host, run `ip route` (on macOS, `netstat -rn` prints the
+same information in a different shape). Find the `default` line and write down
+the gateway address. That's the exit door from your local network.
+
+Now run `ip neigh` (macOS: `arp -a`) and count the entries. Every machine listed
+is on your LAN. Everything else on earth is behind that one gateway address.
+
+Compare the two lists. The gateway shows up in both, and it's the only address
+that does. Ask yourself why that is. The answer is the whole point of this
+lesson.
+</Exercise>
+
+Hosts, addresses, packets with a header and a payload, protocols, and the
+equipment that moves them: that's the vocabulary. What it doesn't give is a way
+to talk about how the protocols stack, which is a problem, because "which layer
+is this happening at" is the question that ends most networking arguments. The
+next lesson, the OSI model, hands over that map.
+
+<Notes />

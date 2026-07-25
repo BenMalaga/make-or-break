@@ -1,0 +1,44 @@
+---
+title: Wrapped Twice
+summary: Peel two layers, base64 then ROT13, to recover the flag.
+track: break
+category: crypto
+difficulty: MEDIUM
+tags: [encoding, base64, rot13, cipher]
+daily: true
+answer: "MOB{layers_peel_off}"
+answerType: flag
+starterLang: python
+starter: |
+  # The flag was wrapped in two layers: base64 on the outside, ROT13 underneath.
+  # Undo them in reverse order: base64-decode first, then apply ROT13.
+  import base64
+  import codecs
+
+  data = "WkJPe3lubHJlZl9jcnJ5X2Jzc30="
+  step1 = base64.b64decode(data).decode()   # peel the base64 layer
+  flag = codecs.decode(step1, "rot_13")     # peel the ROT13 layer
+  print(flag)
+hints:
+  - Two layers were applied. Base64 went on last, so decode the base64 first.
+  - What is left after base64-decoding is ROT13 text. Apply ROT13 to reverse it (ROT13 is its own inverse).
+  - The final result is the flag. Submit it exactly, including the MOB{...} wrapper.
+---
+
+Encodings stack. This flag was wrapped twice: the original text was first passed
+through ROT13, and that result was then base64-encoded. What you see below is the
+final, outer base64 layer.
+
+```
+WkJPe3lubHJlZl9jcnJ5X2Jzc30=
+```
+
+To recover the flag, peel the layers in reverse order:
+
+1. Base64-decode the string above. That gives you the ROT13 layer, which looks
+   like scrambled letters wrapped in braces.
+2. Apply ROT13 to that text. ROT13 is its own inverse, so applying it once
+   returns the original. Digits, braces, and underscores stay put.
+
+Run the starter code, or do it any way you like, then submit the recovered flag
+in the form `MOB{...}` exactly as it reads.

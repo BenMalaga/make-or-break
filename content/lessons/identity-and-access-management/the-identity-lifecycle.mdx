@@ -1,0 +1,64 @@
+---
+title: The Identity Lifecycle
+module: identity-and-access-management
+moduleTitle: Identity and Access Management
+moduleOrder: 48
+moduleIcon: Fingerprint
+order: 5
+summary: "The account behind the breach is rarely the CEO's. It is the contractor who left last year whose VPN still works."
+estimatedMinutes: 17
+objectives:
+  - Walk an identity through joiner, mover, and leaver and name where each fails
+  - Explain how SCIM and missing integrations create orphaned accounts
+  - Hunt stale and static-password accounts in a directory
+tags:
+  - iam
+  - lifecycle
+  - deprovisioning
+  - offboarding
+  - scim
+---
+
+The account that shows up in the breach report is almost never the CEO's. It is the contractor who rolled off fourteen months ago, whose VPN login still works, whom nobody has thought about since. Orphaned accounts are where attackers set up house, because no one is watching an identity that officially does not exist anymore.
+
+Every identity has a lifecycle, and the industry name for it is joiner-mover-leaver, JML. Get all three stages right and you carry very little standing risk. Get the leaver stage wrong and you accumulate a graveyard of live credentials that answer to no one.
+
+Joiner is provisioning on day one. The good version grants access from a role template, birthright access: a new sales rep gets exactly the sales apps by virtue of the role, not because a manager hand-picked a list and forgot two of them. Hand-provisioning is where the inconsistency starts.
+
+Mover is the stage everyone botches. Someone transfers from finance to engineering, gets the engineering access added, and the finance access just stays. Do that across a few role changes over five years and the person holds permissions from every team they ever touched. That is privilege creep, and the fix is that a move recalculates access from the new role instead of appending to the old pile.
+
+Leaver is deprovisioning, and the hard part is doing it everywhere. HR terminates the person in Workday, the IdP disables their account, and the two SaaS tools the marketing team bought on a credit card never get the message because they were never wired in. Those tools are your orphan factory.
+
+## SCIM and the orphan factory
+
+SCIM, System for Cross-domain Identity Management, is the protocol that pushes create, update, and disable events from the IdP out to connected apps. An app on SCIM gets the deprovision signal the moment HR fires someone. An app not on SCIM relies on a human remembering it exists during offboarding, which is exactly the memory that fails on a busy Friday.
+
+Service accounts are the worst offenders. Nobody wants to disable the one running a nightly job for fear of breaking production, so it lives for years with a static password and rights no human would be allowed to hold. An orphaned service account with domain privilege is a standing gift to an attacker.
+
+<CommandBlock
+  title="find the accounts nobody is watching (Active Directory)"
+  commands={[
+    { cmd: "Search-ADAccount -AccountInactive -TimeSpan 90.00:00:00 -UsersOnly", comment: "enabled accounts with no logon in 90 days" },
+    { cmd: "Get-ADUser -Filter 'Enabled -eq $true -and PasswordNeverExpires -eq $true' -Properties PasswordNeverExpires", comment: "static-password accounts, usually service accounts" },
+    { cmd: "Get-ADUser -Filter * -Properties LastLogonTimestamp | sort LastLogonTimestamp", comment: "oldest logons float to the top; start there" },
+  ]}
+/>
+
+The control that keeps the graveyard swept is access recertification. On a schedule, usually quarterly, managers attest to who should still hold what, and anything unclaimed gets pulled. SOX and SOC 2 both require it. Run as a rubber stamp it is theater and everyone approves everything in one click. Run honestly it is the single routine that actually catches privilege creep and the account that outlived its owner.
+
+For an attacker the takeaway is the mirror image: enumerate the stale. `lastLogonTimestamp`, `pwdLastSet`, accounts disabled but never removed, service accounts with SPNs and ancient passwords. The identity nobody owns is the one nobody will notice you using.
+
+<Callout type="security" title="Enumerate only your own directory">
+Querying an Active Directory you have written authorization to assess is normal work. Running these against a domain you were not scoped for is unauthorized enumeration, and stale-account hunting is a step attackers take right before they abuse one. Practice in a lab: a Windows Server evaluation VM with a few seeded accounts, or a range like GOAD (Game of Active Directory), which ships with exactly these misconfigurations on purpose.
+</Callout>
+
+<Exercise
+  id="stale-account-hunt"
+  prompt="Name the Active Directory attribute you would sort on to surface enabled accounts that have not authenticated in a long time."
+  answer="lastLogonTimestamp"
+  placeholder="e.g. pwdLastSet"
+>
+Think about the replicated attribute that records roughly when an account last logged on, the one you sort ascending so the most dormant accounts float to the top of the list.
+</Exercise>
+
+<Notes />

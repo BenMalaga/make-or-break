@@ -1,0 +1,77 @@
+---
+title: The OWASP API Top 10
+module: api-security
+moduleTitle: API Security
+moduleOrder: 32
+moduleIcon: Webhook
+order: 2
+summary: A short list of the API bugs that actually pay, ranked by how often they land.
+estimatedMinutes: 20
+objectives:
+  - Name the API Top 10 categories and what each one looks like in a request
+  - Explain why authorization bugs dominate the list
+  - Pick the right first tests when you land on a new API
+tags:
+  - api
+  - owasp
+  - authorization
+  - methodology
+---
+
+The web app Top 10 and the API Top 10 are different lists, and testing an API with the web list will make you miss the bugs that matter. OWASP built a separate API Security Top 10 (current edition 2023) because APIs fail in their own ways. The headline: the top two entries are both broken authorization, and together they account for most real API breaches.
+
+Here is the list, in the order OWASP ranks it, with what each one means when you have a request in front of you.
+
+**API1 Broken Object Level Authorization (BOLA).** The server checks you are logged in but not that the object you asked for is yours. `GET /api/orders/8890` returns someone else's order. This is the single most exploited API bug, and it gets its own lesson next.
+
+**API2 Broken Authentication.** Weak or missing checks on who you are. JWTs accepted with `alg:none`, no rate limit on login so credential stuffing runs free, password reset tokens you can guess, tokens that never expire.
+
+**API3 Broken Object Property Level Authorization.** Two failures in one. Mass assignment (you send `"isAdmin":true` and the server binds it) and excessive data exposure (the endpoint returns the full user object including `password_hash` and `ssn`, trusting the UI to hide them). Read every field in every response.
+
+**API4 Unrestricted Resource Consumption.** No limits. One request triggers a huge export, an unbounded `?limit=` returns the whole table, no throttling lets you brute force. This is how you turn a slow endpoint into a denial of service or a data dump.
+
+**API5 Broken Function Level Authorization (BFLA).** You can call admin functions as a normal user. The UI hides the delete button, but `DELETE /api/admin/users/5` still works because the server only gated the button, not the route. Swap the HTTP method or hit the admin path directly.
+
+**API6 Unrestricted Access to Sensitive Business Flows.** Automation abuse. Buy every concert ticket, drain a promo code, mass-create accounts. The endpoint works as designed, but there is nothing stopping a script from running it ten thousand times.
+
+**API7 Server Side Request Forgery.** The API fetches a URL you supply. Point it at `http://169.254.169.254/latest/meta-data/` and you may pull cloud credentials off the metadata service. Any field named `url`, `callback`, `webhook`, or `image_url` is a candidate.
+
+**API8 Security Misconfiguration.** Verbose stack traces, missing CORS restrictions, debug endpoints left live, default credentials on an admin panel. Cheap to find, often high impact.
+
+**API9 Improper Inventory Management.** The forgotten `/api/v1/` still running next to `/api/v2/`, a `staging.` host with no auth, an internal endpoint exposed to the internet. Old versions rarely get the fixes the current one did.
+
+**API10 Unsafe Consumption of APIs.** Your target trusts a third-party API blindly and passes its data through without validation. You attack the weaker upstream to reach the stronger downstream.
+
+## Where to start
+
+Do not test top to bottom. Test by payoff. On a fresh API, your first three moves are almost always the same.
+
+<CommandBlock
+  title="the first tests that land most often"
+  commands={[
+    { cmd: "GET /api/orders/8889   (you own 8890)", comment: "BOLA: decrement an id you own and see if another user's object returns" },
+    { cmd: "PATCH /api/users/me  {\"role\":\"admin\"}", comment: "mass assignment: send a field the UI never gave you" },
+    { cmd: "DELETE /api/admin/users/5  as a normal user", comment: "BFLA: hit an admin route your account should not reach" },
+  ]}
+/>
+
+<Callout type="security" title="Authorized targets only">
+Run these against OWASP crAPI, VAmPI, or a scope you have written permission to test. Probing a live third-party API for BOLA is unauthorized access, and iterating ids across another user's data is the part prosecutors point at.
+</Callout>
+
+The pattern under the whole list: APIs assume the client behaves. Authorization is the check developers skip because the front end already hid the option, and the front end is not your problem.
+
+<Quiz
+  id="api-top10-number-one"
+  question="Which category sits at number one on the OWASP API Security Top 10, and why?"
+  answer={0}
+  options={[
+    "Broken Object Level Authorization, because APIs routinely verify you are logged in but not that the object you requested belongs to you",
+    "SQL Injection, because every API talks to a database",
+    "Cross-Site Scripting, because APIs return JSON to browsers",
+    "Security Misconfiguration, because default credentials are everywhere",
+  ]}
+  explanation="BOLA (API1) is the most exploited API flaw. The server checks authentication but not object-level ownership, so changing an id in the path hands you another user's data."
+/>
+
+<Notes />

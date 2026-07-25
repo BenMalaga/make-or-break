@@ -1,0 +1,232 @@
+---
+title: "Numbers and Math"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 3
+summary: "Python does more than add and subtract: floor division, modulo, and exponents cover most of the math a real program needs, and knowing which operator gives an int versus a float saves a class of bugs."
+estimatedMinutes: 13
+prerequisites: ["python-variables"]
+objectives:
+  - Perform arithmetic in Python with +, -, *, and / and predict whether the result is an int or a float
+  - Use floor division // and the modulo % operator, including the even/odd test built on %
+  - Apply ** for exponents and use parentheses to control order of operations
+  - Convert between strings and numbers with int() and float(), and round a float with round()
+tags:
+  - python
+  - numbers
+  - math
+---
+
+The previous lesson, working with variables, stored a value under a name and left it there. A variable holding a number is not just a label though, it is something a program can do math on, and Python's math operators cover more ground than the four taught in grade school. A cash register needs to know how many whole dollar bills to hand back and how many cents are left over. A scheduler needs to know if a slot lands on an even minute. Neither of those is a plain division problem, and Python has a dedicated operator for each.
+
+## The four operators everyone expects
+
+Addition, subtraction, multiplication, and division all use symbols already familiar from a calculator: `+`, `-`, `*`, and `/`. Python evaluates an expression built from them and returns a single value.
+
+```python
+a = 10
+b = 3
+print(a + b)
+print(a - b)
+print(a * b)
+print(a / b)
+```
+
+<ExpectedOutput label="the four basic operators on 10 and 3">
+```
+13
+7
+30
+3.3333333333333335
+```
+</ExpectedOutput>
+
+Nothing surprising in the first three lines. The fourth is worth a second look: `10 / 3` did not come back as `3`, it came back as a long decimal. That is not a rounding quirk, it is a rule. The `/` operator in Python always produces a float, meaning a number with a decimal point, even when the two numbers being divided are both whole numbers and even when they divide evenly. `10 / 2` returns `5.0`, not `5`. A program that expects a whole number back from `/` and feeds it straight into something that only accepts integers will hit a type error sooner or later, so it pays to remember that `/` and "float" travel together.
+
+Mixing an int and a float inside one expression does not confuse Python, it just settles on the wider type for the answer. An int is a whole number with no decimal point, like `10`, and a float can represent everything an int can plus fractions, so adding, subtracting, or multiplying an int with a float always comes back as a float. `3 + 2.5` is `5.5`, and `10 * 2.0` is `20.0`, not `20`, even though multiplying by a whole-looking number feels like it should stay whole. Python's rule of thumb is simple: if a float touches an expression anywhere, the result is a float, and `/` is the one operator that produces a float even when both sides started as plain integers.
+
+## Floor division and modulo: the two operators division alone can't replace
+
+Plenty of real problems are not "what is 10 divided by 3" but "how many whole groups of 3 fit into 10, and what is left over." Python answers both halves with two dedicated operators. Floor division, written `//`, divides and then drops everything after the decimal point, keeping only the whole number of times the divisor fits. Modulo, written `%`, returns the remainder, meaning whatever is left over after floor division has taken out as many whole groups as it can.
+
+```python
+total_cookies = 23
+cookies_per_box = 5
+full_boxes = total_cookies // cookies_per_box
+leftover = total_cookies % cookies_per_box
+print(full_boxes)
+print(leftover)
+```
+
+<ExpectedOutput label="23 cookies split into boxes of 5">
+```
+4
+3
+```
+</ExpectedOutput>
+
+Twenty-three cookies make 4 full boxes of 5, using up 20 cookies, with 3 left over that do not fill a fifth box. `23 // 5` is `4`, the count of full boxes. `23 % 5` is `3`, the cookies that did not fit. Notice the two operators are a matched pair: `(full_boxes * cookies_per_box) + leftover` always equals the original number back. That relationship is not a coincidence, it is what floor division and modulo are defined to do together.
+
+Modulo has a second life that shows up constantly once a program starts making decisions: testing whether a number is even or odd. Any even number, divided by 2, leaves no remainder. Any odd number leaves a remainder of 1. So `number % 2` is `0` for an even number and `1` for an odd one, and that single check is the standard way Python code asks "is this even?"
+
+```python
+for number in [4, 7, 12, 15]:
+    if number % 2 == 0:
+        print(number, "is even")
+    else:
+        print(number, "is odd")
+```
+
+<ExpectedOutput label="checking each number's remainder after dividing by 2">
+```
+4 is even
+7 is odd
+12 is even
+15 is odd
+```
+</ExpectedOutput>
+
+That `number % 2 == 0` pattern is worth memorizing on its own, separate from the loop and the `if` statement wrapped around it here. It is the idiom, meaning the standard, recognized way to write something, that shows up in scheduling code, pagination, alternating row colors, and anywhere else a program needs to alternate between two behaviors.
+
+<Quiz
+  id="numbers-mod-even-odd"
+  question="A program checks if year % 4 == 0. What is this checking, and why does % do the job instead of /?"
+  answer={1}
+  options={[
+    "It checks whether year divided by 4 is greater than zero, and / could not do this because / always returns a float.",
+    "It checks whether year divides evenly by 4 with no remainder, which % reports directly while / would only give a decimal result that has to be inspected separately.",
+    "It checks whether year is a negative number, since % only works correctly on negative inputs.",
+    "It checks whether year is exactly 4, and % is required because == cannot compare two integers directly.",
+  ]}
+  explanation="% returns the remainder after division, so year % 4 == 0 is true exactly when year divides evenly by 4 with nothing left over, which is the real definition of a leap-year candidate check. / would return a float like 2026.25, and the program would still have to test whether that float has a fractional part, which is more work for the same answer. The other two options describe checks % and / do not perform."
+/>
+
+## Exponents and the order operations happen in
+
+Raising a number to a power uses `**`, written as two asterisks with no space between them. `2 ** 3` means 2 raised to the 3rd power, not 2 times 3.
+
+```python
+print(2 ** 3)
+print(5 ** 2)
+print(2 ** 0.5)
+```
+
+<ExpectedOutput label="exponents, including a fractional exponent for a square root">
+```
+8
+25
+1.4142135623730951
+```
+</ExpectedOutput>
+
+`2 ** 0.5` is the square root of 2, since raising a number to the one-half power is the same operation as taking its square root. That last line is also a float, for the same reason `/` always is: an operation that can produce a non-whole answer returns a float by default, even on inputs that look like plain integers.
+
+With five operators now in play, `+`, `-`, `*`, `/`, `//`, `%`, and `**`, a longer expression needs a rule for which operation happens first. Python follows the same order most math classes teach: exponents first, then multiplication, division, floor division, and modulo (evaluated left to right among themselves), then addition and subtraction last. Parentheses override all of it, and the operation inside them always happens first, no matter what it is.
+
+```python
+print(2 + 3 * 4)
+print((2 + 3) * 4)
+print(10 - 2 ** 2)
+```
+
+<ExpectedOutput label="the same numbers, different order of operations">
+```
+14
+20
+6
+```
+</ExpectedOutput>
+
+`2 + 3 * 4` multiplies first, giving `3 * 4 = 12`, then adds `2` for `14`. Wrapping `2 + 3` in parentheses forces that addition to happen first instead, turning the expression into `5 * 4`, which is `20`. And `10 - 2 ** 2` raises `2` to the power of `2` before subtracting, so it is `10 - 4`, not `8 - 2`. Reading an unfamiliar expression without knowing this order is a common source of bugs that never raise an error, they just quietly compute the wrong number. When an expression has more than two operators in it, adding parentheses is often worth it even where they are not strictly required, because a reader should not have to reconstruct the order rules from memory to trust the math.
+
+`//` and `%` sit at the same precedence level as `*` and `/`, not down with addition and subtraction, so an expression like `10 - 20 % 3` computes `20 % 3` first, which is `2`, and then subtracts to get `8`. That detail rarely comes up on its own, but it explains why an expression that mixes modulo into a longer calculation sometimes needs its own parentheses to read clearly, even when the order Python already uses happens to match what was intended. When in doubt, parenthesize the piece that matters and move on. A reader should never have to run the whole precedence table in their head just to trust a line of code.
+
+<Quiz
+  id="numbers-order-of-operations"
+  question="What does 4 + 2 ** 3 evaluate to, and why?"
+  answer={2}
+  options={[
+    "216, because Python evaluates strictly left to right, so 4 + 2 happens first and the result is raised to the 3rd power.",
+    "12, because addition is always evaluated before exponents in Python.",
+    "12, because ** binds tighter than +, so 2 ** 3 is computed first as 8, then 4 is added to it.",
+    "9, because ** is treated the same as * and the expression becomes 4 + 2 * 3.",
+  ]}
+  explanation="Exponents are evaluated before addition, so 2 ** 3 becomes 8 first, and then 4 + 8 gives 12. Python does not evaluate strictly left to right across different operators, addition is never evaluated ahead of an exponent, and ** is its own operator, not a stand-in for multiplication."
+/>
+
+## Rounding a float and converting between numbers and text
+
+A float like `3.3333333333333335` is often more precision than a program needs to show. The built-in `round()` function takes a number and, optionally, how many decimal places to keep, and returns a rounded version.
+
+```python
+price = 19.987
+print(round(price))
+print(round(price, 2))
+print(round(price, 1))
+```
+
+<ExpectedOutput label="rounding the same float to no decimals, then two, then one">
+```
+20
+19.99
+20.0
+```
+</ExpectedOutput>
+
+Calling `round(price)` with no second argument rounds to the nearest whole number and returns an int: `20`. Giving it `2` keeps two decimal places, rounding `19.987` to `19.99`. Giving it `1` rounds to one decimal place, and since `19.987` sits closer to `20.0` than to `19.9` at that precision, it rounds up to `20.0`. The detail worth taking away is smaller than any specific example: `round()` always takes the number first and the number of decimal places second, and leaving that second argument off rounds all the way to a whole number.
+
+Numbers do not always start out as numbers. Input typed by a person, text read from a file, or a value pulled out of a web request all arrive as a string, meaning a sequence of text characters, even if every character in it is a digit. The string `"5"` and the integer `5` look the same when printed, but Python will not do math on the string version:
+
+```python
+age_text = "25"
+age = int(age_text)
+print(age + 1)
+
+price_text = "19.99"
+price = float(price_text)
+print(price * 2)
+```
+
+<ExpectedOutput label="converting text into real numbers before doing math on them">
+```
+26
+39.98
+```
+</ExpectedOutput>
+
+`int()` converts a string of digits into a whole number, and `float()` converts a string into a number that may have a decimal point. Trying to add `1` to the string `"25"` directly, without converting it first, raises a type error, because addition does not know how to combine text and a number. The conversion has to happen first, and the choice between `int()` and `float()` depends on whether the text represents a whole number or one with decimals: `int("19.99")` fails, because `int()` cannot parse a decimal point, so `float()` is the right call whenever the text might contain one.
+
+Both conversions also fail outright when the text is not a number at all, and the failure is worth seeing once so it is recognizable later:
+
+```python
+quantity_text = "twelve"
+quantity = int(quantity_text)
+```
+
+<ExpectedOutput label="int() cannot parse text that is not a number">
+```
+Traceback (most recent call last):
+  File "order.py", line 2, in <module>
+    quantity = int(quantity_text)
+ValueError: invalid literal for int() with base 10: 'twelve'
+```
+</ExpectedOutput>
+
+`ValueError` is Python's way of saying the value handed to a function was the right type, a string, but the wrong shape for what the function needed. `int()` can turn `"25"` into `25` because every character is a digit it recognizes, but it has no rule for turning the word "twelve" into a number, so it refuses rather than guess. Any program that converts text typed by a person should expect this error is possible and plan for it, rather than assume the text will always be a clean number.
+
+<Quiz
+  id="numbers-int-float-conversion"
+  question="A program reads user_input = input(&quot;Enter your age: &quot;) and needs to add 1 to it. Why does age = int(user_input) followed by age + 1 work, while user_input + 1 does not?"
+  answer={0}
+  options={[
+    "input() always returns a string, and Python cannot add a number to a string directly, so int() converts the text into a real integer first.",
+    "input() returns a float by default, and int() is needed to remove the decimal point before adding.",
+    "user_input + 1 raises an error only when the entered text contains letters, and works fine whenever the input is digits.",
+    "int() and float() do the same conversion, so either one would work identically on user_input.",
+  ]}
+  explanation="input() always hands back a string, regardless of what was typed, so user_input + 1 tries to add a number to text and Python refuses. int() parses the string into a whole number so the addition can proceed. The failure is not conditional on letters versus digits, digits-only text is still a string until converted, and int() versus float() are not interchangeable since int() rejects a decimal point."
+/>
+
+Between the four familiar operators, floor division and modulo for splitting and remainders, exponents for powers, and the conversions that turn typed text into real numbers, this is most of the arithmetic an ordinary program touches. The next lesson turns to text itself: how Python stores a string, and the operations, like slicing and searching, that only make sense on characters rather than numbers.

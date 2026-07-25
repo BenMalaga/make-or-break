@@ -1,0 +1,20 @@
+{
+  "slug": "aws-security-specialty",
+  "code": "SCS-C02",
+  "name": "AWS Certified Security - Specialty",
+  "vendor": "Amazon Web Services",
+  "description": "The deep-end AWS security cert. Validates the ability to secure AWS workloads across identity, data protection, infrastructure, logging, and incident response. Expects real hands-on AWS experience.",
+  "passScore": 75,
+  "examMinutes": 170,
+  "questionCount": 65,
+  "icon": "Cloud",
+  "order": 8,
+  "domains": [
+    { "number": 1, "name": "Threat Detection and Incident Response", "weight": 14 },
+    { "number": 2, "name": "Security Logging and Monitoring", "weight": 18 },
+    { "number": 3, "name": "Infrastructure Security", "weight": 20 },
+    { "number": 4, "name": "Identity and Access Management", "weight": 16 },
+    { "number": 5, "name": "Data Protection", "weight": 18 },
+    { "number": 6, "name": "Management and Security Governance", "weight": 14 }
+  ]
+}

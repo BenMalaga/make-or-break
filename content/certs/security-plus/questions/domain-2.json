@@ -1,0 +1,340 @@
+[
+  {
+    "domain": 2,
+    "question": "A financial services firm is breached by a group that spends nine months quietly moving laterally, exfiltrating intellectual property, and using custom zero-day exploits without ever demanding money or defacing anything. Which threat actor type best matches this activity?",
+    "options": [
+      "Unskilled attacker (script kiddie)",
+      "Hacktivist",
+      "Nation-state (advanced persistent threat)",
+      "Insider threat acting out of revenge"
+    ],
+    "correct": [2],
+    "explanation": "Long dwell time, custom zero-day tooling, stealth, and IP theft with no financial demand are hallmarks of a well-resourced nation-state APT. Unskilled attackers lack custom exploits, hacktivists seek publicity rather than stealth, and an insider would not need zero-days to move laterally.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A security team is documenting threat actor attributes to prioritize defenses. Which pairing correctly distinguishes an organized crime group from a typical unskilled attacker?",
+    "options": [
+      "Organized crime is low-resource and low-sophistication; unskilled attackers are high-resource",
+      "Organized crime is well-funded and financially motivated; unskilled attackers have limited resources and rely on prebuilt tools",
+      "Both are internal threat actors motivated by revenge",
+      "Organized crime is always a nation-state proxy while unskilled attackers are hacktivists"
+    ],
+    "correct": [1],
+    "explanation": "Organized crime groups are well-funded, sophisticated, and driven by financial gain, while unskilled attackers have limited resources and depend on downloaded or prebuilt exploit kits. The other options misassign resource levels, motivation, or actor location.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An employee downloads an unapproved cloud file-sync tool to work faster, bypassing the IT approval process and storing company data in an unsanctioned service. This scenario is the clearest example of which of the following?",
+    "options": [
+      "Shadow IT",
+      "A hacktivist campaign",
+      "A supply chain attack",
+      "A watering hole attack"
+    ],
+    "correct": [0],
+    "explanation": "Shadow IT is the use of unauthorized hardware, software, or services without the knowledge or approval of the IT department. It is an internal threat source distinct from external hacktivism, supply chain compromise, or watering hole attacks, even though it can create exposure.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A CISO wants to reduce the attack surface exposed by messaging. Which of the following is an example of a message-based attack vector? (Choose two.)",
+    "options": [
+      "A phishing email with a malicious link",
+      "A smishing text message directing the user to a fake login page",
+      "An attacker plugging a malicious USB drive into a kiosk",
+      "Exploiting an open service port on a public-facing server"
+    ],
+    "correct": [0, 1],
+    "explanation": "Message-based vectors deliver the attack through communications such as email (phishing) and SMS (smishing). A malicious USB is a removable-device vector and an open service port is a network vector, so neither is message-based.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An accounts-payable clerk receives an email that appears to come from the CEO, using an urgent tone and requesting an immediate wire transfer to a new vendor account. No malware or link is involved. This is best classified as which attack?",
+    "options": [
+      "Business email compromise (BEC)",
+      "Cross-site scripting",
+      "SQL injection",
+      "DNS poisoning"
+    ],
+    "correct": [0],
+    "explanation": "Business email compromise uses impersonation of a trusted executive and social pressure to induce a fraudulent payment, with no malware required. XSS and SQL injection are code-injection web attacks, and DNS poisoning manipulates name resolution, none of which describe this social-engineering fraud.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Attackers compromise a popular industry news website that a target defense contractor's engineers visit daily, planting a drive-by exploit that only fires for visitors from the contractor's IP range. What technique is this?",
+    "options": [
+      "Watering hole attack",
+      "Typosquatting",
+      "Credential stuffing",
+      "Pretexting"
+    ],
+    "correct": [0],
+    "explanation": "A watering hole attack compromises a site the intended victims are known to frequent, waiting for them to visit. Typosquatting relies on misspelled domains, credential stuffing reuses leaked credentials, and pretexting builds a fabricated scenario, none of which match compromising a trusted third-party site.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A developer's application concatenates unsanitized user input directly into a database query, allowing an attacker to submit ' OR '1'='1 to bypass authentication. Which vulnerability does this demonstrate, and what is the primary mitigation?",
+    "options": [
+      "Buffer overflow; mitigated by ASLR",
+      "SQL injection; mitigated by parameterized queries and input validation",
+      "Cross-site request forgery; mitigated by SameSite cookies",
+      "Race condition; mitigated by file locking"
+    ],
+    "correct": [1],
+    "explanation": "Injecting SQL through unsanitized input is SQL injection, and parameterized (prepared) statements with input validation are the standard mitigation because they separate code from data. Buffer overflow, CSRF, and race conditions are unrelated vulnerability classes with different fixes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A penetration tester finds that a web application reflects unescaped user input from a URL parameter back into the page, letting an attacker craft a link that runs script in a victim's browser session. Which vulnerability is this?",
+    "options": [
+      "Reflected cross-site scripting (XSS)",
+      "Directory traversal",
+      "Server-side request forgery",
+      "Privilege escalation"
+    ],
+    "correct": [0],
+    "explanation": "Injecting script that is reflected back and executed in the victim's browser is reflected XSS. Directory traversal accesses files outside the web root, SSRF forces the server to make requests, and privilege escalation gains higher rights, none of which describe browser-executed injected script.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A malware sample encrypts a hospital's files and displays a message demanding cryptocurrency for the decryption key. Backups are unavailable. Which malware type is this, and which control most directly limits its blast radius across the network?",
+    "options": [
+      "Rootkit; mitigated by BIOS passwords",
+      "Ransomware; mitigated by network segmentation and tested offline backups",
+      "Spyware; mitigated by full-disk encryption",
+      "Logic bomb; mitigated by code signing"
+    ],
+    "correct": [1],
+    "explanation": "File encryption with a ransom demand is ransomware, and segmentation plus tested offline backups limit spread and enable recovery without paying. Rootkits hide presence, spyware exfiltrates data, and a logic bomb triggers on a condition, so their descriptions and controls do not fit.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "During incident response, analysts find code that lay dormant on a payroll server until a specific date, then began deleting records. There was no self-replication and no spread to other hosts. Which malware type best describes this?",
+    "options": [
+      "Worm",
+      "Logic bomb",
+      "Bloatware",
+      "Keylogger"
+    ],
+    "correct": [1],
+    "explanation": "Code that stays dormant until a condition (a date) is met and then executes a malicious payload is a logic bomb. A worm self-replicates across hosts, bloatware is unwanted preinstalled software, and a keylogger captures keystrokes, none of which fit condition-triggered destruction.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A rootkit is discovered on a server. Why are rootkits considered especially difficult to detect and remove compared with ordinary trojans?",
+    "options": [
+      "They only run in the browser sandbox",
+      "They operate with kernel or firmware-level privileges and actively hide their own presence from the operating system",
+      "They cannot survive a reboot",
+      "They require the user to reinstall them after every login"
+    ],
+    "correct": [1],
+    "explanation": "Rootkits embed at kernel or firmware level and subvert the operating system to conceal files, processes, and network activity, so standard tools may report a clean system. The other options describe transient or low-privilege behavior that does not match a rootkit.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An authentication server logs thousands of failed logins where a single common password such as Winter2026! is tried once against many different usernames. Which attack does this pattern indicate?",
+    "options": [
+      "Password spraying",
+      "Rainbow table attack",
+      "Pass-the-hash",
+      "Dictionary brute force against one account"
+    ],
+    "correct": [0],
+    "explanation": "Trying one or few common passwords across many accounts to avoid lockout thresholds is password spraying. A rainbow table cracks stored hashes offline, pass-the-hash reuses a captured hash, and a dictionary brute force hammers a single account with many passwords, which would trigger lockouts.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An attacker captures a valid session authentication token as it crosses the network and later resubmits the identical token to gain access. What attack is this, and which control most directly defeats it?",
+    "options": [
+      "Replay attack; mitigated by session tokens, nonces, and timestamps",
+      "Amplification attack; mitigated by rate limiting",
+      "SQL injection; mitigated by parameterized queries",
+      "Cross-site scripting; mitigated by output encoding"
+    ],
+    "correct": [0],
+    "explanation": "Reusing captured valid data such as a token to impersonate a user is a replay attack, and one-time nonces, timestamps, and short-lived session tokens defeat reuse. Amplification, SQL injection, and XSS are unrelated attack classes with different mechanics.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A DNS server is flooded with small spoofed queries whose source is set to the victim's IP, causing large DNS responses to be sent to the victim. What class of attack uses this response-size disparity?",
+    "options": [
+      "On-path (man-in-the-middle) attack",
+      "Distributed reflection and amplification DDoS",
+      "DNS zone transfer request",
+      "ARP poisoning"
+    ],
+    "correct": [1],
+    "explanation": "Spoofing the victim's address so that servers send large responses to it, multiplying attacker bandwidth, is a reflection and amplification DDoS. An on-path attack intercepts traffic in transit, a zone transfer copies DNS records, and ARP poisoning targets a local LAN, none of which describe response amplification.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A hypervisor flaw lets code running inside one guest virtual machine break out and execute commands on the host, potentially reaching other tenants' VMs. What is this vulnerability called?",
+    "options": [
+      "VM escape",
+      "VM sprawl",
+      "Resource reuse",
+      "Side-loading"
+    ],
+    "correct": [0],
+    "explanation": "Breaking out of a guest VM to reach the host or other guests is a VM escape. VM sprawl is the unmanaged proliferation of VMs, resource reuse is data leakage from reallocated memory or storage, and side-loading is installing apps from outside official stores.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An organization still runs a business-critical application on an operating system that the vendor stopped supporting two years ago, so it no longer receives security patches. Which vulnerability category and mitigation apply?",
+    "options": [
+      "End-of-life/legacy system; mitigate with isolation, compensating controls, and a migration plan",
+      "Race condition; mitigate with mutex locks",
+      "Cryptographic weakness; mitigate by increasing key length",
+      "Misconfiguration; mitigate by re-running the setup wizard"
+    ],
+    "correct": [0],
+    "explanation": "An unsupported OS with no patches is an end-of-life or legacy vulnerability, and when it cannot be replaced immediately the accepted approach is isolation, compensating controls, and a documented migration plan. The other categories describe unrelated flaws with unrelated fixes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A software vendor's build server is compromised, and a signed but trojanized update is pushed to thousands of downstream customers who install it automatically. Which attack vector does this illustrate?",
+    "options": [
+      "Supply chain attack via a malicious update",
+      "Watering hole attack",
+      "Evil twin wireless attack",
+      "Insider data exfiltration"
+    ],
+    "correct": [0],
+    "explanation": "Compromising a trusted vendor to distribute a malicious update through the normal software channel is a supply chain attack. A watering hole compromises a website victims visit, an evil twin is a rogue access point, and insider exfiltration involves an internal actor stealing data.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Two processes access and modify a shared temporary file between the moment a program checks the file's permissions and the moment it uses the file, allowing an attacker to swap the file and escalate privileges. What is this class of flaw commonly called?",
+    "options": [
+      "Time-of-check to time-of-use (TOCTOU) race condition",
+      "Integer overflow",
+      "Buffer overflow",
+      "Directory traversal"
+    ],
+    "correct": [0],
+    "explanation": "A gap between checking a resource and using it that an attacker exploits by changing the resource in between is a TOCTOU race condition. Integer and buffer overflows involve arithmetic or memory boundary errors, and directory traversal navigates the filesystem, none of which describe check-to-use timing.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "During a TLS negotiation an on-path attacker strips the connection down to an obsolete, weak cipher suite that both endpoints will still accept, then breaks the weakened encryption. What is this attack, and what is the best mitigation?",
+    "options": [
+      "Downgrade attack; mitigate by disabling legacy protocols and enforcing strong cipher suites",
+      "Birthday attack; mitigate by using longer usernames",
+      "Collision attack; mitigate by disabling TLS entirely",
+      "Replay attack; mitigate by enabling verbose logging"
+    ],
+    "correct": [0],
+    "explanation": "Forcing endpoints to use a weaker protocol or cipher than they support is a downgrade attack, and disabling legacy protocols while enforcing modern cipher suites removes the weak fallback. Birthday and collision attacks target hash functions, and a replay attack reuses captured data, so their mitigations do not apply here.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A security engineer hardening endpoints wants to reduce the attack surface. Which set of actions best reflects standard host-hardening mitigation techniques?",
+    "options": [
+      "Enable every optional service, keep default credentials, and open all ports for flexibility",
+      "Disable unnecessary services and ports, change default passwords, apply patches, and deploy endpoint protection (EDR)",
+      "Grant all users local administrator rights to speed troubleshooting",
+      "Turn off host firewalls so monitoring tools work without exceptions"
+    ],
+    "correct": [1],
+    "explanation": "Hardening means disabling unneeded services and ports, removing default credentials, patching, and running endpoint protection to shrink the attack surface. The other options expand the attack surface by enabling extra services, granting excessive privileges, or disabling protective controls.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A retailer segments its cardholder-data environment onto a separate VLAN with strict ACLs so that a compromise of the guest Wi-Fi cannot reach payment systems. Which mitigation technique is primarily being applied?",
+    "options": [
+      "Network segmentation",
+      "Full-disk encryption",
+      "Application allow listing",
+      "Certificate pinning"
+    ],
+    "correct": [0],
+    "explanation": "Isolating sensitive systems onto separate network zones with access controls to contain lateral movement is network segmentation. Full-disk encryption protects data at rest, allow listing controls which applications run, and certificate pinning validates TLS certificates, none of which describe zoning the network.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An attacker sends a crafted request containing ../../../../etc/passwd to a vulnerable web server and successfully retrieves a file outside the web root. Which vulnerability is being exploited?",
+    "options": [
+      "Directory (path) traversal",
+      "Cross-site scripting",
+      "Buffer overflow",
+      "DNS amplification"
+    ],
+    "correct": [0],
+    "explanation": "Using ../ sequences to escape the intended directory and read arbitrary files is directory traversal. XSS injects browser script, a buffer overflow overwrites memory boundaries, and DNS amplification is a DDoS technique, so none of them match filesystem escape.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An IoT camera ships with a well-known factory username and password of admin/admin, and the vendor allows this to remain in production. Which two conditions describe the risk and the correct mitigation? (Choose two.)",
+    "options": [
+      "The default credentials are a vulnerable attack vector",
+      "The device should keep default credentials so support can access it",
+      "Changing the default password at deployment is a required mitigation",
+      "Default credentials are safe because they are documented publicly"
+    ],
+    "correct": [0, 2],
+    "explanation": "Well-known default credentials are a documented attack vector that automated scanners exploit, and changing them at deployment is the required mitigation. Keeping defaults for support access or calling public documentation a safeguard both increase exposure rather than reduce it.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A firmware analyst finds that a vulnerability was being actively exploited in the wild before the vendor was aware of it and before any patch existed. What is this type of vulnerability called?",
+    "options": [
+      "Zero-day vulnerability",
+      "Legacy vulnerability",
+      "Misconfiguration",
+      "Known CVE with an available patch"
+    ],
+    "correct": [0],
+    "explanation": "A flaw exploited before the vendor knows about it and before a fix exists is a zero-day. A legacy vulnerability affects outdated but known systems, a misconfiguration is a settings error, and a known CVE with a patch is by definition already disclosed and fixable.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A mobile security review flags that users are installing apps from third-party sites outside the official app store, bypassing store vetting. This practice is known as which of the following, and what is the recommended enterprise mitigation?",
+    "options": [
+      "Jailbreaking; mitigated by increasing screen timeout",
+      "Side-loading; mitigated by MDM policy that restricts installs to approved sources",
+      "Tethering; mitigated by disabling Bluetooth",
+      "Rooting; mitigated by lengthening the PIN"
+    ],
+    "correct": [1],
+    "explanation": "Installing apps from outside the vetted store is side-loading, and mobile device management policy that blocks untrusted install sources is the enterprise mitigation. Jailbreaking and rooting remove OS restrictions rather than describe install source, and tethering shares a connection, so those options misidentify the practice.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An attacker on the same local subnet sends forged ARP replies mapping the default gateway's IP to the attacker's MAC address, then silently relays traffic between the victim and gateway. Which attack is this an example of?",
+    "options": [
+      "On-path (man-in-the-middle) attack via ARP poisoning",
+      "Amplification DDoS",
+      "Privilege escalation",
+      "Cross-site request forgery"
+    ],
+    "correct": [0],
+    "explanation": "Forging ARP replies to insert oneself between victim and gateway to intercept and relay traffic is an on-path attack enabled by ARP poisoning. Amplification is a volumetric DDoS, privilege escalation raises account rights, and CSRF abuses a user's authenticated browser session, none of which involve intercepting LAN traffic.",
+    "difficulty": "HARD"
+  }
+]

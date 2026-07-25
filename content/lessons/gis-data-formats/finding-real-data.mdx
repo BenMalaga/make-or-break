@@ -1,0 +1,253 @@
+---
+title: Where to Get Real Geospatial Data
+module: gis-data-formats
+moduleTitle: Spatial Data and Formats
+moduleOrder: 2
+moduleIcon: Database
+order: 4
+summary: "A short list of open sources covers most real GIS work, and the two habits that keep any of them from wasting a day are checking the license and checking the CRS before the first join."
+estimatedMinutes: 13
+prerequisites: ["geojson-in-depth"]
+objectives:
+  - Name the major open geospatial sources and what each one is actually good for
+  - Explain the licensing obligations attached to OpenStreetMap data and why they matter for a shared project
+  - Inspect a downloaded dataset's coordinate reference system and structure before using it in an analysis
+  - Decide when an API call is the right move and when a bulk download is
+tags:
+  - gis
+  - open-data
+  - sources
+---
+
+A city planning intern needs a layer of every park in the county by Friday. Nobody
+on the team surveyed the parks. Nobody has to. The data almost certainly already
+exists somewhere free, and the real skill in this situation is not collecting the
+data, it is knowing where to look, what the license actually allows, and how to
+check the file is honest before a single line of analysis runs on it.
+
+The previous lesson worked through GeoJSON in depth: its structure, its always-WGS84
+coordinate order, and the traps in writing one by hand. This lesson is about where
+the GeoJSON, or the GeoPackage, or the imagery, actually comes from before an analyst
+ever opens an editor. A handful of sources cover the overwhelming majority of real
+GIS work, and each one has a personality worth knowing before reaching for it.
+
+## OpenStreetMap: everything, crowd-built, with strings attached
+
+OpenStreetMap, almost always shortened to OSM, is a map of the world built entirely
+by volunteers editing a shared database. Roads, building footprints, shops, trails,
+even individual park benches get added by people mapping their own neighborhoods.
+Coverage is uneven: a mapper-heavy city like Berlin has extraordinary detail, while a
+rural stretch of road elsewhere might be a single unlabeled line. It is still, by a
+wide margin, the largest free vector dataset of the built and natural world that
+exists.
+
+Two ways to pull data out of OSM matter in practice. The Overpass API answers a
+specific query, "give me every hospital in this bounding box," and returns just that.
+Geofabrik publishes bulk extracts, whole countries or regions packaged as `.osm.pbf`
+files, for anyone who wants everything in an area rather than one query's worth.
+
+The license is the part that trips people up. OSM data is released under the Open
+Database License, or ODbL, which is not the same as public domain. ODbL requires two
+things from anyone who redistributes a database built from OSM, or a substantial
+extract of one: credit OpenStreetMap and its contributors, and if the derived
+database is shared publicly, share it under the same license. A web map that just
+displays OSM tiles with a visible attribution line is on solid ground. A company that
+scrapes OSM, adds its own delivery-time data, and sells access to the combined
+database without attribution or a compatible license is not.
+
+<Quiz
+  id="osm-license-obligation"
+  question="A logistics company downloads an OSM road extract, merges it with its own delivery-time data, and plans to sell subscription access to the combined dataset. What does the ODbL require it to do?"
+  answer={1}
+  options={[
+    "Nothing, because OSM data is public domain and carries no license terms at all.",
+    "Credit OpenStreetMap and its contributors, and if the combined database is shared publicly, release it under a compatible share-alike license.",
+    "Pay OpenStreetMap a licensing fee before any commercial use.",
+    "Ask permission from every individual contributor whose edits appear in the extract.",
+  ]}
+  explanation="ODbL is a share-alike license, not a public domain release, so it carries real obligations: attribution, and share-alike terms on a publicly distributed derived database. There is no fee and no need to track down individual contributors, but skipping attribution or share-alike is a real license violation, not a gray area."
+/>
+
+## Natural Earth: public domain, three honest scales
+
+Natural Earth is a free basemap dataset built specifically for cartography, covering
+countries, states, rivers, cities, and physical features like coastlines and
+elevation shading. It comes in three fixed scales: 1:10m, the most detailed, meant
+for country or regional maps; 1:50m, a middle ground for continental views; and
+1:110m, deliberately simplified for a map of the whole planet where fine detail would
+just clutter the image. Picking the wrong scale for the job is the most common
+mistake: a 1:10m coastline dataset zoomed out to show the whole Earth renders as an
+unreadable mess of tiny wiggles that were never meant to be seen at that zoom.
+
+The license is the simplest one on this list. Natural Earth places everything in the
+public domain, no attribution required, no share-alike clause, free for any use
+including commercial products. That makes it the default choice for basemap layers
+in software, textbooks, and presentations where a clean, dependency-free background
+is the only requirement.
+
+## Overture Maps: newer, and built by consensus
+
+Overture Maps Foundation is a more recent open data project, backed jointly by
+several large technology companies, that publishes a global dataset organized into
+themes: buildings, places (points of interest like shops and restaurants),
+transportation, administrative divisions, and a base layer of land cover and water.
+Where OSM is built one volunteer edit at a time, Overture blends several existing
+open and commercial sources, runs conflation and cleanup on top, and republishes the
+result on a regular release schedule.
+
+Overture data is distributed as GeoParquet, a columnar file format built for
+analytics tools rather than the single small file a GeoJSON download usually
+implies, and it is released under a permissive license (CDLA-Permissive-2.0) that
+does not carry OSM's share-alike requirement. For a project that wants broad global
+building and places coverage without the licensing overhead of ODbL, Overture is
+worth checking before defaulting to OSM.
+
+## Government portals: authoritative, if the metadata is honest
+
+Government agencies publish an enormous amount of geospatial data directly:
+data.gov aggregates United States federal datasets, and most cities and counties run
+their own open data portals for things like parcel boundaries, zoning, transit
+routes, and permit records. This is often the most authoritative source available,
+since a county assessor's own parcel layer is the actual legal record, not someone's
+best reconstruction of it.
+
+The catch is that quality and licensing vary wildly by agency. Some portals publish
+clean, current GeoPackage or GeoJSON files with a clear public domain notice. Others
+still bury a Shapefile from several years ago behind three clicks, with no license
+statement, no metadata about how recently it was updated, and no email response when
+a question comes in. An analyst treats the label "official government data" as a
+starting point for trust, not a substitute for checking it.
+
+<Callout type="info" title="Check the license and the CRS before anything else">
+The single habit that saves the most rework is opening a new dataset and answering
+two questions before writing any analysis code: what does the license actually
+permit, and what coordinate reference system are the coordinates in. A beautiful
+join that silently used the wrong CRS produces polygons that look plausible and are
+completely wrong. A dataset with an unclear license can force a whole project to be
+pulled or rebuilt later. Both failures are invisible until it is expensive to fix
+them.
+</Callout>
+
+## Satellite imagery: free, if the account setup is patient
+
+Two satellite programs supply the overwhelming majority of free public earth
+observation imagery. Sentinel, run by the European Space Agency's Copernicus
+program, includes Sentinel-2, which captures the whole planet's land surface in
+visible and infrared bands roughly every five days at 10 to 20 meter resolution.
+Landsat, run by the United States Geological Survey and NASA, has the longer
+history, with a continuous archive stretching back to 1972 at roughly 30 meter
+resolution, making it the standard choice for anything that compares change over
+decades.
+
+Both archives are free and open, no fee for any scene, but both require creating an
+account before downloading: the Copernicus Data Space Ecosystem for Sentinel data,
+and USGS EarthExplorer for Landsat. Neither charges money. The friction is entirely
+in the sign-up form, not the license, and it is worth doing once rather than hunting
+for a mirrored copy of unclear provenance.
+
+<Quiz
+  id="sentinel-vs-landsat-choice"
+  question="A researcher wants to compare how quickly a wildfire is spreading this week, and separately wants fifty years of history showing how a nearby lake has shrunk since the 1970s. Which pairing fits each need?"
+  answer={3}
+  options={[
+    "Landsat for the wildfire because its resolution is finer than Sentinel's, and Sentinel for the lake history because it has been running longer.",
+    "Sentinel for both, since its five-day revisit also covers the full fifty-year span.",
+    "Landsat for both, since a single archive is easier to manage than combining two sources.",
+    "Sentinel for the wildfire, since its faster revisit and finer resolution suit a fast-moving current event, and Landsat for the lake history, since its archive reaches back to 1972 and Sentinel only starts in 2014.",
+  ]}
+  explanation="Sentinel's shorter revisit time and sharper resolution fit tracking something changing day to day, like an active fire. Landsat's real strength is its archive length, decades before Sentinel existed, which is exactly what a fifty-year comparison needs. Sentinel cannot supply that older history since it only launched in 2014, and Landsat's coarser, less frequent imagery is a worse fit for a fast-moving event."
+/>
+
+## Checking a download before trusting it
+
+A file finishing its download is not the same as a file being ready to use. Before
+any join, buffer, or overlay runs against new data, an analyst opens it and looks. A
+command-line tool called `ogrinfo`, part of the GDAL library, prints a dataset's
+structure without loading it into any GUI:
+
+```bash
+ogrinfo -so county_parks.gpkg parks
+```
+
+<ExpectedOutput label="a summary of the layer's geometry type, CRS, and field names">
+```
+INFO: Open of `county_parks.gpkg'
+      using driver `GPKG' successful.
+
+Layer name: parks
+Geometry: Polygon
+Feature Count: 214
+Extent: (-74.412, 40.512) - (-74.089, 40.798)
+Layer SRS WKT:
+GEOGCRS["WGS 84", ... ID["EPSG",4326]]
+name: String (80.0)
+acreage: Real (10.2)
+```
+</ExpectedOutput>
+
+That short printout answers the questions that matter before a single line of
+analysis code runs. The geometry type confirms these really are polygons, not
+points mislabeled as parks. The feature count catches an obviously broken download,
+214 parks instead of the 4 that would mean the file only half-downloaded. The CRS
+line, `EPSG:4326` here, confirms the coordinates are plain WGS84 longitude and
+latitude, not something projected in meters that would need a different treatment
+before a distance calculation. The same check works from Python, which is often more
+convenient when the file is about to be used in a script anyway:
+
+```python
+import geopandas as gpd
+
+parks = gpd.read_file("county_parks.gpkg")
+print(parks.crs)
+print(parks.columns.tolist())
+```
+
+<ExpectedOutput label="confirming the CRS and column names match what the analysis expects">
+```
+EPSG:4326
+['name', 'acreage', 'geometry']
+```
+</ExpectedOutput>
+
+Two lines of output, and an analyst now knows exactly what they are working with
+instead of guessing. Skipping this step is how a project ends up debugging a join
+that fails for no visible reason, when the real problem was a CRS mismatch that a
+ten-second check would have caught before any real work began.
+
+<Quiz
+  id="check-before-use"
+  question="An analyst downloads a new parcel dataset and, before running any analysis, runs ogrinfo on it and checks parks.crs in GeoPandas. What is this step actually protecting against?"
+  answer={2}
+  options={[
+    "It makes the file download faster the next time it is opened.",
+    "It automatically converts the file to whatever format the analysis needs.",
+    "It catches problems like a broken download, an unexpected geometry type, or a coordinate reference system that does not match what the analysis assumes, before they cause a silent wrong answer later.",
+    "It is required by the file's license before the data can legally be used.",
+  ]}
+  explanation="Inspecting a new dataset's structure and CRS is a quality check, not a performance trick or a format converter, and it has nothing to do with licensing. The payoff is catching a mismatch, wrong feature count, wrong geometry type, unexpected CRS, while it is cheap to fix, instead of discovering it after a join or measurement has already produced a plausible-looking but wrong result."
+/>
+
+## Choosing between an API and a bulk download
+
+The last decision is how to actually pull the data down, and it is not always
+obvious. An API, like Overpass for OSM or a city's REST endpoint for its open data
+portal, answers one specific question against live or near-live data: every
+restaurant in this zip code, every permit filed this month. It is the right tool
+when the area of interest is small, the data changes often enough that freshness
+matters, or storing the whole dataset locally would be wasteful. The tradeoff is
+rate limits: most free APIs cap how many requests can run per minute, and a script
+that ignores this gets throttled or blocked.
+
+A bulk download, a full country extract from Geofabrik or a full imagery archive
+from EarthExplorer, is the right call when the work needs a large area, needs to run
+repeatedly offline, or needs a dataset frozen at one point in time so results stay
+reproducible. The tradeoff flips: storage and update management become the
+analyst's problem instead of the API provider's. A city-scale analysis run once a
+week is usually better served by a small API call. A statewide land cover study run
+across dozens of test iterations is usually better served by one bulk download sitting
+on disk.
+
+The next lesson turns from where vector data comes from to the grid side of the
+same question: raster formats, and how a satellite scene like the Sentinel and
+Landsat imagery mentioned here actually gets stored, tiled, and read without loading
+an entire continent into memory at once.

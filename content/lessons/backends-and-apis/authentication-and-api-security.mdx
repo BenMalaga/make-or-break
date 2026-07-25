@@ -1,0 +1,163 @@
+---
+title: Authentication and API Security
+module: backends-and-apis
+moduleTitle: Backends and APIs
+moduleOrder: 3
+moduleIcon: Webhook
+order: 5
+summary: "An API that cannot tell users apart is one curl command away from handing out everyone's data."
+estimatedMinutes: 16
+prerequisites: [connecting-the-api-to-a-database]
+objectives:
+  - Separate authentication from authorization and explain why an API needs both
+  - Compare API keys and JWTs and pick the right one for a given caller
+  - Explain why passwords are hashed with bcrypt or argon2 instead of encrypted or stored plain
+  - Identify the OWASP API mistakes that turn a working endpoint into a breach
+tags:
+  - auth
+  - security
+---
+
+The last lesson ended with the API reading and writing real rows in a database: a `POST /books` that inserts a book, a `GET /books/{id}` that pulls one back out. That code works, and that is exactly the problem. Nothing in it asks who is calling. Point curl at that endpoint from any machine on the internet and it inserts a row, deletes a row, reads a row that belongs to someone else. The database layer solved persistence. It did nothing about who is allowed to touch what, and that gap is where most real breaches start.
+
+Every backend eventually has to answer two separate questions, and conflating them is the single most common mistake in API design. The first question is authentication: who is making this request. The second is authorization: given who they are, what are they allowed to do. A request can pass one and fail the other. A logged-in user is authenticated the moment the server confirms their identity, but that same user trying to delete another user's book should still get rejected, because being someone is not the same as being allowed to do something. An API that checks authentication and stops there lets any signed-in user act as an admin, because nobody ever asked the second question.
+
+Authentication is the front door; authorization is every door inside the building. A visitor badge at reception proves someone works there, roughly. It does not open the server room. A backend that hands out a badge and trusts every holder to only walk into rooms they belong in gets robbed by its own employees, metaphorically speaking, the moment one tries a locked door and finds it open. Good API code checks authorization on every request that touches sensitive data, not just at login. The check belongs on the server, next to the data, not in a mobile app's UI that hides a delete button for users who "shouldn't" see it. A hidden button is not a security control. A curl request bypasses it in one line.
+
+## Proving identity: API keys and tokens
+
+Two different kinds of caller show up at a modern API, and they prove identity two different ways. A service talking to another service, a backend job pulling weather data from a partner's API, a mobile app's build server calling an internal tool, typically presents an API key: a long random string issued once, stored in an environment variable, sent on every request in a header like `Authorization: Bearer sk_live_9fT2...`. The server looks the key up, confirms it is active, and treats the request as coming from whatever account owns that key. API keys are simple and they work well for service-to-service traffic where there is no human sitting at a login screen, but they are a blunt instrument: one key usually represents one whole account with one set of permissions, and if it leaks, whoever finds it gets everything that key can do until someone revokes it.
+
+Human users need something with more shape to it, and the standard answer in 2026 is a token, most often a JWT. A JWT, JSON Web Token, is a signed string built from three parts joined by dots: a header describing the signing algorithm, a payload of claims (the user's id, maybe a role, an expiration time), and a signature that proves the payload has not been altered since the server issued it. The client gets a JWT back from a login endpoint, stores it, and attaches it to every subsequent request in an `Authorization: Bearer <token>` header. The server never has to look anything up in a session table to check it; it just verifies the signature with a secret key it holds, and if the signature checks out, the claims inside are trustworthy, because nobody without that secret could have forged them. That is the appeal of the design: no server-side session state to store or synchronize across multiple backend instances, which matters once one API is serving a web app, an iOS app, an Android app, and a partner integration, all authenticated the same way without a session for each device.
+
+A JWT is not a secret in the sense a password is. Anyone who has the token can decode the payload and read it in plain text; the signature stops tampering, not reading. That is why sensitive data does not belong in a JWT payload, and why a stolen token is treated as a stolen identity until it expires. Short expiration windows, ten minutes to an hour for the access token, paired with a longer-lived refresh token used only to mint new access tokens, keep the blast radius small when a token leaks. An endpoint that checks a JWT is doing authentication, confirming the signature and reading who the claims say the caller is. It still has to do authorization separately: read a `user_id` out of the token's claims and compare it to the resource being requested, rather than trusting a `user_id` the client typed into the request body or URL, because a client can type anything.
+
+<Quiz
+  id="authn-vs-authz-check"
+  question="An endpoint accepts a JWT, verifies its signature, and reads the user id from a query parameter the client sent instead of from the token's claims, then updates that user's profile. What is wrong here?"
+  answer={2}
+  options={[
+    "Nothing, verifying the JWT signature is enough to authenticate the request",
+    "JWTs cannot be used for profile updates, only for login",
+    "The endpoint authenticated the caller but never checked that the id being modified matches the id in the token, so any logged-in user can edit anyone's profile",
+    "The bug is that JWTs should be sent as a cookie instead of a query parameter",
+  ]}
+  explanation="Verifying the signature only proves the token is genuine and tells the server who sent the request. Trusting a user id from the request body or URL instead of the token's own claims skips authorization entirely. Any authenticated user can pass someone else's id and the server will happily act on it."
+/>
+
+## Passwords never travel or rest in plain form
+
+A login endpoint has to compare the password someone typed against something stored from when they signed up, and how that something gets stored is one of the few places in backend work where there is exactly one right answer. Storing a password as plain text is obviously bad: a database breach hands the attacker every password directly, and because people reuse passwords across sites, that one breach compromises accounts on other services too. Encrypting the password looks like an improvement, but it is not: encryption is reversible by design, meaning the same key that encrypted the password can decrypt it back, so anyone who steals the database and the key gets the same plain-text password back out. What a login system actually needs is a one-way transformation, something computed easily in one direction and effectively impossible to reverse.
+
+That is what hashing is for, but not just any hash. A general-purpose hash like SHA-256 is built to be fast, meant for checksums and content addressing, and fast is exactly the wrong property for passwords. An attacker with a stolen database of fast-hashed passwords computes billions of guesses per second on ordinary hardware and simply tries every common password until one matches. bcrypt and argon2 exist specifically to be slow on purpose, with a tunable cost factor dialed up as hardware gets faster, and they add a random salt to every password before hashing so two users with the same password get different stored hashes. Slow hashing turns a billion-guesses-per-second attack into a few thousand guesses per second, turning a breach that used to hand over most passwords within hours into one that barely dents the list. Between the two, argon2id is the newer, generally recommended choice; bcrypt remains a solid, widely supported fallback where a library does not yet offer argon2.
+
+The login flow itself stays simple even though the hashing underneath is deliberately expensive: the server hashes the password a user just typed using the same algorithm and the salt stored alongside their account, and compares the result to the stored hash. bcrypt and argon2 libraries handle the salt automatically as part of the stored hash string, so a Python backend never manages salts by hand. Here is what that looks like end to end, hashing at signup and checking at login, using the `bcrypt` package:
+
+```python
+import bcrypt
+
+def hash_password(plain: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(plain.encode("utf-8"), salt).decode("utf-8")
+
+def verify_password(plain: str, stored_hash: str) -> bool:
+    return bcrypt.checkpw(plain.encode("utf-8"), stored_hash.encode("utf-8"))
+```
+
+Nothing in that code ever stores or logs the plain-text password. `stored_hash` is what lives in the database, something like `$2b$12$KIXQ...`, and even a full database dump gives an attacker only that string, not the password behind it.
+
+<Callout type="warning" title="Never store plaintext or reversibly-encrypted passwords">
+Plain text and reversible encryption both hand an attacker the actual password the moment the database leaks, and because people reuse passwords, that one leak compromises accounts everywhere else the same person logged in. A slow, salted hash like bcrypt or argon2 is not a nice-to-have. It is the one non-negotiable in password storage, and any code review that finds a password column without one should stop the deploy.
+</Callout>
+
+<Quiz
+  id="hashing-vs-encryption"
+  question="A database of user passwords is stolen. Why does storing them with bcrypt limit the damage far more than storing them with reversible encryption would, even if both were stolen alongside the code that produced them?"
+  answer={1}
+  options={[
+    "bcrypt output is shorter, so less data is stolen",
+    "Encryption is reversible by design once the key is known, while bcrypt is a deliberately slow one-way transformation, so recovering the original passwords from bcrypt hashes takes far more computation even with everything else in hand",
+    "bcrypt hashes are stored on a different server than the rest of the database",
+    "Reversible encryption and bcrypt are equally safe, since both scramble the password",
+  ]}
+  explanation="Encryption is meant to be undone by whoever holds the key, so a stolen key plus a stolen database hands back every plain password. bcrypt has no key to steal; reversing it means guessing passwords one at a time against a hash built to be slow, which turns a breach that used to be instant into one that is merely expensive."
+/>
+
+## HTTPS, and the mistakes that actually cause breaches
+
+None of the authentication design above matters if the connection carrying it is plain HTTP. HTTP sends every byte, headers, body, the `Authorization` header holding a JWT or API key, as readable text over the network. Anyone positioned on the path between client and server, a compromised router, a hostile access point at a coffee shop, an ISP running inspection, reads the whole thing, including the login credentials and the session token that follows. HTTPS wraps that same traffic in TLS encryption, so the content is unreadable to anyone but the two endpoints, and it is not an optional hardening step for an API in 2026. Certificates are free and automatic through services like Let's Encrypt, and every serious hosting platform provisions HTTPS by default. An API served over plain HTTP is not a smaller version of a secure API; it is an API with no confidentiality at all, no matter how carefully the authentication logic is written on top of it.
+
+Beyond the connection itself, the OWASP API Security list, maintained by the Open Web Application Security Project, is the field's shared checklist of what actually goes wrong in production APIs, worth knowing by name because most real incidents map onto a handful of entries in it. Broken authentication tops the list: login endpoints with no rate limiting, tokens that never expire, password reset flows that leak whether an email exists. Broken object-level authorization is close behind, the exact bug from the quiz above, an endpoint that trusts an id from the client instead of checking it against the caller's own identity; it shows up constantly because the endpoint still returns real data and looks correct in every manual test done as the developer's own account.
+
+Excessive data exposure is another repeat offender: an endpoint built to return a user's public profile that actually serializes the entire database row, including a password hash or another user's email buried in a nested object, because it was faster to return the whole model than to build a response shape with only the fields a caller needs. The fix is boring and effective: define an explicit response schema per endpoint, something FastAPI makes close to automatic through its response models. The fourth recurring mistake is missing rate limiting: an API with no cap on requests per minute lets an attacker brute-force a login endpoint, scrape an entire dataset through a paginated list, or hammer an expensive query into a denial of service, all with a for loop. The status code built for this is 429 Too Many Requests, and an API returning it under load, with a `Retry-After` header, is doing exactly what it should.
+
+<Quiz
+  id="owasp-mistakes"
+  question="A GET /users/{id} endpoint checks that a valid JWT was sent, then returns the full database row for whatever id is in the URL, without comparing it to the id in the token. Which OWASP API mistake is this?"
+  answer={0}
+  options={[
+    "Broken object-level authorization: authentication passed, but the server never checked the caller was allowed to see that specific user's data",
+    "Broken authentication, because the JWT was not checked at all",
+    "Missing rate limiting, because the endpoint has no cap on requests per minute",
+    "Nothing is wrong, since the request carried a valid JWT",
+  ]}
+  explanation="The JWT check confirms who is asking, which is authentication, and it passed. Authorization is a separate question, whether that caller may access that particular id, and the endpoint never asks it. Serving any id to any logged-in caller is the textbook broken object-level authorization bug, distinct from a rate-limiting or authentication problem."
+/>
+
+## A protected endpoint, worked through
+
+The gap between "checks a token exists" and "checks the token and enforces who owns the resource" is easiest to see in real code. Here is a FastAPI endpoint that returns a book only to the user who created it, using a dependency that verifies a JWT and rejects anything that fails:
+
+```python
+from fastapi import Depends, FastAPI, HTTPException
+from jose import JWTError, jwt
+
+app = FastAPI()
+SECRET_KEY = "loaded-from-environment-not-hardcoded"
+
+def get_current_user(authorization: str | None = None) -> dict:
+    if authorization is None or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or malformed token")
+    token = authorization.removeprefix("Bearer ")
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return {"id": payload["sub"]}
+
+@app.get("/books/{book_id}")
+def get_book(book_id: int, user: dict = Depends(get_current_user)):
+    book = db_find_book(book_id)
+    if book is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+    if book["owner_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your book")
+    return book
+```
+
+Two separate checks happen here, in order. `get_current_user` runs first and answers authentication: no header, a malformed header, or a signature that fails verification all end in a 401, before the code touches the database. Then, inside the route, `book["owner_id"] != user["id"]` answers authorization: a caller with a valid token still gets a 403 if the book belongs to someone else. Removing that one comparison would not break any test run against the caller's own account, and it would quietly turn the endpoint into one where any logged-in user can read anyone's books. That is exactly why this check gets missed: the bug is invisible until someone tests as a second user, which almost nobody does by default.
+
+<CommandCard command="curl -s -i http://localhost:8000/books/7" title="terminal" explain="No Authorization header at all, so the dependency rejects the request before the route body runs." />
+
+<ExpectedOutput label="response">
+```
+HTTP/1.1 401 Unauthorized
+content-type: application/json
+
+{"detail":"Missing or malformed token"}
+```
+</ExpectedOutput>
+
+Send the same request with a valid token belonging to a different user than the book's owner and the status changes from 401 to 403, with a body of `{"detail":"Not your book"}`, because now the server knows exactly who is asking and has decided they may not have this one. Two different failures, two different codes, and a client (or an attacker) can tell them apart, which is the point: 401 says try authenticating again, 403 says stop, this identity will never be allowed here.
+
+<Exercise title="Break your own endpoint">
+Take an API built in an earlier lesson, or the `get_book` endpoint above, and try to defeat its authorization on purpose. Log in as one test user, copy that user's token, and request a resource that belongs to a different user's account. If the response is 200 with real data instead of 403, the endpoint has the exact bug this lesson describes: it checked who you are and stopped there. Fix it by comparing the resource's owner id to the id inside the verified token, never to an id the client supplied in the URL or body, then repeat the request and confirm it now returns 403.
+</Exercise>
+
+Rate limiting deserves the same hands-on treatment once the authorization check is solid, because an endpoint that correctly rejects the wrong user is still open to being hit ten thousand times a second by the right one. A simple in-memory counter keyed by API key or user id, resetting every minute, catches the obvious cases; production systems usually push this into a reverse proxy or gateway so the limiting happens before a request burns a database connection. The number to pick depends on the endpoint: a login route wants a strict limit, five or ten attempts per minute per IP, since it is the target of credential-stuffing attacks; a read-only public endpoint can afford to be far more generous. What matters is that some limit exists and hitting it returns 429 with a clear `Retry-After` value, rather than the server silently dropping requests or, worse, falling over.
+
+Every one of these checks, authentication, authorization, hashed passwords, HTTPS, rate limits, is boring to write and expensive to skip. None of them show up in a demo. All of them show up in an incident report. That asymmetry is exactly why API security gets cut under deadline pressure and exactly why it should not be: the cost of adding a token check to an endpoint is a few lines of code, and the cost of not adding it is every row in the database, in the hands of whoever bothered to ask.
+
+This closes out the Backends and APIs module. The API built across these five lessons, routes, methods, a database, and now identity and access control, is the exact shape of stack that Make or Break itself runs on: an authenticated API in front of a real database, serving requests over HTTPS. The next lesson takes that stack and gets it running somewhere other than a laptop, deploying an API so it answers requests from the outside world instead of just localhost. After that, the Break track's web attacks lessons pick this same API apart from the other side, showing what a broken authentication check, a missing authorization comparison, or a rate limit that was never wired up actually looks like from the attacker's seat.
+
+<Notes />

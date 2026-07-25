@@ -1,0 +1,130 @@
+[
+  {
+    "domain": 7,
+    "question": "During live evidence collection, the order of volatility (RFC 3227) tells a first responder to capture the most volatile data first. Which source should be collected before the others?",
+    "options": ["CPU cache and registers", "Data on a hard disk drive", "Archival backup tapes", "Configuration files on a router"],
+    "correct": [0],
+    "explanation": "Order of volatility ranks data by how quickly it disappears, and CPU cache and registers are the most transient. They are lost almost instantly when power or process state changes, so they are collected first. Disk, tapes, and archived files persist far longer and are collected later.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 7,
+    "question": "A recovery plan states that no more than 15 minutes of data may be lost in a disruption. Which metric expresses this requirement?",
+    "options": ["Recovery time objective (RTO)", "Recovery point objective (RPO)", "Maximum tolerable downtime (MTD)", "Mean time to repair (MTTR)"],
+    "correct": [1],
+    "explanation": "The recovery point objective defines the maximum acceptable amount of data loss measured in time, which drives backup and replication frequency. RTO measures how long recovery may take, not data loss. MTD is the total outage a business can survive, and MTTR is an average repair duration.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 7,
+    "question": "What does a documented chain of custody primarily establish about a piece of digital evidence?",
+    "options": ["The monetary value of the affected systems", "Who handled the evidence and when, preserving its integrity", "The identity of the attacker beyond doubt", "The root cause of the security incident"],
+    "correct": [1],
+    "explanation": "Chain of custody records every person who handled the evidence, along with the time, location, and purpose of each transfer. This continuous documentation demonstrates the evidence was not altered and supports its admissibility in court. It does not by itself value assets, name attackers, or determine root cause.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 7,
+    "question": "A civil lawsuit between two companies typically must meet which standard of proof?",
+    "options": ["Beyond a reasonable doubt", "Preponderance of the evidence", "Probable cause", "Strict liability with no evidence required"],
+    "correct": [1],
+    "explanation": "Civil cases use the preponderance of the evidence standard, meaning it is more likely than not that the claim is true. Beyond a reasonable doubt is the higher standard reserved for criminal cases. Probable cause is a threshold for searches and arrests, not a trial verdict standard.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 7,
+    "question": "In the (ISC)2 incident management lifecycle, which phase immediately follows detection?",
+    "options": ["Recovery", "Response", "Lessons learned", "Remediation"],
+    "correct": [1],
+    "explanation": "The lifecycle runs detect, respond, mitigate, report, recover, remediate, then lessons learned. Response follows detection and begins the coordinated reaction, such as engaging the incident team and containing the event. Recovery, remediation, and lessons learned all occur in later phases.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 7,
+    "question": "A recovery facility provides floor space, power, and cooling but has no installed servers and no current copy of production data. How is this site best described?",
+    "options": ["Hot site", "Warm site", "Cold site", "Mirrored site"],
+    "correct": [2],
+    "explanation": "A cold site supplies the environment such as power, HVAC, and connectivity but lacks hardware and data, so it takes the longest to bring online. A hot site is fully equipped and near-instant, while a warm site has some hardware but stale or partial data. A mirrored site is a fully redundant real-time duplicate.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 7,
+    "question": "Which capability most distinguishes a SIEM from a plain centralized log server?",
+    "options": ["It encrypts all stored logs at rest by default", "It correlates events across many sources to surface patterns in near real time", "It permanently prevents any log from being altered", "It removes the need for endpoint protection"],
+    "correct": [1],
+    "explanation": "A security information and event management platform aggregates logs and then correlates events across systems to detect attack patterns and generate alerts in near real time. A basic log server only stores and retrieves logs. SIEM does not inherently guarantee encryption or immutability, nor does it replace endpoint controls.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 7,
+    "question": "Which RAID level uses block-level striping with distributed parity so the array survives the loss of a single drive?",
+    "options": ["RAID 0", "RAID 1", "RAID 5", "RAID 10"],
+    "correct": [2],
+    "explanation": "RAID 5 stripes data and spreads parity across all member drives, allowing reconstruction after one drive fails. RAID 0 stripes with no redundancy and fails if any drive is lost. RAID 1 mirrors drives, and RAID 10 combines mirroring and striping without distributed parity.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 7,
+    "question": "Requiring employees in sensitive roles to take mandatory vacations primarily serves what security purpose?",
+    "options": ["Reducing overall payroll expense", "Detecting fraud or misuse that requires the employee's ongoing presence to conceal", "Acting as a preventive control that stops fraud before it starts", "Eliminating the need for separation of duties"],
+    "correct": [1],
+    "explanation": "Mandatory vacations are a detective administrative control. When someone else performs the absent employee's duties, ongoing schemes that depend on daily concealment tend to surface. It does not prevent fraud outright and complements rather than replaces separation of duties.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 7,
+    "question": "What is the primary purpose of deploying a honeypot?",
+    "options": ["To carry production traffic during a failover", "To attract and study attackers while diverting them from real assets", "To encrypt data as it crosses untrusted networks", "To supply backup power to critical systems"],
+    "correct": [1],
+    "explanation": "A honeypot is a decoy system designed to look attractive to attackers so their behavior can be observed and real systems are shielded from probing. It is a detective and deceptive measure, not a production, encryption, or power component. A collection of honeypots forming a fake network is called a honeynet.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 7,
+    "question": "Which two values are direct outputs of a business impact analysis (BIA)? (Choose two.)",
+    "options": ["Maximum tolerable downtime (MTD)", "Recovery point objective (RPO)", "Firewall rule base", "Symmetric encryption key length"],
+    "correct": [0, 1],
+    "explanation": "A BIA identifies critical processes and quantifies the impact of their disruption over time, producing recovery targets such as MTD, RTO, and RPO. Firewall rules and encryption key lengths are technical control decisions made elsewhere. The BIA drives recovery strategy, not device configuration.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 7,
+    "question": "A differential backup copies which set of data?",
+    "options": ["All files changed since the last full backup", "Only files changed since the last incremental backup", "Every file regardless of whether it changed", "Only files created in the previous 24 hours"],
+    "correct": [0],
+    "explanation": "A differential backup captures everything changed since the last full backup and does not reset the archive bit, so each differential grows until the next full backup. An incremental backup captures changes since the last backup of any type and clears the archive bit. A full backup copies all files.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 7,
+    "question": "Which two of the following are examples of detective controls? (Choose two.)",
+    "options": ["Intrusion detection system (IDS)", "Reviewing audit logs", "Packet-filtering firewall", "Full-disk encryption"],
+    "correct": [0, 1],
+    "explanation": "Detective controls identify and record events after they occur. An IDS alerts on suspicious activity and audit log review uncovers policy violations, so both are detective. A firewall that blocks traffic and encryption that protects confidentiality are preventive controls.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 7,
+    "question": "Application allow listing, where only explicitly approved software may run, is best categorized as which type of control?",
+    "options": ["Detective", "Preventive", "Corrective", "Compensating"],
+    "correct": [1],
+    "explanation": "Allow listing stops unapproved or malicious code from executing before any harm occurs, which makes it a preventive control. Detective controls only report activity, corrective controls restore state after an event, and compensating controls substitute for a missing primary control. Blocking execution up front is prevention.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 7,
+    "question": "Locard's exchange principle, as applied to digital forensics, holds that:",
+    "options": ["Every contact leaves a trace between the perpetrator and the scene", "Evidence must be encrypted before it can be transported", "The most volatile data is always the least reliable", "Only sworn law enforcement may collect evidence"],
+    "correct": [0],
+    "explanation": "Locard's principle states that any interaction transfers traces in both directions, so an intruder leaves artifacts and also carries some away. In digital terms this means attacker activity leaves recoverable evidence such as logs, timestamps, and file remnants. It is not a rule about encryption, reliability, or who may collect evidence.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 7,
+    "question": "The primary security goal of a formal change management process is to:",
+    "options": ["Remove the need for a separate testing environment", "Ensure changes are reviewed, approved, tested, and documented to avoid unintended impact", "Guarantee that no system ever experiences downtime", "Transfer operational risk to an outside vendor"],
+    "correct": [1],
+    "explanation": "Change management imposes review, approval, testing, and documentation so modifications do not introduce vulnerabilities or outages and can be rolled back if needed. It reinforces the value of testing rather than replacing it. It does not promise zero downtime or shift risk to a third party.",
+    "difficulty": "MEDIUM"
+  }
+]

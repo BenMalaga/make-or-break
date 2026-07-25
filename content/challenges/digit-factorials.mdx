@@ -1,0 +1,65 @@
+---
+title: Digit Factorials
+summary: Find every number that equals the sum of the factorials of its own digits, then submit their total sum.
+track: make
+category: code
+difficulty: HARD
+tags: [factorial, digits, search-bounds]
+daily: true
+answer: 40730
+answerType: number
+starterLang: python
+starter: |
+  # Goal: find every number that equals the sum of the factorials of its own
+  # digits (excluding 1 and 2), then submit the sum of those numbers.
+  #
+  # Example: 145 = 1! + 4! + 5! = 1 + 24 + 120 = 145.
+  #
+  # First figure out a safe upper bound for the search, then scan.
+  from math import factorial
+
+  fact = [factorial(d) for d in range(10)]  # fact[d] = d!
+
+  def digit_factorial_sum(n):
+      return sum(fact[int(c)] for c in str(n))
+
+  total = 0
+  # Scan from 3 up to your chosen upper bound.
+  # For each n, keep it only if digit_factorial_sum(n) == n.
+  print(total)
+hints:
+  - The largest digit factorial is 9! = 362880. A d-digit number is at most d * 362880, so once d * 362880 has fewer than d digits the search can stop. Seven digits is a safe ceiling.
+  - Precompute the ten factorials 0! through 9! once, then for each candidate add up the factorial of each of its digits and compare to the candidate.
+  - There are exactly two such numbers. 145 is one of them. Add both together for the answer.
+---
+
+## Digit Factorials
+
+The number `145` has a curious property: the sum of the factorials of its digits
+equals the number itself.
+
+```
+145 = 1! + 4! + 5! = 1 + 24 + 120 = 145
+```
+
+A few numbers do this. Your job is to find all of them and add them up.
+
+### The task
+
+1. For a candidate number `n`, compute the sum of the factorial of each of its
+   digits. For `145` that is `1! + 4! + 5! = 145`.
+2. Keep `n` only if that sum is exactly equal to `n`.
+3. Exclude `1` and `2`. They trivially equal `1!` and `2!`, but a single digit is
+   not a sum in this sense, so they do not count.
+4. Add together every number that survives, and submit that total.
+
+### Why the search terminates
+
+You cannot scan forever, but you do not need to. The largest single-digit
+factorial is `9! = 362880`. A number with `d` digits can therefore have a digit
+factorial sum of at most `d * 362880`. Once `d * 362880` has fewer than `d`
+digits, no `d`-digit number can possibly reach its own digit factorial sum, so
+the search has a provable ceiling. Checking up to seven digits is more than
+enough.
+
+Run your code, read the total, and submit that single number.

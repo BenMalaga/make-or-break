@@ -1,0 +1,98 @@
+---
+title: Enumerating Active Directory
+module: active-directory
+moduleTitle: Active Directory
+moduleOrder: 10
+moduleIcon: Building2
+order: 2
+summary: Turn a single foothold into a full map of users, groups, and attack paths.
+estimatedMinutes: 20
+objectives:
+  - Query AD over LDAP from a low-privilege foothold
+  - Collect graph data with BloodHound and read the results
+  - Prioritize the highest-value targets from enumeration output
+tags:
+  - active-directory
+  - enumeration
+  - bloodhound
+---
+
+You have a foothold: one set of valid domain credentials or a shell on a
+domain-joined box. Before you attack anything, you map the terrain. Enumeration
+is where engagements are won, because you cannot exploit a path you never saw.
+
+## LDAP is the query language of AD
+
+AD exposes its database over **LDAP**. With any valid domain account, even an
+unprivileged one, you can read most of the directory. That is by design and it
+is a gift to the attacker.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "ldapsearch -x -H ldap://10.10.10.5 -D 'jdoe@corp.local' -w Passw0rd -b 'DC=corp,DC=local' '(objectClass=user)' sAMAccountName", comment: "list every user account in the domain" },
+    { cmd: "ldapsearch -x -H ldap://10.10.10.5 -D 'jdoe@corp.local' -w Passw0rd -b 'DC=corp,DC=local' '(&(objectClass=user)(servicePrincipalName=*))'", comment: "accounts with an SPN: kerberoasting candidates" },
+  ]}
+/>
+
+The `-b` flag sets the search base, the distinguished name of the domain. The
+filter in parentheses is what you are asking for. Learn to read a distinguished
+name like `CN=Admin,OU=IT,DC=corp,DC=local` from right to left: domain, then OU,
+then object.
+
+## BloodHound draws the graph for you
+
+Reading raw LDAP is slow. **BloodHound** collects the same data and renders it as
+an attack graph, so you can ask "who can reach Domain Admin from here" and get a
+literal path. A collector gathers the data, then you import it into the GUI.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "bloodhound-python -u jdoe -p Passw0rd -d corp.local -ns 10.10.10.5 -c All", comment: "Python collector: pull users, groups, sessions, ACLs" },
+    { cmd: "netexec smb 10.10.10.5 -u jdoe -p Passw0rd --users", comment: "quick cross-check of the user list over SMB" },
+  ]}
+/>
+
+<ExpectedOutput label="bloodhound-python output">
+INFO: Found 1 domains
+INFO: Found 214 users
+INFO: Found 47 groups
+INFO: Found 31 computers
+INFO: Compressing output into 20260715_bloodhound.zip
+</ExpectedOutput>
+
+Drop that zip into the BloodHound GUI and run the built-in query
+**Shortest Paths to Domain Admins**. Each node is a principal, each edge is a
+right one node holds over another. Your job is to walk the edges.
+
+<Callout type="tip" title="Mark your foothold as owned">
+In BloodHound, right-click the account you already control and choose
+"Mark as Owned." Then the "Shortest Paths from Owned" query shows exactly what
+your current access can reach, which is far more useful than a generic map.
+</Callout>
+
+## Read the output like a hunter
+
+From a fresh collection, triage in this order:
+
+- **Kerberoastable users**: accounts with an SPN, especially in high-value groups.
+- **AS-REP roastable users**: accounts that do not require Kerberos pre-auth.
+- **Dangerous ACLs**: `GenericAll`, `WriteDACL`, or `ForceChangePassword` over a
+  privileged object.
+- **Active sessions**: where do admins have live logons you could hijack.
+
+<Quiz
+  id="ldap-access"
+  question="What privilege level do you need to read most of the AD directory over LDAP?"
+  answer={1}
+  options={[
+    "Local administrator on a Domain Controller",
+    "Any valid, even unprivileged, domain account",
+    "Domain Admin",
+    "No credentials at all",
+  ]}
+  explanation="AD is readable by design. Any authenticated domain user can enumerate most objects, which is why one weak account is enough to map the whole domain."
+/>
+
+<Notes />

@@ -1,0 +1,262 @@
+[
+  {
+    "domain": 2,
+    "question": "A network administrator is configuring a new router and needs the most trusted route to a remote network to be installed in the routing table. Both an OSPF-learned route and an EIGRP-learned route exist for the same destination. Which value does the router use to choose between these two routing sources?",
+    "options": [
+      "Metric",
+      "Administrative distance",
+      "Hop count",
+      "Maximum transmission unit"
+    ],
+    "correct": [1],
+    "explanation": "When routes to the same destination are learned from different protocols, the router compares administrative distance, and the lower value wins (EIGRP internal 90 beats OSPF 110). Metric and hop count only break ties within the same protocol, and MTU is a link property, not a route-selection factor.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An enterprise needs a routing protocol to exchange routes with its ISP across the public internet, selecting paths based on autonomous system policy rather than internal metrics. Which protocol is designed for this exterior gateway role?",
+    "options": [
+      "OSPF",
+      "RIPv2",
+      "BGP",
+      "EIGRP"
+    ],
+    "correct": [2],
+    "explanation": "BGP is the exterior gateway protocol used between autonomous systems, including with ISPs, and makes decisions based on path attributes and policy. OSPF and EIGRP are interior gateway protocols for use within an organization, and RIPv2 is a legacy interior distance-vector protocol.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A technician configures a single physical router interface to route traffic for VLANs 10, 20, and 30 by creating tagged logical interfaces on it, connected to a trunk port on the switch. What is this configuration commonly called?",
+    "options": [
+      "Router-on-a-stick using subinterfaces",
+      "First-hop redundancy protocol",
+      "Link aggregation control protocol",
+      "Port mirroring"
+    ],
+    "correct": [0],
+    "explanation": "Router-on-a-stick uses 802.1Q subinterfaces on one physical interface, each tied to a VLAN, so a single link over a trunk provides inter-VLAN routing. FHRP provides gateway redundancy, LACP bundles physical links, and port mirroring copies traffic for analysis.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A company wants two routers to share a single virtual IP address so that if the active gateway fails, the standby router transparently takes over as the default gateway for hosts. Which category of technology provides this behavior?",
+    "options": [
+      "Traffic shaping",
+      "First-hop redundancy protocol (FHRP)",
+      "Network address translation",
+      "Spanning Tree Protocol"
+    ],
+    "correct": [1],
+    "explanation": "FHRP implementations such as HSRP, VRRP, and GLBP present a shared virtual IP so a standby router assumes the gateway role on failure. NAT translates addresses, traffic shaping manages bandwidth, and STP prevents Layer 2 loops.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An office has one public IP address from its ISP but dozens of internal hosts that must reach the internet simultaneously. Which technology maps many private addresses to that single public address by tracking unique port numbers?",
+    "options": [
+      "Static NAT",
+      "Port Address Translation (PAT)",
+      "DHCP reservation",
+      "Proxy ARP"
+    ],
+    "correct": [1],
+    "explanation": "PAT, also called NAT overload, lets many inside hosts share one public IP by differentiating sessions with unique source ports. Static NAT is a one-to-one mapping, DHCP reservations assign fixed leases, and proxy ARP answers ARP on behalf of another host.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Users on VLAN 20 cannot reach VLAN 30, but hosts within each VLAN communicate fine. The switch shows both VLANs configured and active. What is the most likely missing element?",
+    "options": [
+      "A Layer 3 device or SVI to route between the VLANs",
+      "A crossover cable between the two hosts",
+      "Jumbo frames enabled on the access ports",
+      "A second SSID broadcast for VLAN 30"
+    ],
+    "correct": [0],
+    "explanation": "VLANs are separate broadcast domains and cannot communicate without a Layer 3 process, such as a router or a switched virtual interface (SVI) on a Layer 3 switch. Cabling type, jumbo frames, and SSIDs do not provide inter-VLAN routing.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "On an 802.1Q trunk link, one VLAN's frames are transmitted untagged by default. What is this VLAN called, and why is matching it on both switches important?",
+    "options": [
+      "The native VLAN; a mismatch can cause VLAN hopping and traffic leaking between VLANs",
+      "The voice VLAN; a mismatch drops all IP phone traffic",
+      "The management VLAN; a mismatch disables SSH to the switch",
+      "The default VLAN; a mismatch resets the switch to factory settings"
+    ],
+    "correct": [0],
+    "explanation": "The native VLAN carries untagged frames on an 802.1Q trunk, and a native VLAN mismatch between switches can enable VLAN hopping and cause frames to cross into an unintended VLAN. Voice, management, and default VLANs describe other roles and are not the untagged trunk VLAN by definition.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A network engineer bundles four 1 Gbps switch ports into a single logical link to increase bandwidth and provide redundancy between two switches. Which protocol negotiates and manages this bundle?",
+    "options": [
+      "STP",
+      "LACP",
+      "CDP",
+      "VTP"
+    ],
+    "correct": [1],
+    "explanation": "LACP (part of 802.3ad) dynamically negotiates link aggregation, combining multiple physical links into one logical channel for greater throughput and failover. STP blocks loops, CDP is a discovery protocol, and VTP propagates VLAN databases.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "After adding a redundant link between two switches, the network experiences a broadcast storm and MAC table instability. Which switching feature should have prevented this by blocking the redundant path until needed?",
+    "options": [
+      "Port mirroring",
+      "Spanning Tree Protocol",
+      "Power over Ethernet",
+      "Flow control"
+    ],
+    "correct": [1],
+    "explanation": "Spanning Tree Protocol (802.1D and its rapid variant RSTP) detects Layer 2 loops and places redundant ports in a blocking state to prevent broadcast storms and MAC flapping. Port mirroring, PoE, and flow control do not manage loop-free topologies.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A security analyst needs to send a copy of all traffic passing through switch port Gi0/1 to an IDS sensor connected to port Gi0/24, without disrupting the original traffic. Which switch feature accomplishes this?",
+    "options": [
+      "Port security",
+      "Port mirroring (SPAN)",
+      "Trunking",
+      "Link aggregation"
+    ],
+    "correct": [1],
+    "explanation": "Port mirroring, often called SPAN, copies frames from a source port to a destination port so a monitoring tool or IDS can inspect them passively. Port security limits MAC addresses, trunking carries multiple VLANs, and link aggregation bonds links.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "To reduce CPU overhead on a storage network moving large data transfers, an administrator wants Ethernet frames larger than the standard 1500-byte payload, typically around 9000 bytes. What must be configured, and where? (Choose two.)",
+    "options": [
+      "Enable jumbo frames by raising the MTU on the switch ports",
+      "Enable jumbo frames consistently on all devices in the path, including NICs",
+      "Enable Power over Ethernet on the storage ports",
+      "Set the ports to half duplex to accommodate larger frames"
+    ],
+    "correct": [0, 1],
+    "explanation": "Jumbo frames require a raised MTU (about 9000 bytes) and must be enabled end to end on every device in the path, including switch ports and host NICs, or fragmentation and drops occur. PoE supplies power, and half duplex would reduce, not aid, performance.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A wireless network must support the 6 GHz band and offer the highest throughput with efficient handling of many simultaneous clients using OFDMA. Which Wi-Fi standard should the administrator deploy?",
+    "options": [
+      "802.11n (Wi-Fi 4)",
+      "802.11ac (Wi-Fi 5)",
+      "802.11ax (Wi-Fi 6/6E)",
+      "802.11g"
+    ],
+    "correct": [2],
+    "explanation": "802.11ax (Wi-Fi 6, and Wi-Fi 6E for 6 GHz) introduces OFDMA for efficient multi-client access and operates across 2.4, 5, and 6 GHz. 802.11ac operates only up to 5 GHz, and 802.11n and g predate both OFDMA and the 6 GHz band.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "In the 2.4 GHz band, an administrator wants to avoid co-channel and adjacent-channel interference between three nearby access points in North America. Which set of channels should be used?",
+    "options": [
+      "1, 6, and 11",
+      "1, 2, and 3",
+      "2, 5, and 8",
+      "36, 40, and 44"
+    ],
+    "correct": [0],
+    "explanation": "Channels 1, 6, and 11 are the only non-overlapping 20 MHz channels in the 2.4 GHz band in North America, minimizing interference. Consecutive or closely spaced channels overlap, and channels 36/40/44 belong to the 5 GHz band.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A company is deploying a new wireless network and wants the strongest available authentication and encryption, using SAE to protect against offline dictionary attacks on the pre-shared key. Which security standard meets this requirement?",
+    "options": [
+      "WEP",
+      "WPA",
+      "WPA2-PSK",
+      "WPA3"
+    ],
+    "correct": [3],
+    "explanation": "WPA3 introduces Simultaneous Authentication of Equals (SAE), replacing the WPA2 4-way handshake to resist offline dictionary attacks. WEP and WPA are deprecated and weak, and WPA2-PSK, while still common, is vulnerable to offline attacks that SAE mitigates.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A warehouse needs wireless coverage in a long, narrow aisle and wants to focus the signal in one direction rather than radiating evenly in all directions. Which antenna type best fits this need?",
+    "options": [
+      "Omnidirectional antenna",
+      "Directional (Yagi or patch) antenna",
+      "Rubber duck antenna",
+      "Isotropic antenna"
+    ],
+    "correct": [1],
+    "explanation": "A directional antenna such as a Yagi or patch concentrates the signal into a focused beam, ideal for long, narrow coverage areas. Omnidirectional and rubber duck antennas radiate in all horizontal directions, and an isotropic antenna is a theoretical reference, not a real product.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A technician is terminating a Cat6a cable run for a 10GBASE-T link and must match the wiring standard used on the existing patch panel. Both ends of the cable are terminated identically to the same pinout. Which statement is correct?",
+    "options": [
+      "Mixing T568A on one end and T568B on the other creates a straight-through cable",
+      "Both ends should use the same standard, either T568A or T568B, for a straight-through cable",
+      "T568A and T568B differ in the number of conductors used",
+      "Cat6a cannot support 10GBASE-T at any distance"
+    ],
+    "correct": [1],
+    "explanation": "A straight-through patch cable uses the same pinout, T568A or T568B, on both ends, and consistency across the plant is what matters. Mixing the two standards produces a crossover, both standards use all eight conductors, and Cat6a supports 10GBASE-T to 100 meters.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A campus needs a fiber backbone run of about 2 kilometers between two buildings using a laser source and a small light-carrying core for long distance. Which fiber type is appropriate?",
+    "options": [
+      "Single-mode fiber (SMF)",
+      "Multimode fiber (OM1)",
+      "Cat6 unshielded twisted pair",
+      "Coaxial RG-6"
+    ],
+    "correct": [0],
+    "explanation": "Single-mode fiber has a small core and uses laser sources, supporting long distances such as a 2 km backbone with minimal modal dispersion. Multimode is limited to shorter runs, and twisted pair and coax cannot span that distance for a fiber backbone.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A technician needs to power a wireless access point that draws about 25 watts over its Ethernet cable, with no separate power outlet available at the ceiling location. Which standard should the PoE switch support?",
+    "options": [
+      "802.3af (PoE), which delivers up to about 15.4 W",
+      "802.3at (PoE+), which delivers up to about 30 W",
+      "802.11ac, a wireless standard",
+      "802.1X, a port authentication standard"
+    ],
+    "correct": [1],
+    "explanation": "802.3at (PoE+) provides up to roughly 30 W at the port, enough for a 25 W access point. 802.3af tops out near 15.4 W and would be insufficient, while 802.11ac is a wireless standard and 802.1X handles authentication, not power delivery.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "In a large building, telecommunications cabling runs from workstations back to a wiring closet on each floor, and those closets connect back to a central equipment room where the main cross-connect and carrier demarcation live. What are the floor closets and the central room called, respectively?",
+    "options": [
+      "MDF and IDF",
+      "IDF and MDF",
+      "PDU and UPS",
+      "SVI and VLAN"
+    ],
+    "correct": [1],
+    "explanation": "The intermediate distribution frames (IDFs) are the per-floor wiring closets, and the main distribution frame (MDF) is the central equipment room housing the main cross-connect and demarcation. PDU and UPS relate to power, and SVI and VLAN are Layer 2/3 constructs.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A technician is mounting equipment in a standard 19-inch rack and needs to plan vertical space. How is rack-mount height measured, and what does one unit equal?",
+    "options": [
+      "In rack units (U), where 1U equals 1.75 inches (44.45 mm)",
+      "In rack units (U), where 1U equals 1 inch",
+      "In centimeters, where 1U equals 10 cm",
+      "In patch-panel ports, where 1U equals 24 ports"
+    ],
+    "correct": [0],
+    "explanation": "Rack equipment height is expressed in rack units (U), with 1U equal to 1.75 inches (44.45 mm) in a standard 19-inch rack. The other values are incorrect conversions, and port count does not define a rack unit.",
+    "difficulty": "EASY"
+  }
+]

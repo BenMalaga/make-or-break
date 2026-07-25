@@ -1,0 +1,303 @@
+---
+title: Prompt Engineering
+module: building-with-ai
+moduleTitle: Building with AI
+moduleOrder: 3
+moduleIcon: Brain
+order: 2
+summary: "The model doesn't change between a useless answer and a great one. The prompt does, and shaping it on purpose is a real skill."
+estimatedMinutes: 16
+prerequisites: ["how-language-models-work"]
+objectives:
+  - Explain why prompt quality follows directly from next-token prediction
+  - Tell a system prompt from a user prompt and say what each one is for
+  - Write specific prompts, few-shot examples, and format constraints that narrow the output
+  - Break a large request into steps and iterate on a prompt when the first result is wrong
+tags:
+  - ai
+  - llm
+---
+
+"Write me a bio." The model returns four sentences that could belong to anyone:
+passionate, results-driven, a lifelong learner who loves solving hard problems.
+Grammatical English, and completely useless. The same model, handed three real
+facts and told who the bio is for and where it will appear, returns something a
+person would actually put on a website.
+
+Nothing about the model changed between those two tries. The only thing that
+changed was the text in front of it. That text is the prompt, and shaping it on
+purpose is what prompt engineering means.
+
+The previous lesson, how language models work, laid out the machinery under this.
+A model predicts the next token, the next small chunk of text, from all the
+tokens already in front of it. It holds no memory between separate conversations,
+and it will state false things with complete confidence, an effect called
+hallucination. Every technique here falls out of that one fact about prediction.
+None of it is a bag of magic words.
+
+## The prompt is the condition
+
+A model does not answer questions. It continues text. Given "Write me a bio" and
+nothing else, an enormous number of continuations are plausible, and the most
+plausible one is the average of every generic bio in the training text. That
+average is exactly the mush from the opening. The model landed there because the
+prompt gave it nothing to rule out.
+
+The prompt is the set of tokens the prediction is conditioned on. Add a fact and
+the space of plausible continuations shrinks. Add a constraint and it shrinks
+again, toward the answers that fit the constraint. Say the bio is for a
+25-year-old game developer, first person, two sentences, no adjectives like
+"passionate," and the model has almost no room left to produce filler.
+
+That reframes the whole job. Prompt engineering is not about finding the secret
+phrase that unlocks a better model. It is about removing plausible-but-wrong
+continuations until mostly the wanted ones remain. Specificity is not politeness.
+It is how the space of answers gets narrowed.
+
+<Quiz
+  id="ai-why-vague-fails"
+  question="Why does a bare prompt like 'write me a bio' tend to produce generic output?"
+  answer={1}
+  options={[
+    "The model is too small to do anything useful with a short prompt.",
+    "With few constraints, many continuations are plausible, and the most probable one is the generic average of similar text the model was trained on.",
+    "The model deliberately holds back its best writing until the prompt gets longer.",
+    "Short prompts get truncated before they reach the model.",
+  ]}
+  explanation="The model predicts the most probable continuation. A prompt with almost no constraints leaves a huge set of plausible answers, and the single most probable one is the bland average. Constraints rule out the wrong continuations."
+/>
+
+## System prompt and user prompt
+
+Most chat tools split the text into two roles that do different work. The user
+prompt is the specific request made in the moment: the question, the task, the
+paste of text to summarize. The system prompt is a standing instruction placed
+before the conversation that sets the role, the rules, and the tone the model
+should hold across every turn.
+
+Both are just tokens in the context window, the fixed-size span of text the model
+can read at once. The model does not treat system tokens as sacred; it reads them
+the same way it reads everything else. The split exists so the standing rules can
+stay fixed while the specific request changes from message to message. Set the
+rules once, ask many different questions under them.
+
+A system prompt might read: "You answer as a terse reference for Linux
+command-line tools. Reply in at most two sentences. Never suggest a command you
+have not named exactly." Under that rule, a user prompt of "How do I see which
+process is using port 8080?" gets a short, exact answer instead of three
+paragraphs of preamble.
+
+Holding those two pieces separately in code looks like this. The example does not
+call a model yet; it just shows the structure, one labeled block per role.
+
+```python
+messages = [
+    {"role": "system", "content": "You are a terse Linux reference. Answer in at most two sentences."},
+    {"role": "user", "content": "How do I see which process is using port 8080?"},
+]
+
+for m in messages:
+    print(f"[{m['role']}] {m['content']}")
+```
+
+<CommandCard
+  command="python3 messages.py"
+  title="terminal"
+  explain="Runs the file, which prints each role and its text. This is only the structure of a prompt, not a request sent to a model yet."
+/>
+
+<ExpectedOutput label="running messages.py">
+```
+[system] You are a terse Linux reference. Answer in at most two sentences.
+[user] How do I see which process is using port 8080?
+```
+</ExpectedOutput>
+
+Different tools and different APIs pass the system prompt in slightly different
+ways, and the next lesson covers the real wiring. The idea holds across all of
+them: a durable instruction on top, the changing request underneath.
+
+## Be specific
+
+Vagueness is the single most common reason output disappoints. Compare two
+prompts for the same task.
+
+Vague: "Summarize this article."
+
+Specific: "Summarize this article in three bullet points for a busy engineer.
+Each bullet under 15 words. Focus on what changed and why it matters, not
+background the reader already knows."
+
+The second prompt names the length, the audience, the format, and what to leave
+out. Each of those closes off a category of answer the reader did not want. The
+model was never going to guess that "summarize" meant three tight bullets for an
+engineer. It had no way to know, so it produced the safe average: a paragraph of
+medium length aimed at nobody in particular.
+
+The rule underneath is plain. Anything left unsaid, the model fills with the most
+common version of that thing. If the most common version is not the wanted one,
+say the wanted one out loud.
+
+## Show examples instead of describing them
+
+Some things are easier to demonstrate than to describe. Sorting support messages
+into "billing," "bug," or "feature" is one of them. A prompt can spell out the
+rules for each category, or it can show a few worked cases and let the pattern
+carry the rest. The second approach is called few-shot prompting: including a
+handful of example input-and-output pairs in the prompt before the real request.
+A prompt with no examples, just an instruction, is zero-shot by contrast.
+
+A few-shot prompt for the sorting task looks like this:
+
+```
+Classify each message as billing, bug, or feature.
+
+Message: I was charged twice this month.
+Category: billing
+
+Message: The export button does nothing when I click it.
+Category: bug
+
+Message: Could you add dark mode?
+Category: feature
+
+Message: My invoice shows the wrong company name.
+Category:
+```
+
+The examples do the teaching. Because prediction is pattern continuation, a
+prompt that establishes a clear shape, message then category, message then
+category, makes the most probable next tokens follow the same shape. The model
+completes the final line with "billing" not because it reasoned about invoices,
+but because that is what fits the pattern the examples set. Few-shot is worth
+reaching for whenever the desired output is easier to show than to define, or
+when the category boundaries are fuzzy in words but obvious in examples.
+
+<Callout type="info" title="Few-shot is not training">
+Adding examples to a prompt does not change the model. The examples live only in
+the context window for this one request, and they are gone the moment the
+conversation ends, the same way the model keeps no memory between conversations.
+Permanently teaching a model new behavior is a different and far heavier process
+called fine-tuning, which retrains the model's internal weights. Few-shot just
+borrows the pattern for a single call.
+</Callout>
+
+<Quiz
+  id="ai-few-shot"
+  question="A prompt shows three examples, each a support message paired with its one-word category, then gives a fourth message with the category left blank. What is this, and why does it work?"
+  answer={2}
+  options={[
+    "Zero-shot prompting; it works by making the prompt long enough to trigger better answers.",
+    "Fine-tuning; the three examples permanently change how the model behaves on all future messages.",
+    "Few-shot prompting; the examples set a pattern, and next-token prediction continues that pattern for the new message.",
+    "System prompting; the examples become standing rules applied to every later conversation.",
+  ]}
+  explanation="Few-shot means giving example input-output pairs inside the prompt. The model continues the established pattern by prediction. It is not fine-tuning, which retrains weights, and the examples vanish after the request."
+/>
+
+## Ask for a format
+
+When the output is read by a person, loose prose is fine. When the output feeds
+into other code, the shape matters as much as the content. A prompt can ask for a
+specific format directly: a single word, a numbered list, a table, or structured
+data such as JSON, a text format that writes data as labeled key and value pairs
+inside braces.
+
+"Extract the name and city, and reply as JSON with keys 'name' and 'city'" gets a
+predictable shape back, something a program can pull fields out of. "Tell me the
+name and city" gets a sentence, which a program then has to unpick with fragile
+guesswork.
+
+One honest caveat. Asking for a format makes the wanted shape far more likely,
+not guaranteed. A model will sometimes wrap its JSON in a sentence of explanation,
+or add a trailing comma that breaks a strict parser, because a stray token was
+locally probable. Code that consumes model output validates it rather than
+trusting it, and has a plan for the times the shape comes back wrong. That plan is
+part of building on top of a model, not an afterthought.
+
+## Break a big task into steps
+
+A single prompt that asks for everything at once tends to do each part poorly.
+"Read these fifty reviews, find the top three complaints, and write a response to
+each" asks the model to extract, rank, and compose in one leap, and it will often
+drop or blur one of the three.
+
+Splitting the work helps. Ask first for the complaints, ranked. Then, in a second
+prompt, hand back that ranked list and ask for the responses. This works for a
+concrete reason tied to prediction: the output of the first step becomes part of
+the context the second step reads. The response-writing is then conditioned on a
+clean, explicit list of complaints instead of being squeezed out of the raw
+reviews in the same breath. Each step stands on the finished work of the last.
+
+A lighter version of the same idea is asking the model to work through its
+reasoning before giving a final answer, often phrased as "think step by step."
+The intermediate reasoning becomes context that the final answer is predicted
+from, which tends to catch mistakes a single-leap answer would make. It costs more
+tokens and more time, so it earns its place on problems with real steps, not on
+"what is the capital of France."
+
+<Quiz
+  id="ai-break-into-steps"
+  question="Why does splitting a complex task across two prompts, where the first prompt's output is fed into the second, often beat asking for everything in one prompt?"
+  answer={0}
+  options={[
+    "The second step is conditioned on the concrete result of the first, so its prediction rests on finished intermediate work instead of producing everything at once.",
+    "Two prompts use a larger model than one prompt does.",
+    "Splitting a task removes the need to be specific in either prompt.",
+    "The model remembers the first prompt permanently, so the second one can be vague.",
+  ]}
+  explanation="Each step's output joins the context the next step reads. The later prediction rests on explicit intermediate results rather than doing extraction, ranking, and writing in a single leap. The model still keeps no memory once the conversation ends."
+/>
+
+## When the output is wrong, fix the prompt, not the dice
+
+The first result is often not the wanted one. The weak move is to run the same
+prompt again and hope for better luck. Because the model samples with some
+randomness, a rerun sometimes lands differently, but nothing was learned and the
+next rerun is a coin flip too.
+
+The reliable move is to read the output, find where it diverged from what was
+wanted, and locate the ambiguity in the prompt that allowed the divergence. Then
+close that specific gap. Asked for "a short summary" and got six paragraphs? The
+word "short" was never defined, so replace it with "under 60 words." Got a
+response in the wrong tone? The tone was never named, so name it. Each wrong
+output points at exactly one thing the prompt left open.
+
+This is a loop, and it is most of the actual work. Write a prompt, read what came
+back, find the one word or missing constraint that let the answer drift, tighten
+it, run again. A good prompt is rarely written in one shot. It is the survivor of
+three or four rounds of that loop, each round pinning down one thing the last
+version left to chance.
+
+<Callout type="tip" title="Change one thing at a time">
+When a prompt is close but not right, resist rewriting the whole thing. Change a
+single constraint and rerun. If five things change at once and the output
+improves, which change did the work stays a mystery, and the next problem starts
+from zero. One variable per attempt turns prompting from guesswork into something
+that gets steadily better.
+</Callout>
+
+<Exercise title="Tighten a vague prompt">
+Take a request as loose as "explain recursion." Send it to any chatbot and read
+what comes back. It will be a generic, medium-length explanation aimed at no one.
+
+Now rewrite the prompt with four constraints named explicitly: who the reader is,
+how long the answer should be, what format it should take, and one thing to leave
+out. For example: "Explain recursion to someone who already knows loops, in under
+100 words, with one code example, and do not mention factorials." Send that.
+
+Compare the two answers side by side. Then change exactly one constraint, the
+length, or the audience, or the example, and send it a third time. Watch how the
+output moves in just that one dimension. That controlled movement is the whole
+craft.
+</Exercise>
+
+Every prompt so far has been typed into a chat box by hand, one at a time, and
+read by a person. That breaks down the moment a prompt has to run a thousand times
+over a thousand different inputs, or feed its output straight into another
+program. At that point the prompt has to be sent from code, and the response has
+to come back as data a program can act on. The next lesson, building on the API,
+covers exactly that: how a program sends a prompt to a model and gets the answer
+back.
+
+<Notes />

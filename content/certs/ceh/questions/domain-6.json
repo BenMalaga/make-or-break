@@ -1,0 +1,288 @@
+[
+  {
+    "domain": 6,
+    "question": "AES is the standard used for encrypting data at rest in most modern systems. Which category best describes it?",
+    "options": [
+      "Asymmetric block cipher",
+      "Symmetric block cipher",
+      "Asymmetric stream cipher",
+      "Symmetric stream cipher"
+    ],
+    "correct": [1],
+    "explanation": "AES is a symmetric block cipher: the same key encrypts and decrypts, and it operates on fixed 128-bit blocks. Asymmetric algorithms like RSA use separate public and private keys, and stream ciphers such as RC4 encrypt one bit or byte at a time.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "Which of the following is a stream cipher rather than a block cipher?",
+    "options": [
+      "AES",
+      "DES",
+      "RC4",
+      "Blowfish"
+    ],
+    "correct": [2],
+    "explanation": "RC4 is a stream cipher that generates a keystream XORed byte-by-byte with the plaintext. AES, DES, and Blowfish are all block ciphers that process fixed-size blocks. RC4 is now deprecated because of biases in its keystream.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "The security of RSA rests on the computational difficulty of which mathematical problem?",
+    "options": [
+      "Factoring the product of two large prime numbers",
+      "Computing discrete logarithms in a finite field",
+      "Finding collisions in a hash function",
+      "Solving the shortest vector problem in a lattice"
+    ],
+    "correct": [0],
+    "explanation": "RSA is hard to break because factoring a large composite number back into its two prime factors is computationally infeasible with current methods. The discrete logarithm problem underpins Diffie-Hellman and DSA, not RSA. Hash collisions and lattice problems are unrelated to RSA's core assumption.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "Two hosts use Diffie-Hellman to agree on a shared secret across an untrusted network. Without an added authentication mechanism, which attack is Diffie-Hellman inherently exposed to?",
+    "options": [
+      "Man-in-the-middle attack",
+      "Birthday attack",
+      "Rainbow table attack",
+      "Padding oracle attack"
+    ],
+    "correct": [0],
+    "explanation": "Plain Diffie-Hellman exchanges public values but never proves who is on the other end, so an attacker in the middle can negotiate separate keys with each side and relay traffic. Authenticating the exchange, for example with signatures or certificates, closes this gap. The other listed attacks target hashes, stored password hashes, and CBC padding respectively.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "Why would an organization choose elliptic curve cryptography (ECC) over RSA for a constrained device?",
+    "options": [
+      "ECC provides equivalent security with much smaller key sizes",
+      "ECC does not require any key at all",
+      "ECC is a symmetric algorithm and therefore faster to distribute",
+      "ECC guarantees perfect secrecy regardless of key length"
+    ],
+    "correct": [0],
+    "explanation": "ECC reaches the same security level as RSA using far shorter keys, so a 256-bit ECC key is roughly comparable to a 3072-bit RSA key. That means less memory, less bandwidth, and lower power draw, which matters on IoT and mobile hardware. ECC is still asymmetric and still needs keys.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "A developer encrypts a bitmap image using AES in ECB mode and finds that the outline of the original picture is still visible in the ciphertext. What causes this?",
+    "options": [
+      "ECB encrypts identical plaintext blocks into identical ciphertext blocks",
+      "ECB reuses the same initialization vector for every block",
+      "ECB truncates the AES block size to 64 bits",
+      "ECB applies a weak key schedule that leaks bits"
+    ],
+    "correct": [0],
+    "explanation": "Electronic Codebook mode encrypts each block independently, so any two identical plaintext blocks produce the same ciphertext block, and large areas of solid color reveal patterns. This is the classic ECB penguin problem. Modes like CBC or CTR chain or randomize blocks so identical plaintext no longer maps to identical ciphertext.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "Which statement about a cryptographic hash function such as SHA-256 is correct?",
+    "options": [
+      "It produces a fixed-length output and is computationally infeasible to reverse",
+      "It is a reversible operation once you know the algorithm",
+      "It requires a shared secret key to compute the digest",
+      "Its output length grows in proportion to the input length"
+    ],
+    "correct": [0],
+    "explanation": "A cryptographic hash maps any input to a fixed-length digest, 256 bits for SHA-256, and is designed to be one-way so you cannot recover the input from the output. Hashing needs no key, which is what separates it from a MAC or a cipher. The digest length is constant no matter how large the input.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "To create a digital signature on a document, the sender encrypts the message digest using which key?",
+    "options": [
+      "The sender's private key",
+      "The sender's public key",
+      "The recipient's public key",
+      "The recipient's private key"
+    ],
+    "correct": [0],
+    "explanation": "Signing means encrypting the hash of the message with the sender's private key, and anyone can verify it using the sender's public key. Only the sender holds that private key, which is what gives the signature authentication and non-repudiation. Encrypting with the recipient's public key would be done for confidentiality, not signing.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A digital signature delivers integrity, authentication, and non-repudiation. Which security service does a digital signature by itself NOT provide?",
+    "options": [
+      "Confidentiality",
+      "Integrity",
+      "Authentication",
+      "Non-repudiation"
+    ],
+    "correct": [0],
+    "explanation": "A signature proves who sent the message and that it was not altered, but the message content itself stays readable, so it offers no confidentiality. To hide the contents you also encrypt the message, typically with the recipient's public key or a session key. Signing and encrypting are separate operations often combined.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "In a public key infrastructure, what artifact actually binds a public key to a verified identity?",
+    "options": [
+      "A digital certificate issued by a certificate authority",
+      "A certificate revocation list",
+      "A symmetric session key",
+      "A one-time nonce exchanged during the handshake"
+    ],
+    "correct": [0],
+    "explanation": "A digital certificate, usually in X.509 format, is signed by a trusted certificate authority and ties a public key to the identity named in the certificate. A CRL lists certificates that are no longer valid, not new bindings. Session keys and nonces are transient values used during a single connection.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "A browser needs to confirm that a single server certificate has not been revoked, and it wants a real-time answer rather than downloading a large published list. Which protocol fits?",
+    "options": [
+      "OCSP",
+      "CRL",
+      "SCEP",
+      "LDAP"
+    ],
+    "correct": [0],
+    "explanation": "The Online Certificate Status Protocol lets a client query a responder about one specific certificate and get an immediate valid, revoked, or unknown response. A CRL is a periodically published list the client must download and parse, which is slower and can be stale. SCEP handles certificate enrollment, and LDAP is a directory access protocol.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A birthday attack against a hash function is aimed at achieving what specific result?",
+    "options": [
+      "Finding two different inputs that produce the same hash value",
+      "Recovering the original plaintext from a single hash",
+      "Guessing the private key used to sign a digest",
+      "Downgrading the connection to a weaker cipher suite"
+    ],
+    "correct": [0],
+    "explanation": "A birthday attack uses the probability math behind the birthday paradox to find a collision, two distinct inputs hashing to the same value, far faster than brute force. It is why an n-bit hash gives only about n/2 bits of collision resistance. It does not reverse a hash or extract a signing key.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "Which two measures specifically defeat precomputed rainbow table attacks against stored password hashes? (Choose two.)",
+    "options": [
+      "Adding a unique random salt to each password before hashing",
+      "Using a deliberately slow key-stretching function such as bcrypt or PBKDF2",
+      "Storing all passwords as unsalted MD5 digests",
+      "Reusing one fixed initialization vector across every account"
+    ],
+    "correct": [0, 1],
+    "explanation": "A unique per-user salt means an attacker cannot precompute one table that covers everyone, which is exactly what a rainbow table relies on. A slow key-stretching function like bcrypt or PBKDF2 raises the cost of each guess so even a table build becomes impractical. Unsalted MD5 and reused IVs make the problem worse, not better.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A cryptanalyst holds several ciphertexts along with their matching plaintexts and uses those pairs to work out the key. Which type of attack is this?",
+    "options": [
+      "Known-plaintext attack",
+      "Ciphertext-only attack",
+      "Chosen-plaintext attack",
+      "Chosen-ciphertext attack"
+    ],
+    "correct": [0],
+    "explanation": "In a known-plaintext attack the analyst already has plaintext and its corresponding ciphertext and exploits the relationship to recover the key. In a ciphertext-only attack they have only the ciphertext. A chosen-plaintext or chosen-ciphertext attack requires the ability to submit inputs the attacker picks and observe the results.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "Triple DES applies the DES cipher three times rather than simply doubling it. What weakness in Double DES makes the extra pass necessary?",
+    "options": [
+      "Double DES is vulnerable to a meet-in-the-middle attack that cuts its effective strength",
+      "Two DES passes cannot fill the 64-bit block completely",
+      "Double DES produces predictable ciphertext in ECB mode only",
+      "Two keys always collide into a single weak key"
+    ],
+    "correct": [0],
+    "explanation": "Meet-in-the-middle lets an attacker encrypt from one end and decrypt from the other, matching intermediate values so Double DES gives only marginally more strength than single DES rather than the expected doubling. Triple DES with three operations pushes the work factor back up. The block size and key handling are not the issue here.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 6,
+    "question": "What does an HMAC provide when appended to a message?",
+    "options": [
+      "Message integrity and authenticity using a shared secret key",
+      "Confidentiality of the message payload",
+      "Key exchange over an insecure channel",
+      "Non-repudiation backed by the sender's private key"
+    ],
+    "correct": [0],
+    "explanation": "HMAC combines a hash function with a shared secret key so the recipient can confirm the message was not tampered with and came from someone who holds the key. It does not encrypt, so it offers no confidentiality. Because both parties share the same key, HMAC cannot prove which one sent it, so it provides no non-repudiation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "BitLocker full disk encryption on a corporate laptop commonly seals its volume master key inside which hardware component so the drive stays protected at rest?",
+    "options": [
+      "Trusted Platform Module (TPM)",
+      "Network interface card firmware",
+      "The GPU video memory",
+      "The USB host controller"
+    ],
+    "correct": [0],
+    "explanation": "BitLocker typically binds the key to a TPM, a dedicated chip that stores keys and releases them only when the boot measurements match the expected state. If someone pulls the drive and puts it in another machine, the TPM will not release the key. The NIC, GPU, and USB controller play no role in key storage.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "An attacker breaks a malicious payload into many tiny TCP segments so that no single packet matches an IDS signature, then lets the target reassemble them. What is this evasion technique called?",
+    "options": [
+      "Session splicing",
+      "Source routing",
+      "Banner grabbing",
+      "ARP poisoning"
+    ],
+    "correct": [0],
+    "explanation": "Session splicing spreads the attack across multiple small packets so a signature-based IDS inspecting one packet at a time never sees the full pattern, while the destination host reassembles the stream normally. Source routing manipulates the packet path, banner grabbing reads service identifiers, and ARP poisoning targets Layer 2 address mappings.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "An attacker tunnels command-and-control traffic inside DNS queries and responses to slip past an egress firewall that permits outbound port 53. What is this technique?",
+    "options": [
+      "DNS tunneling",
+      "IP fragmentation",
+      "Session hijacking",
+      "Banner grabbing"
+    ],
+    "correct": [0],
+    "explanation": "DNS tunneling hides data or C2 messages inside DNS query and response fields, riding a protocol most firewalls leave open for name resolution. Because the traffic looks like ordinary DNS, an egress filter that only checks ports lets it through. Fragmentation, session hijacking, and banner grabbing address different goals entirely.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "How does a low-interaction honeypot differ from a high-interaction honeypot?",
+    "options": [
+      "It emulates only a limited set of services instead of running a full real operating system",
+      "It must be physically air-gapped from all other systems",
+      "It cannot record any attacker activity at all",
+      "It is always placed outside the perimeter firewall"
+    ],
+    "correct": [0],
+    "explanation": "A low-interaction honeypot simulates a handful of services and responses, so it is safer and easier to run but gathers less detail. A high-interaction honeypot exposes a real operating system and applications, capturing far richer attacker behavior at the cost of more risk and maintenance. Both types log activity, and placement is a deployment choice, not a defining trait.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "The POODLE attack forces a downgrade and then exploits a flaw in which mechanism?",
+    "options": [
+      "CBC-mode padding in SSL 3.0",
+      "ECB mode in TLS 1.3",
+      "RSA key generation on the server",
+      "The Diffie-Hellman group parameters"
+    ],
+    "correct": [0],
+    "explanation": "POODLE, short for Padding Oracle On Downgraded Legacy Encryption, abuses how SSL 3.0 handles CBC block padding to recover plaintext one byte at a time after downgrading the connection. The fix is to disable SSL 3.0 entirely. It is not about ECB, RSA key generation, or DH parameters.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 6,
+    "question": "Which two techniques are commonly used to evade a signature-based network IDS? (Choose two.)",
+    "options": [
+      "Fragmenting the attack across multiple packets",
+      "Encrypting or encoding the payload so signatures do not match",
+      "Sending the entire attack in one large cleartext packet",
+      "Announcing the attack on a well-known port with default banners"
+    ],
+    "correct": [0, 1],
+    "explanation": "Fragmentation and session splicing keep any single packet from matching a known signature, while encryption or encoding hides the malicious content from inspection altogether. Both defeat pattern matching that expects the payload in the clear and in one piece. Sending one large cleartext packet on a default port does the opposite, making detection trivial.",
+    "difficulty": "MEDIUM"
+  }
+]

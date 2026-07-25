@@ -1,0 +1,72 @@
+---
+title: Threat Modeling a Real App
+module: threat-modeling
+moduleTitle: Threat Modeling
+moduleOrder: 43
+moduleIcon: Workflow
+order: 4
+summary: One login flow, walked end to end, with the threats written on every arrow.
+estimatedMinutes: 20
+objectives:
+  - Walk a real login flow arrow by arrow across trust boundaries
+  - Apply STRIDE at each crossing to produce concrete threats
+  - Prove the method finds flaws a code review would miss
+tags:
+  - threat-modeling
+  - stride
+  - walkthrough
+  - authentication
+---
+
+Login looks boring, which is exactly why it is the flow that gets breached. Everyone has seen a hundred login forms, so nobody looks hard at their own. Walk one arrow by arrow with STRIDE in hand and the boring flow turns into a list of ways in.
+
+The system: a browser posts email and password to an API server, the server checks them against a `users` table in Postgres, and on success it issues a session token the browser stores in a cookie. Three components, two trust boundaries, roughly five flows. Let us walk it.
+
+## Boundary one: browser to API
+
+The credentials cross from fully attacker-controlled space into your server. This is the arrow with the most threats on it, so slow down here.
+
+Spoofing. Can someone submit credentials that are not theirs. Credential stuffing from a breach dump is the obvious one, so this arrow needs rate limiting and lockout, and ideally MFA behind it. No throttle means an attacker gets unlimited guesses, and unlimited guesses beat any password eventually.
+
+Tampering and information disclosure ride together on the transport. If this POST is not HTTPS, the password moves in cleartext and anyone on the path reads it. Force TLS, set HSTS, and never log the request body, because a password in an access log is a breach with a timestamp.
+
+Denial of service. If password verification runs bcrypt at a high work factor with no rate limit, an attacker floods the login endpoint and pins your CPU hashing garbage. The mitigation and the spoofing mitigation are the same control: rate limit before you hash.
+
+## The response is a boundary too
+
+Watch what comes back when auth fails, because the error message is a data flow crossing back to the attacker. "No account with that email" versus "wrong password" tells an attacker which emails are real. That is information disclosure through a username oracle, and it feeds the credential-stuffing threat from the last section. Return one generic "invalid email or password" for both cases.
+
+<CommandCard command="Same failure message, same response time, whether the email exists or not." explain="Distinct messages leak account existence, and distinct timing leaks it even when the messages match, because a real account runs the full password hash and a missing one returns early. Normalize both. An attacker who cannot tell a valid email from an invalid one has lost their enumeration primitive." />
+
+## Boundary two: API to database
+
+The lookup query crosses into the data store. Tampering shows up as SQL injection if the email is concatenated into the query instead of parameterized, so a login form becomes a database dump. Use bound parameters and the threat evaporates.
+
+Information disclosure lives in the `users` table itself. If passwords sit there in plaintext or behind fast MD5, one read of that store hands over every account. Store them with bcrypt, scrypt, or Argon2, so a stolen table is expensive to crack instead of instant.
+
+## Token issuance: the flaw code review misses
+
+Success mints a session token, and this is where the password-reset disaster from lesson one hides. If the token is predictable, a sequential ID, a timestamp, the user's email encoded, then elevation of privilege is trivial: forge a token, become another user. The code that builds it can be flawless. The design is the hole.
+
+The fix is a token with real entropy, at least 128 bits from a CSRNG, or a properly signed JWT with the signature actually verified on every request. Then look at where the browser keeps it. A cookie without `HttpOnly` is readable by any XSS, without `Secure` it leaks over HTTP, and without `SameSite` it rides along on cross-site requests. Three flags, and each one closes a distinct threat.
+
+None of these are typos a linter flags. They are decisions, which is the entire point of doing this at the design table.
+
+<Callout type="security" title="Walk flows you are authorized to walk">
+This walkthrough is how you probe a login flow for weaknesses, and that same walk against a system you have no clearance to test is reconnaissance for an attack. Run it on your own app, on a lab like Juice Shop or DVWA, or on a target with a signed engagement in scope. The method is identical either way; your authorization to touch the target is the line between an assessment and an intrusion.
+</Callout>
+
+<Quiz
+  id="tm-username-oracle"
+  question="Your login returns 'no account found' for unknown emails and 'incorrect password' for known ones. Before any password is guessed, what has an attacker already gained?"
+  answer={2}
+  options={[
+    "Nothing, since they still need the password",
+    "A denial-of-service condition",
+    "A way to enumerate which email addresses have accounts",
+    "The session token signing key",
+  ]}
+  explanation="The two distinct messages form a username oracle. The attacker harvests valid accounts first, then aims credential stuffing only at real ones. Return one generic failure message, and equalize response timing, to close it."
+/>
+
+<Notes />

@@ -1,0 +1,168 @@
+---
+title: Choosing Virtualization
+module: building-a-home-lab
+moduleTitle: Building a Home Lab
+moduleOrder: 42
+moduleIcon: FlaskConical
+order: 2
+summary: "A hypervisor turns one computer into many. What it is, type 1 versus type 2, VirtualBox against VMware against UTM against Hyper-V, and how much RAM the host can really spare."
+estimatedMinutes: 16
+prerequisites: ["why-you-need-a-lab"]
+objectives:
+  - Explain what a hypervisor does and how a guest differs from the host
+  - Tell a type-1 hypervisor from a type-2 and know which one a lab starts on
+  - Match VirtualBox, VMware, UTM, or Hyper-V to a host OS and CPU architecture
+  - Budget RAM, CPU, and disk so the host keeps running while guests run
+  - Decide when a container is enough and when a full VM is the safer wall
+tags:
+  - virtualization
+  - hypervisor
+  - lab
+  - containers
+---
+
+The last lesson, why-you-need-a-lab, drew a hard line: running an attack against a machine nobody gave permission to touch is a crime, and the only honest place to practice is a set of machines that belong entirely to the person practicing. That leaves a practical problem. Practice needs at least two machines, a target to attack and a box to attack from, and it really needs a dozen targets, each one broken in a different way. Buying a dozen computers is absurd.
+
+Virtualization is the way out. One physical computer pretends to be many, and each pretend computer can be booted, attacked, corrupted, wiped, and rebuilt in minutes without touching anything real.
+
+## The software that fakes a computer
+
+A hypervisor is a program whose whole job is to convince an operating system that it is running on real hardware when it is not. It hands the operating system a fake CPU, a fake block of memory, a fake disk, and a fake network card. The operating system installs and boots exactly as it would on a physical machine, because from the inside it cannot tell the difference.
+
+Two words name the two sides of that illusion, and every later lesson leans on them. The host is the real machine and the operating system a person actually sits in front of: a laptop running Windows, a desktop running Linux, a Mac. The guest is the operating system running inside the fake computer the hypervisor built. One host can run several guests at once. Each guest gets its own slice of memory and its own fake disk, and each one behaves as though it owns the entire machine.
+
+That separation is the property that makes a lab safe. A guest that gets compromised, corrupted, or deliberately packed with malware is a contained thing. It cannot read the host's files unless something is explicitly configured to let it through, and it can be thrown away and rebuilt without leaving a mark on the real machine. Most hypervisors make the rebuild trivial with a snapshot: a frozen copy of a guest's entire disk and memory at one instant, saved so the guest can be rolled back to that exact state later. Break a target, learn from the wreckage, roll back, break it a different way.
+
+## Two kinds of hypervisor
+
+Hypervisors split into two families by where they sit relative to a normal operating system.
+
+A type-2 hypervisor runs as an ordinary application on top of an existing operating system. The host boots Windows or macOS or Linux the usual way, someone opens the hypervisor like any other program, and guests run inside its windows. VirtualBox and VMware Workstation are type-2. The host OS is still in charge of the hardware, and the hypervisor is just one more app asking it for memory and CPU time. That extra layer costs a little performance. For lab work the cost is invisible.
+
+A type-1 hypervisor runs directly on the hardware with no general-purpose operating system beneath it. It is the first thing the machine boots, and every operating system on the box, including whatever looks like the "main" one, is a guest running on top of it. VMware ESXi and Proxmox VE are type-1. So is Microsoft Hyper-V, and Hyper-V is the confusing case worth slowing down for.
+
+Hyper-V ships inside Windows and appears in the list of Windows features as a switch to flip, so nearly everyone assumes it is a type-2 app. It is not. The moment Hyper-V is enabled, Windows itself is quietly lifted on top of it and becomes a guest. A privileged guest that still owns the screen and the mouse, but a guest. This has a concrete consequence. A real type-1 hypervisor takes exclusive ownership of the CPU's virtualization hardware, and for years enabling Hyper-V would break VirtualBox and VMware, which both wanted that same hardware for themselves. Modern versions negotiate a truce through a Windows API called the Windows Hypervisor Platform, but a conflict over that hardware is still the first thing to suspect when a guest refuses to start on a Windows host.
+
+<Quiz
+  id="virt-hyperv-conflict"
+  question="On a Windows laptop, Hyper-V is turned on, and now a VirtualBox guest fails to start with a virtualization error. What is the most likely cause?"
+  answer={1}
+  options={[
+    "VirtualBox cannot open disk images that were created while Hyper-V was enabled",
+    "Hyper-V is a type-1 hypervisor and claimed the CPU's virtualization hardware that VirtualBox also wanted",
+    "The host does not have enough RAM to keep two hypervisors installed at once",
+    "VirtualBox only runs on Linux, so it was never going to start on Windows",
+  ]}
+  explanation="Enabling Hyper-V slides Windows on top of a type-1 hypervisor that grabs the CPU's virtualization extensions. A type-2 hypervisor wanting the same hardware is the classic reason a guest fails to boot on Windows. It is a conflict over hardware, not about RAM or disk formats."
+/>
+
+## Picking one for the actual machine
+
+Two facts about the host decide the choice: which operating system it runs, and which CPU architecture it has. Architecture eliminates options fastest, so it comes first.
+
+Nearly every desktop and laptop CPU is one of two architectures. Intel and AMD chips are x86-64, the architecture most security tooling and most published targets were built for. Apple Silicon Macs, the M1 through M4 line, are ARM. This matters because a guest built for x86-64 does not run on ARM hardware by simply being copied over. It has to be emulated, meaning the hypervisor translates every x86 instruction into ARM instructions on the fly, which works but runs slowly. Sorting out architecture first rules out most of the tool list in one step.
+
+VirtualBox is the free default on x86-64. It is maintained by Oracle, costs nothing, runs on Windows, Linux, and Intel Macs, and imports the `.ova` appliance files that most deliberately vulnerable VMs ship as. It does not run on Apple Silicon at all. For an Intel or AMD machine, this is the sane starting point.
+
+VMware Workstation Pro, on Windows and Linux, and its Mac counterpart Fusion, became free for personal use in 2024. Its virtual network adapters behave more predictably under load than VirtualBox's, and Kali Linux publishes official VMware images. If VirtualBox produces flaky networking, this is the swap to make.
+
+UTM is the answer on Apple Silicon. It wraps Apple's own Virtualization framework together with an emulator called QEMU, so it runs ARM guests natively and fast, and can emulate x86-64 guests slowly for the cases where a target only ships in that architecture. On an M-series Mac, UTM paired with an ARM64 Kali image is the path of least resistance.
+
+Hyper-V is already present on Windows 10 and 11 Pro and Enterprise, so it needs no download. It is a reasonable pick for a Windows-only lab by someone willing to live with a rougher interface than VirtualBox offers. The catch is the conflict described above: turning it on complicates running VirtualBox or VMware beside it.
+
+Before installing anything, two facts about the host are worth confirming directly rather than guessing: the architecture, and whether the CPU actually exposes virtualization support to the operating system.
+
+<CommandCard
+  command="uname -m"
+  title="linux / macos"
+  explain="Prints the machine's CPU architecture. 'x86_64' means an Intel or AMD chip. 'arm64' or 'aarch64' means Apple Silicon or another ARM CPU."
+/>
+
+<ExpectedOutput label="uname -m on an Intel or AMD machine">
+```
+x86_64
+```
+</ExpectedOutput>
+
+<CommandCard
+  command="grep -Eoc '(vmx|svm)' /proc/cpuinfo"
+  title="linux"
+  explain="Counts CPU cores reporting Intel VT-x (vmx) or AMD-V (svm), the hardware feature every hypervisor needs. Any number above zero means virtualization is available. Zero usually means it is switched off in firmware settings."
+/>
+
+<ExpectedOutput label="grep on a machine with virtualization enabled">
+```
+8
+```
+</ExpectedOutput>
+
+On macOS the equivalent check is `sysctl kern.hv_support`, which prints `kern.hv_support: 1` when Apple's Hypervisor framework is available. A `0` there, or a `0` from the Linux count above, almost always means virtualization is disabled in the machine's firmware and needs turning on before any hypervisor will run a guest.
+
+<Quiz
+  id="virt-apple-silicon"
+  question="A lab is being built on an M3 MacBook, and the only target available ships as an x86-64 .ova appliance. Which setup actually runs it?"
+  answer={2}
+  options={[
+    "VirtualBox, which runs x86-64 guests natively on Apple Silicon",
+    "Hyper-V, enabled through macOS system settings",
+    "UTM, which runs ARM guests natively and can emulate the x86-64 target, slowly",
+    "Nothing, because an x86-64 image can never run on ARM hardware in any form",
+  ]}
+  explanation="VirtualBox does not support Apple Silicon, and Hyper-V is a Windows-only feature. UTM is the fit: it emulates x86-64 when a target only ships in that architecture. Emulation is slow, but it gets a single-target lab running, so the last option is wrong too."
+/>
+
+## Budgeting what the host can spare
+
+A running guest is not free. The most unforgiving cost is memory. While a guest is powered on, the hypervisor reserves that guest's RAM out of the host's physical memory and does not hand it back until the guest shuts down. Assign a guest 4 GB, and 4 GB leaves the host's usable pool for as long as that guest runs.
+
+The math is easy to get wrong in the optimistic direction. Take a laptop with 16 GB of RAM. The host operating system, a browser, and a few background programs comfortably eat 6 GB before a single guest boots, leaving about 10 GB to spend. A Kali attacker guest runs fine on 4 GB and a small target runs on 2 GB, which fits inside the remaining 10 with headroom to spare. Try to boot four guests at 4 GB each, though, and the demand blows past what the machine has. The host starts swapping memory out to disk to cope, and both host and guests grind to a crawl. The real usable figure, not the total, is the number worth checking.
+
+<CommandCard
+  command="free -h"
+  title="linux"
+  explain="Shows memory in human-readable units. The 'available' column, not 'free', is the honest number: how much a new guest can safely claim without forcing the host to swap."
+/>
+
+<ExpectedOutput label="free -h on a 16 GB laptop with a browser open">
+```
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       5.2Gi       6.1Gi       420Mi       4.3Gi       9.8Gi
+```
+</ExpectedOutput>
+
+CPU is more forgiving than memory. A guest is assigned virtual CPUs, and the hypervisor time-shares the host's real cores between every guest and the host itself. Handing out more virtual CPUs in total than the host physically has, called oversubscription, is normal and fine within reason, because most guests sit idle most of the time. The one rule that bites: never assign a single guest every core the host has, which starves the host OS and freezes the whole machine.
+
+Disk is the gentlest cost, thanks to how virtual disks are stored. A hypervisor almost always creates a dynamically allocated disk, a host file that starts near empty and grows only as the guest writes real data into it. A guest told it has a 40 GB disk might occupy just 12 to 15 GB of host storage after a fresh Kali install, because that is all the guest has actually written. Snapshots complicate this. Each snapshot preserves the disk state at that moment, so a guest carrying five snapshots consumes far more host disk than its live size suggests. Old snapshots are worth deleting once the lesson they captured is finished.
+
+## Container or full VM
+
+There is a lighter way to isolate software than a full VM, and knowing when it is enough saves a lot of memory. A container does not run a fake computer. Instead of emulating hardware and booting a separate operating system, it shares the host's own kernel, the core of the operating system, and fences off a single program so it sees only its own files, its own processes, and its own network, using kernel features called namespaces and cgroups. There is no guest kernel and no fake hardware, which makes a container tiny and fast. A container image is measured in megabytes and starts in well under a second, against gigabytes and a full boot for a VM.
+
+The shared kernel is the whole tradeoff. Because a container borrows the host's kernel, a Linux host can run only Linux containers, never a Windows guest, and any escape from a container lands straight on the host's kernel with no second wall behind it. A VM runs its own kernel on top of fake hardware, so the boundary between guest and host is far thicker and far harder to cross.
+
+For a lab that division decides which tool fits. A single deliberately vulnerable web application ships as a container and is the fastest possible way to stand up one target for practice. But a full "boot to root" challenge machine, a Windows victim, or anything whose entire point is running genuinely hostile code wants the thicker wall of a VM. Most published training targets ship only as `.ova` appliances anyway, which are VMs by definition, so a VM hypervisor is the tool a lab is built around, with containers as a quick supplement.
+
+<Quiz
+  id="virt-container-vs-vm"
+  question="Why is a full VM, not a container, the safer choice for running a target deliberately loaded with real malware?"
+  answer={1}
+  options={[
+    "A container cannot run Linux software of any kind",
+    "A container shares the host's kernel, so an escape lands on the host directly, while a VM runs its own kernel behind fake hardware",
+    "Containers start too slowly, which gives the malware more time to spread",
+    "A VM cannot be attached to any network, so nothing inside it can ever escape",
+  ]}
+  explanation="A container isolates a process but still rides on the host's kernel, so a breakout has one wall to cross. A VM boots its own kernel on emulated hardware, adding a much thicker boundary. That extra wall is the reason genuinely hostile software belongs in a VM, not a container."
+/>
+
+<Exercise title="Measure what the host can hold">
+On a Linux or macOS host, run `uname -m` and note whether the result is `x86_64` or `arm64`. That one answer decides which hypervisors are even candidates for the machine.
+
+Now find the honest memory number. On Linux run `free -h` and read the `available` column, not `free`. On macOS, open Activity Monitor, click the Memory tab, and read "Physical Memory" against "Memory Used." Subtract to get the spare pool.
+
+Do the budgeting by hand. If a Kali guest needs 4 GB and a target needs 2 GB, does the spare pool cover 6 GB with room left for the host to keep breathing? Write down the largest number of guests the machine can run before it would start swapping. That number is the real size of the lab this host can hold.
+</Exercise>
+
+Picking a hypervisor and sizing the guests gets machines running. It does not yet decide the one thing that separates a lab from a hazard: whether those guests can reach the real network, each other, or nothing at all. A deliberately broken target bridged onto a home network is not a lab, it is a liability sitting one hop from every other device in the house. The next lesson, networking-your-lab, takes apart the network modes every hypervisor offers, NAT against bridged against host-only against internal, and shows how to wall the targets off so the attacker box and the victims can see each other and nothing else can see them.
+
+<Notes />

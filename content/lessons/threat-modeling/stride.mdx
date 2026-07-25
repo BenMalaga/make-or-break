@@ -1,0 +1,68 @@
+---
+title: STRIDE
+module: threat-modeling
+moduleTitle: Threat Modeling
+moduleOrder: 43
+moduleIcon: Workflow
+order: 2
+summary: Six categories that turn "what could go wrong" from a stare into a checklist.
+estimatedMinutes: 18
+objectives:
+  - Name the six STRIDE categories and the property each one violates
+  - Apply STRIDE to a single component and generate concrete threats
+  - Pick the right category so the mitigation is obvious
+tags:
+  - threat-modeling
+  - stride
+  - methodology
+  - appsec
+---
+
+Stare at a login service and ask "what could go wrong" and your brain returns static. Too many directions at once. STRIDE fixes that by handing you six specific lenses, so instead of one impossible question you ask six answerable ones. Microsoft built it in the late 1990s and it stuck because it maps cleanly onto the security properties you actually care about.
+
+Each letter is a threat, and each threat is the negation of one guarantee you wanted.
+
+## The six, and what they break
+
+Spoofing breaks authentication. The attacker pretends to be someone they are not: a stolen session cookie, a forged JWT with `alg` set to `none`, an email that claims to come from your CEO. The property you wanted was "I know who this is."
+
+Tampering breaks integrity. Data gets changed in transit or at rest. A hidden form field carrying `price=1000` that the client rewrites to `price=1`, a modified request body, a poisoned build artifact. You wanted "this data is what I stored."
+
+Repudiation breaks accountability. Someone does a thing and you cannot prove they did it, usually because the logs are missing, forgeable, or the actor could edit them. The absence of a tamper-evident audit trail is the whole problem here.
+
+Information disclosure breaks confidentiality. Data leaks to someone who should not see it: verbose stack traces, an S3 bucket set to public, a `/api/users/1` endpoint that happily serves `/api/users/2`. You wanted "only the right people read this."
+
+Denial of service breaks availability. The system is up for attackers and down for real users. An unbounded regex, a query with no pagination, a single upload endpoint that accepts a 10 GB file. You wanted "it stays responsive."
+
+Elevation of privilege breaks authorization. A user gains rights they were never granted. A normal account reaching an admin route because the check was only in the UI, a container escape, a path traversal that lands in `/etc/shadow`. You wanted "everyone stays in their lane."
+
+## Run it against one thing at a time
+
+STRIDE is worthless as a vibe and sharp as a per-element pass. Take one component, walk all six letters, write down what you find, move to the next component. That discipline is what keeps you from missing the boring category that turns out to be the breach.
+
+Point it at a session token and the list writes itself. Spoofing: can I steal or forge one. Tampering: can I flip a claim inside it. Repudiation: is token use logged. Information disclosure: does the token leak in a URL or referrer header. Denial of service: can I exhaust the session store. Elevation of privilege: does a low-priv token get treated as high-priv anywhere.
+
+<CommandCard command="STRIDE-per-element: for each box in the diagram, ask all six letters and record every hit." explain="The strength is completeness, not cleverness. Going element by element forces you past the two threats you already worried about and into the four you would have skipped. Most real findings live in the categories nobody was thinking about." />
+
+The category also picks your fix. Spoofing points at authentication: MFA, mutual TLS, signature verification. Tampering points at integrity: HMACs, signed payloads, server-side validation. Repudiation points at logging you cannot edit. Naming the letter correctly is half the mitigation.
+
+<Callout type="security" title="Enumerate your own attack surface">
+Walking STRIDE across a system produces a list of concrete ways to attack it. Generate that list for designs you own or are authorized to assess, and treat the output as a defensive backlog, not a playbook to run against someone else's production. The categories are the same whether you attack or defend. Your authorization to touch the target is what separates the two.
+</Callout>
+
+<Quiz
+  id="stride-category-match"
+  question="A regular user reaches an admin-only API route because the access check exists only in the front-end code. Which STRIDE category is this?"
+  answer={5}
+  options={[
+    "Spoofing",
+    "Tampering",
+    "Repudiation",
+    "Information disclosure",
+    "Denial of service",
+    "Elevation of privilege",
+  ]}
+  explanation="The user gained rights they were never granted, which breaks authorization. That is Elevation of privilege. The fix follows from the category: enforce the authorization check server-side, never in the UI alone."
+/>
+
+<Notes />

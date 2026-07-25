@@ -1,0 +1,74 @@
+---
+title: OSINT Fundamentals
+module: osint
+moduleTitle: Open Source Intelligence
+moduleOrder: 21
+moduleIcon: Eye
+order: 1
+summary: Before you touch a target, you read it. Public data does most of the work.
+estimatedMinutes: 15
+objectives:
+  - Explain what counts as OSINT and what does not
+  - Run the intelligence cycle instead of collecting at random
+  - Keep your collection legal and low-noise
+tags:
+  - osint
+  - recon
+  - methodology
+---
+
+Half the findings in a real engagement come from data the target published themselves. Job postings that name the exact firewall they run. A LinkedIn profile listing "migrating from on-prem Exchange to M365". A PDF on the marketing site with author metadata pointing at an internal username. None of that touches the target's network, and all of it shapes how you attack.
+
+Open Source Intelligence is intelligence built from publicly available sources. Public is the load-bearing word. If getting the data requires a login you were not given, a password you guessed, or a system you were not authorized to touch, it stopped being OSINT and became something you can be prosecuted for. Reading a company's DNS records is OSINT. Logging into their webmail with creds from a breach dump is not.
+
+## Passive vs active, and why the line matters
+
+Passive collection never sends a packet the target can see as yours. You query third parties: Google's index, certificate transparency logs, WHOIS registrars, breach databases. The target's logs stay empty.
+
+Active collection touches the target directly. A DNS zone transfer request, a connection to their web server, an nmap scan. It's still OSINT-adjacent, but now you show up in their access logs with a source IP. Know which side of that line every command sits on, because on a red team the whole point is staying quiet until you choose to be loud.
+
+## Run the cycle, do not just collect
+
+Random googling produces a pile of tabs and no direction. Intelligence work is a loop with five steps, and skipping the first and last is the usual amateur mistake.
+
+1. Direction: decide what you actually need to answer. "Find valid email addresses for phishing" is a direction. "Learn about the company" is not.
+2. Collection: gather raw data against that question only.
+3. Processing: normalize it. Dedupe usernames, resolve names to accounts, sort domains.
+4. Analysis: turn data into a claim. "This subdomain runs an old Citrix gateway" is analysis, not a screenshot.
+5. Dissemination: write it down where your team can use it, then feed gaps back into step one.
+
+The loop is what keeps a two-week recon phase from becoming a hoarding exercise. Every collected item should trace back to a question you wrote down.
+
+<Callout type="security" title="Public does not mean permission">
+OSINT feels harmless because you never break in. It is still recon against a real
+organization. Only profile targets you have written authorization to test, and stay
+inside the scope your rules of engagement define. A breach-dump password belongs in
+your report as a finding, never in a login form.
+</Callout>
+
+## Keep a clean collection habit
+
+Start every engagement with a scoping file: the in-scope domains, IP ranges, and names, plus anything explicitly out of scope. Everything you pull gets checked against it before it goes in your notes.
+
+Timestamp and source every finding. Six weeks later when a client asks "how did you know our VPN portal was there", the answer is "certificate transparency log, crt.sh, pulled on this date", not a shrug. Provenance is what separates an intelligence product from a rumor.
+
+<Exercise
+  id="osint-passive-active-sort"
+  prompt="You have five recon actions: (a) a WHOIS lookup on the target domain, (b) an nmap SYN scan of their mail server, (c) searching Have I Been Pwned for a target email, (d) browsing the target's public GitHub org, (e) a DNS zone transfer attempt against their nameserver. Sort each into passive or active, and say which one is most likely to appear in the target's own logs."
+  answer="Passive: a (queries the registrar), c (queries HIBP), d (queries GitHub). Active: b and e both hit the target directly. The nmap scan (b) is the loudest and most certain to land in the target's logs; the zone transfer (e) also touches their nameserver but often just gets refused."
+/>
+
+<Quiz
+  id="osint-definition"
+  question="Which of these stops being OSINT?"
+  answer={2}
+  options={[
+    "Reading the target's published DNS TXT records",
+    "Finding an employee's username in a leaked PDF's metadata",
+    "Logging into the target's webmail using a password from a breach dump",
+    "Listing the target's subdomains from certificate transparency logs",
+  ]}
+  explanation="The first, second, and fourth all use publicly available data without authenticating to the target. Using a breach-dump password to log in is unauthorized access, not open source intelligence, and it is a crime without explicit permission."
+/>
+
+<Notes />

@@ -1,0 +1,234 @@
+---
+title: "Making Decisions with if"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 6
+summary: "A Python program reads its input, compares values with booleans, and uses if, elif, and else to run different code depending on what it finds."
+estimatedMinutes: 14
+prerequisites: ["python-input"]
+objectives:
+  - Compare values with ==, !=, <, >, <=, and >=, and read the True or False that comes back
+  - Write an if statement whose indented block runs only when its condition is True
+  - Chain elif and else so a program picks exactly one branch out of several
+  - Combine conditions with and, or, and not to test more than one thing at once
+tags:
+  - python
+  - conditionals
+  - logic
+---
+
+The previous lesson showed a program reading a number from the keyboard with `input()` and converting it with `int()`. That number sat there, but the program never did anything different depending on what it was. A score of 40 and a score of 95 printed the exact same way. Real programs almost never work like that. A login checks whether a password matches. A game checks whether a player's health hit zero. A thermostat checks whether the room is too cold. Every one of those is the same shape: look at a value, then run different code depending on what it is. Python's tool for that shape is the `if` statement, and it rests on something smaller: a question that answers True or False.
+
+## Comparing values gives back True or False
+
+Before a program can branch, it needs a way to ask a yes-or-no question about a value. Python answers those questions with a boolean, a value that is either `True` or `False` and nothing else. The comparison operators are what produce a boolean: `==` asks if two values are equal, `!=` asks if they are not equal, and `<`, `>`, `<=`, `>=` ask less than, greater than, less than or equal, and greater than or equal.
+
+```python
+score = 82
+print(score == 82)
+print(score == 100)
+print(score > 70)
+print(score != 82)
+```
+
+<ExpectedOutput label="each comparison produces a boolean, not a number">
+```
+True
+False
+True
+False
+```
+</ExpectedOutput>
+
+`score == 82` reads as "is score equal to 82," and since score really is 82, Python answers `True`. `score == 100` asks the same kind of question about a value that is not true, so the answer is `False`. Notice the double equals sign. A single `=` is assignment, the operator from the previous lesson that stores a value into a variable. A double `==` is comparison, asking whether two things match. Mixing them up is one of the most common early mistakes in Python, and it is worth saying out loud until it sticks: one equals sign stores, two equals signs ask.
+
+`type()` confirms what came back. Running `print(type(score == 82))` prints `<class 'bool'>`, the class name for a boolean. A boolean is a real value, the same way a number or a string is a real value, and it can be stored in a variable, printed, or passed straight into the tool that actually does something with it: the `if` statement.
+
+<Quiz
+  id="if-boolean-vs-assignment"
+  question="A program has age = 20 and then runs age == 21. What does that comparison return, and what would age = 21 do instead?"
+  answer={1}
+  options={[
+    "Both lines do the same thing: they store 21 into age.",
+    "age == 21 returns the boolean False, since age is not 21, while age = 21 would overwrite age with the number 21.",
+    "age == 21 returns the number 21, while age = 21 checks whether age already equals 21.",
+    "age == 21 raises an error because age was never compared before.",
+  ]}
+  explanation="Double equals compares and hands back a boolean, here False because age is 20, not 21. Single equals is assignment and would replace age's value with 21, it does not check anything. The other two options swap what each operator does or invent an error that does not happen."
+/>
+
+## The if statement runs a block only when its condition is True
+
+An `if` statement pairs a condition, meaning any expression that comes out True or False, with a block of code that runs only when that condition is True. The syntax is the word `if`, the condition, a colon, and then the block on the following lines, each indented by the same amount:
+
+```python
+score = 82
+if score >= 60:
+    print("passing")
+print("done checking")
+```
+
+<ExpectedOutput label="the indented line only runs because the condition was True">
+```
+passing
+done checking
+```
+</ExpectedOutput>
+
+Python checks `score >= 60`. Since 82 is at least 60, the condition is `True`, so the indented line `print("passing")` runs. The line after it, `print("done checking")`, is not indented under the `if`, so it always runs regardless of the condition. It is not part of the decision at all, it is just the next line of the program.
+
+Change score to 40 and rerun the same code. `score >= 60` is now `False`, so `print("passing")` never executes. Python skips straight past it to `print("done checking")`, which still runs because it sits outside the `if` block. That is the entire mechanism: a condition gates one block, and everything else in the program keeps going either way.
+
+## Indentation is the block, not a suggestion
+
+Some languages mark a block with curly braces, and the spacing on the page is just for a human's eyes. Python is different: the indentation itself is what tells Python which lines belong to the `if`. There are no braces to fall back on. A line indented under an `if` is inside that block. A line back at the original indentation is outside it, whether or not that was intended.
+
+```python
+temperature = 55
+if temperature < 60:
+    print("wear a jacket")
+    print("check the forecast tonight")
+print("weather check complete")
+```
+
+<ExpectedOutput label="two lines share the same indentation, so both are inside the if block">
+```
+wear a jacket
+check the forecast tonight
+weather check complete
+```
+</ExpectedOutput>
+
+Both `print("wear a jacket")` and `print("check the forecast tonight")` are indented by the same four spaces, so both belong to the `if` block and both run when the condition is `True`. The final `print` sits back at the left margin, outside the block, so it runs no matter what temperature turned out to be. Standard Python style indents with four spaces per level, and most editors do this automatically once a colon ends a line. Mixing tabs and spaces in the same block is one of the few things that will stop a Python program from running at all, since Python cannot tell how deep a tab is meant to go compared to a space. Picking one and letting the editor handle it removes the whole problem.
+
+## elif and else: choosing exactly one path
+
+A single `if` handles one condition. Most decisions have more than two outcomes: a grade has several letter bands, a login has a few different failure reasons, a game character has more states than just alive or dead. `elif`, short for "else if," adds another condition to check if the first one was `False`. `else` catches everything that did not match any condition above it, with no condition of its own:
+
+```python
+score = 82
+if score >= 90:
+    print("A")
+elif score >= 80:
+    print("B")
+elif score >= 70:
+    print("C")
+else:
+    print("needs improvement")
+```
+
+<ExpectedOutput label="Python checks each condition in order and stops at the first match">
+```
+B
+```
+</ExpectedOutput>
+
+Python checks `score >= 90` first. Since 82 is not at least 90, that branch is skipped, and Python moves to the next `elif`. `score >= 80` is `True` for 82, so `print("B")` runs, and Python stops right there. It never even looks at `score >= 70` or the `else`, because exactly one branch runs per `if`/`elif`/`else` chain, the first one whose condition is `True`. That order matters. If the chain had been written with `score >= 70` before `score >= 80`, an 82 would still match the higher band correctly here, but a badly ordered chain can silently give the wrong answer, so conditions that overlap are usually written from the most specific or highest first.
+
+The `else` at the bottom has no condition because it means "none of the above." Any score that fails all three `elif` checks, like 55, falls through to `else` and prints `"needs improvement"`. An `if` chain does not require an `else`. Leaving it off just means that if nothing matches, nothing runs, and the program moves on to whatever comes after the chain.
+
+<Quiz
+  id="if-elif-else-order"
+  question="An if/elif/else chain has conditions score >= 90, then score >= 80, then score >= 70, then a final else. With score set to 95, which branch runs?"
+  answer={0}
+  options={[
+    "The score >= 90 branch, since Python checks conditions in order and stops at the first one that is True.",
+    "All three elif branches run, since 95 satisfies every one of them.",
+    "The else branch, since 95 does not exactly equal any of the numbers written.",
+    "The score >= 70 branch, since it is listed last before else and Python checks the last condition first.",
+  ]}
+  explanation="Python evaluates top to bottom and runs only the first branch whose condition is True, then skips the rest of the chain entirely. 95 satisfies score >= 90 first, so that branch runs and nothing else in the chain does. The chain never runs multiple branches, it does not require an exact match, and it does not check from the bottom up."
+/>
+
+## Combining conditions with and, or, not
+
+Some decisions depend on more than one fact at once. A movie ticket might need an age of at least 13 and a valid ticket. A free shipping rule might trigger for members or for orders over a set amount. Python combines booleans with three keywords: `and` requires both sides to be `True`, `or` requires at least one side to be `True`, and `not` flips a boolean to its opposite.
+
+```python
+age = 15
+has_permission_slip = True
+if age >= 13 and has_permission_slip:
+    print("can watch the movie")
+
+balance = 8
+is_member = False
+if balance > 20 or is_member:
+    print("free shipping")
+else:
+    print("shipping charge applies")
+```
+
+<ExpectedOutput label="and needs both sides True, or only needs one">
+```
+can watch the movie
+shipping charge applies
+```
+</ExpectedOutput>
+
+`age >= 13 and has_permission_slip` needs both halves to be `True` at once. Age 15 satisfies the first half, and `has_permission_slip` is already `True`, so the combined condition is `True` and the line prints. The second check, `balance > 20 or is_member`, only needs one side to hold. Balance 8 fails `balance > 20`, and `is_member` is `False`, so neither side is `True` this time, the whole `or` comes out `False`, and the `else` branch runs instead.
+
+`not` is the simplest of the three: it takes a boolean and swaps it. `not is_member` would be `True` here, because `is_member` itself is `False`. It reads naturally in a condition like `if not is_member:`, meaning "if this person is not a member," without needing a separate `== False` comparison. These three keywords chain together freely, so a condition like `age >= 13 and has_permission_slip and not is_banned` tests three facts in one line, and Python evaluates it left to right the same way a normal sentence would be read.
+
+<Quiz
+  id="if-and-or-difference"
+  question="A condition is written as temperature > 90 or humidity > 80, with temperature set to 95 and humidity set to 40. What does the condition evaluate to, and why?"
+  answer={2}
+  options={[
+    "False, because or requires both sides to be True and humidity is not over 80.",
+    "False, because temperature and humidity must both be checked with and, not or.",
+    "True, because or only needs one side to be True, and temperature > 90 already is.",
+    "An error, because or cannot combine two different comparisons in one condition.",
+  ]}
+  explanation="or needs at least one side to hold, and temperature > 90 is True on its own since 95 is over 90, so the whole expression is True regardless of humidity. The first option describes how and works, not or. There is no error: combining different comparisons with or is exactly what it is built for."
+/>
+
+## A worked example: even or odd
+
+The comparison operators, the `if` chain, and the boolean combinators come together in small, everyday checks. One of the simplest is deciding whether a number is even or odd, which uses the modulo operator, `%`, that returns the remainder of a division. Any number divided by 2 leaves a remainder of either 0 or 1, so `number % 2 == 0` is `True` exactly when the number is even:
+
+```python
+number = 17
+if number % 2 == 0:
+    print(f"{number} is even")
+else:
+    print(f"{number} is odd")
+```
+
+<ExpectedOutput label="the remainder decides which branch runs">
+```
+17 is odd
+```
+</ExpectedOutput>
+
+`17 % 2` computes to 1, the remainder left over after dividing 17 by 2 as many whole times as it goes. That remainder is not 0, so `number % 2 == 0` is `False`, the `if` block is skipped, and the `else` block runs, printing that 17 is odd. Changing `number` to 18 flips the remainder to 0, the condition becomes `True`, and the program prints that 18 is even instead. Nothing about the structure changes: the same two lines handle every possible integer, because the condition, not the code around it, is what decides which message appears.
+
+<CommandCard command="python3 grade.py" title="terminal" explain="Runs the code saved in grade.py from top to bottom and prints whatever it prints." />
+
+<Exercise title="Turn a score into a letter grade">
+Save this into a file named `grade.py`:
+
+```python
+score = int(input("Enter a score: "))
+
+if score >= 90:
+    letter = "A"
+elif score >= 80:
+    letter = "B"
+elif score >= 70:
+    letter = "C"
+elif score >= 60:
+    letter = "D"
+else:
+    letter = "F"
+
+print(f"Score {score} is a {letter}")
+```
+
+Run it with `python3 grade.py` in the Build tab and enter 85. Confirm it prints a B. Then run it again with 60, then with 59, and watch it cross the line from a D to an F. Finally, add one more elif band of your own choosing, like a plus or minus grade for scores ending close to a boundary, and confirm it slots into the chain in the right order.
+</Exercise>
+
+The `if` statement, its `elif` and `else` partners, and the boolean operators that feed them are the first real branching a Python program gets, and from here on almost nothing gets written without them. The next lesson builds directly on this: running a block of code not just once when a condition is True, but over and over, using a `while` loop whose condition is checked again after every pass.
+
+<Notes />

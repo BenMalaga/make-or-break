@@ -1,0 +1,337 @@
+---
+title: Processes and Services
+module: linux-for-security
+moduleTitle: Linux for Security
+moduleOrder: 2
+moduleIcon: Terminal
+order: 2
+summary: "A program on disk does nothing until it runs. This lesson is the machine in motion: processes, PIDs, signals, and the services systemd keeps alive."
+estimatedMinutes: 16
+prerequisites: ["filesystem-and-permissions"]
+objectives:
+  - Explain how a program on disk becomes a running process with its own PID
+  - Read the process table with ps and top and interpret the columns that matter
+  - Send signals with kill and say why SIGKILL is a last resort
+  - Describe how systemd supervises daemons and services through systemctl
+  - Find which service listens on which port with ss
+tags:
+  - linux
+  - privesc
+  - processes
+---
+
+Filesystem and Permissions treated a Linux box as a pile of files sitting still:
+owners, permission bits, a tree hanging off `/`. That is the system at rest.
+Nothing on that disk does anything until something runs it.
+
+This lesson is the same machine in motion. A program leaves the disk, lands in
+memory, and starts consuming CPU time. While it runs it is a process, and the
+list of processes is the single most useful thing to read on a machine that has
+just been accessed. It says what software is actually running, what is running
+as root, and what is listening for connections from outside. Files describe what
+could happen. Processes are what is happening.
+
+## A process is a program that is running
+
+An executable file on disk is inert. `/usr/sbin/sshd` is just bytes with the
+execute bit set until the kernel loads it into memory, hands it a slice of CPU
+time, and lets it run. That running instance is a process. The distinction is
+worth holding onto: one file can become many processes. Start the same program
+three times and there are three processes, each with its own memory, each unaware
+of the others.
+
+The kernel gives every process a number the moment it starts: the process ID, or
+PID. The PID is unique among the processes alive right now, and it is how every
+tool in this lesson points at a specific process. Nothing else identifies one as
+precisely. Two processes can run the same program, the same command line, under
+the same user, and they still never share a PID.
+
+Processes form a tree. Every process except one was started by another process,
+called its parent. A command typed at a prompt runs inside a shell, the program
+that reads typed commands and starts them, so the shell is the parent of whatever
+it launches. Close the shell and, by default, its children go with it. The one
+exception, sitting at the root of the tree, is PID 1: the first process the
+kernel starts at boot, the ancestor of everything else.
+
+## ps: a snapshot of the process table
+
+The kernel keeps a live list of every process, the process table, and `ps`
+prints it.
+
+<CommandCard
+  command="ps aux"
+  title="linux"
+  explain="Lists every process on the system. The flags predate the dash convention: a = all users, u = user-oriented columns, x = include processes with no controlling terminal (which is most of the background ones)."
+/>
+
+<ExpectedOutput label="ps aux, trimmed to a handful of rows">
+```
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root           1  0.0  0.1 168940 11800 ?        Ss   09:14   0:02 /sbin/init
+root         412  0.0  0.2  90120  9004 ?        Ss   09:14   0:00 /usr/sbin/sshd -D
+www-data     980  0.1  0.5 214550 21160 ?        S    09:15   0:01 /usr/sbin/apache2 -k start
+postgres    1122  0.0  0.9 219300 38400 ?        Ss   09:15   0:00 /usr/lib/postgresql/15/bin/postgres
+alice       1523  0.0  0.1  12144  3020 pts/0    R+   09:20   0:00 ps aux
+```
+</ExpectedOutput>
+
+Read the columns left to right. USER is the account the process runs as, and it
+is the first thing a practitioner checks: code running as root is a bigger prize
+and a bigger risk than the same code running as an unprivileged user like
+`alice`. PID is the process ID. %CPU and %MEM are load. STAT is the process state
+in short codes, `R` for running or runnable, `S` for sleeping and waiting on
+something, `Z` for a zombie that has finished but has not been cleaned up by its
+parent yet. The last column, COMMAND, is the full command line with arguments,
+which is why it rewards a close read. It often spells out a config file path.
+
+<Callout type="security" title="The command line is public">
+Arguments passed to a program are visible in `ps` to every account on the box,
+not only the one that started it. A backup job invoked as
+`mysqldump --password=hunter2` hands that password to anyone who runs `ps aux`.
+This is why tools meant to take secrets read them from a file, a prompt, or an
+environment variable, never a plain command-line flag.
+</Callout>
+
+<Quiz
+  id="proc-vs-file"
+  question="The program /usr/sbin/sshd sits on disk. It gets started twice, so two copies are running at once. How does the system tell the two copies apart?"
+  answer={1}
+  options={[
+    "By their filename, since both came from /usr/sbin/sshd",
+    "Each running copy is a separate process with its own PID assigned by the kernel",
+    "They share one PID because they are the same program",
+    "The permission bits on the file decide which copy is which",
+  ]}
+  explanation="The file on disk is one thing. Each time it runs, the kernel creates a distinct process with its own memory and its own PID. Same program, same command line, two processes, two PIDs."
+/>
+
+## top: the live view
+
+`ps` is a photograph. By the time its output finishes scrolling, the numbers are
+already stale. `top` is the video. It redraws every few seconds, sorted by CPU
+use by default, so the process hammering the machine floats to the top.
+
+<CommandCard
+  command="top"
+  title="linux"
+  explain="Live, auto-refreshing process view sorted by CPU. Press q to quit, or M to sort by memory instead."
+/>
+
+<ExpectedOutput label="top, the header and first rows">
+```
+top - 11:18:04 up  2:03,  1 user,  load average: 0.08, 0.03, 0.01
+Tasks: 118 total,   1 running, 117 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  1.3 us,  0.7 sy,  0.0 ni, 97.8 id,  0.2 wa,  0.0 hi,  0.0 si
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+  980 www-data  20   0  214550  21160  15400 S   0.7   0.5   0:01.22 apache2
+    1 root      20   0  168940  11800   8600 S   0.0   0.1   0:02.14 systemd
+```
+</ExpectedOutput>
+
+The header earns a glance before the process list. `load average` is three
+numbers: the average count of processes wanting the CPU over the last 1, 5, and
+15 minutes. On a 4-core machine a load average near 4 means fully busy, and well
+above 4 means work is arriving faster than the CPU can clear it. Many systems
+also carry `htop`, which shows the same data with color and per-core bars and
+arrow-key scrolling. It is friendlier, but it is not always installed, so `top`
+is the one worth knowing cold.
+
+## Signals: how one process is told to stop
+
+Killing a process is not done by reaching into memory and deleting it. One
+process asks the kernel to deliver a signal to another. A signal is a small,
+predefined message from a fixed catalog, each one carrying a specific meaning,
+and a program can be written to react to most of them. A few matter constantly:
+
+- SIGTERM (15) is the polite request: stop, but finish the current work first,
+  flush data, release locks. This is what `kill` sends by default.
+- SIGINT (2) is what the shell delivers to the foreground process when Ctrl+C is
+  pressed at the keyboard. Interrupt. Most programs treat it as quit.
+- SIGKILL (9) cannot be caught, blocked, or handled. The kernel destroys the
+  process on the spot, with no chance for it to save state or clean up.
+- SIGHUP (1) originally meant the terminal hung up. Daemons often repurpose it to
+  mean reload their configuration without restarting.
+
+The command is `kill`, and despite the name it only sends a signal.
+
+<CommandCard
+  command="kill 4021"
+  title="linux"
+  explain="Sends SIGTERM (signal 15) to PID 4021, the default polite stop. kill -9 4021 sends SIGKILL instead, which the process cannot catch, and kill -l lists every signal by name."
+/>
+
+Reaching for `kill -9` first is a common mistake. SIGKILL gives the process no
+chance to close files, remove its lock files, or finish a half-written database
+record, so it can leave the system in a mess that a plain SIGTERM would have
+avoided. The correct order is SIGTERM first, wait a few seconds, and escalate to
+SIGKILL only if the process ignores the polite request.
+
+## Foreground and background jobs
+
+By default a command runs in the foreground: the shell starts it and waits, and
+the terminal is tied up until it exits. Appending `&` runs the command in the
+background instead. The shell starts the process, prints its PID, and returns the
+prompt immediately, leaving the work running.
+
+<CommandCard
+  command="sleep 300 &"
+  title="linux"
+  explain="Runs a 300-second sleep in the background. The shell prints the PID and hands back the prompt. jobs lists background jobs, fg pulls one to the foreground, bg resumes a stopped one."
+/>
+
+A background job still belongs to the shell that launched it, and that has a
+consequence worth carrying into the next idea. Close the terminal and the shell
+sends SIGHUP to its children, which by default die with it. A job that needs to
+outlive the terminal has to be started with `nohup`, detached with `disown`, or
+handed to a system built to keep processes running no matter who is logged in.
+That system is usually systemd.
+
+<Quiz
+  id="signals-kill9"
+  question="A process is ignoring kill 4021 and will not stop. Someone runs kill -9 4021 and it dies instantly. What did the -9 change, and what is the cost?"
+  answer={0}
+  options={[
+    "It sent SIGKILL, which the kernel enforces directly, so the process cannot catch it or clean up, and locks or temp files may be left behind",
+    "It restarted the process from scratch with no downside",
+    "It lowered the process priority so it stopped using CPU",
+    "It asked the process politely a second time, which usually works",
+  ]}
+  explanation="Plain kill sends SIGTERM, a request the process can handle or ignore. kill -9 sends SIGKILL, which the kernel carries out immediately. The process gets no chance to save state or release resources, which is exactly why SIGKILL is the last resort, not the first move."
+/>
+
+## Daemons and services
+
+Some processes are never meant to stop. An SSH server waits for logins for as
+long as the machine is up. A web server answers requests around the clock. A
+database sits ready for queries at all hours. A process like this, running in the
+background with no controlling terminal, started at boot or on demand and
+expected to run indefinitely, is a daemon. The name is old Unix, and the
+convention is a trailing `d`: `sshd` is the SSH daemon, `crond` runs scheduled
+jobs, `systemd` supervises the rest.
+
+The word service is the management layer's name for the same idea: a daemon that
+the system knows how to start, stop, and restart on command. In everyday use the
+two words get swapped freely.
+
+## systemd and systemctl
+
+PID 1, the process at the root of the tree, is the init system: the first thing
+the kernel starts and the ancestor of every other process. On most current Linux
+distributions that process is systemd. Its job is to bring the machine up and
+keep the daemons alive, starting them at boot in the right order, restarting them
+if they crash, and stopping them cleanly on shutdown.
+
+systemd describes each service with a unit file, a plain text file that records
+which binary to run, which user to run it as, and what to do if it exits. A
+service unit file ends in `.service` and lives in `/lib/systemd/system` for the
+ones shipped by packages, or `/etc/systemd/system` for local overrides and custom
+services. Reading those files is how a practitioner learns what a box is
+configured to run, and under whose account.
+
+The command that talks to systemd is `systemctl`.
+
+<CommandCard
+  command="systemctl status ssh"
+  title="linux"
+  explain="Shows one service: whether it is loaded and enabled, whether it is active right now, and the PID of the process behind it. systemctl list-units --type=service lists them all."
+/>
+
+<ExpectedOutput label="systemctl status ssh, trimmed">
+```
+ssh.service - OpenBSD Secure Shell server
+     Loaded: loaded (/lib/systemd/system/ssh.service; enabled; preset: enabled)
+     Active: active (running) since Wed 2026-07-15 09:14:52 UTC; 2h 3min ago
+   Main PID: 412 (sshd)
+      Tasks: 1 (limit: 4657)
+     Memory: 5.1M
+```
+</ExpectedOutput>
+
+`Loaded` shows the unit file path and whether the service is enabled, meaning set
+to start automatically at boot. `Active: active (running)` is the state right
+now. `Main PID: 412` ties the service straight back to a row in the `ps` output
+above, closing the loop between the two views. `systemctl start`, `stop`,
+`restart`, `enable`, and `disable` control services, where enable and disable
+govern boot behavior and start and stop govern the running state this minute.
+
+<Callout type="security" title="Who can write the unit file">
+A service that runs as root but is described by a unit file an unprivileged user
+can edit, or that runs a script that user can write, means that user controls
+what executes the next time the service restarts. Checking the ownership and
+permissions of everything under `/etc/systemd/system` is a routine step after
+gaining a foothold, and it uses exactly the permission bits from the previous
+lesson.
+</Callout>
+
+## The port a service listens on
+
+A daemon that accepts connections has to be reachable, and Networking Foundations
+set up how. A host has one IP address, but a single host runs many services, so a
+port number picks out which service a connection is meant for. A service waiting
+for connections is said to be listening on its port. sshd listens on port 22, a
+web server on 80 or 443, PostgreSQL on 5432.
+
+The command that shows every listening socket, and which process owns it, is
+`ss`.
+
+<CommandCard
+  command="ss -tulpn"
+  title="linux"
+  explain="Lists listening sockets. t = TCP, u = UDP, l = listening only, p = the owning process, n = numeric ports instead of names. The process column only appears when ss runs with enough privilege."
+/>
+
+<ExpectedOutput label="ss -tulpn, run with privilege">
+```
+Netid State  Recv-Q Send-Q Local Address:Port Peer Address:Port Process
+tcp   LISTEN 0      128          0.0.0.0:22        0.0.0.0:*     users:(("sshd",pid=412,fd=3))
+tcp   LISTEN 0      511          0.0.0.0:80        0.0.0.0:*     users:(("apache2",pid=980,fd=4))
+tcp   LISTEN 0      244        127.0.0.1:5432      0.0.0.0:*     users:(("postgres",pid=1122,fd=5))
+```
+</ExpectedOutput>
+
+The Local Address matters as much as the port. `0.0.0.0:80` means the web server
+accepts connections on every network interface, reachable from other machines on
+the network. `127.0.0.1:5432` means the database is bound to the loopback
+address, the host talking only to itself, so it answers the local machine and
+nowhere else. Same kind of running process, very different exposure, and the
+`pid=` field ties each one back to a specific row in `ps` and a specific service
+in `systemctl`. Those three commands are three windows onto the same processes.
+
+<Quiz
+  id="ss-loopback"
+  question="ss -tulpn shows a postgres process in LISTEN state on 127.0.0.1:5432. What does the 127.0.0.1 tell a practitioner about reaching that database?"
+  answer={1}
+  options={[
+    "It accepts connections from any machine on the internet",
+    "It is bound to loopback, so only the same host can reach it, not other machines",
+    "The database is not actually running",
+    "Port 5432 is closed and nothing is listening",
+  ]}
+  explanation="127.0.0.1 is the loopback address, the host reaching itself. A service bound to it accepts local connections only. Bound to 0.0.0.0 it would accept from any interface. The port is open and the process is running either way, but the exposure is completely different."
+/>
+
+<Exercise title="Map one machine's processes">
+On any Linux host, run `ps aux | head` and look at the first data row. Its PID is
+1, and the COMMAND column shows what the init system is: on most systems
+`/sbin/init`, which is systemd under its traditional name.
+
+Now pick a service. Run `systemctl status ssh` (or `systemctl status cron` if SSH
+is not installed) and find the `Main PID` line. Take that number and run
+`ps -p <PID>`. One command described the service from the manager's side, the
+other found the running process behind it, and they meet at the PID.
+
+On macOS there is no systemd. Run `ps -p 1 -o comm=` to see that PID 1 there is
+`launchd`, the equivalent init system, and `sudo launchctl list` to see the
+services it manages.
+</Exercise>
+
+Every command in this lesson answered its question by printing text: a table from
+`ps`, a status block from `systemctl`, a list of sockets from `ss`. Finding the
+one line that matters, the single root-owned process or the one service bound to
+`0.0.0.0`, means cutting that text down to it. Text Processing is the next
+lesson, and it covers the tools for exactly that: the three streams every command
+reads and writes, the pipes that chain one command into the next, and `grep`,
+`cut`, `awk`, and `sed`, which turn a wall of output into the finding hiding
+inside it.
+
+<Notes />

@@ -1,0 +1,271 @@
+---
+title: Making It Interactive
+module: web-development
+moduleTitle: Web Development
+moduleOrder: 2
+moduleIcon: LayoutTemplate
+order: 4
+summary: "HTML builds the page and CSS paints it, but JavaScript is what makes it move: the DOM, finding elements, and a button that actually does something."
+estimatedMinutes: 17
+prerequisites: ["how-the-web-works", "html-structure", "styling-with-css"]
+objectives:
+  - Describe the DOM as the live tree of objects the browser builds from HTML, and why changing it changes the page
+  - Find an element on the page with document.querySelector using a CSS selector
+  - Read and change an element's text and style from JavaScript
+  - Wire a function to a button click with addEventListener so the page responds
+tags:
+  - web
+  - html
+---
+
+A page can have a button that looks exactly like a button. The HTML from the
+structure lesson put it on the page, and the CSS from the styling lesson gave it
+a color, a border, and rounded corners that all but say press me. A visitor
+clicks it. Nothing happens.
+
+HTML describes what is on a page. CSS describes how it looks. Neither one can
+make the page react to anything. A button stays a labeled rectangle until
+something is watching for the click and ready to act on it. That something is
+JavaScript, the third language a browser understands, and it is what turns a page
+from a picture into something that responds.
+
+## The page is objects, not the text that was typed
+
+When the browser loads an HTML file, it does not keep the text around. It reads
+the tags once and builds a model of the page in memory: a tree of objects, one
+object for each element, each object holding that element's tag name, its
+attributes, and the text inside it. That tree is the DOM, short for Document
+Object Model. Document because the tree stands for the whole page. Object because
+every element is an object that JavaScript can read and change. Model because it
+is the browser's working copy, not the file on disk.
+
+The part that matters is that the DOM is live. The browser draws the page from
+the DOM, not from the original HTML text. Change an object in the tree, and the
+browser repaints the page to match the change. JavaScript never edits the .html
+file sitting on disk. It edits the objects in the DOM, and the browser keeps what
+is on the screen in sync with them. Every interactive page in existence runs on
+that one mechanism: JavaScript changes the DOM, the browser redraws.
+
+<Callout type="info" title="The file on disk stays put">
+Changing the DOM changes the picture on the screen, not the saved file. Reload
+the page and every JavaScript change is gone, because the browser rebuilds the
+DOM fresh from the unchanged HTML. This is why a page can be full of activity
+while the file it came from never moves a byte.
+</Callout>
+
+<Quiz
+  id="web-dom-is-live"
+  question="A script sets the text of the page's first heading to a new string. The HTML file on disk is not modified in any way. Why does the heading on the screen change anyway?"
+  answer={1}
+  options={[
+    "The browser quietly rewrites the file and reloads it.",
+    "JavaScript changed the DOM, the live object tree the browser draws the page from, so the browser repainted to match.",
+    "The change only shows up after the page is refreshed.",
+    "Text set from JavaScript is stored in the CSS instead of the HTML.",
+  ]}
+  explanation="The browser draws the page from the DOM, not from the HTML text on disk. A script edits the objects in that tree, and the browser repaints to match. The saved file never changes, which is why a reload wipes the change out."
+/>
+
+## Finding an element before touching it
+
+To change an element, JavaScript first needs a reference to that element's
+object. The starting point is `document`, the object that stands for the entire
+page and the root of the DOM tree. Hanging off it is the tool for the search:
+`document.querySelector`.
+
+`querySelector` takes one argument, a CSS selector written as a string, and
+returns the first element on the page that the selector matches, handed back as
+an object. The selectors are the same ones from the styling lesson.
+`document.querySelector("button")` returns the first button.
+`document.querySelector(".warning")` returns the first element with the class
+`warning`. `document.querySelector("#greet")` returns the element whose id is
+`greet`. An id is meant to be unique on a page, so a `#` selector is the reliable
+way to grab one specific element and nothing else.
+
+When nothing on the page matches, `querySelector` returns `null`, a special value
+that means no element. A script that then tries to change that result stops with
+an error, which is the most common way a first interactive page falls over.
+
+`querySelector` has a companion, `querySelectorAll`, that returns every matching
+element instead of just the first, gathered into a list. The single version is
+the right tool when a page has one of something, such as a specific button
+grabbed by its id. The all version fits when the same change has to reach many
+elements at once, such as every item in a list.
+
+<CommandCard
+  command='document.querySelector("p").textContent'
+  title="browser console"
+  explain="Typed into a browser's developer console with a page open, this finds the first paragraph on the page and reports the text currently inside it."
+/>
+
+<ExpectedOutput label="the console's reply when the first paragraph reads Nothing yet.">
+```
+'Nothing yet.'
+```
+</ExpectedOutput>
+
+<Quiz
+  id="web-queryselector-first"
+  question="A page has three paragraphs. A script runs document.querySelector('p'). What comes back?"
+  answer={0}
+  options={[
+    "The first paragraph on the page, as a single element object.",
+    "A list of all three paragraph objects.",
+    "The text inside all three paragraphs joined together.",
+    "Nothing, because a selector has to start with # or a dot.",
+  ]}
+  explanation="querySelector returns the first element that matches the selector, as one object, and stops there. A plain tag name like p is a valid selector, the same as in CSS. Getting all three would need a different method."
+/>
+
+## Reading and changing what is there
+
+Once JavaScript holds an element object, the element's content and appearance are
+properties on that object, and a property can be both read and assigned.
+
+`textContent` is the text inside an element. Reading `message.textContent` gives
+back the current text as a string. Assigning to it, as in
+`message.textContent = "Saved"`, replaces the text, and the browser repaints the
+element on the spot. `style` reaches the element's inline styles, so
+`message.style.color = "red"` turns the text red. The style property names match
+CSS with one twist: a hyphenated CSS name becomes a single camelCase word in
+JavaScript, so `background-color` is written `backgroundColor` and `font-size` is
+written `fontSize`. Same properties from the styling lesson, respelled to fit
+JavaScript's rules for names.
+
+## Making the page respond to an event
+
+A loaded page mostly sits still. What breaks the stillness is things happening to
+it: a click, a key press, the pointer moving, the page finishing its load. The
+browser's word for one of these is an event, and each event is itself an object
+carrying the details of what just happened.
+
+JavaScript reacts to an event by registering a function to run when that event
+happens on a specific element. The registering is done by `addEventListener`, a
+method every element object has. It takes two arguments: the name of the event as
+a string, and the function to run each time that event fires.
+
+```js
+button.addEventListener("click", function () {
+  message.textContent = "You clicked it.";
+});
+```
+
+The event name passed to `addEventListener` is a string the browser recognizes,
+drawn from a fixed set. `click` covers a press and release on an element,
+`keydown` fires the moment a key goes down, and `input` fires whenever the text in
+a field changes. Swap the string and the same function reacts to a different kind
+of event.
+
+The line above reads: on the element named `button`, listen for `click` events,
+and every time one happens, run this function. The function here is written inline, with no
+name of its own. The browser keeps a reference to it and calls it on every click,
+not just the first. Registering the listener does not run the function. Clicking
+the button is what runs it.
+
+<Quiz
+  id="web-listener-runs-each-time"
+  question="A button has a click listener whose function adds 1 to a counter and shows the new total. A visitor clicks the button four times. How many times does the listener function run?"
+  answer={1}
+  options={[
+    "Once, at the moment the listener is registered.",
+    "Four times, once per click, because the browser calls the function on every matching event.",
+    "Never, unless the page is reloaded between clicks.",
+    "Four times, but only if the counter started at zero.",
+  ]}
+  explanation="addEventListener hands the browser a function to hold onto. The browser calls it fresh on every event of that type, so four clicks mean four runs. Registering the listener does not run it even once."
+/>
+
+## A button that changes the page
+
+Here is the whole thing as one file. It has a button, a paragraph, and a script
+tying them together.
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Click demo</title>
+  </head>
+  <body>
+    <button id="greet">Say hello</button>
+    <p id="message">Nothing yet.</p>
+
+    <script>
+      const button = document.querySelector("#greet");
+      const message = document.querySelector("#message");
+
+      button.addEventListener("click", function () {
+        message.textContent = "Hello from JavaScript!";
+      });
+    </script>
+  </body>
+</html>
+```
+
+The `<script>` tag holds JavaScript that the browser runs as it reaches that
+point in the page. `const` gives a value a name that will not be reassigned, the
+naming idea from the Programming Foundations module. The first two lines find the
+button and the paragraph and store each object under a name. The last block
+registers a click listener on the button. Load this file in any browser and the
+paragraph reads Nothing yet. Click the button and it changes to Hello from
+JavaScript!, because the click runs the function, and the function changes the
+paragraph's `textContent` in the DOM.
+
+Where the `<script>` sits is not decoration. It is at the end of the body, after
+the button and the paragraph.
+
+<Callout type="warning" title="A script cannot find what the browser has not built yet">
+The browser builds the DOM top to bottom as it reads the file, and a script runs
+the instant the browser reaches it. Put the `<script>` up in the `<head>`, above
+the button, and `document.querySelector("#greet")` runs before the button exists
+in the DOM. It returns `null`, and the next line errors. Placing the script at
+the end of the body, after the elements it looks for, is the simplest way around
+this.
+</Callout>
+
+The example throws its result away the moment each click ends. To make the page
+remember something between clicks, the value has to live in a variable that
+outlasts the function.
+
+```js
+let count = 0;
+const button = document.querySelector("#counter");
+const label = document.querySelector("#count-label");
+
+button.addEventListener("click", function () {
+  count = count + 1;
+  label.textContent = "Clicks: " + count;
+});
+```
+
+`let` names a value that will be reassigned, unlike `const`. `count` starts at
+zero, declared outside the function so it survives from one click to the next.
+Each click adds one to it and writes the new total into the label. The variables
+and arithmetic here are the same ones from the Programming Foundations module,
+now driving something visible on a page instead of printing to a screen.
+
+<Exercise title="Wire up your own button">
+Save the click demo above into a file named `index.html`, then open that file in
+any browser. Click the button and watch the paragraph change from Nothing yet. to
+Hello from JavaScript!
+
+Now change only the string inside the function, the part between the quotes, to
+any message you want. Save the file, reload the page, and click again. The
+paragraph shows your new words, because the function now writes those words into
+the DOM.
+
+For one more step, open the browser's developer tools and find the Console tab.
+With the page still open, type
+`document.querySelector("#message").textContent = "Changed from the console"` and
+press Enter. The paragraph changes right away, with no button click at all. That
+is the DOM being edited live, which is exactly what the button's function does for
+you on every click.
+</Exercise>
+
+The page works, but only on the one computer where the file is saved.
+Double-clicking `index.html` opens it straight from the disk, and nobody else can
+reach it that way. The next lesson, putting it online, moves the file onto a
+server so anyone with the address can load the same page and click the same
+button.
+
+<Notes />

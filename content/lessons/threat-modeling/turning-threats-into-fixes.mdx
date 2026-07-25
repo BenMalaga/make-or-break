@@ -1,0 +1,67 @@
+---
+title: Turning Threats Into Fixes
+module: threat-modeling
+moduleTitle: Threat Modeling
+moduleOrder: 43
+moduleIcon: Workflow
+order: 5
+summary: A threat list nobody acts on is a document. Ranked, owned, and tracked, it is a security program.
+estimatedMinutes: 18
+objectives:
+  - Rank threats by impact and likelihood instead of gut feel
+  - Choose one of the four responses for every threat and record it
+  - Turn accepted mitigations into tracked, owned, verifiable work
+tags:
+  - threat-modeling
+  - risk
+  - mitigation
+  - remediation
+---
+
+The failure mode of threat modeling is not missing threats. It is finding forty of them, feeling productive, and shipping the feature anyway because the list lived in a Miro board that nobody opened again. A threat you named and did nothing about is worse than one you never found, because now there is a paper trail showing you knew.
+
+So the last job is turning the list into work. Rank it, decide on each item, assign an owner, and track it to closed like any other bug.
+
+## Rank before you fix
+
+You cannot fix forty things at once and they are not equally scary, so order them. The crude, effective move is impact times likelihood. Impact: what does it cost if this happens, from "one user's display name is wrong" up to "full database exfiltration." Likelihood: how easy and how attractive is it to pull off, from "needs a signed kernel driver and physical access" to "one curl command any bored teenager can send."
+
+The predictable session token from the last lessons scores high on both. Impact is account takeover, likelihood is a single forged request. That goes to the top. A denial-of-service that needs a botnet to reach a service already behind a CDN scores lower and can wait.
+
+Some shops formalize this with DREAD, scoring Damage, Reproducibility, Exploitability, Affected users, and Discoverability one to ten each. It has real critics, because the numbers are subjective and two engineers rarely agree on them, but even a rough shared scale beats "this one feels bad." Whatever you use, the goal is a defensible order, not false precision.
+
+## Four responses, pick one, write it down
+
+Every threat gets exactly one of four decisions, and the discipline is recording which and why.
+
+Mitigate is the default: add a control that lowers impact or likelihood. Parameterize the query, add the rate limit, set `HttpOnly`. Most threats land here.
+
+Eliminate is the strongest fix, and the most underused: remove the feature or the data that creates the threat. No plaintext password display feature means no plaintext password display bug. If you do not store the SSN, you cannot leak it. Deleting attack surface beats defending it.
+
+Transfer moves the risk to someone better placed to carry it. Hand card data to Stripe so PCI scope lives with them. Put the app behind a WAF or CDN so volumetric DoS is their problem. You still own the choice, you just stop owning the whole control.
+
+Accept is a legitimate answer when the fix costs more than the risk, but only when a named person with authority signs it, with an expiry date. "We accept the self-XSS risk on the internal admin tool, owner Priya, revisit next quarter" is a decision. "Eh, low priority" is a shrug that becomes an incident.
+
+<CommandCard command="Every threat exits the session as: mitigate, eliminate, transfer, or accept, with an owner and a ticket." explain="A threat with no decision defaults to accept by silence, which is the worst kind of accept because nobody chose it. Forcing one of the four labels on each item, plus a name and a tracking number, is what converts a workshop into a backlog engineering will actually burn down." />
+
+## Track it like the work it is
+
+The threats you chose to mitigate are now engineering tasks, so they belong where engineering tasks live, not in a separate security spreadsheet that rots. File each as a ticket in Jira, Linear, or GitHub Issues, tagged so you can pull the whole set later. Link the ticket back to the threat and the diagram element it came from, so the reviewer knows what "done" means.
+
+Done means verified, not merged. A mitigation for SQL injection closes when someone confirms the query is parameterized and a test proves the payload fails, not when a PR with a hopeful commit message lands. Wire the high-severity ones into CI where you can, so the fix cannot silently regress two sprints later.
+
+The model is not a one-time artifact either. Revisit it when the design changes, a new integration lands, or the trust boundaries move, because a new arrow across a boundary is a new set of threats nobody has walked yet.
+
+<Callout type="security" title="Handle the output like a live vulnerability list">
+A ranked threat list is a prioritized set of unfixed weaknesses in a real system, which is exactly the document an attacker would want. Keep it in your team's access-controlled tracker, share it on need-to-know, and never paste it into a public issue or an open channel while the items are still open. This is only defensive work while the findings stay with the people fixing them.
+</Callout>
+
+<Exercise
+  id="tm-four-responses"
+  prompt="Your app has a feature that lets support staff view users' plaintext security-question answers. The threat is disclosure of those answers if a support account is compromised. Which of the four responses is strongest here, and why?"
+  answer="eliminate"
+>
+Eliminate. The cleanest fix is to remove the feature and stop storing the answers in a readable form, because a threat against data you do not hold cannot be realized. Mitigating with more logging or tighter support access still leaves the readable answers sitting there for the next compromised account.
+</Exercise>
+
+<Notes />

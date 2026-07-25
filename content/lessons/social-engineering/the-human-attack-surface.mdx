@@ -1,0 +1,95 @@
+---
+title: The Human Attack Surface
+module: social-engineering
+moduleTitle: Social Engineering
+moduleOrder: 11
+moduleIcon: Drama
+order: 1
+summary: Firewalls patch. People do not. Learn why humans are the softest target.
+estimatedMinutes: 15
+objectives:
+  - Explain why humans are often the easiest path into a network
+  - Name the core principles of influence attackers exploit
+  - Map a social engineering attack to its psychological trigger
+tags:
+  - social-engineering
+  - influence
+  - fundamentals
+---
+
+You can spend a week hardening a network and still get owned by one phone call.
+Every technical control on the perimeter has a human standing behind it who can
+be persuaded to open a door. That person is the attack surface this module is
+about. They do not have a CVE, they cannot be patched on a schedule, and they
+show up to work tired, busy, and eager to be helpful.
+
+## Why people are the softest target
+
+Software behaves the same way every time. People do not. A locked-down server
+will refuse an unauthenticated request forever, but a help desk operator who is
+three tickets behind will reset a password for someone who sounds panicked and
+official. Attackers know this. Social engineering skips the exploit chain and
+asks the human to hand over what the exploit would have taken.
+
+- It scales cheaply. One convincing email template can reach ten thousand inboxes.
+- It sidesteps controls. Multi-factor auth means little if the target types the
+  code into a fake login page for you.
+- It is hard to log. There is no packet capture of a persuasive conversation.
+
+## The principles of influence
+
+Most social engineering is applied psychology. Robert Cialdini named six levers,
+and attackers pull them constantly:
+
+- **Authority**: people comply with someone who seems to be in charge. A vest, a
+  badge, or an email signature that reads "IT Security" does most of the work.
+- **Urgency and scarcity**: a deadline shuts down careful thinking. "Your account
+  will be locked in ten minutes" pushes the target to act before they verify.
+- **Social proof**: "everyone on your team already did this" lowers resistance.
+- **Reciprocity**: a small favor first makes the target feel they owe one back.
+- **Liking**: we say yes to people we find friendly and similar to us.
+- **Commitment**: once someone agrees to a small ask, a bigger one feels consistent.
+
+<Callout type="security" title="Why the hunter cares">
+Before an attacker crafts a single email, they pick the lever. A pretext that
+combines authority (a message from "the CFO") with urgency (a wire that must go
+out today) beats a generic request every time. When you review a suspicious
+message, name the lever it is pulling. That is the fastest way to see through it.
+</Callout>
+
+## The attack cycle
+
+A real engagement is not one message. It is a loop:
+
+1. **Reconnaissance**: gather names, roles, tone, and habits from public sources.
+2. **Pretext**: build a believable story and identity to justify the request.
+3. **Engagement**: make contact and pull the influence levers.
+4. **Exploitation**: get the credential, the click, or the physical access.
+5. **Exit**: leave cleanly so the target does not raise an alarm.
+
+The rest of this module walks each stage. Learn the attacker's playbook and you
+learn exactly what your own users need to defend against.
+
+<Quiz
+  id="influence-lever"
+  question="An email reads: 'This is the CEO. Approve this vendor payment now, I am about to board a flight.' Which two levers is it pulling?"
+  answer={2}
+  options={[
+    "Reciprocity and liking",
+    "Social proof and scarcity",
+    "Authority and urgency",
+    "Commitment and social proof",
+  ]}
+  explanation="The claimed identity (CEO) is authority; the deadline (boarding a flight) is urgency. That pairing is the classic business email compromise formula."
+/>
+
+<Exercise
+  id="soft-target"
+  prompt="In one sentence, why does multi-factor authentication not fully protect a user from social engineering?"
+>
+MFA only checks that a code was entered, not why. If an attacker convinces the
+user to read the code aloud or type it into a fake page, the second factor is
+handed over just like the password.
+</Exercise>
+
+<Notes />

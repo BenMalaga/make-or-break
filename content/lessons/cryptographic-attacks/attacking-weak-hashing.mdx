@@ -1,0 +1,69 @@
+---
+title: Attacking Weak Hashing
+module: cryptographic-attacks
+moduleTitle: Cryptographic Attacks
+moduleOrder: 41
+moduleIcon: Unlock
+order: 3
+summary: Unsalted fast hashes fall to a lookup, not a crack.
+estimatedMinutes: 18
+objectives:
+  - Explain why unsalted MD5 and SHA-1 collapse under rainbow tables
+  - Describe how a per-user salt kills precomputed attacks
+  - Understand length extension well enough to spot the pattern
+tags:
+  - crypto
+  - hashing
+  - rainbow-tables
+  - md5
+---
+
+Dump a user table and find `5f4dcc3b5aa765d61d8327deb882cf99` in the password column. You do not crack that. You paste it into a search engine and get back `password` in the first result, because that MD5 digest has been in public lookup tables for years. Unsalted fast hashes are not a wall, they are a speed bump, and this lesson is about why.
+
+Three properties decide how hard a stored hash is to attack: whether it is salted, how fast the function is, and whether it is broken outright. Get all three wrong and the hash may as well be plaintext.
+
+## Rainbow tables and why salt breaks them
+
+A rainbow table is a giant precomputed mapping from candidate passwords to their hashes. Someone hashed millions of common passwords ahead of time. If the app stores a raw `MD5(password)` or `SHA1(password)`, cracking is just a lookup, and the work was done years ago by someone else.
+
+A salt kills that dead. A salt is a unique random value mixed into each password before hashing, so two users who both chose `Summer2024` get completely different stored digests. Now the attacker cannot use a shared precomputed table, because the table would have to be rebuilt for every salt. They are forced to attack one hash at a time.
+
+That is why salt matters more than most people think. It does not make any single password harder to guess. It removes the shortcut of attacking everyone at once.
+
+## Fast versus slow functions
+
+MD5, SHA-1, and SHA-256 are fast by design, which is great for file integrity and terrible for passwords. A modern GPU rig runs billions of MD5 guesses per second. bcrypt, scrypt, and Argon2 are deliberately slow and memory-hungry, so the same rig manages maybe tens of thousands of guesses per second. That gap of six or seven orders of magnitude is the entire point of a password hashing function.
+
+<CommandBlock
+  title="attacker@lab, identify then attack"
+  commands={[
+    { cmd: "hashid '5f4dcc3b5aa765d61d8327deb882cf99'", comment: "guess the algorithm from length and shape" },
+    { cmd: "hashcat -m 0 hash.txt rockyou.txt", comment: "mode 0 is raw MD5, straight dictionary run" },
+    { cmd: "hashcat -m 3200 bcrypt.txt rockyou.txt", comment: "mode 3200 is bcrypt, orders of magnitude slower" },
+  ]}
+/>
+
+Identify before you attack. A 32-character hex string is probably MD5 or NTLM. A `$2b$` prefix is bcrypt and may not be worth your GPU time at all.
+
+## Length extension, the concept
+
+This one trips people up, so hold the idea, not the math. Functions built on the Merkle-Damgard construction, which includes MD5, SHA-1, and SHA-256, hash data in blocks and carry forward an internal state. The final digest is that internal state. That is the flaw.
+
+If an app authenticates a message with `hash(secret + message)`, an attacker who knows the digest and the message length can resume the hash from that state and append their own data, producing a valid digest for `secret + message + attacker_data` without ever knowing the secret. They extend the message and forge a new valid tag. The tool `hashpump` does the arithmetic for you.
+
+The fix is HMAC. HMAC nests the key in a way that does not expose the raw internal state, so the extension trick has nothing to resume from. When you see a homemade `hash(secret + data)` authenticator, flag it and reach for the extension attack.
+
+<Callout type="security" title="Cracked hashes are still stolen credentials">
+Cracking hashes from a data set you were authorized to test, or from a public wordlist challenge, is normal practice. Cracking a real leak of other people's passwords, or using recovered credentials outside your engagement scope, is illegal and unethical. Recovered passwords stay in the report, not in a login form on some other site.
+</Callout>
+
+<Exercise
+  id="salt-defeats"
+  prompt="In two or three words, what attack does a unique per-user salt specifically defeat?"
+  answer="rainbow tables"
+  placeholder="the precomputed attack"
+>
+A per-user salt makes identical passwords hash differently, so no shared precomputed table can cover them. It forces the attacker to work one hash at a time instead of doing a bulk lookup.
+</Exercise>
+
+<Notes />

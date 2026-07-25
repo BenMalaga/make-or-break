@@ -1,0 +1,51 @@
+---
+title: Special Pythagorean Triplet
+summary: Find the unique triplet that sums to 1000, then submit the product of its three numbers.
+track: make
+category: algorithms
+difficulty: MEDIUM
+tags: [pythagorean, search, number-theory]
+daily: true
+answer: 31875000
+answerType: number
+starterLang: python
+starter: |
+  # Goal: find positive integers a < b < c with
+  #   a*a + b*b == c*c   (Pythagorean triplet)
+  #   a + b + c == 1000
+  # There is exactly one such triplet. Print the product a*b*c.
+
+  for a in range(1, 1000):
+      for b in range(a + 1, 1000):
+          c = 1000 - a - b
+          # check c > b and the right-angle condition, then print a*b*c
+          ...
+
+  print("replace me")
+hints:
+  - A Pythagorean triplet satisfies a*a + b*b == c*c with a < b < c.
+  - Once you pick a and b, c is forced: c = 1000 - a - b. You only have two real loops.
+  - Only accept the triplet when c > b and a*a + b*b == c*c, then multiply the three numbers.
+---
+
+A Pythagorean triplet is three positive integers a < b < c for which
+
+```
+a*a + b*b == c*c
+```
+
+For example, 3*3 + 4*4 == 5*5.
+
+There is exactly one Pythagorean triplet whose three numbers add up to 1000:
+
+```
+a + b + c == 1000
+```
+
+Find that triplet and submit the **product** a*b*c.
+
+You do not need three nested loops. Choose a and b, and the third number is
+pinned down by the sum: c = 1000 - a - b. Loop a from 1 upward, loop b above a,
+compute c, and keep the one case where c > b and a*a + b*b == c*c holds.
+
+Run your code in the editor, read the product it prints, and submit that number.

@@ -1,0 +1,77 @@
+---
+title: Common Cloud Misconfigurations
+module: cloud-security-fundamentals
+moduleTitle: Cloud Security Fundamentals
+moduleOrder: 29
+moduleIcon: Cloud
+order: 3
+summary: Almost no cloud breach is a clever exploit. It is a checkbox left wrong.
+estimatedMinutes: 20
+objectives:
+  - Name the handful of misconfigurations behind most cloud incidents
+  - Spot an over-broad security group or IAM grant on sight
+  - Understand why the instance metadata endpoint turns SSRF into a full compromise
+tags:
+  - cloud
+  - misconfiguration
+  - aws
+  - security-groups
+  - ssrf
+---
+
+Nobody is defeating AWS's cryptography. The breaches that matter almost all come from the same short list of settings someone got wrong and nobody caught. If you learn to find these, you find most of what an attacker would, and most of what a real audit flags.
+
+## The security group open to the world
+
+A security group is a stateful firewall wrapped around an instance or a service. The classic mistake is a rule allowing `0.0.0.0/0` on a port that should never see the public internet: 22 (SSH), 3389 (RDP), 3306 (MySQL), 5432 (Postgres), 6379 (Redis), 27017 (MongoDB). Redis and Mongo are especially brutal because their defaults historically had no authentication at all. Open the port to the world and you have opened the database to the world.
+
+<CommandBlock
+  title="find security groups exposing sensitive ports to the internet"
+  commands={[
+    { cmd: "aws ec2 describe-security-groups --query \"SecurityGroups[?IpPermissions[?ToPort==\\`22\\` && contains(IpRanges[].CidrIp, '0.0.0.0/0')]].GroupId\"", comment: "list any SG allowing SSH from anywhere" },
+    { cmd: "aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0", comment: "broader sweep for world-open rules" },
+  ]}
+/>
+
+Run that against your own account and you will usually find at least one group someone opened "just to test" and never closed.
+
+## Public storage
+
+Public S3 buckets get their own lesson next because there is a lot to say. The short version: default-private storage that got flipped public by an ACL, a bucket policy, or a lazy `--acl public-read` on upload is behind a long list of data leaks. Azure Blob containers and GCS buckets have the exact same failure mode.
+
+## IAM grants that are too generous
+
+The wildcard policy from the identity lesson lives here too. Beyond raw `"Action": "*"`, watch for managed policies like `AdministratorAccess` attached to a service account, or a role a public-facing server can assume that carries far more than it needs. The principle is least privilege, and the reality is that most tenants grant far more than the workload ever calls.
+
+## The metadata endpoint, and why SSRF is worse in cloud
+
+This one is the difference between a medium bug and a company-ending one. Every EC2 instance can reach a magic address, `169.254.169.254`, that hands back the instance's own metadata, including the temporary IAM credentials for whatever role it assumed. That is convenient for the app. It is a gift for an attacker who finds a server-side request forgery bug.
+
+If a web app will fetch a URL you give it, you point it at the metadata endpoint and read the role's keys straight out of the response.
+
+<CommandCard command="curl http://169.254.169.254/latest/meta-data/iam/security-credentials/" explain="On a vulnerable IMDSv1 host, this returns the role name. Append the name to the path and you get back the AccessKeyId, SecretAccessKey, and Token for that role. Through an SSRF bug, the attacker never needs shell access to steal these." />
+
+The fix is IMDSv2, which requires a session token obtained by a PUT request first, so a naive SSRF that can only issue GETs cannot reach it. Capital One was IMDSv1 plus an over-privileged role plus an SSRF. Kill any one of the three and the breach does not happen.
+
+<Callout type="security" title="Test on infrastructure you own or are hired to assess">
+Reading the metadata endpoint, probing security groups, and enumerating IAM all leave records in the target's account. Do this on your own free-tier resources, flAWS.cloud, or CloudGoat, or under a signed engagement. Hitting someone else's `169.254.169.254` through their app without authorization is a computer-crime charge, not a gray area.
+</Callout>
+
+## Logging turned off
+
+The quietest misconfiguration: CloudTrail disabled, or on but never read. It does not open a door, it just means nobody sees the attacker walk through the ones already open. The next lesson on logging is where that gets fixed, and it is the control that turns a silent breach into a caught one.
+
+<Quiz
+  id="csf-misconfig-ssrf"
+  question="An attacker finds an SSRF vulnerability in a web app running on an EC2 instance. Why is this often catastrophic in AWS specifically?"
+  answer={1}
+  options={[
+    "SSRF lets them read arbitrary files from the Linux filesystem",
+    "They can request 169.254.169.254 to steal the instance role's temporary IAM credentials",
+    "SSRF automatically grants root on the underlying hypervisor",
+    "AWS security groups cannot block internal requests",
+  ]}
+  explanation="The instance metadata endpoint at 169.254.169.254 returns the temporary credentials of the role the instance assumed. An SSRF that can reach it hands the attacker those keys, and if the role is over-privileged, that can mean the whole account. IMDSv2 mitigates this by requiring a token via PUT first."
+/>
+
+<Notes />

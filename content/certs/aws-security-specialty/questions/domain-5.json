@@ -1,0 +1,114 @@
+[
+  {
+    "domain": 5,
+    "question": "A security engineer needs to encrypt Amazon S3 objects so that AWS fully manages the encryption keys with no additional per-request KMS charges and no key policy to maintain. Which server-side encryption option meets this requirement with the least operational overhead?",
+    "options": ["SSE-C with a customer-provided key on every request", "SSE-S3 using Amazon S3 managed keys (AES-256)", "SSE-KMS with a customer managed key", "Client-side encryption with the AWS Encryption SDK"],
+    "correct": [1],
+    "explanation": "SSE-S3 uses AES-256 with keys that Amazon S3 creates, manages, and rotates automatically, with no KMS request charges and no key policy to administer. SSE-KMS and SSE-C both add key management responsibilities, and client-side encryption puts the entire burden on the application.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A developer wants to understand how AWS KMS protects large payloads efficiently. When an application calls GenerateDataKey, what does AWS KMS return so the application can perform envelope encryption?",
+    "options": ["Only a plaintext data key that the application must store", "Both a plaintext copy of the data key and a copy of that data key encrypted under the KMS key", "The KMS key material itself so the application can encrypt directly", "An asymmetric key pair for signing the payload"],
+    "correct": [1],
+    "explanation": "GenerateDataKey returns a plaintext data key used to encrypt the data locally and a ciphertext copy of that same data key encrypted under the specified KMS key. The application encrypts the payload with the plaintext key, discards it from memory, and stores the encrypted data key alongside the ciphertext. KMS never exposes the KMS key material itself.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A company enables automatic key rotation on a customer managed symmetric AWS KMS key. What is the effect of this rotation on the key and on data already encrypted under it?",
+    "options": ["The key ID and ARN change, so applications must be updated with the new ARN", "AWS KMS creates new backing key material while keeping the same key ID and ARN, and old ciphertext remains decryptable", "All existing ciphertext must be re-encrypted immediately or it becomes unreadable", "Rotation deletes the previous key material, so older objects can no longer be decrypted"],
+    "correct": [1],
+    "explanation": "Automatic rotation of a customer managed symmetric KMS key generates new cryptographic backing material while the key ID, ARN, and key policy stay the same. AWS KMS retains older backing key versions so data encrypted under previous material stays decryptable with no re-encryption required.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A team stores a database password and needs it to be automatically rotated on a schedule using a managed rotation function, with the new value applied to the database. Which AWS service is designed for this use case?",
+    "options": ["AWS Systems Manager Parameter Store standard parameters", "AWS Secrets Manager", "AWS KMS key aliases", "Amazon S3 with SSE-KMS"],
+    "correct": [1],
+    "explanation": "AWS Secrets Manager natively supports scheduled automatic rotation using a Lambda rotation function and has built-in integration for services such as Amazon RDS. Parameter Store can store secrets encrypted with KMS but does not provide native automatic rotation.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A security architect must attach an ACM public certificate to an Amazon CloudFront distribution. In which AWS Region must the certificate be requested or imported for CloudFront to use it?",
+    "options": ["The Region closest to the origin server", "Any Region, because CloudFront replicates certificates globally", "US East (N. Virginia), us-east-1", "The same Region as the S3 origin bucket"],
+    "correct": [2],
+    "explanation": "CloudFront can only use ACM certificates that reside in the US East (N. Virginia) us-east-1 Region, regardless of where the origin or viewers are located. Certificates for regional services such as Application Load Balancers must instead be in the same Region as the load balancer.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "An auditor asks whether the private key for a public certificate issued by AWS Certificate Manager can be extracted and installed on an on-premises appliance. What is the correct statement about ACM public certificates?",
+    "options": ["The private key can be downloaded from the ACM console at any time", "Public certificates issued by ACM cannot be exported, so the private key never leaves AWS", "The private key is emailed to the account owner when the certificate is issued", "ACM stores the private key in Secrets Manager for manual retrieval"],
+    "correct": [1],
+    "explanation": "ACM-issued public certificates cannot be exported, and the associated private key is never made available to the customer. They can only be deployed to integrated AWS services such as ELB, CloudFront, and API Gateway. Certificates issued through AWS Private CA can be exported with their private key.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A compliance policy requires that all requests to an Amazon S3 bucket use encryption in transit. Which S3 bucket policy condition should the engineer use to deny any request not sent over TLS?",
+    "options": ["Deny when s3:x-amz-server-side-encryption is absent", "Deny when aws:SecureTransport is false", "Allow only when aws:SourceVpce is present", "Deny when s3:signatureversion equals AWS2"],
+    "correct": [1],
+    "explanation": "The aws:SecureTransport condition key evaluates to false for plaintext HTTP requests, so a bucket policy that denies actions when aws:SecureTransport is false enforces HTTPS/TLS in transit. The x-amz-server-side-encryption condition enforces encryption at rest, not in transit.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "An application in Account B must call kms:Decrypt on a customer managed KMS key that lives in Account A. Which two elements must both permit the operation for cross-account access to succeed? (Choose two.)",
+    "options": ["The KMS key policy in Account A must grant access to the Account B principal", "An IAM policy in Account B must allow the principal to use the key", "The key must have automatic rotation disabled", "The key must be an AWS managed key rather than a customer managed key"],
+    "correct": [0, 1],
+    "explanation": "Cross-account KMS access requires the key policy in the key's home account (Account A) to grant access to the external account or principal, and an IAM policy in the calling account (Account B) to allow the principal to use the key. Both must permit the action. AWS managed keys cannot be shared cross-account, and rotation settings are irrelevant to cross-account authorization.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "To reduce AWS KMS request costs on a bucket that receives millions of uploads encrypted with SSE-KMS, which S3 feature should the engineer enable to cut the number of KMS API calls?",
+    "options": ["S3 Transfer Acceleration", "S3 Bucket Keys", "S3 Object Lock", "S3 Requester Pays"],
+    "correct": [1],
+    "explanation": "S3 Bucket Keys generate a bucket-level data key from KMS and reuse it to encrypt objects within the bucket, dramatically reducing the number of KMS GenerateDataKey and Decrypt requests and therefore KMS costs. The other features address transfer speed, retention, and billing, not KMS call volume.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A security team uses a KMS key with imported key material (BYOK) to meet a requirement that they control the origin of the key. Which limitation applies to this key?",
+    "options": ["AWS KMS automatically rotates the imported key material every year", "The imported key material cannot be automatically rotated and must be rotated manually by re-importing", "Imported key material can never be given an expiration date", "The key can only be used with S3 and not with other services"],
+    "correct": [1],
+    "explanation": "KMS keys with imported key material do not support automatic key rotation. If rotation is required, the customer must manually rotate by creating a new key or re-importing new material. Imported material can optionally be given an expiration date, and such keys work with any KMS-integrated service.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "An organization must delegate to an AWS service the temporary, granular ability to use a KMS key for a specific set of encryption operations without editing the key policy. Which KMS mechanism is designed for this delegated, revocable permission?",
+    "options": ["A KMS grant", "A KMS key alias", "An IAM permissions boundary", "A KMS key rotation schedule"],
+    "correct": [0],
+    "explanation": "KMS grants provide temporary, programmatic, and fine-grained delegation of permitted operations on a KMS key, and they can be retired or revoked. AWS services such as EBS and RDS commonly use grants. Aliases are friendly names, permissions boundaries limit IAM entities, and rotation schedules are unrelated to delegation.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "A regulated workload requires single-tenant, FIPS 140-2 Level 3 validated hardware that the customer fully controls, while still integrating with KMS-based encryption in AWS services. Which architecture satisfies this?",
+    "options": ["Use only AWS managed keys in AWS KMS", "Use a KMS custom key store backed by an AWS CloudHSM cluster", "Enable S3 default encryption with SSE-S3", "Store keys as SecureString parameters in Parameter Store"],
+    "correct": [1],
+    "explanation": "A KMS custom key store backed by AWS CloudHSM lets keys reside in single-tenant, FIPS 140-2 Level 3 validated HSMs that the customer controls, while KMS-integrated services continue to call the key through the standard KMS API. Standard KMS keys use shared multi-tenant HSMs, and the other options do not provide dedicated HSM control.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A new Amazon DynamoDB table stores sensitive customer records. What is true about encryption at rest for DynamoDB, and how can the team gain the ability to audit and control the key?",
+    "options": ["DynamoDB is not encrypted at rest unless the table is placed in a private VPC", "Encryption at rest is always on; selecting a customer managed KMS key lets the team audit usage and control the key", "Encryption at rest requires enabling SSE-C on each item write", "Only DynamoDB global tables support encryption at rest"],
+    "correct": [1],
+    "explanation": "DynamoDB encrypts all tables at rest by default. The default uses an AWS owned key, but the team can select an AWS managed or customer managed KMS key. Choosing a customer managed key provides CloudTrail visibility into key usage and full control over key policy and rotation.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "An engineer wants to re-encrypt ciphertext so it is protected under a different KMS key without ever exposing the plaintext to the calling application. Which single KMS API call accomplishes this most securely?",
+    "options": ["Call Decrypt, then Encrypt from the application", "Call ReEncrypt, specifying the destination KMS key", "Call GenerateDataKeyWithoutPlaintext twice", "Call UpdateKeyDescription on the source key"],
+    "correct": [1],
+    "explanation": "The KMS ReEncrypt operation decrypts ciphertext and re-encrypts it under a different KMS key entirely within KMS, so the plaintext is never returned to the client. Doing separate Decrypt and Encrypt calls would expose the plaintext to the application, increasing risk.",
+    "difficulty": "HARD"
+  }
+]

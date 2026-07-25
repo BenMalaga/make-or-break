@@ -1,0 +1,76 @@
+---
+title: Writing Detection Queries
+module: siem-and-log-analysis
+moduleTitle: SIEM and Log Analysis
+moduleOrder: 25
+moduleIcon: ScrollText
+order: 3
+summary: The difference between a good analyst and a great one is what they can pull out of the log in one query.
+estimatedMinutes: 22
+objectives:
+  - Write a Splunk SPL search that surfaces password spraying from auth logs
+  - Use stats and aggregation to turn raw events into a ranked suspect list
+  - Translate the same detection intent into KQL and a Sigma rule
+tags:
+  - siem
+  - spl
+  - kql
+  - detection-engineering
+---
+
+Ten thousand failed logins scroll past and your job is to find the one pattern that means someone is spraying passwords across your domain. Reading rows is hopeless. The query is the tool: you tell the SIEM to count, group, and threshold until the noise collapses into a short list of suspects you can actually investigate.
+
+Every SIEM has its own dialect. Splunk uses SPL, Elastic uses KQL and its aggregations, Sentinel uses KQL too, and Sigma is the vendor-neutral format you write a rule in once and convert to any of them. Learn the thinking and the syntax follows.
+
+## Start with the question, not the syntax
+
+A detection query answers a specific question about attacker behavior. "Which source IPs failed to log in against many different accounts in a short window?" is password spraying. Write that question in plain words first, then build the search around it.
+
+In Splunk, spraying against a Windows domain looks like this:
+
+<CommandCard command='index=wineventlog EventCode=4625 | stats dc(TargetUserName) as users_tried count as attempts by src_ip | where users_tried > 10' explain="Pull failed logons, count the distinct usernames each source IP attacked, and keep only sources that hit more than ten different accounts. One IP failing against many users is spraying, not a fat-fingered password." />
+
+The `dc()` function counts distinct values, which is the whole trick. A brute force is one account many times, so you would threshold on `attempts`. A spray is many accounts a few times each, so you threshold on distinct users. Same log, different aggregation, different attack.
+
+## Aggregate, do not eyeball
+
+`stats` (Splunk) and `summarize` (KQL) are where detection lives. They collapse thousands of events into a table you can reason about. Add a time bucket so the count means something.
+
+<ExpectedOutput label="what the search returns">
+src_ip           users_tried   attempts
+185.220.101.45   47            51
+10.0.4.12        23            140
+</ExpectedOutput>
+
+The first row is a classic spray: 47 accounts, barely more than one try each, textbook low-and-slow to dodge lockout. The second is different, 23 accounts but 140 attempts, worth a second look for a hybrid or a misconfigured service account hammering a stale credential.
+
+## The same intent in KQL and Sigma
+
+Sentinel and Elastic run KQL. The password-spray logic reads almost the same:
+
+<CommandCard command='SecurityEvent | where EventID == 4625 | summarize users_tried = dcount(TargetUserName), attempts = count() by IpAddress | where users_tried > 10' explain="KQL summarize is Splunk's stats. dcount is dc. The structure is identical because the detection idea is identical, only the keywords change." />
+
+Sigma is where you write the rule once so it is portable. A Sigma rule is a YAML file describing the logsource and the detection condition, and a converter turns it into SPL, KQL, or an Elastic query. That is how threat-intel teams share detections across shops that run different SIEMs.
+
+<Callout type="tip" title="Write the false-positive filter into the query">
+Vulnerability scanners, load balancers, and health-check bots generate the same failed-login shape as a spray. Add `| where NOT src_ip IN (known_scanners)` or an equivalent lookup exclusion from the start. A detection that fires on your own Nessus scanner every night gets muted, and a muted detection catches nothing.
+</Callout>
+
+<Callout type="security" title="Query only your authorized data">
+Detection queries run against real user activity and real credentials. Run them only within the environment and scope you are cleared to monitor, and treat any credentials or PII the results surface under your organization's handling rules. Curiosity is not authorization.
+</Callout>
+
+<Quiz
+  id="siem-spray-vs-brute"
+  question="You want to detect password spraying, not single-account brute forcing. Which aggregation separates the two?"
+  answer={0}
+  options={[
+    "Count distinct usernames per source IP and threshold high",
+    "Count total events per hour across the whole domain",
+    "Sort all 4625 events by timestamp and read them",
+    "Alert on any single failed login",
+  ]}
+  explanation="Spraying is one source touching many different accounts a few times each, so dc(TargetUserName) per src_ip is the signal. A brute force is many attempts against one account, so a raw event count would flag it instead. The distinct-user count is what tells them apart."
+/>
+
+<Notes />

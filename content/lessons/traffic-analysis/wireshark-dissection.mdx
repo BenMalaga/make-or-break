@@ -1,0 +1,118 @@
+---
+title: Dissecting Traffic in Wireshark
+module: traffic-analysis
+moduleTitle: Traffic Analysis
+moduleOrder: 4
+moduleIcon: Activity
+order: 3
+summary: Follow a stream, filter the noise, and pull credentials out of cleartext protocols.
+estimatedMinutes: 19
+objectives:
+  - Apply display filters to isolate a conversation
+  - Follow a TCP stream to reassemble a full exchange
+  - Recover credentials sent over cleartext protocols
+tags:
+  - traffic-analysis
+  - wireshark
+  - credentials
+---
+
+tcpdump shows you packets. Wireshark shows you **conversations**. It reassembles
+scattered packets into readable streams, colors them by protocol, and lets you
+filter interactively. When you have a pcap full of someone else's traffic, this
+is where the passwords come out.
+
+## Display filters, not capture filters
+
+Wireshark has two filter languages and mixing them up trips up everyone. The
+capture filter uses BPF (the `host` and `port` syntax you already know). The
+**display filter** is different, richer, and applied after capture. It uses the
+protocol.field form.
+
+- `ip.addr == 10.10.14.5` shows packets touching that host.
+- `tcp.port == 21` shows FTP traffic.
+- `http` shows only HTTP.
+- `http.request.method == "POST"` shows only POST requests, where logins live.
+
+Type the filter into the bar at the top and press enter. The list narrows
+instantly, and you can change it as often as you like without recapturing.
+
+<Diagram type="http-request" />
+
+## Follow the stream
+
+A single login is spread across many packets: the handshake, the request, the
+response, the acks. Reading them one by one is painful. Instead, right-click any
+packet in the conversation and choose **Follow, then TCP Stream**. Wireshark
+stitches every packet in that conversation back into one readable transcript,
+client text in one color and server text in another.
+
+<Callout type="info" title="Do it from the CLI too">
+You do not need the GUI to reassemble a stream. tshark, Wireshark's terminal
+twin, does the same thing and runs fine over SSH on a target.
+</Callout>
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "tshark -r capture.pcap -Y http", comment: "-Y takes a display filter, same syntax as the GUI" },
+    { cmd: "tshark -r capture.pcap -z follow,tcp,ascii,3", comment: "reassemble TCP stream number 3 as ASCII" },
+    { cmd: "tshark -r capture.pcap -Y 'ftp.request.command == \"PASS\"'", comment: "jump straight to FTP password lines" },
+  ]}
+/>
+
+## Where the credentials hide
+
+Cleartext protocols put usernames and passwords on the wire in plain view. When
+you follow one of these streams, the creds are simply there to read:
+
+- **FTP** sends `USER bob` then `PASS hunter2` as literal commands.
+- **HTTP basic auth** carries a `Authorization: Basic` header that is only
+  base64, not encryption. Decode it and you have the password.
+- **Telnet** echoes the entire login character by character.
+- **HTTP POST** login forms send the form fields, passwords included, in the
+  request body.
+
+<ExpectedOutput label="A followed FTP stream">
+```
+220 Welcome to the corp FTP server
+USER svc_backup
+331 Password required for svc_backup
+PASS Backup!2024
+230 Login successful.
+```
+</ExpectedOutput>
+
+That is a working credential pair, harvested from traffic, ready to spray at SSH
+or the web login. This is exactly why the next lesson exists: the fix is to stop
+sending secrets in the clear.
+
+<Callout type="security" title="One capture, many keys">
+People reuse passwords across services. A single credential pulled from a
+cleartext FTP session often unlocks SSH, a web panel, and a database. Always try
+recovered creds against every other service you found while scanning.
+</Callout>
+
+<Quiz
+  id="wireshark-followstream"
+  question="You have a pcap with an FTP login buried in thousands of packets. What is the fastest way to read the whole exchange?"
+  answer={0}
+  options={[
+    "Right-click a packet and Follow the TCP Stream",
+    "Read each packet's hex pane one at a time",
+    "Re-run the capture with a tighter BPF filter",
+    "Sort the packet list by size",
+  ]}
+  explanation="Follow TCP Stream reassembles every packet in that conversation into one readable transcript, which is where the USER and PASS lines appear."
+/>
+
+<Exercise
+  id="wireshark-post-filter"
+  prompt="Write the Wireshark display filter that shows only HTTP POST requests, where form logins are submitted."
+  answer='http.request.method == "POST"'
+  placeholder='http.request.method == "..."'
+>
+Display filters use the protocol.field form. The request method field is http.request.method, and login forms use POST.
+</Exercise>
+
+<Notes />

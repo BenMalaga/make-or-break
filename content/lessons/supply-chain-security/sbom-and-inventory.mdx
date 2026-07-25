@@ -1,0 +1,75 @@
+---
+title: SBOM and Inventory
+module: supply-chain-security
+moduleTitle: Software Supply Chain Security
+moduleOrder: 52
+moduleIcon: Truck
+order: 3
+summary: When Log4Shell dropped, the winning question was not "how do we patch" but "where do we even have log4j."
+estimatedMinutes: 18
+objectives:
+  - Explain what a software bill of materials is and why it matters at incident time
+  - Generate an SBOM in CycloneDX or SPDX format from a real project
+  - Match an SBOM against a vulnerability feed to answer "am I affected"
+tags:
+  - sbom
+  - inventory
+  - cyclonedx
+  - syft
+---
+
+The night Log4Shell went public, two kinds of companies existed. The ones that could query an inventory and answer "yes, log4j is in these fourteen services, here is the version" in an hour. And the ones that spent the next three weeks grepping build artifacts across every team, because nobody knew what was actually deployed. The difference was not smarter engineers. It was whether they had an inventory.
+
+A software bill of materials, an SBOM, is that inventory. It is a machine-readable list of every component in a piece of software: the name, the version, the license, and ideally where it came from. Think of it as the ingredients label on a food package, except the label is for a container image with 400 packages you did not personally choose.
+
+## Why you cannot defend what you cannot list
+
+Every incident-response question in a supply chain event reduces to inventory. Are we running the backdoored `xz` version? Do we ship the vulnerable `libcurl`? Which of our 200 images pull the CVE'd base layer? You cannot answer any of those by reading code. You answer them by querying a list, and if the list does not exist, you are grepping under pressure while the clock runs.
+
+This is also why SBOMs went from nice-to-have to contractual. US Executive Order 14028 pushed SBOMs into federal procurement, so if you sell software to the government, an SBOM is now table stakes. The regulation is downstream of the plain operational truth: you cannot manage risk in components you have not enumerated.
+
+## Generate one from a real artifact
+
+The good tools are free and take one command. `syft` from Anchore scans a directory, an image, or an archive and emits an SBOM in a standard format. The two formats that matter are CycloneDX (from OWASP, security-first) and SPDX (from the Linux Foundation, license-and-compliance heritage). Pick one and be consistent, the tools read both.
+
+<CommandBlock
+  title="produce and read an SBOM"
+  commands={[
+    { cmd: "syft nginx:1.25 -o cyclonedx-json > sbom.json", comment: "scan a container image, write CycloneDX JSON" },
+    { cmd: "syft dir:. -o spdx-json", comment: "scan the current project as SPDX instead" },
+    { cmd: "cat sbom.json | jq '.components | length'", comment: "how many components did it actually find" },
+  ]}
+/>
+
+<ExpectedOutput label="syft, trimmed">
+ NAME                 VERSION        TYPE
+ libcrypto3           3.1.4-r5       apk
+ openssl              3.1.4-r5       apk
+ zlib                 1.3-r2         apk
+ nginx                1.25.3         binary
+</ExpectedOutput>
+
+An SBOM by itself is a list. The value comes when you match it against a vulnerability feed. `grype` reads an SBOM (or scans directly) and cross-references every component against known advisories, which turns "here is what I have" into "here is what I have that is vulnerable."
+
+<CommandCard command="grype sbom:./sbom.json" explain="Feed the SBOM you already generated straight into grype. It maps each component and version against the advisory database and prints only the ones with known CVEs, with severity. This is the exact query you want ready before the next Log4Shell, not after." />
+
+<Callout type="security" title="Inventory is dual-use, protect it">
+Generate SBOMs for systems you own or are authorized to assess. Understand that an SBOM is also a gift to an attacker: it is a precise list of your components and versions, which is a ready-made target map. Treat published SBOMs like any other sensitive artifact. Share full, versioned inventories only with parties who need them, and know that an attacker who steals your SBOM has just skipped their entire reconnaissance phase.
+</Callout>
+
+Generate the SBOM inside CI so it is produced for every build, attach it to the release, and re-scan stored SBOMs when new advisories land. A new CVE against a library you shipped six months ago is answerable in seconds if the SBOM is sitting in your artifact store. Without it, you are back to grepping, and the whole point was to never grep under pressure again.
+
+<Quiz
+  id="sbom-incident-value"
+  question="A critical CVE drops for a widely used library. What does having current SBOMs for all your services let you do that grepping source cannot?"
+  answer={0}
+  options={[
+    "Immediately query which deployed artifacts contain the affected component and version",
+    "Automatically patch the vulnerable library everywhere",
+    "Prove the library was never exploited",
+    "Prevent the CVE from being published",
+  ]}
+  explanation="An SBOM is an inventory. It answers the first and hardest incident question, 'where do we have this component and at what version,' as a fast query against stored data rather than a frantic search across every codebase."
+/>
+
+<Notes />

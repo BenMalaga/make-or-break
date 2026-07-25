@@ -1,0 +1,114 @@
+[
+  {
+    "domain": 6,
+    "question": "A security engineer attaches a Service Control Policy (SCP) to an organizational unit that explicitly allows only the actions the workloads there require. After the change, an IAM role in a member account that was previously working can no longer perform an action even though its identity-based policy still allows it. What best explains this behavior?",
+    "options": ["The SCP granted the role new permissions that conflicted with its identity policy", "An SCP sets the maximum available permissions, so an action must be allowed by both the SCP and the identity policy to be permitted", "SCPs override identity-based policies and grant access on their own", "The SCP only applies to the management account, so member accounts are unaffected"],
+    "correct": [1],
+    "explanation": "An SCP defines a permissions guardrail, the maximum set of permissions available to principals in the affected accounts, but it never grants access by itself. An action is only allowed when it is permitted by both the applicable SCPs and the principal's identity-based policy. If the SCP no longer allows the action, the identity policy allowing it is not enough.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "An organization attaches a restrictive SCP that denies most services to the organization root. An administrator notices that principals in the management account are still able to perform every action regardless of the SCP. Why?",
+    "options": ["SCPs are evaluated last and are ignored for administrators", "SCPs do not affect users or roles in the management account", "The SCP must be attached to each OU individually to take effect", "Deny statements in SCPs only apply to service-linked roles"],
+    "correct": [1],
+    "explanation": "SCPs do not restrict principals in the AWS Organizations management account, even when the policy is attached to the root. This is a documented behavior and a common exam trap. To enforce guardrails on workloads, place them in member accounts under OUs, and avoid running workloads in the management account.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A company is setting up a new multi-account environment with AWS Control Tower. Which two accounts does Control Tower create and manage as part of its landing zone to centralize logging and security auditing? (Choose two.)",
+    "options": ["Log Archive account", "Audit account", "Network account", "Sandbox account"],
+    "correct": [0, 1],
+    "explanation": "Control Tower provisions a Log Archive account that centrally stores AWS CloudTrail and AWS Config logs, and an Audit account (also called the security account) that grants security and compliance teams cross-account access for monitoring. Network and Sandbox accounts are common design patterns but are not created automatically by the Control Tower landing zone.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A security team wants Control Tower guardrails that block noncompliant actions before they happen (for example, preventing disabling of CloudTrail). Which underlying AWS mechanism implements Control Tower preventive guardrails?",
+    "options": ["AWS Config managed rules", "Service Control Policies", "Amazon GuardDuty detectors", "AWS CloudFormation Guard hooks"],
+    "correct": [1],
+    "explanation": "Control Tower preventive guardrails are implemented using Service Control Policies, which stop noncompliant actions from being performed in enrolled accounts. Detective guardrails, in contrast, are implemented with AWS Config rules that report on the compliance state of existing resources but do not block actions.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A governance team must ensure every resource across all member accounts is tagged with a CostCenter tag using a defined set of allowed values, and they want noncompliant tags reported. Which AWS Organizations feature is purpose-built for standardizing tags this way?",
+    "options": ["Service Control Policies", "Tag policies", "AWS Resource Groups", "IAM permission boundaries"],
+    "correct": [1],
+    "explanation": "Tag policies are a type of management policy in AWS Organizations that define standardized tag keys, allowed values, and capitalization, and report noncompliant resources. SCPs govern which actions are allowed, not tag formatting. Resource Groups organize resources but do not enforce tagging standards, and permission boundaries limit IAM permissions.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A large organization wants to manage Amazon GuardDuty, AWS Security Hub, and IAM Access Analyzer for the whole organization from a dedicated security account rather than from the management account, following least-privilege best practice. What should they configure?",
+    "options": ["Register the security account as a delegated administrator for each service", "Share the management account root credentials with the security team", "Move all workloads into the management account", "Attach an SCP that allows the security account to assume the OrganizationAccountAccessRole"],
+    "correct": [0],
+    "explanation": "AWS recommends registering a member account as a delegated administrator for organization-wide security services such as GuardDuty, Security Hub, Config, IAM Access Analyzer, and Firewall Manager. This keeps the management account out of day-to-day operations and follows least privilege. Sharing root credentials or centralizing workloads in the management account are anti-patterns.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 6,
+    "question": "A compliance officer needs a single, aggregated view of AWS Config resource configurations and rule compliance across many accounts and Regions in the organization. Which capability provides this?",
+    "options": ["An AWS Config aggregator", "An AWS CloudTrail organization trail", "AWS Trusted Advisor", "Amazon Detective"],
+    "correct": [0],
+    "explanation": "An AWS Config aggregator collects configuration and compliance data from multiple accounts and Regions into a single aggregator account for a centralized view, and it can be authorized across an entire organization. An organization CloudTrail trail centralizes API event logs, not Config compliance state, and Trusted Advisor and Detective serve different purposes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "An auditor requests AWS SOC 2 and PCI DSS attestation reports to demonstrate that the underlying cloud infrastructure meets compliance requirements. Where can the security team self-serve download these on-demand AWS compliance reports?",
+    "options": ["AWS Trusted Advisor", "AWS Artifact", "AWS Audit Manager", "AWS Security Hub"],
+    "correct": [1],
+    "explanation": "AWS Artifact provides on-demand access to AWS security and compliance reports such as SOC, PCI DSS, and ISO certifications, plus agreements like the BAA. Audit Manager helps collect evidence about your own workloads, and Security Hub aggregates security findings, but the AWS-produced attestation documents themselves come from Artifact.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "A security engineer is enabling AWS Firewall Manager to centrally manage AWS WAF rules and security group policies across the organization. Which two prerequisites must be satisfied before Firewall Manager policies will work? (Choose two.)",
+    "options": ["AWS Organizations must be enabled with all features", "AWS Config must be enabled in the target accounts", "Every account must run Amazon Inspector", "GuardDuty must be the delegated administrator"],
+    "correct": [0, 1],
+    "explanation": "AWS Firewall Manager requires AWS Organizations with all features enabled and a designated Firewall Manager administrator account, and it depends on AWS Config being enabled in the accounts and Regions it manages so it can evaluate resources. Amazon Inspector and GuardDuty are unrelated prerequisites for Firewall Manager.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 6,
+    "question": "A rapidly growing company wants IAM permissions that automatically scale as new projects are added, without writing a new policy per project. They plan to tag both principals and resources by project and grant access when the tags match. Which access control model does this describe?",
+    "options": ["Role-based access control using managed policies", "Attribute-based access control using tags and condition keys", "Discretionary access control using resource ACLs", "Mandatory access control using SCPs"],
+    "correct": [1],
+    "explanation": "Attribute-based access control (ABAC) grants permissions by matching attributes, typically tags, on principals and resources using condition keys such as aws:PrincipalTag and aws:ResourceTag. New projects work automatically as long as tags are applied correctly, avoiding a new policy per project. RBAC would require new roles or policies as projects grow.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 6,
+    "question": "A security team wants to continuously identify S3 buckets, IAM roles, KMS keys, and other resources that are shared with principals outside the organization. They want the organization treated as the trust boundary so internal sharing is not flagged. What should they configure?",
+    "options": ["IAM Access Analyzer with the organization as the zone of trust", "Amazon Macie with organization-wide sensitive data discovery", "An SCP denying cross-account resource sharing", "AWS Config conformance packs for S3"],
+    "correct": [0],
+    "explanation": "IAM Access Analyzer can be created with the entire AWS Organization as its zone of trust, so it only reports resources shared with principals outside the organization and does not flag legitimate internal sharing. Macie discovers sensitive data, SCPs restrict actions rather than analyze existing access, and conformance packs group Config rules.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "Two SCPs apply to a member account: the default FullAWSAccess policy at the root and a policy attached to the account's OU that explicitly denies ec2:TerminateInstances. An administrator in that account has an identity policy allowing ec2:TerminateInstances. What is the effective result?",
+    "options": ["The action is allowed because FullAWSAccess overrides the deny", "The action is denied because an explicit deny in any applicable SCP always wins", "The action is allowed because the identity policy is more specific", "The action is denied only for the root user"],
+    "correct": [1],
+    "explanation": "In SCP evaluation, an explicit Deny always takes precedence over any Allow, including the default FullAWSAccess policy. Because the OU-level SCP explicitly denies ec2:TerminateInstances, principals in that account cannot terminate instances regardless of their identity-based permissions. Explicit deny winning is a foundational AWS policy evaluation rule.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 6,
+    "question": "A startup consolidates several AWS accounts under AWS Organizations. Beyond a single monthly bill, which benefit does consolidated billing provide across the member accounts?",
+    "options": ["It grants the management account IAM access into every member account automatically", "It combines usage so volume pricing tiers and shared Reserved Instance or Savings Plans discounts can apply across accounts", "It encrypts all cross-account traffic by default", "It automatically applies SCPs to block spending over budget"],
+    "correct": [1],
+    "explanation": "Consolidated billing aggregates usage across all accounts in the organization, which can push combined usage into lower volume-pricing tiers and lets unused Reserved Instance and Savings Plans discounts be shared among accounts. It does not grant cross-account IAM access, encrypt traffic, or enforce budgets, those require other controls.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "An enterprise must continuously collect evidence and map it to controls for frameworks like PCI DSS and CIS to streamline recurring audits of its AWS workloads. Which AWS service is designed to automate this evidence collection against prebuilt compliance frameworks?",
+    "options": ["AWS Audit Manager", "AWS Artifact", "AWS Config aggregator", "AWS Trusted Advisor"],
+    "correct": [0],
+    "explanation": "AWS Audit Manager continuously collects evidence from your AWS usage and maps it to controls in prebuilt or custom frameworks such as PCI DSS and CIS, producing audit-ready reports. AWS Artifact provides AWS's own attestation documents, a Config aggregator centralizes configuration compliance, and Trusted Advisor gives best-practice checks, but none automate framework-mapped evidence collection like Audit Manager.",
+    "difficulty": "MEDIUM"
+  }
+]

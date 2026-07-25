@@ -1,0 +1,231 @@
+---
+title: Spotting Scams and Phishing
+module: digital-self-defense
+moduleTitle: Digital Self-Defense
+moduleOrder: 6
+moduleIcon: EyeOff
+order: 3
+summary: The same con arrives by email, phone, and text; here is how to see it coming and slow it down.
+estimatedMinutes: 15
+objectives:
+  - Recognize phishing, vishing, and smishing as one con delivered through three channels
+  - Read a link's real destination before clicking and name the concrete tells of a fake message
+  - Explain why a legitimate bank never asks for a one-time code, and apply the callback rule
+  - Spot modern variants like fake login pages, QR-code scams, and consent-phishing
+tags:
+  - phishing
+  - scams
+  - social-engineering
+prerequisites: ["passwords-and-authentication"]
+---
+
+A long password and a second factor protect an account right up to the second the
+account holder types them into the attacker's page. That is the entire trick in
+this lesson. The passwords lesson built a strong lock and put the key somewhere
+safe. Phishing does not pick the lock. It walks up to the person holding the key,
+tells a good story, and asks them to open the door. Strong passwords do nothing if
+the person types them into a fake page, so this is where the attacker skips the
+cryptography and goes straight for the human.
+
+## One con, three channels
+
+Phishing, vishing, and smishing are the same move wearing three different costumes.
+Phishing arrives by email or a web page. Vishing is the same play over a phone
+call, where a live voice adds pressure. Smishing comes as a text message, where a
+short link hides the real address. The channel changes. The script does not.
+
+Every version runs the same three steps. The attacker manufactures urgency, so the
+target acts before thinking. The attacker impersonates someone the target already
+trusts, a bank, an employer, a delivery company, a coworker. Then the attacker asks
+for one small thing: click this link, open this file, or read back this code. The
+urgency is the engine. A message that says an account will be closed in fifteen
+minutes is not trying to inform anyone. It is trying to shrink the window in which
+a person might stop and check.
+
+The dangerous part is that none of this requires a technical flaw. The email server
+is fine. The phone network is fine. The attack targets attention and trust, which
+are harder to patch than software.
+
+<Quiz
+  id="spotting-scams-and-phishing-channel"
+  question="A text message claims a package could not be delivered and links to a site asking for a small redelivery fee and card details. What is this technique called?"
+  answer={1}
+  options={["Vishing", "Smishing", "Whaling", "Consent-phishing"]}
+  explanation="Phishing delivered over SMS is smishing. The short link and the small, plausible fee are the classic shape of the text-message version."
+/>
+
+## The tells
+
+A fake message leaves fingerprints. The most reliable one is the sender address,
+not the display name. Mail apps show a friendly name like "PayPal Security," but
+the address underneath might read `service@paypa1-support.com`. Attackers register
+look-alike domains that swap a letter for a digit, add a hyphenated word, or bury
+the real brand in a subdomain: `micros0ft.com`, `apple-id-verify.com`,
+`account.google.com.secure-login.ru`. The brand name appearing somewhere in the
+address proves nothing.
+
+Urgency and fear ride along with almost every one. "Suspicious login detected."
+"Your account will be suspended." "Final notice." The emotion is the payload,
+because a scared person clicks faster than a calm one.
+
+Unexpected attachments are another flag. An invoice nobody ordered, a resume from a
+stranger, a file named `Document.pdf.exe` or a macro-enabled `Payroll.docm`. A file
+that arrives out of nowhere and wants to be opened right away deserves suspicion by
+default.
+
+The last two tells are the ask itself. A message whose link text says one thing
+while the real destination says another is trying to mislead. And any message that
+asks for a login code, a password, or a payment through the link it provided has
+crossed the line that real institutions do not cross.
+
+## Reading a link before the click
+
+The visible text of a link and its real destination are separate things. A link can
+display the words `https://accounts.google.com` and still point anywhere the author
+chose. Never trust the display text. Read the destination.
+
+On a computer, hovering the mouse over a link shows the true address in the corner
+of the browser, no click required. On a touchscreen, a long press opens a preview of
+the same address. The skill is reading that address correctly, and the rule is to
+read the domain from the right. The real site is the registrable domain, which is
+the last two labels sitting just before the first single slash. In
+`accounts.google.com.secure-login.ru/verify`, everything to the left is decoration.
+The site is `secure-login.ru`. The words "accounts" and "google" are subdomains the
+attacker added for free.
+
+Shortened links hide the destination entirely. A `bit.ly` or a QR redirect gives no
+domain to read at all. Two free, reputable services expand and inspect a link
+without visiting it in a normal browser: urlscan.io loads the page in a sandbox and
+shows where it ends up, and VirusTotal checks a URL or file against dozens of
+reputation engines. Both are worth keeping bookmarked.
+
+<Callout type="warning" title="A clean scan is not a green light">
+Fresh phishing sites go live and get abandoned within hours, faster than reputation
+databases update. A brand-new attacker domain can score clean on VirusTotal simply
+because no one has reported it yet. A clean result lowers suspicion. It never proves
+safety. Treat these tools as one input, not a verdict.
+</Callout>
+
+<Quiz
+  id="spotting-scams-and-phishing-domain"
+  question="A link's text reads 'https://accounts.google.com', but the real destination is 'https://accounts.google.com.security-check.ru/login'. Which part decides where the click actually goes?"
+  answer={1}
+  options={["The visible link text, since it names the real domain", "The registrable domain nearest the first slash, here security-check.ru", "The word 'google' appearing in the address", "The https prefix, which proves the site is legitimate"]}
+  explanation="Read the address from the right. The registrable domain is the last two labels before the first single slash, security-check.ru. Everything to its left, including google.com, is a subdomain the attacker controls. HTTPS only means the connection is encrypted, not that the site is honest."
+/>
+
+A password manager quietly helps here, and it is worth understanding exactly how.
+
+<Callout type="security" title="What a password manager catches, and what it misses">
+Bitwarden, a free and open-source manager, ties each saved login to an exact
+domain. On the real `paypal.com` it offers to fill the login. On a look-alike like
+`paypa1.com` it stays silent, because the domain does not match. That silence is a
+quiet alarm worth listening for. What the manager does not do is stop a determined
+person from opening the vault and copying the password into the fake page by hand,
+and it does not read the message or judge the story. It matches domains. That is
+the one job, and it is a useful one.
+</Callout>
+
+## The one-time code and the callback rule
+
+A legitimate bank, tax office, or online service never phones a customer and asks
+them to read back a one-time code. The code exists to prove identity to the service,
+not to a caller. So a caller asking for it is not verifying anything. They are
+sitting on the real login page, have already entered the stolen password, triggered
+the code to the victim's phone, and now need the victim to speak it aloud so the
+attacker can type it in and finish the login. The request itself is the proof of
+fraud.
+
+This is also why some second factors resist phishing better than others. A code from
+an authenticator app such as Aegis or Google Authenticator is stronger than a code
+by text message, because SMS can be intercepted or SIM-swapped. But a real-time
+phishing kit relays either kind of code the instant the victim enters it, so both
+remain phishable. Passkeys and hardware security keys such as a YubiKey close that
+gap. They use the FIDO2 standard, which binds the credential to the real website's
+domain, so the browser refuses to hand it over on a look-alike site. There is no
+code for a human to read aloud and nothing for a fake page to relay.
+
+The defense that covers every version is older than any of this technology. Hang up,
+or close the message, and reach the institution through a number the attacker did
+not supply. The number printed on the back of the bank card. The address typed by
+hand into a fresh browser tab. This is the callback rule, and it works because it
+moves the conversation onto a channel the attacker does not control. Verify out of
+band, always.
+
+<Quiz
+  id="spotting-scams-and-phishing-callback"
+  question="A caller says they are from the bank's fraud team and asks the account holder to read back the one-time code just sent by text, to 'verify your identity.' What is the safe response?"
+  answer={2}
+  options={["Read the code back, since the caller already knows the account details", "Give the code but change the password right afterward", "Refuse, hang up, and call the number printed on the back of the card", "Ask the caller to prove they are real, then share the code"]}
+  explanation="A real bank never needs a customer to read back a code. Refuse and use the callback rule: hang up and dial the number on the card, a channel the attacker does not control."
+/>
+
+## The modern twists
+
+The classic fake email still works, but three newer variants trip up people who
+think they already know the game.
+
+Fake login pages have grown from crude copies into pixel-perfect clones. Some sit
+behind a reverse proxy that forwards keystrokes to the real site and steals the live
+session cookie, which sidesteps a password and a second factor at once. The tell is
+still the domain in the address bar, not the look of the page, so the habit of
+reading the address from the right is the thing that saves the day.
+
+QR-code scams, sometimes called quishing, move the attack off the screen. A sticker
+pasted over the real QR code on a parking meter, or a code printed in an email,
+sends the camera to a malicious site. A phone's camera app shows the destination URL
+as a preview before opening it, and that preview is the moment to read the domain.
+An unfamiliar address printed on a public sticker is a reason to stop, not tap.
+
+Consent-phishing is the sneakiest, because it steals nothing that looks like a
+password. The attacker sends a genuine Microsoft or Google permission screen, the
+real one, asking to "Allow" some app access to email and files. The victim clicks
+Allow, and the attacker walks away with an access token instead of a password. A
+second factor does not help, because no password was ever entered. The defense is to
+read what an app is actually asking for, refuse anything unfamiliar, and periodically
+review connected apps in account security settings and revoke the ones nobody
+recognizes.
+
+<Callout type="info" title="Reporting a scam takes a minute">
+In the United States, suspicious texts forward to 7726, which spells SPAM, and the
+carrier investigates the sender. Phishing emails can go to the Anti-Phishing Working
+Group at reportphishing@apwg.org, and fraud reports to the Federal Trade Commission
+at reportfraud.ftc.gov. Reporting will not undo a click, but it feeds the reputation
+systems that warn the next person.
+</Callout>
+
+## The calm default
+
+Every technique in this lesson leans on one thing: a target moving fast. Urgency is
+the manufactured part of the message, the piece the attacker added on purpose. A
+real deadline survives a five-minute pause. A real bank is happy to be called back.
+A real delivery company does not need a card number to drop a box. Slowing down
+costs almost nothing and defeats most of this outright.
+
+So the default response to any message that pushes for a click, a code, or a payment
+is to stop and verify through a channel the message did not choose. Open a new tab
+and type the address by hand. Call the number already saved in the phone, not the one
+in the text. Ask the coworker in person. The attacker's whole plan assumes that step
+never happens.
+
+<Exercise title="Audit your own connected apps and link previews">
+Pick one account you use every day, such as Google or Microsoft, and open its
+security settings. Find the list of "connected apps," "third-party access," or "apps
+with access to your account." Read each entry. If you see an app you do not
+recognize or no longer use, revoke its access. This is exactly the loot a
+consent-phishing attack leaves behind, and clearing it is safe.
+
+Then open your phone's camera and point it at any QR code, a product box or a
+restaurant menu. Confirm the phone shows the destination address as a preview before
+it opens anything. If it opens links instantly with no preview, turn that preview
+setting on. You have just closed the two doors the modern twists rely on.
+</Exercise>
+
+The reason a scam text knows a real package is coming, or a call names a real bank,
+is that the attacker rarely guesses. The opening line is built from details about
+the target that were collected, bought, or scraped long before the message arrived.
+The next lesson, your-data-trail, follows that exhaust: the trail of data that
+everyday online life leaves behind, and how much of a convincing pretext is sitting
+in it for anyone willing to pay.
+
+<Notes />

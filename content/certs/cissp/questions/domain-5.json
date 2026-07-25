@@ -1,0 +1,223 @@
+[
+  {
+    "domain": 5,
+    "question": "In biometric system evaluation, what does the Crossover Error Rate (CER), also called the Equal Error Rate (EER), represent?",
+    "options": [
+      "The point at which the false acceptance rate equals the false rejection rate",
+      "The percentage of enrolled users the system fails to register",
+      "The average time required to process a single authentication attempt",
+      "The maximum number of templates the sensor can store"
+    ],
+    "correct": [0],
+    "explanation": "The CER is the point where the false acceptance rate (Type II) and the false rejection rate (Type I) are equal. A lower CER indicates a more accurate biometric system. It is the standard metric used to compare the accuracy of different biometric devices.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A user types a username into a login prompt. Which access control process does entering the username represent?",
+    "options": [
+      "Identification",
+      "Authentication",
+      "Authorization",
+      "Accountability"
+    ],
+    "correct": [0],
+    "explanation": "Identification is the act of a subject claiming or professing an identity, such as a username or account ID. Authentication then proves that claim with a factor like a password. The claim by itself carries no proof, so it is only identification.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "In Kerberos, after a client presents a valid ticket-granting ticket (TGT), what does the Ticket Granting Service (TGS) issue so the client can reach a target resource?",
+    "options": [
+      "A service ticket for the requested resource",
+      "A brand-new ticket-granting ticket",
+      "A cleartext copy of the user's password",
+      "An X.509 digital certificate"
+    ],
+    "correct": [0],
+    "explanation": "The client presents its TGT to the TGS to request access to a specific service. The TGS responds with a service ticket, also called a session ticket, for that resource. The client then presents the service ticket to the target server to gain access.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Which characteristic is the primary security weakness of a Kerberos deployment that relies on a single Key Distribution Center (KDC)?",
+    "options": [
+      "The KDC is a single point of failure and holds the secret keys of all principals",
+      "Kerberos transmits every user password in cleartext across the network",
+      "Kerberos is unable to provide mutual authentication between client and server",
+      "Kerberos tickets never expire, so they can be reused indefinitely"
+    ],
+    "correct": [0],
+    "explanation": "If the KDC is unavailable, no new authentications can occur, and because it stores the secret keys of every principal, its compromise exposes the entire realm. Kerberos does not send passwords in cleartext, does support mutual authentication, and issues time-limited tickets. Deploying redundant KDCs mitigates the availability risk.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "What is the primary purpose of Security Assertion Markup Language (SAML) in a federated identity environment?",
+    "options": [
+      "To exchange authentication and authorization assertions between an identity provider and a service provider",
+      "To encrypt data at rest inside a relational database",
+      "To provision and deprovision user accounts across cloud applications",
+      "To hash and salt passwords stored in a credential vault"
+    ],
+    "correct": [0],
+    "explanation": "SAML is an XML-based standard used to exchange authentication and authorization assertions between an identity provider (IdP) and a service provider (SP). It enables web-based single sign-on across separate security domains. Automated account provisioning across systems is handled by SCIM, not SAML.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A developer needs a protocol that lets a third-party application obtain delegated access to a user's resources without ever receiving the user's password. Which statement is correct?",
+    "options": [
+      "OAuth 2.0 is an authorization framework, and OpenID Connect adds an authentication layer on top of it",
+      "OAuth 2.0 is an authentication protocol, and OpenID Connect is used only for encryption",
+      "OAuth 2.0 and OpenID Connect both replace TLS for securing the transport channel",
+      "OpenID Connect is an authorization framework, and OAuth 2.0 supplies identity assertions"
+    ],
+    "correct": [0],
+    "explanation": "OAuth 2.0 is a delegated authorization framework that issues access tokens without sharing user credentials. OpenID Connect (OIDC) is built on top of OAuth 2.0 and adds an identity and authentication layer through ID tokens. Neither protocol replaces TLS for transport security.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "Which access control model enforces access decisions using system-assigned security labels and subject clearances that users cannot override?",
+    "options": [
+      "Mandatory Access Control",
+      "Discretionary Access Control",
+      "Role-Based Access Control",
+      "Attribute-Based Access Control"
+    ],
+    "correct": [0],
+    "explanation": "MAC bases access on classification labels such as Secret or Top Secret and matching subject clearances, enforced by the system rather than by data owners. It is common in military and other high-security environments. Users cannot change the labels at their own discretion.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "An organization with high employee turnover wants to simplify permission management by grouping privileges into job functions. Which access control model best fits this requirement?",
+    "options": [
+      "Role-Based Access Control",
+      "Discretionary Access Control",
+      "Mandatory Access Control",
+      "Rule-Based Access Control"
+    ],
+    "correct": [0],
+    "explanation": "RBAC assigns permissions to roles that map to job functions, and users inherit those permissions by being placed into a role. This simplifies administration when staff change frequently, since only role membership needs to be updated. It also helps enforce least privilege and separation of duties.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Under which access control model does the owner of a resource decide, at their own discretion, which subjects may access it?",
+    "options": [
+      "Discretionary Access Control",
+      "Mandatory Access Control",
+      "Role-Based Access Control",
+      "Attribute-Based Access Control"
+    ],
+    "correct": [0],
+    "explanation": "In DAC, the data owner grants or revokes access at their discretion, typically through access control lists (ACLs). Common operating system file permissions in Windows and Linux use DAC. It is more flexible but less rigorous than MAC.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "Which access control model evaluates policies built from attributes of the subject, the object, the requested action, and the environment (such as time of day or location) to make access decisions?",
+    "options": [
+      "Attribute-Based Access Control",
+      "Role-Based Access Control",
+      "Mandatory Access Control",
+      "Discretionary Access Control"
+    ],
+    "correct": [0],
+    "explanation": "ABAC makes dynamic, context-aware decisions by evaluating attributes of the subject, resource, action, and environment against defined policies. This supports fine-grained rules, such as granting access only during business hours from a corporate network. It is more flexible than RBAC but also more complex to administer.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "A legitimate, enrolled employee is repeatedly denied entry by a fingerprint reader. Which biometric error is occurring?",
+    "options": [
+      "A Type I error (false rejection)",
+      "A Type II error (false acceptance)",
+      "A crossover error",
+      "An enrollment failure"
+    ],
+    "correct": [0],
+    "explanation": "A Type I error, or false rejection, occurs when the system incorrectly denies access to a legitimate enrolled user. It is measured by the false rejection rate (FRR). A Type II error is the opposite, incorrectly accepting an impostor, and is generally more dangerous from a security standpoint.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Which identity lifecycle control most directly reduces the risk of a former employee retaining access after termination?",
+    "options": [
+      "Timely deprovisioning that disables or removes accounts during offboarding",
+      "Requiring longer and more complex passwords at account creation",
+      "Raising the biometric enrollment quality threshold",
+      "Enabling single sign-on across all internal applications"
+    ],
+    "correct": [0],
+    "explanation": "Prompt deprovisioning during offboarding ensures accounts and entitlements are disabled or removed when a user leaves, closing the window for orphaned-account misuse. This is a core part of the joiner-mover-leaver lifecycle. Password strength and SSO do not address access that should no longer exist.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "What are two primary objectives of conducting periodic user access reviews, also known as access recertification? (Choose two.)",
+    "options": [
+      "Identify and remove entitlements that are no longer needed, addressing privilege creep",
+      "Confirm that users retain only the access required for their current duties",
+      "Eliminate the need for multifactor authentication on sensitive systems",
+      "Encrypt all data transmitted between the client and the server"
+    ],
+    "correct": [0, 1],
+    "explanation": "Access reviews detect and remediate privilege creep, where users accumulate rights over time, and confirm that remaining access still aligns with least privilege for the user's current role. They do not replace multifactor authentication or provide transport encryption. Reviews are a detective control that supports authorization governance.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Which statement accurately distinguishes TACACS+ from RADIUS?",
+    "options": [
+      "TACACS+ separates authentication, authorization, and accounting, encrypts the entire payload, and uses TCP",
+      "TACACS+ combines authentication and authorization, encrypts only the password, and uses UDP",
+      "TACACS+ is a Cisco-proprietary version of Kerberos that issues time-limited tickets",
+      "TACACS+ can only be used for wireless 802.1X port authentication"
+    ],
+    "correct": [0],
+    "explanation": "TACACS+ decouples the three AAA functions, encrypts the full packet payload, and runs over TCP. RADIUS combines authentication and authorization, encrypts only the password field, and uses UDP. This separation makes TACACS+ popular for granular device administration control.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "What is the principal security disadvantage of deploying single sign-on (SSO)?",
+    "options": [
+      "A single compromised credential can grant an attacker access to all federated resources",
+      "Users must remember a separate password for every application",
+      "SSO makes it impossible to add multifactor authentication",
+      "SSO requires storing passwords in cleartext on the client device"
+    ],
+    "correct": [0],
+    "explanation": "SSO improves usability by letting one authentication cover many systems, but that same convenience means a single stolen credential can unlock everything it federates, the keys-to-the-kingdom problem. Pairing SSO with strong multifactor authentication mitigates this risk. SSO reduces, rather than increases, the number of passwords users must manage.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "During account registration, an organization verifies a new user's government-issued ID and supporting documentation before issuing credentials. What is this process called?",
+    "options": [
+      "Identity proofing",
+      "Authorization",
+      "Accounting",
+      "Federation"
+    ],
+    "correct": [0],
+    "explanation": "Identity proofing, also called registration or enrollment verification, establishes that a person is who they claim to be before credentials are issued. It binds a real-world identity to a digital identity. Strong proofing reduces the risk of fraudulent account creation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Which two of the following are examples of the something you have (Type 2) authentication factor? (Choose two.)",
+    "options": [
+      "A smart card",
+      "A hardware one-time-password token",
+      "A fingerprint scan",
+      "A memorized PIN"
+    ],
+    "correct": [0, 1],
+    "explanation": "The something you have factor is based on physical possession, such as a smart card or a hardware one-time-password token. A fingerprint is something you are (Type 3), and a PIN is something you know (Type 1). Combining two different factor types produces true multifactor authentication.",
+    "difficulty": "EASY"
+  }
+]

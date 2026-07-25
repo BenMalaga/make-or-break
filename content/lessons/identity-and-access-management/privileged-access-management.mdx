@@ -1,0 +1,66 @@
+---
+title: Privileged Access Management
+module: identity-and-access-management
+moduleTitle: Identity and Access Management
+moduleOrder: 48
+moduleIcon: Fingerprint
+order: 4
+summary: "The admin password nobody has rotated since 2019 is in three runbooks and a Slack DM. PAM exists to kill that."
+estimatedMinutes: 18
+objectives:
+  - Explain vaulting and why credential rotation makes a stolen secret decay
+  - Contrast just-in-time access with standing admin rights
+  - Describe how session proxying and recording constrain a privileged user
+tags:
+  - iam
+  - pam
+  - privilege
+  - vaulting
+  - jit
+---
+
+Every environment has one: the domain admin account whose password has not changed since 2019, sitting in two runbooks, a Terraform variable, and a Slack DM someone fired off in a hurry. One phished helpdesk laptop and that credential turns a small foothold into the whole domain. Privileged access management is the set of controls built to make that account stop existing in that form.
+
+PAM covers the accounts that can do real damage: domain admins, root, cloud org admins, database superusers, and the service accounts that quietly run everything. The premise is that these credentials should not live in people's heads, config files, or standing role assignments. They live behind a system that hands them out narrowly and takes them back.
+
+Vaulting is the first piece. Credentials sit in a vault, CyberArk, HashiCorp Vault, Delinea, BeyondTrust, instead of anywhere a human keeps them. You check a credential out when you need it, and the vault rotates it after use, so the password you just saw is dead before you could reuse or leak it.
+
+Rotation is what makes a stolen secret decay. If every checkout rotates the password, a secret an attacker scrapes from memory or a log file is good for minutes, not years. This is why dumping LSASS or grepping a config matters less against a vaulted, rotated account: the loot expires on its own.
+
+## Just-in-time beats standing access
+
+Standing privilege is the attack surface. An account that is admin all day, every day, is a target that is always live. Just-in-time access, JIT, flips that. Nobody holds admin at rest. You request elevation for a bounded window, say one hour, with a reason and often an approval, the system grants it, and it is revoked automatically when the window closes.
+
+The math is the point. If admin rights exist for one hour a week instead of all 168, the odds that an attacker lands on a session that happens to be privileged right now drop by two orders of magnitude. Idle, the account is worth nothing to steal.
+
+<CommandBlock
+  title="a short-lived credential instead of a standing one"
+  commands={[
+    { cmd: "vault login -method=oidc", comment: "you authenticate as yourself, not as the shared admin" },
+    { cmd: "vault read database/creds/dba-readonly", comment: "vault mints a fresh DB user with a short TTL" },
+    { cmd: "vault lease revoke database/creds/dba-readonly/abcd1234", comment: "or let the TTL expire and the user is deleted for you" },
+  ]}
+/>
+
+Then session isolation and recording. Privileged connections go through a proxy or jump host rather than straight from a laptop to the crown jewels. The admin never touches the real credential, the proxy injects it into the RDP or SSH session, and that session is recorded: keystrokes, commands, sometimes full screen capture. You get two things at once, a target that never sees the secret and a tamper-evident record of what every privileged session actually did.
+
+Here is why an attacker cares about all of this. Pass-the-hash, Kerberoasting, and plain credential reuse all depend on a standing privileged secret being somewhere to steal. Rotation makes the stolen secret expire, JIT means most of the time there is nothing privileged sitting there to grab, and session recording means the intrusion is on tape with your name attributed to it. PAM does not stop the initial phish. It stops the phish from becoming domain admin.
+
+<Callout type="security" title="Break PAM in a lab, not in prod">
+Testing vault escape, checkout abuse, or session-proxy bypass against your company's real PAM is a fast way to set off every alarm it has, which is partly the point of the recording. Practice on your own stack: a local HashiCorp Vault dev server, or a CyberArk or Delinea trial in an isolated tenant. The whole system exists to attribute privileged actions to a person, so unauthorized poking is both loud and traceable straight back to you.
+</Callout>
+
+<Quiz
+  id="pam-jit"
+  question="How does just-in-time access reduce risk compared with a permanent admin account?"
+  answer={2}
+  options={[
+    "It makes the admin password longer and harder to crack",
+    "It encrypts the admin session so it cannot be recorded",
+    "It removes standing privilege, so most of the time there is no active admin credential for an attacker to steal or ride",
+    "It replaces the password with a fingerprint",
+  ]}
+  explanation="JIT grants elevation only for a short, approved window and revokes it automatically. A compromised endpoint is far less likely to catch the account while it is privileged, and at rest there is nothing to pass-the-hash or reuse. Standing admin is a permanently live target; JIT makes it live only briefly and on purpose."
+/>
+
+<Notes />

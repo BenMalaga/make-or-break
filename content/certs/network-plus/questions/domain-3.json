@@ -1,0 +1,302 @@
+[
+  {
+    "domain": 3,
+    "question": "A network administrator needs a document that shows how traffic flows between VLANs, subnets, and routing devices, without regard to where the physical cables run. Which type of documentation best fits this need?",
+    "options": [
+      "Physical network diagram",
+      "Logical network diagram",
+      "Rack elevation diagram",
+      "Cable map"
+    ],
+    "correct": [1],
+    "explanation": "A logical diagram depicts IP subnets, VLANs, routing, and how data flows at Layers 2 and 3 independent of physical placement. A physical diagram and rack elevation show where devices and cables physically sit, and a cable map documents individual cable runs and terminations.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "During an audit, a manager asks which tool tracks the assignment, availability, and reservation of every address across the organization's subnets so that two hosts are never given the same address. Which solution provides this?",
+    "options": [
+      "IP address management (IPAM)",
+      "Simple Network Management Protocol (SNMP)",
+      "Syslog collector",
+      "Network Time Protocol (NTP)"
+    ],
+    "correct": [0],
+    "explanation": "IPAM centrally tracks IP allocation, DHCP scopes, reservations, and available addresses to prevent conflicts and overlap. SNMP polls device health, a syslog collector aggregates log messages, and NTP synchronizes clocks, none of which manage the address inventory.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A vendor announces that a switch model will no longer receive security patches, bug fixes, or technical assistance after a set date, although units may still function. Which term describes this milestone?",
+    "options": [
+      "End-of-life (EOL)",
+      "End-of-support (EOS)",
+      "Recovery point objective (RPO)",
+      "Service-level agreement (SLA)"
+    ],
+    "correct": [1],
+    "explanation": "End-of-support (EOS) marks the date after which the vendor stops providing patches, updates, and technical assistance, which is a key security-risk trigger for replacement. EOL means the product is no longer sold or manufactured, RPO is a disaster-recovery data-loss metric, and an SLA defines service commitments.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An ISP contract guarantees 99.99 percent uptime and defines penalties if that target is not met. Which document defines these measurable service commitments between the provider and the customer?",
+    "options": [
+      "Memorandum of understanding (MOU)",
+      "Acceptable use policy (AUP)",
+      "Service-level agreement (SLA)",
+      "Non-disclosure agreement (NDA)"
+    ],
+    "correct": [2],
+    "explanation": "An SLA specifies measurable performance targets such as uptime, response time, and the remedies if they are not met. An MOU is a non-binding statement of intent, an AUP governs how users may use resources, and an NDA protects confidential information.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Before deploying a firewall firmware upgrade to production, the team submits a formal request that documents the proposed change, its risk and impact, a rollback plan, and requires approval from a review board. Which process is being followed?",
+    "options": [
+      "Incident response",
+      "Change management",
+      "Configuration baselining",
+      "Asset decommissioning"
+    ],
+    "correct": [1],
+    "explanation": "Change management is the formal process of requesting, assessing risk, approving, scheduling, and documenting changes, including a rollback plan and review-board sign-off. Incident response handles active events, baselining captures a known-good configuration, and decommissioning retires assets.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A network engineer maintains a known-good master configuration that all new switches of a given model are provisioned from to guarantee identical, approved settings. What is this reference configuration called?",
+    "options": [
+      "Backup configuration",
+      "Running configuration",
+      "Golden/baseline configuration",
+      "Startup configuration"
+    ],
+    "correct": [2],
+    "explanation": "A golden or baseline configuration is the standardized, approved template used to provision devices consistently and to detect drift. A backup config is a saved copy for recovery, while running and startup configs are the active and boot-time configs on an individual device, not the organizational standard.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A security team requires that all network device monitoring use encryption for the data payload and support per-user authentication rather than shared community strings. Which SNMP version must be deployed?",
+    "options": [
+      "SNMPv1",
+      "SNMPv2c",
+      "SNMPv3",
+      "SNMPv2u"
+    ],
+    "correct": [2],
+    "explanation": "SNMPv3 adds a user-based security model providing authentication and privacy (encryption) via the authPriv level, unlike the plaintext community strings of v1 and v2c. SNMPv1 and v2c rely on unencrypted community strings, and SNMPv2u is not the current standard security model.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A monitoring server should be alerted immediately when a router interface goes down instead of waiting for the next scheduled poll. Which SNMP mechanism delivers this device-initiated, asynchronous notification?",
+    "options": [
+      "GetRequest polling",
+      "SNMP trap",
+      "MIB walk",
+      "Community string exchange"
+    ],
+    "correct": [1],
+    "explanation": "An SNMP trap is an unsolicited message the agent sends to the manager the moment a defined event occurs, avoiding polling delay. A GetRequest and MIB walk are manager-initiated queries, and the community string is only an authentication token, not a notification method.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An analyst wants to capture and inspect all packets traversing a specific switch port using a protocol analyzer, but the analyzer is connected to a different port. Which switch feature copies the traffic to the analyzer's port?",
+    "options": [
+      "Port mirroring (SPAN)",
+      "Port security",
+      "Link aggregation (LACP)",
+      "Spanning Tree Protocol (STP)"
+    ],
+    "correct": [0],
+    "explanation": "Port mirroring, also called SPAN, copies frames from one or more source ports to a destination monitoring port so a capture tool can see the traffic. Port security restricts MAC addresses, LACP bundles links for bandwidth, and STP prevents loops, none of which duplicate traffic for analysis.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Management wants a report of the top talkers on the WAN, showing which source and destination IP pairs, ports, and protocols consume the most bandwidth over time, without storing full packet payloads. Which monitoring method is most appropriate?",
+    "options": [
+      "Full packet capture",
+      "Flow data (NetFlow/sFlow/IPFIX)",
+      "Syslog aggregation",
+      "SNMP interface polling"
+    ],
+    "correct": [1],
+    "explanation": "Flow data such as NetFlow, sFlow, or IPFIX summarizes conversations by source, destination, ports, and protocol and is ideal for bandwidth and top-talker analysis without capturing payloads. Full packet capture stores entire payloads (heavy and detailed), syslog collects event messages, and SNMP polling reports counters but not per-conversation flow detail.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A syslog server is configured to record messages at severity level 4 and more severe. Which severity level below will NOT be recorded, given that lower numeric values indicate higher severity?",
+    "options": [
+      "Level 0, Emergency",
+      "Level 2, Critical",
+      "Level 3, Error",
+      "Level 6, Informational"
+    ],
+    "correct": [3],
+    "explanation": "In syslog, severity is inverse to the number: 0 (Emergency) is most severe and 7 (Debug) least. Configuring level 4 (Warning) captures levels 0 through 4, so level 6 (Informational) is excluded, while Emergency, Critical, and Error are all more severe and are logged.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A security operations center needs to collect logs from firewalls, servers, and switches into one platform that correlates events and generates real-time alerts on suspicious patterns. Which solution provides this centralized correlation and alerting?",
+    "options": [
+      "Security information and event management (SIEM)",
+      "Network Time Protocol (NTP) server",
+      "Terminal access controller (TACACS+)",
+      "Dynamic Host Configuration Protocol (DHCP)"
+    ],
+    "correct": [0],
+    "explanation": "A SIEM aggregates logs from many sources, correlates events, and produces alerts and dashboards for security analysis. NTP synchronizes time (useful for log correlation but not correlation itself), TACACS+ handles AAA, and DHCP assigns addresses.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A business defines that in the event of a failure it can tolerate losing at most 15 minutes of transactional data. Which disaster-recovery metric expresses this maximum acceptable data loss?",
+    "options": [
+      "Recovery time objective (RTO)",
+      "Recovery point objective (RPO)",
+      "Mean time between failures (MTBF)",
+      "Mean time to repair (MTTR)"
+    ],
+    "correct": [1],
+    "explanation": "RPO defines the maximum acceptable amount of data loss measured in time, which drives backup and replication frequency. RTO is how quickly service must be restored, MTBF predicts reliability between failures, and MTTR estimates average repair duration.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A recovery plan states that a critical application must be restored and operational within 2 hours of an outage. Which metric is being specified?",
+    "options": [
+      "Recovery point objective (RPO)",
+      "Recovery time objective (RTO)",
+      "Mean time between failures (MTBF)",
+      "Service-level agreement (SLA)"
+    ],
+    "correct": [1],
+    "explanation": "RTO is the target maximum time to restore a service or system after a disruption. RPO measures tolerable data loss, MTBF is a reliability average between failures, and an SLA is the broader service contract that may reference RTO but is not the metric itself.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A reliability engineer reports that a hardware component averages 100,000 hours of operation before it fails. Which metric does this describe?",
+    "options": [
+      "Mean time to repair (MTTR)",
+      "Mean time between failures (MTBF)",
+      "Recovery time objective (RTO)",
+      "Recovery point objective (RPO)"
+    ],
+    "correct": [1],
+    "explanation": "MTBF is the average operating time between failures of a repairable system and is a measure of expected reliability. MTTR measures how long repairs take, while RTO and RPO are disaster-recovery planning targets for restoration time and data loss.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An organization contracts a recovery facility that has power, cooling, network, racks, and fully installed equipment with near-real-time data replication, enabling failover in minutes. Which type of DR site is this?",
+    "options": [
+      "Cold site",
+      "Warm site",
+      "Hot site",
+      "Mobile site"
+    ],
+    "correct": [2],
+    "explanation": "A hot site is fully equipped and continuously synchronized so operations can resume almost immediately, at the highest cost. A cold site provides only space and utilities, and a warm site has some hardware and connectivity but needs data restoration and setup before it can take over.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Two firewalls are deployed so that both simultaneously pass traffic and share the load, and if one fails the other absorbs the full load. Which high-availability approach is this?",
+    "options": [
+      "Active-passive",
+      "Active-active",
+      "Cold standby",
+      "Round-robin DNS"
+    ],
+    "correct": [1],
+    "explanation": "In an active-active design, all nodes handle traffic concurrently and provide both load sharing and redundancy. Active-passive keeps a standby node idle until failover, cold standby requires manual startup, and round-robin DNS is a name-based load-distribution technique, not a stateful HA pair.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Clients on VLAN 20 are not receiving IP addresses because the DHCP server sits on a different subnet and broadcasts do not cross the router. Which configuration on the router's VLAN 20 interface resolves this?",
+    "options": [
+      "DHCP exclusion range",
+      "DHCP relay (IP helper address)",
+      "Shorter DHCP lease time",
+      "SLAAC",
+      "Static ARP entry"
+    ],
+    "correct": [1],
+    "explanation": "A DHCP relay, configured with an IP helper address, forwards clients' broadcast DHCP requests as unicast to a DHCP server on another subnet. Exclusions and lease time only tune an existing scope, SLAAC is an IPv6 autoconfiguration method, and a static ARP entry does not forward DHCP.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A mail administrator troubleshooting inbound delivery needs the DNS record that maps an IP address back to a hostname, which many mail servers verify to reduce spam. Which record type performs this reverse lookup?",
+    "options": [
+      "A record",
+      "CNAME record",
+      "PTR record",
+      "MX record"
+    ],
+    "correct": [2],
+    "explanation": "A PTR (pointer) record maps an IP address to a hostname and is used for reverse DNS lookups that mail servers check for legitimacy. An A record maps a name to an IPv4 address, a CNAME is an alias, and an MX record identifies mail exchangers, all of which are forward or routing records.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An administrator wants to combat email spoofing by publishing authentication and policy information in DNS. Which TWO of the following email-security mechanisms are commonly implemented as DNS TXT records? (Choose two.)",
+    "options": [
+      "SPF (Sender Policy Framework)",
+      "MX (Mail Exchange)",
+      "DKIM (DomainKeys Identified Mail)",
+      "PTR (Pointer)"
+    ],
+    "correct": [0, 2],
+    "explanation": "SPF and DKIM (along with DMARC) are published as TXT records that receiving servers query to validate a sender's authorization and message signatures. An MX record is its own record type identifying mail servers, and a PTR record is a reverse-lookup record, neither of which is a TXT record.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "For accurate log correlation and time-sensitive authentication such as Kerberos, all network devices must share a synchronized, accurate clock. Which protocol is designed to provide this time synchronization?",
+    "options": [
+      "Network Time Protocol (NTP)",
+      "Simple Network Management Protocol (SNMP)",
+      "Lightweight Directory Access Protocol (LDAP)",
+      "Trivial File Transfer Protocol (TFTP)"
+    ],
+    "correct": [0],
+    "explanation": "NTP synchronizes clocks across devices to a common reference, which is essential for correlating logs and for protocols with tight timing tolerances. SNMP monitors devices, LDAP provides directory services, and TFTP transfers files, none of which distribute time.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A network engineer needs to manage a data-center switch even when the production network is completely down, using a dedicated path that does not rely on the data-carrying network. Which access method meets this requirement?",
+    "options": [
+      "In-band management over SSH to the switch SVI",
+      "Out-of-band management via a console or dedicated management port",
+      "Clientless SSL VPN through the firewall",
+      "API access through the production VLAN"
+    ],
+    "correct": [1],
+    "explanation": "Out-of-band management uses a separate path, such as a console connection or a dedicated management port or modem, so the device is reachable even when the production network fails. In-band SSH, a VPN, and API access all traverse the production network and would be unreachable during that outage.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An organization requires administrators to first connect to a single hardened, logged host and then hop from it to sensitive internal servers, concentrating and auditing all administrative access. What is this intermediary host called?",
+    "options": [
+      "Jump box (jump host)",
+      "Default gateway",
+      "Proxy ARP responder",
+      "Captive portal"
+    ],
+    "correct": [0],
+    "explanation": "A jump box is a hardened, monitored host that administrators connect through to reach protected systems, centralizing and logging privileged access. A default gateway routes off-subnet traffic, proxy ARP answers ARP on behalf of hosts, and a captive portal is a pre-authentication web gate for guest access.",
+    "difficulty": "MEDIUM"
+  }
+]

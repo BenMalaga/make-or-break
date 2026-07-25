@@ -1,0 +1,288 @@
+---
+title: What a Backend Is
+module: backends-and-apis
+moduleTitle: Backends and APIs
+moduleOrder: 3
+moduleIcon: Webhook
+order: 1
+summary: "The frontend is visible to anyone who opens dev tools, so it can't be trusted with data, rules, or secrets. That's why every app needs a backend."
+estimatedMinutes: 14
+prerequisites: [how-the-web-works]
+objectives:
+  - Explain why code running in a browser can never hold a secret or be trusted as the source of truth
+  - Name the three jobs a backend does that a frontend cannot
+  - Describe why a modern app exposes one API instead of separate logic per client
+  - Trace a real client request to an API endpoint and read the JSON response it returns
+tags:
+  - backend
+  - apis
+---
+
+The previous lesson traced one round trip: a browser sends an HTTP request, a
+server sends back HTML, and the browser draws the page. That lesson stopped at
+the edge of the server without asking what is actually running there. A file
+sitting on disk can answer a request for a static page. Almost nothing else a
+person actually wants from an app works that way. A shopping cart, a login
+screen, a leaderboard, a "like" button: all of it needs a program on the other
+end that thinks, checks, and remembers. That program is the backend, and this
+lesson is about what it does and why an app cannot skip it.
+
+## The frontend can't be trusted with anything
+
+Start with the part of an app a person can actually see: the HTML, CSS, and
+JavaScript that run inside a browser. That code is called the frontend. It
+draws the buttons, runs the animations, and reacts to clicks. It is also, and
+this is the part that surprises people building their first real app,
+completely visible to whoever is looking at it.
+
+Open any website, right-click, and choose "Inspect" or "View Page Source,"
+and every line of HTML and CSS sent to that browser is right there to read.
+Open the Sources or Debugger panel in the browser's developer tools and every
+line of JavaScript is sitting in plain text too, ready to be read, copied, or
+edited on the spot. Nothing about the frontend is hidden. It cannot be hidden,
+because the whole point of a frontend is that a browser downloads it and runs
+it locally. Downloading it and running it locally is exactly what lets
+someone read it.
+
+That single fact rules out an entire category of design mistakes before they
+happen. Say a shopping app charges $19.99 for a shirt, and that price is
+written into a line of JavaScript: `const price = 19.99;`. Anyone who opens
+developer tools can find that line, change it to `const price = 0.01;` in the
+browser's memory, and click "Buy." If nothing else checks the price, the app
+just sold a shirt for a penny. The bug is not that someone was clever. The
+bug is that the price lived somewhere the customer's own browser controlled.
+
+The same logic applies to permissions. Say an admin dashboard shows a
+"Delete User" button only when a variable called `isAdmin` is `true`. If that
+variable and that check live entirely in the frontend, then any visitor can
+open the console, type `isAdmin = true`, and watch the button appear. The
+button was never actually protected. It was only ever hidden, and hiding
+something in code that ships to the browser is not the same as protecting
+it. A determined visitor does not even need to be that determined; browser
+extensions exist that flip variables and inspect network traffic for anyone
+who wants to try.
+
+None of this means frontend code is sloppy or the people writing it did
+something wrong. It means the frontend is playing a role it was never built
+to fill. Its job is presentation and interaction: draw the page, take input,
+show feedback quickly, feel responsive under a person's fingers. It is not
+built to guard a secret, because anything sent to a browser is, by
+definition, sent to whoever is running that browser. A frontend can suggest,
+display, and format. It cannot decide anything that must actually hold, and
+it cannot keep a password, a key, or a real price to itself.
+
+<Quiz
+  id="frontend-cannot-hold-secret"
+  question="A checkout page stores the price of an item in a JavaScript variable that runs in the browser. Why is that a security problem even if the page looks correct on screen?"
+  answer={2}
+  options={[
+    "JavaScript variables are slower than server-side variables, which makes checkout feel laggy.",
+    "Browsers delete JavaScript variables randomly, so the price might disappear before checkout finishes.",
+    "Anyone can open developer tools, read that variable, and change it before the purchase is submitted, since all frontend code is visible and editable on the device running it.",
+    "JavaScript cannot store numbers with two decimal places, so the price will always round incorrectly.",
+  ]}
+  explanation="Frontend code runs entirely inside the visitor's browser, which means the visitor's browser is the one holding it. Anything stored or decided there, including a price, can be read and edited by whoever is running that browser. The fix is to keep the real price on a server the developer controls and check it there before completing the sale."
+/>
+
+## Where the real answers live
+
+If the frontend cannot be trusted with data, rules, or secrets, something
+else has to hold them. That something is the backend: the code that runs on
+a server the developer controls, not on the visitor's device. The person
+building the app decides what runs there, deploys it to a machine or a cloud
+platform they manage, and nobody outside the company can open developer
+tools and read it. A visitor's browser only ever sees what the backend
+chooses to send back, and it never sees the code that produced it.
+
+That difference in location is the whole reason a backend exists. It is not
+about doing "harder" computation or being more sophisticated code; a lot of
+backend logic is genuinely simple. It is about doing that logic somewhere
+the requester cannot see or edit. A backend can hold the real prices, the
+real inventory counts, the real record of who paid for what, and none of it
+is visible to anyone poking around in a browser, because a browser never
+downloads a backend's source code. It only receives whatever data the
+backend decides to hand over, in response to a request.
+
+Three jobs fall to the backend precisely because they cannot safely fall to
+anyone else.
+
+The first is storing and retrieving data safely. Orders, accounts,
+messages, uploaded files: all of it needs a permanent home that survives a
+browser tab closing, a phone restarting, or a person switching from a laptop
+to a tablet mid-session. That home is usually a database, sitting behind the
+backend, reachable only by the backend's own code. A browser never talks to
+a database directly. It asks the backend for data, and the backend decides
+what to fetch and what to hand back.
+
+The second is enforcing rules the requester cannot be trusted to enforce.
+"This item cannot go below zero in stock." "A user can only see their own
+order history, not anyone else's." "A coupon code only works once per
+account." Every one of those rules has to be checked by code the requester
+does not control, or the rule is not really a rule. A frontend can show a
+friendly message when a check fails, but the check itself, the one that
+actually decides yes or no, has to run on the backend.
+
+The third is keeping secrets. Database passwords, payment processor keys,
+third-party API keys, the private key used to sign a login token: none of
+that can ever ship to a browser, because shipping it to a browser is
+identical to publishing it. A backend holds those secrets in its own
+environment, often as environment variables set on the server rather than
+written into any file a browser could ever request, and uses them on the
+requester's behalf without ever revealing them. When a checkout page charges
+a card, the browser never sees the payment processor's secret key. The
+backend does.
+
+Put those three together and a pattern falls out: anything that has to be
+true, has to stay private, or has to be checked against something the
+requester does not control, belongs on the backend. Anything that is just
+about how a page looks or feels belongs on the frontend. Most real bugs
+around trust and security in an app trace back to one of those three jobs
+being done, even partly, on the wrong side of that line.
+
+<Quiz
+  id="three-backend-jobs"
+  question="An app lets a user redeem a coupon code that should only work once per account. Where does the check that blocks a second redemption have to run, and why?"
+  answer={0}
+  options={[
+    "On the backend, because it is a rule the client cannot be trusted to enforce; a browser could just skip or fake the check if it ran there.",
+    "On the frontend, because checking coupon codes is a presentation concern like showing a success message.",
+    "It does not matter which side runs the check, as long as the coupon code itself is complicated to guess.",
+    "On the backend only if the app also stores user passwords, otherwise the frontend is fine.",
+  ]}
+  explanation="A rule that must actually hold, like one redemption per account, has to be enforced by code the requester cannot edit or bypass. That is the backend. The frontend can hide the coupon box after a successful redemption for a nicer experience, but the real block against redeeming twice has to live where the visitor cannot rewrite it."
+/>
+
+## One backend, many clients, and the API in between
+
+Ten years ago it was common for a company to build one backend that rendered
+web pages and stopped there. The mobile app, if there was one, often talked
+to its own separate set of server logic, sometimes written by a different
+team, sometimes duplicating rules that already existed on the web side. That
+setup meant two places to fix the same bug and two places for the rules to
+quietly drift apart.
+
+The shape that replaced it is simpler and it is now the default: one backend
+exposes an API, and every client, web, mobile, another company's server,
+talks to that same API. An API, short for application programming
+interface, is a defined set of endpoints, meaning specific addresses a
+program can send requests to, along with the rules for what each one expects
+and returns. A website's frontend calls the API to load a user's data. A
+phone app calls the exact same API to load the exact same data. If a
+third-party partner needs to plug into the system, it calls the API too. The
+business rules, the database access, the secrets: all of it lives in one
+place, checked once, correct everywhere it is used.
+
+This is why "backend" and "API" have become almost the same conversation.
+Plenty of modern backends do not render any HTML pages at all. Their entire
+output is JSON, a plain-text data format built from the same braces and
+brackets used in JavaScript objects, sent in response to API requests. The
+frontend, whether it is a website built with React or a native app built for
+iOS, takes that JSON and decides how to display it. The backend does not
+care what the display looks like. It cares about returning correct data to
+whoever asked, correctly, and only to those allowed to have it.
+
+A concrete example makes the shape clear. Say a bookstore app needs a list
+of books to show on a shelf page. The frontend, running in a browser, sends
+a request to the backend's API at an address like
+`GET https://api.example.com/books`. The backend receives that request,
+queries its database for the current list of books, and sends back a
+response. That response is not HTML. It is JSON:
+
+```json
+[
+  { "id": 1, "title": "Clean Code", "price": 34.99, "inStock": true },
+  { "id": 2, "title": "The Pragmatic Programmer", "price": 29.99, "inStock": false }
+]
+```
+
+The frontend receives that JSON and decides what to do with it: render two
+book cards, gray out the one marked out of stock, format the prices with a
+dollar sign. None of that display logic lives on the backend, and none of
+the actual data, the real prices, the real stock counts, lives in the
+frontend's code. Each side does its own job. A mobile app built for the same
+bookstore would send the identical request to the identical address and get
+back the identical JSON, then draw its own native-looking list from it.
+Same backend, same rules, same data, two completely different-looking
+screens.
+
+A modern backend written in Python often uses a framework called FastAPI for
+exactly this kind of work. FastAPI leans on Python's type hints, meaning a
+function signature states directly what type each piece of data is expected
+to be, and it turns those hints into automatic, always-current documentation
+for the API. A tiny version of the books endpoint above might look like
+this:
+
+```python
+from fastapi import FastAPI
+
+app = FastAPI()
+
+books = [
+    {"id": 1, "title": "Clean Code", "price": 34.99, "inStock": True},
+    {"id": 2, "title": "The Pragmatic Programmer", "price": 29.99, "inStock": False},
+]
+
+@app.get("/books")
+def get_books() -> list[dict]:
+    return books
+```
+
+That function is the whole backend logic for this one endpoint: when a
+`GET` request lands at `/books`, hand back the list. In a real app, the list
+would come from a database instead of a fixed list sitting in the file, and
+the function would very likely check who is asking before deciding what to
+send back. But the shape is the same shape as the bookstore example: one
+piece of backend code, one API endpoint, and any client that speaks HTTP can
+call it and get the same trustworthy answer.
+
+<Quiz
+  id="one-api-many-clients"
+  question="A company has a website and a mobile app that both need to show the same list of books with the same prices. What is the modern reason to build one backend API instead of separate server logic for each client?"
+  answer={3}
+  options={[
+    "Mobile apps cannot send HTTP requests, so they need a different kind of server entirely.",
+    "JSON only works with websites, so the mobile app needs its data in a different format.",
+    "Separate logic per client is required because a phone screen and a browser window are different sizes.",
+    "One shared API means the business rules and data access are written and checked once, so the website and the app cannot drift into showing different prices or enforcing different rules.",
+  ]}
+  explanation="Mobile apps speak HTTP and can call the same API endpoints a browser calls. Splitting the backend logic per client means the same rule, like a price or a stock check, has to be written and kept correct in two or more places, which is exactly how two clients end up disagreeing. One API serving every client keeps the source of truth singular."
+/>
+
+<Callout type="warning" title="A hidden button is not a locked door">
+It is tempting to think that removing a button from the page removes the
+feature. It does not. If an admin-only action is reachable by calling the
+API directly, meaning sending the same request a browser would send but
+from a script or a tool instead of by clicking anything, then hiding the
+button in the frontend changes nothing about who can actually perform that
+action. The check has to happen on the backend, every time that endpoint is
+called, regardless of what the frontend shows or hides. Removing a button
+is a UI decision. Blocking an action is a backend decision, and they are not
+the same decision.
+</Callout>
+
+<Exercise title="Find an API call in the wild">
+Open a website that clearly loads data after the page first appears, a news
+site with a "load more" button, a social feed, or a store with a product
+list works well. Open developer tools and switch to the Network tab, then
+trigger the action that loads more data, like scrolling down or clicking
+"load more."
+
+Look through the list of requests that appear for one that returns data
+formatted as JSON rather than an HTML page; many browsers label these
+requests "fetch" or "xhr." Click on it and look at the response. It should
+look like the book list above: curly braces, square brackets, field names,
+and values, not a page of markup.
+
+That request came from the frontend calling a backend API, the same pattern
+this lesson walked through, running on a real, live site.
+</Exercise>
+
+The three jobs covered here, holding data safely, enforcing rules, and
+keeping secrets, only matter if a client and a backend can actually agree on
+how to phrase a request and how to read an answer. `GET /books` worked in
+the bookstore example because both sides already knew what `GET` meant and
+what a successful reply looks like. That shared vocabulary, the exact verbs
+a client uses to ask for something and the exact codes a backend uses to
+say what happened, is the subject the next lesson takes on directly.
+
+<Notes />

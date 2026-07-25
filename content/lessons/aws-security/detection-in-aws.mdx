@@ -1,0 +1,82 @@
+---
+title: Detection in AWS
+module: aws-security
+moduleTitle: AWS Security
+moduleOrder: 30
+moduleIcon: CloudCog
+order: 5
+summary: Every API call is logged. The defender who reads CloudTrail wins.
+estimatedMinutes: 20
+objectives:
+  - Read a CloudTrail event and pull the fields that name an attacker
+  - Know what GuardDuty catches for free and what it misses
+  - Write the detections that fire on the exact actions from the attack lessons
+tags:
+  - aws
+  - cloudtrail
+  - guardduty
+  - detection
+  - blue-team
+---
+
+Here is the fact that flips the whole module: in AWS, every action is an API call, and CloudTrail records nearly all of them. When an attacker runs `aws s3 ls` or creates an access key or assumes a role, a JSON event lands in a log with their identity, their source IP, the exact API called, and whether it succeeded. The offense in the earlier lessons is loud by design. The defense is knowing how to read the noise.
+
+CloudTrail is on by default for management events, and it keeps 90 days of history you can query without any setup. For real detection you create a trail that ships events to an S3 bucket and, ideally, to CloudWatch Logs so you can alarm on them. The single field that matters most in every event is `eventName`, the API call, paired with `userIdentity` and `sourceIPAddress`.
+
+<CommandBlock
+  title="pull recent events from CloudTrail"
+  commands={[
+    { cmd: "aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=CreateAccessKey --max-results 10", comment: "every CreateAccessKey call, the classic privesc signature" },
+    { cmd: "aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRole --max-results 20", comment: "who is assuming which roles" },
+    { cmd: "aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=deploy-bot", comment: "everything a specific identity did" },
+  ]}
+/>
+
+An event you should be able to read on sight looks like this, trimmed to what matters:
+
+<ExpectedOutput label="a CreateAccessKey event, trimmed">
+
+```json
+{
+  "eventName": "CreateAccessKey",
+  "userIdentity": { "type": "IAMUser", "userName": "deploy-bot" },
+  "sourceIPAddress": "203.0.113.55",
+  "requestParameters": { "userName": "admin" },
+  "responseElements": { "accessKey": { "accessKeyId": "AKIA..." } }
+}
+```
+
+</ExpectedOutput>
+
+Read it out loud. The user deploy-bot created an access key for the user admin, from an IP that is not in your office range. That is the privesc from lesson two, caught in one event. A legitimate admin almost never does this, which is exactly why it makes a clean alarm.
+
+## GuardDuty does the pattern matching
+
+You will not write every detection by hand. GuardDuty is Amazon's managed threat detector: turn it on and it reads CloudTrail, VPC Flow Logs, and DNS logs, then scores anomalies with no rules from you. It flags credential use from a Tor exit node, an EC2 instance talking to a known crypto-mining pool, and API calls from an IP that never appears for this account.
+
+<CommandCard command="aws guardduty list-findings --detector-id abcd1234" explain="Returns finding IDs; pair with get-findings to read the details. GuardDuty finding types like UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration name the exact behavior, such as instance-role creds being used off-instance." />
+
+The finding type worth memorizing is `InstanceCredentialExfiltration`. It fires when credentials tied to an EC2 role, the ones you can pull from IMDS, get used from an IP outside AWS. That is the SSRF-to-metadata attack from lesson one, detected. GuardDuty catching it is the reason that attack is not free.
+
+Know its limits too. GuardDuty is anomaly and threat-intel based, so a slow, quiet attacker using expected IPs and normal-looking calls can slide under it. It does not read the contents of your S3 objects, and it will not tell you a bucket policy is wrong. It catches behavior, not misconfiguration. Pair it with Config and Access Analyzer for the config side.
+
+<Callout type="security" title="Detection is a control you must be cleared to touch">
+Reading CloudTrail and GuardDuty in an account you defend is your job. Doing it in an account you do not own is not. On a red-team engagement, disabling CloudTrail or GuardDuty is itself a high-signal action, logged as StopLogging or DeleteDetector, and it belongs only in an authorized scope with the blue team briefed. Tampering with logging in a client account without written approval crosses a legal line.
+</Callout>
+
+The detections that actually earn their keep map straight to the attack lessons. Alarm on `CreateAccessKey` and `AttachUserPolicy` because privesc runs through them. Alarm on `StopLogging`, `DeleteTrail`, and `PutBucketPolicy` on your log bucket because that is an attacker blinding you. Alarm on `GetSecretValue` spikes and on any use of the root account, which should be close to never. Build those five and you catch most of what the earlier lessons taught.
+
+<Quiz
+  id="detect-stoplogging"
+  question="Your CloudWatch alarm fires on a CloudTrail StopLogging event from an IAM user. Why is this one of the highest-priority alerts you can build?"
+  answer={2}
+  options={[
+    "StopLogging deletes all existing logs immediately",
+    "It always means the account has already been fully compromised",
+    "An attacker disabling CloudTrail is trying to go dark, so this is often the last event you will see before they act unseen",
+    "It signals AWS is performing maintenance on the account",
+  ]}
+  explanation="StopLogging turns off the trail that records everything else. An attacker runs it to blind you before the noisy part of their operation. Because it may be the last thing you can see, it deserves an immediate, high-severity page. It does not delete old logs, but it stops new ones."
+/>
+
+<Notes />

@@ -1,0 +1,67 @@
+---
+title: A Real Testing Workflow
+module: burp-suite
+moduleTitle: Burp Suite
+moduleOrder: 16
+moduleIcon: Bug
+order: 4
+summary: Watch how a tester drives Burp from scope all the way to a written finding.
+estimatedMinutes: 18
+objectives:
+  - Sequence a web test from scope to map to probe to exploit
+  - Move a request fluidly between history, Repeater, and Intruder
+  - Keep notes that survive into the report
+tags:
+  - web
+  - burp
+  - methodology
+---
+
+You've got a scoped web app, credentials for two low-privilege accounts, and a week. Individual tools you already know. What separates a productive test from flailing is the order you use them in. Here's the loop a working tester runs.
+
+## Scope, then map
+
+Add the host under Target > Scope and turn on "show only in-scope items". Log in as user A and click everything: every menu, every form, every filter, the profile page, the export button. You're feeding the site map and HTTP history with real requests. Ten minutes of thorough browsing beats an hour of guessing later.
+
+## Read the history like a hunter
+
+Open Proxy > HTTP history and cut the noise. Use the Filter bar to hide images, CSS, and JS so you're left with the requests that carry data. Now scan for anything you control: an `id`, a `price`, a `role`, a `filename`, a token, an account number. Those parameters are where access-control and injection bugs live. Sort by URL to group endpoints and spot the ones that take input.
+
+## Probe in Repeater
+
+Found a juicy one? Send it to Repeater with Ctrl+R and start tampering, one field at a time. Flip `id=1001` to `id=1002`. If user A's session hands back user B's record, that's a broken object-level access control bug (IDOR). Change `role=user` to `role=admin`. Add a single quote to a parameter and watch for a database error that screams SQL injection.
+
+## Prove it with a second account
+
+A record coming back for `id=1002` means nothing until you show it isn't just user A's own data. This is where the second account earns its keep. Log in as user B in a separate browser, grab B's genuine object id, then from A's Repeater session request that exact id. Cross-account access, one user reading another user's data, is the cleanest way to turn a hunch into a confirmed finding.
+
+## Scale a single win with Intruder
+
+One IDOR at `id=1002` is a bug. Proving the whole range leaks is a severity multiplier. Send the request to Intruder, choose Sniper, set the position on the id, load a Numbers payload from 1000 to 2000, and run it. Sort by response length and count how many objects come back that shouldn't. Now your report says "enumerable across 800 accounts", not "one record."
+
+## Decode and compare when your eyes fail
+
+Base64 or URL-encoded token you need to read? Paste it into Decoder. Two near-identical responses you can't eyeball the difference between, like a valid login versus a subtly different failure? Send both to Comparer and let it highlight the delta. Small tools, but they save you from squinting at hex.
+
+<Callout type="tip" title="Write the finding while it's hot">
+The mistake juniors make is testing for three hours, then trying to reconstruct what they did. Don't. The moment a probe works, save the request and response to your notes and write the repro steps immediately. Right-click the item and copy it to a file, record the exact request, the exact response, and the steps to reproduce. Cold findings rot, and a bug you cannot reproduce is a bug you cannot report.
+</Callout>
+
+<Callout type="security" title="Authorized targets only">
+This whole loop sends tampered, enumerating, and fuzzing traffic at a live app. Run it exclusively against systems named in your written authorization, and stay inside the agreed scope the entire time.
+</Callout>
+
+<Quiz
+  id="prove-idor"
+  question="In Repeater, changing id=1001 to id=1002 returns another record. What's the fastest way to prove it's a real access-control flaw and not just your own data?"
+  answer={1}
+  options={[
+    "Run the automated active scanner against the endpoint",
+    "Log in as a second user, get that user's real object id, and request it from the first user's session",
+    "Change role=user to role=admin in the same request",
+    "Send the request to Intruder and fuzz the id",
+  ]}
+  explanation="Cross-account access is the proof: pull a second user's genuine id and successfully read it from the first user's session. Intruder scales the finding after it's confirmed, and the role change tests a different bug entirely."
+/>
+
+<Notes />

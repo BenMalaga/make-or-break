@@ -1,0 +1,188 @@
+---
+title: "GeoPandas: Spatial Data as Code"
+module: gis-python
+moduleTitle: GIS Programming with Python
+moduleOrder: 4
+moduleIcon: FileCode
+order: 1
+summary: "GeoPandas turns a table of shapely geometries and their attributes into one object, so a spatial filter is a single line of pandas code instead of a new tool to learn."
+estimatedMinutes: 15
+prerequisites: ["density-and-interpolation"]
+objectives:
+  - Explain what a GeoDataFrame adds to an ordinary pandas DataFrame
+  - Read a vector file with gpd.read_file and inspect its geometry, CRS, and shape
+  - Filter a GeoDataFrame's rows with the same boolean indexing pandas uses on any table
+  - Write a filtered GeoDataFrame back out to a GeoPackage with to_file
+tags:
+  - gis
+  - python
+  - geopandas
+---
+
+The previous lesson turned scattered point measurements into a continuous surface, estimating a value everywhere between the samples instead of only where a sensor happened to sit. That surface came from real spatial computation running in code: coordinates and numbers turned into a grid of estimates. This lesson steps back from the analysis itself and looks at the object that has been carrying every one of those coordinates and numbers around the whole time: a table with a geometry column, and the library that makes such a table behave like ordinary Python data instead of a specialized file format only a dedicated GIS program can open.
+
+## A table that already knows where things are
+
+Pandas, a widely used Python library for tabular data, stores rows and columns in a structure called a DataFrame. It looks like a spreadsheet opened in code: one row per record, one column per field, each column holding one kind of value. A pandas DataFrame has no idea about location. A column named "lat" or "shape" is just a number or a string to it, no different from a column named "price."
+
+GeoPandas is a second library, built directly on top of pandas, that adds exactly one structural idea. A GeoDataFrame is a DataFrame with one special column, named geometry by convention, whose cells hold actual shapely geometry objects: points, lines, and polygons, the same kind of object used directly when building or measuring a shape by hand. Every other column in a GeoDataFrame behaves exactly like it does in plain pandas: filter it, sort it, group it, add a new column to it, all with the same syntax. GeoPandas did not invent a new kind of table. It took the tool most Python programmers already reach for and taught one column how to hold a place instead of a plain value.
+
+That single addition is worth sitting with, because it explains almost everything that follows in this lesson. Reading a file, inspecting a table, filtering rows, saving a result: all of it is pandas underneath, with one column that happens to carry a shape instead of a number.
+
+## Reading a file with read_file
+
+GeoPandas opens vector data with one function, `gpd.read_file`, regardless of the file format on disk. It reads GeoJSON, a plain text format that stores coordinates as longitude and latitude in that order and assumes the WGS84 coordinate reference system, the global agreement about what a coordinate number means on the round Earth. It reads GeoPackage, a single file built on SQLite that can hold many layers, large attribute tables, and long field names without complaint. It also reads the older Shapefile format, which is not one file but a bundle of at least three (.shp for geometry, .dbf for attributes, .shx for an index) that all have to sit in the same folder and share a name, plus a 10 character limit on column names that quietly truncates anything longer.
+
+```python
+import geopandas as gpd
+
+cities = gpd.read_file("cities.gpkg")
+print(cities.head())
+```
+
+<ExpectedOutput label="the first five rows, geometry column included">
+```
+          name     country   pop_est                     geometry
+0        Tokyo       Japan  37400000  POINT (139.6917 35.6895)
+1        Delhi       India  30291000   POINT (77.1025 28.7041)
+2     Shanghai       China  27058000  POINT (121.4737 31.2304)
+3    Sao Paulo      Brazil  22043000  POINT (-46.6333 -23.5505)
+4  Mexico City      Mexico  21782000   POINT (-99.1332 19.4326)
+```
+</ExpectedOutput>
+
+`.head()` is the same pandas method it has always been, showing the first five rows so a quick check does not scroll past a table with thousands of records. The only new thing on screen is the geometry column, printed as WKT, short for well known text, a plain text way of writing a shape: `POINT (139.6917 35.6895)` is one point at that longitude and latitude. GeoPandas prints geometry this way so it stays readable in a terminal, but the values sitting in that column are real shapely Point objects, not strings, ready for measurement and comparison the moment code asks for one.
+
+<Callout type="info" title="One file beats four">
+GeoJSON is fine for something small enough to read in a text editor, and Shapefile still shows up because decades of government and utility data were shipped that way. For anything new, GeoPackage is the better default: one file, no name-length limit on columns, and no risk of copying the .shp without its .dbf and quietly losing every attribute.
+</Callout>
+
+Two more properties round out a first look at any GeoDataFrame. `.shape` reports the size, rows first and columns second, exactly as it does on a plain pandas DataFrame:
+
+```python
+print(cities.shape)
+```
+
+<ExpectedOutput label="row count, then column count">
+```
+(247, 3)
+```
+</ExpectedOutput>
+
+`.crs` reports the coordinate reference system attached to the whole table, not to any one row. Every geometry in a GeoDataFrame is assumed to share one CRS, so GeoPandas stores it once at the table level instead of repeating it in every cell.
+
+```python
+print(cities.crs)
+```
+
+<ExpectedOutput label="the coordinate reference system, trimmed to the two lines that matter">
+```
+<Geographic 2D CRS: EPSG:4326>
+Name: WGS 84
+```
+</ExpectedOutput>
+
+EPSG:4326 is the code for WGS84 in longitude and latitude degrees, the same system GeoJSON assumes and the one most raw location data arrives in. Seeing that code confirms the coordinates in this table are ordinary lon and lat, not something already projected into meters.
+
+The geometry column can also be pulled out on its own with `.geometry`, which returns a GeoSeries, the geometry-only equivalent of a plain pandas Series:
+
+```python
+print(cities.geometry.head())
+```
+
+<ExpectedOutput label="just the shapes, no other columns">
+```
+0    POINT (139.6917 35.6895)
+1     POINT (77.1025 28.7041)
+2    POINT (121.4737 31.2304)
+3    POINT (-46.6333 -23.5505)
+4     POINT (-99.1332 19.4326)
+Name: geometry, dtype: geometry
+```
+</ExpectedOutput>
+
+And when a quick visual check beats reading rows of coordinates, `.plot()` draws the geometry with a couple of lines and no separate charting setup:
+
+```python
+cities.plot(markersize=5)
+```
+
+That single call opens a matplotlib figure with a dot at every point in the table, styled by whatever column keywords are passed in, useful for a fast sanity check on whether a filter or a join did what it was supposed to before moving on to real analysis.
+
+<Quiz
+  id="geopandas-what-is-different"
+  question="A GeoDataFrame and a pandas DataFrame both have rows, columns, and a .head() method. What actually makes the GeoDataFrame spatial?"
+  answer={2}
+  options={[
+    "GeoDataFrames store their rows in a different order than DataFrames do.",
+    "GeoDataFrames cannot hold text columns, only coordinates.",
+    "A GeoDataFrame has a geometry column whose cells hold real shapely objects, which the rest of the table's columns behave exactly like plain pandas.",
+    "GeoDataFrames are stored on disk as GeoPackage files no matter how they were read.",
+  ]}
+  explanation="The one structural difference is the geometry column: its cells are shapely Point, LineString, or Polygon objects rather than plain values. Every other column, and operations like filtering and sorting, work exactly the same as plain pandas. Row order and text columns are unaffected, and a GeoDataFrame's in-memory structure has nothing to do with which file format it happened to be read from."
+/>
+
+## Filtering rows the way pandas always has
+
+Nothing changes about filtering once the file is loaded. A GeoDataFrame accepts the same boolean indexing any pandas DataFrame does: put a condition inside square brackets, and only the rows where that condition is true come back.
+
+```python
+big_cities = cities[cities["pop_est"] > 30_000_000]
+print(big_cities[["name", "pop_est"]])
+```
+
+<ExpectedOutput label="only the rows where pop_est clears thirty million">
+```
+    name   pop_est
+0  Tokyo  37400000
+1  Delhi  30291000
+```
+</ExpectedOutput>
+
+`cities["pop_est"] > 30_000_000` builds a column of True and False values, one per row, and wrapping that inside `cities[...]` keeps only the rows marked True. Shanghai, Sao Paulo, and Mexico City all sit under the 30 million line, so they drop out along with their geometry. That last part matters: filtering never touches geometry as a separate step. A row that fails the condition takes its point, its line, or its polygon with it when it goes, because geometry is just another column riding along on the same row.
+
+This is what "GeoPandas is pandas plus geometry" means in practice, not as a slogan but as a fact about the code. An analyst who already knows how to filter a plain DataFrame by population, by zoning code, or by inspection date already knows how to filter a GeoDataFrame by any of its attribute columns. Nothing new to learn there, which is exactly the point of building GeoPandas on top of pandas instead of writing a separate spatial query language.
+
+<Callout type="warning" title="Degrees are not meters">
+A common mistake is calling `.area` or `.length` directly on a GeoDataFrame still sitting in EPSG:4326. The math runs without error and returns a number, but that number is in square degrees or degrees, not square meters or meters, because degrees of longitude do not cover the same ground distance near the equator as they do near a pole. Reproject to a metric coordinate reference system, typically a UTM zone or a national grid, before measuring size or distance. Filtering by an attribute like population never runs into this, since it never touches geometry math at all, but any lesson from here on that measures area or length will.
+</Callout>
+
+<Quiz
+  id="geopandas-filter-drops-geometry"
+  question="After filtering cities down to big_cities with cities[cities[&quot;pop_est&quot;] > 30_000_000], what happens to Shanghai's point geometry?"
+  answer={1}
+  options={[
+    "It stays in big_cities but gets flagged as excluded rather than removed.",
+    "It is dropped along with the rest of Shanghai's row, since filtering keeps or removes whole rows and geometry is just one of that row's columns.",
+    "GeoPandas recalculates it into a different coordinate reference system automatically.",
+    "It moves into a separate geometry-only table that has to be merged back in later.",
+  ]}
+  explanation="Filtering operates on whole rows. Since Shanghai's population fails the condition, its entire row, attributes and geometry together, is left out of big_cities. Geometry gets no special treatment during a filter; it is not flagged, reprojected, or split off, it simply leaves with the rest of the row it belongs to."
+/>
+
+## Writing the result back out
+
+A GeoDataFrame that has been filtered, joined, or reprojected is only useful once it can be saved somewhere else can open it. `.to_file()` writes a GeoDataFrame to disk, and the `driver` argument picks the format: `"GPKG"` for GeoPackage, `"GeoJSON"` for GeoJSON, `"ESRI Shapefile"` for the legacy format when some downstream tool still demands it.
+
+```python
+big_cities.to_file("big_cities.gpkg", driver="GPKG")
+```
+
+That line creates a new GeoPackage on disk containing exactly the two rows left in big_cities, with their attributes and geometry and the same CRS the in-memory table carried. Newer versions of GeoPandas can often guess the driver from the file extension and let the argument be skipped, but naming it explicitly costs one word and removes any doubt about what format just got written, especially in a script somebody else will run later without watching it happen.
+
+The round trip is now complete: a file on disk became a GeoDataFrame with `read_file`, pandas-style filtering trimmed it down to the rows that mattered, and `to_file` put the result back on disk in a clean, modern format ready for QGIS, another script, or a colleague to open next. Every step used syntax that already exists in plain pandas, with one column that happens to hold a place instead of a plain value.
+
+<Quiz
+  id="geopandas-to-file-driver"
+  question="Why write big_cities.to_file(&quot;big_cities.gpkg&quot;, driver=&quot;GPKG&quot;) instead of just letting the .gpkg extension imply the format?"
+  answer={0}
+  options={[
+    "Naming the driver explicitly removes any ambiguity about the output format for anyone reading or rerunning the script later, even though some GeoPandas versions can infer it from the extension.",
+    "The driver argument is required in every version of GeoPandas and the file write fails without it.",
+    "GPKG is the only driver GeoPandas supports for writing, so the argument is really just documentation.",
+    "Specifying the driver compresses the output file to a smaller size than leaving it out.",
+  ]}
+  explanation="Some GeoPandas versions infer the driver from the file extension, so the argument is not strictly required everywhere, and GPKG is far from the only supported driver: GeoJSON and Shapefile both work too. Naming it costs nothing and makes the intended format explicit for the next person, or the next run, reading the script. It has no effect on file compression."
+/>
+
+The next lesson stops treating geometry as something GeoPandas quietly manages behind the scenes, and opens it up directly: building, measuring, and combining individual shapely shapes by hand, the same operations that have been running under every filter and plot in this lesson all along.

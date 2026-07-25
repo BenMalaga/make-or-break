@@ -1,0 +1,88 @@
+---
+title: Hunting in Logs
+module: threat-hunting
+moduleTitle: Threat Hunting
+moduleOrder: 26
+moduleIcon: Footprints
+order: 3
+summary: Three log sources catch most intrusions. Learn what each one hides and where the attacker slips.
+estimatedMinutes: 20
+objectives:
+  - Hunt process-creation logs for living-off-the-land abuse
+  - Spot beaconing and exfil patterns in network logs
+  - Find credential abuse and lateral movement in auth logs
+tags:
+  - threat-hunting
+  - logs
+  - sysmon
+  - network
+  - authentication
+---
+
+Most intrusions leave tracks in three places: what ran, what talked to the network, and who logged in where. Master hunting those three log types and you catch the majority of real activity, because an attacker who touches none of them cannot do much of anything.
+
+The trick with logs is that the interesting event is buried in millions of boring ones. You are not reading logs. You are filtering out normal until only the unexplained is left.
+
+## Process logs: hunt the parent, not the child
+
+`powershell.exe` running is normal. `powershell.exe` whose parent is `winword.exe` is a phishing payload until proven otherwise. Process-creation logs, Sysmon event ID 1 on Windows or `execve` from auditd on Linux, are where you catch execution, and the signal almost always lives in the parent-child relationship, not the process name alone.
+
+Start with living-off-the-land binaries, the signed system tools attackers use because they blend in. `certutil` downloading a file, `rundll32` with no arguments, `mshta` reaching to the internet, `wmic process call create`. Hunt for the binary in a context it has no business being in.
+
+<CommandBlock
+  title="hunting process anomalies"
+  commands={[
+    { cmd: "grep -iE 'certutil.*-urlcache|certutil.*-decode' sysmon_proc.log", comment: "certutil used as a downloader or base64 decoder" },
+    { cmd: "grep -iE 'parentimage.*(winword|excel|outlook).*image.*(powershell|cmd|wscript)' sysmon_proc.log", comment: "office app spawning a shell, classic macro payload" },
+    { cmd: "awk -F, '{print $6}' sysmon_proc.log | sort | uniq -c | sort -n | head", comment: "rarest command lines first, stack-rank the weird" },
+  ]}
+/>
+
+That last one is the workhorse move: stack counting. Aggregate a field, sort by frequency, and read the rare end. Malice is rare by definition, so the bottom of a frequency list is where it hides.
+
+## Network logs: find the rhythm
+
+Malware that phones home has a tell no human has: it is punctual. A C2 implant beacons on an interval, every 60 seconds, or every 5 minutes with a little jitter. Legitimate traffic is bursty and irregular. So you hunt for regularity.
+
+Pull connection logs (Zeek `conn.log` is ideal) and look for a source talking to one destination at a suspiciously even cadence, especially to a raw IP with no DNS, over a long-lived low-volume session. Long connection duration plus tiny byte counts plus a fixed interval is a beacon.
+
+<CommandBlock
+  title="beacon and exfil hunts in conn.log"
+  commands={[
+    { cmd: "zeek-cut id.orig_h id.resp_h ts < conn.log | sort | awk '{print $1,$2}' | uniq -c | sort -rn | head", comment: "who talks to whom most often, beacons float up" },
+    { cmd: "zeek-cut id.resp_h orig_bytes resp_bytes < conn.log | awk '$2>50000000'", comment: "large outbound transfers, possible exfil" },
+  ]}
+/>
+
+<Callout type="security" title="This is your own telemetry, treat it that way">
+These queries run against logs you are authorized to inspect in your own environment. Network logs expose who talked to whom, which is sensitive. Keep queries scoped, do not export raw capture off the analysis host, and hunt only within your granted authorization.
+</Callout>
+
+## Auth logs: hunt impossible behavior
+
+Credential abuse shows up as logins that should not be physically or logically possible. The same account authenticating from two countries ten minutes apart. A service account doing an interactive logon (Windows logon type 2 or 10) when it should only ever run as a service. One source host authenticating to fifty machines in an hour, which is lateral movement or credential spraying.
+
+<CommandBlock
+  title="auth log hunts"
+  commands={[
+    { cmd: "grep 'Failed password' /var/log/auth.log | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn | head", comment: "top source IPs by failed SSH logins, spray or brute" },
+    { cmd: "grep 'Accepted' /var/log/auth.log | awk '{print $9}' | sort | uniq -c", comment: "which accounts actually got in, look for the unexpected" },
+  ]}
+/>
+
+On Windows the equivalents are event ID 4625 for failures and 4624 with the logon type field for successes. A burst of 4625 followed by a single 4624 from the same source is a brute-force that landed. That sequence is worth an alert, and finding it in a hunt is exactly how that alert gets written.
+
+<Quiz
+  id="hunt-logs-beacon"
+  question="You spot a host connecting to the same external IP every 300 seconds, transferring about 2 KB each time, for six hours straight. What does this pattern most likely indicate?"
+  answer={0}
+  options={[
+    "C2 beaconing, because the fixed interval and tiny consistent payload match implant check-in behavior",
+    "A large data exfiltration, because of the total connection count",
+    "Normal web browsing, because the destination is external",
+    "A misconfigured NTP client and nothing to worry about",
+  ]}
+  explanation="Regular timing plus small consistent payloads over a long window is the signature of a command-and-control beacon checking in. Exfil looks like large transfers, and normal browsing is bursty and irregular, not metronomic."
+/>
+
+<Notes />

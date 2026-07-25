@@ -1,0 +1,71 @@
+---
+title: Testing a Mobile App
+module: mobile-security
+moduleTitle: Mobile Application Security
+moduleOrder: 39
+moduleIcon: Smartphone
+order: 5
+summary: Static analysis finds the leads, dynamic analysis confirms them. Here is the workflow.
+estimatedMinutes: 24
+objectives:
+  - Run a static pass to find secrets, endpoints, and interesting code paths
+  - Set up a test device and intercept traffic past certificate pinning
+  - Use Frida and objection to defeat client-side controls
+tags:
+  - mobile
+  - testing
+  - frida
+  - burp
+---
+
+Work a mobile app in two phases and you will not thrash. Static first: take the app apart on disk, find the secrets and the endpoints and the code paths worth caring about, and build a list of things to prove. Dynamic second: run the app on a device you control and confirm each lead by watching it happen. People who skip straight to dynamic waste hours hooking functions they never needed to touch.
+
+Static analysis is the cheap, fast part because it needs no running device. Decode the APK or IPA, read the manifest or `Info.plist` for exported components and URL schemes, `strings`-grep the binary for hardcoded keys, and skim the decompiled code for how it handles auth and crypto. `MobSF` (Mobile Security Framework) automates a first pass across all of that and gives you a report to work from, but read the code yourself for anything it flags as interesting.
+
+<CommandBlock
+  title="static first pass"
+  commands={[
+    { cmd: "docker run -it -p 8000:8000 opensecurity/mobile-security-framework-mobsf", comment: "MobSF web UI, drop in the APK/IPA for an automated report" },
+    { cmd: "jadx-gui app.apk", comment: "read the decompiled code, search for endpoints and Cipher.getInstance" },
+    { cmd: "grep -riE 'https?://[a-z0-9.-]+' app_src/ | sort -u", comment: "harvest every backend URL the app talks to" },
+  ]}
+/>
+
+## Standing up a test device
+
+Dynamic analysis needs a device where you have full control, which means rooted Android or a jailbroken iPhone, or an emulator. On Android, a Google APIs (not Play) system image in the emulator is the easy path, or use Genymotion. Physical devices are more realistic for hardware-backed crypto and pinning behavior. On iOS the bar is higher because jailbreaks lag behind current versions, so a lot of teams keep a dedicated older test device pinned to a jailbreakable release.
+
+The single most common task is getting the app's HTTPS traffic into Burp. Install Burp's CA certificate on the device, then point the device's proxy at your Burp listener. On Android 7 and up, apps do not trust user-added CAs by default, so you either install the cert into the system store on a rooted device or, more reliably, use Frida to bypass the check at runtime.
+
+<CommandCard command="objection -g com.target.app explore -s 'android sslpinning disable'" explain="Objection sits on top of Frida and ships ready-made hooks. This one patches the common pinning and trust-manager implementations at runtime so your Burp cert is accepted, no repackaging needed. There is an equivalent 'ios sslpinning disable'." />
+
+## Frida is the whole game
+
+Once the app is running under Frida, the client-side controls stop being obstacles. Root and jailbreak detection, pinning, the "rooted device blocked" screen, a license check: each is a function returning true or false, and Frida lets you rewrite what it returns while the app runs. Objection wraps the most common hooks so you rarely write JavaScript for the basics.
+
+<CommandBlock
+  title="common objection actions"
+  commands={[
+    { cmd: "objection -g com.target.app explore", comment: "attach to the running app and drop into the interactive shell" },
+    { cmd: "android root disable", comment: "bypass root detection so the app runs on your test device" },
+    { cmd: "android hooking search classes auth", comment: "find auth-related classes, then watch or replace their methods" },
+    { cmd: "android keystore list", comment: "enumerate what the app stored in the Android Keystore" },
+  ]}
+/>
+
+With pinning off and traffic flowing through Burp, the assessment becomes an API test with a mobile front end. Replay requests with tampered object IDs, strip the auth token to see if the server actually enforces it, and confirm the client-side "premium enabled" flag means nothing without server agreement. That is where the real findings are, because the server is the boundary and everything you just did was to get an honest look at what it receives.
+
+<Callout type="security" title="This is powerful, so scope it hard">
+Everything in this lesson defeats controls the app author put there on purpose. That is exactly why it is only legal on a device you own with an app you are authorized to test, or a deliberately vulnerable app built for practice. Bypassing pinning to intercept a real user's session, or defeating a license check on software you do not own, crosses into unauthorized access and copyright violations. Build your skills on DIVA, InsecureBankv2, the OWASP MAS test apps, and your own APKs, and keep engagement work inside a signed scope with rate limits you respect.
+</Callout>
+
+<Exercise
+  id="mobile-testing-pinning"
+  prompt="Your Burp cert is installed but the app shows a network error the moment it starts, and no traffic appears in Burp. What client-side control is most likely blocking you, and what tool defeats it at runtime?"
+  answer="certificate pinning, bypassed with Frida/objection"
+  placeholder="control, tool"
+>
+The app is validating the server certificate against a pinned copy and rejecting your proxy's cert. A runtime hook that patches the pinning check is the standard fix, and objection's sslpinning disable command is the fastest way to apply it.
+</Exercise>
+
+<Notes />

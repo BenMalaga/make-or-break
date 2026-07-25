@@ -1,0 +1,37 @@
+---
+title: Wheel of Thirteen
+summary: A flag was rotated through the alphabet. Turn it back.
+track: break
+category: crypto
+difficulty: EASY
+tags: [cipher, caesar, rot13]
+daily: true
+answer: "MOB{caesar_still_falls}"
+answerType: flag
+starterLang: python
+starter: |
+  # The text below was shifted with a Caesar cipher. Try shifting it back.
+  import codecs
+
+  cipher = "ZBO{pnrfne_fgvyy_snyyf}"
+  # rot13 is a Caesar shift of 13. Letters only; digits and braces stay put.
+  print(codecs.decode(cipher, "rot_13"))
+hints:
+  - A Caesar cipher shifts every letter by a fixed amount. Only 25 shifts are possible, so you can try them all.
+  - This one is shifted by 13, also known as ROT13. Applying ROT13 twice returns the original.
+  - Non-letters like digits, braces, and underscores are left unchanged.
+---
+
+A Caesar cipher hides a message by sliding every letter a fixed number of steps
+through the alphabet. Shift by 3 and A becomes D. Because there are only 25
+possible shifts, it offers no real secrecy: you can simply try them all.
+
+This flag was rotated by 13, the shift known as ROT13:
+
+```
+ZBO{pnrfne_fgvyy_snyyf}
+```
+
+Shift each letter back 13 places (or forward 13, since ROT13 is its own inverse)
+and the flag appears. Only the letters move; the braces and underscores stay
+where they are. Recover it and submit the `MOB{...}` flag.

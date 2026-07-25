@@ -1,0 +1,109 @@
+---
+title: Containment, Eradication, Recovery
+module: incident-response
+moduleTitle: Incident Response
+moduleOrder: 23
+moduleIcon: Siren
+order: 3
+summary: Stop the bleeding without torching the evidence that tells you how it started.
+estimatedMinutes: 17
+objectives:
+  - Isolate a compromised host without wiping volatile evidence
+  - Apply the order of volatility when collecting artifacts
+  - Sequence eradication and recovery so the attacker cannot return
+tags:
+  - incident-response
+  - containment
+  - forensics
+---
+
+The instinct when you find a compromised box is to yank the power cord. Do that
+and you just deleted everything in RAM: the attacker's running process, their
+open network connections, the decryption keys, the injected code that never
+touched disk. Containment is a balance. You have to cut the attacker off while
+keeping the evidence alive.
+
+## Isolate the network, not the power
+
+Pulling a host off the network stops lateral movement and exfiltration while
+leaving memory intact. That is almost always the right first move. You can do it
+at the host or, better, at the switch or firewall so the attacker does not see
+the interface drop from inside.
+
+<CommandBlock
+  title="analyst@suspect-host"
+  commands={[
+    { cmd: "sudo iptables -A OUTPUT -d 185.220.101.4 -j DROP", comment: "cut the known C2 address, surgical containment" },
+    { cmd: "sudo iptables -I INPUT 1 ! -s 10.10.14.7 -j DROP", comment: "allow only your responder box, block everyone else" },
+    { cmd: "sudo ip link set eth0 down", comment: "full network isolation, memory stays alive, last resort at the host" },
+  ]}
+/>
+
+The surgical version, dropping just the C2 IP, keeps the host usable for
+investigation while denying the attacker their channel. Full interface-down is
+the blunt option when you cannot trust anything the box is doing. Either way, the
+machine stays powered so you can grab what is in RAM.
+
+## Order of volatility: grab the fragile stuff first
+
+Evidence disappears at different speeds. Collect from most volatile to least, or
+you lose the good parts. Memory and live network state evaporate the instant the
+box reboots. Disk survives.
+
+- CPU registers and cache: gone in nanoseconds, you will not catch these.
+- RAM, running processes, network connections: gone on reboot. Grab first.
+- Disk, logs, file timestamps: survive a reboot, collect after.
+- Backups and archives: least volatile, collect last.
+
+Capture memory before you do anything that might reboot the host. On Linux, AVML
+produces a clean image without needing a matching kernel module.
+
+<CommandCard command="sudo ./avml /mnt/evidence/INC-2026-0042/mem.lime" title="analyst@suspect-host" explain="Microsoft's AVML dumps physical memory to a file you analyze later with Volatility. Write it to external or network storage, never to the compromised disk, or you overwrite the very evidence you are collecting." />
+
+Hash every artifact the moment you collect it so you can prove it was not altered
+later. A `sha256sum mem.lime > mem.lime.sha256` next to the image is the whole
+chain-of-custody habit in one line.
+
+## Eradicate, then recover, in that order
+
+Eradication removes the foothold: kill the malicious process, delete the web
+shell, disable the rogue account, remove the cron job or scheduled task giving
+them persistence. The trap is doing this before you understand the full scope. If
+they have three persistence mechanisms and you find two, recovery just hands the
+box back to them.
+
+Recovery restores clean systems from known-good backups, ones taken before the
+compromise window, and watches them hard. Validate the host is actually clean,
+rotate every credential that touched it, and monitor for the attacker trying the
+same door again. Attackers routinely come back within days to check whether you
+missed something.
+
+<Callout type="warning" title="Do not clean a box you should rebuild">
+For anything past a trivial infection, rebuild from a trusted image instead of
+cleaning in place. You can never fully prove you found every backdoor on a box
+that had a real intruder. A rebuild from known-good media is faster to trust than
+a scrub you are only 90 percent sure of.
+</Callout>
+
+<Callout type="security" title="Only isolate what you are cleared to isolate">
+Containment actions like dropping traffic or downing an interface affect real
+production systems and real people's work. Take them only on hosts inside your
+authorized scope, and coordinate with the system owner unless the runbook grants
+you standing authority to act. Off-scope containment is how a responder causes an
+outage worse than the incident.
+</Callout>
+
+<Quiz
+  id="containment-volatility"
+  question="You arrive at a running compromised host with an active attacker session. What do you do first?"
+  answer={2}
+  options={[
+    "Power it off to stop the attacker immediately",
+    "Restore it from last night's backup",
+    "Isolate it from the network while it stays powered, then capture memory",
+    "Delete the malicious process before it spreads",
+  ]}
+  explanation="Isolating while powered cuts the attacker off but preserves RAM, running processes, and network state. Powering off or deleting the process destroys volatile evidence you need to understand the intrusion."
+/>
+
+<Notes />

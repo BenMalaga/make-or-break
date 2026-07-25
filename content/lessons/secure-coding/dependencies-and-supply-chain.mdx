@@ -1,0 +1,86 @@
+---
+title: Dependencies and Supply Chain
+module: secure-coding
+moduleTitle: Secure Coding
+moduleOrder: 38
+moduleIcon: ShieldCheck
+order: 4
+summary: Most of your attack surface is code you never wrote.
+estimatedMinutes: 18
+objectives:
+  - Scan a dependency tree for known vulnerabilities
+  - Pin versions with lockfiles and hashes for reproducible builds
+  - Recognize typosquatting and dependency-confusion attacks
+tags:
+  - supply-chain
+  - dependencies
+  - secure-coding
+  - sbom
+---
+
+Log4Shell was not your bug. It was your incident anyway. That is the whole problem with dependencies in one sentence: a typical Node app pulls in several hundred transitive packages, a Python service drags in dozens, and every one of them runs with your permissions. You audit your own code carefully and ship someone else's without reading a line.
+
+You cannot rewrite the ecosystem, so the job is managing it: know what you depend on, know when a dependency has a known hole, and control how new versions get in.
+
+## Scan for known vulnerabilities
+
+The baseline is checking your tree against public vulnerability feeds. When a CVE drops for a library you use, a scanner maps it to your exact versions and tells you which ones to bump. This is free and fast, so there is no excuse for skipping it.
+
+<CommandBlock
+  title="scan your own project's dependencies"
+  commands={[
+    { cmd: "npm audit --production", comment: "map installed npm packages to known CVEs" },
+    { cmd: "pip-audit -r requirements.txt", comment: "check Python deps against the PyPA advisory database" },
+    { cmd: "osv-scanner --lockfile package-lock.json", comment: "language-agnostic scan against the OSV database" },
+  ]}
+/>
+
+Wire one of these into CI so a pull request that adds a vulnerable package fails the build instead of merging. Dependabot and Renovate go a step further by opening the upgrade PR for you. Turn them on, but read the diffs, because auto-merging every bump is its own risk.
+
+## Pin so builds are reproducible
+
+An unpinned dependency is a promise that whatever the registry serves at build time is fine. It is not. Pinning locks your build to exact versions so the same commit produces the same bytes, and a compromised patch release cannot slip in silently overnight.
+
+Lockfiles do most of this: `package-lock.json`, `poetry.lock`, `Cargo.lock`, `yarn.lock`. They record the exact resolved version of every direct and transitive package. Commit them. For a stronger guarantee, pin hashes too, so the build fails if a package's contents change even under the same version number.
+
+<CommandCard
+  command="pip install --require-hashes -r requirements.txt"
+  explain="Refuse to install any package whose downloaded contents do not match the hash pinned in requirements.txt. A registry that serves a swapped artifact under the same version fails the build instead of poisoning it."
+/>
+
+## Know what you ship: SBOMs
+
+When the next Log4Shell lands, the first question in the incident channel is "do we ship the vulnerable library, and where." If you cannot answer in minutes, you are already behind. A software bill of materials, an SBOM, is the inventory that answers it: a machine-readable list of every component in a build, in a standard format like CycloneDX or SPDX.
+
+<CommandBlock
+  title="generate an inventory of everything in a build"
+  commands={[
+    { cmd: "syft dir:. -o cyclonedx-json > sbom.json", comment: "produce an SBOM of the whole project" },
+    { cmd: "grype sbom:sbom.json", comment: "scan that inventory for known vulnerabilities" },
+  ]}
+/>
+
+## The attacks that pinning fights
+
+Supply-chain attacks target the trust you place in the registry, and they show up in a few recurring shapes. Typosquatting publishes `reqeusts` and `python-sqlite` hoping a fat-fingered install pulls malware. Dependency confusion registers your internal package name on the public registry so your build grabs the attacker's version instead of your private one. And a compromised maintainer account can push a malicious patch to a package you already trust, which is how `event-stream` and `ua-parser-js` bit thousands of projects.
+
+Pinning, hash verification, and not blindly upgrading blunt all three, because each one depends on your build silently accepting something new. Read what you add. Check the download counts and the repo before you `npm install` a package you found in a Stack Overflow answer.
+
+<Callout type="security" title="Scan your tree, do not weaponize the technique">
+Running audits and generating SBOMs against your own projects, or ones you are authorized to assess, is the entire point. Publishing typosquat packages, registering internal names for dependency confusion, or exploiting another organization's unpatched dependency are attacks that require authorization you almost certainly do not have. Learn the shapes so you can defend against them.
+</Callout>
+
+<Quiz
+  id="supply-confusion"
+  question="Your company uses an internal package named acme-utils, never published publicly. A build starts pulling acme-utils from the public npm registry. What attack is this?"
+  answer={0}
+  options={[
+    "Dependency confusion, where an attacker publishes your internal name publicly",
+    "Typosquatting, where a misspelled name serves malware",
+    "A known CVE in a transitive dependency",
+    "A leaked secret in the lockfile",
+  ]}
+  explanation="Dependency confusion works by registering an internal package name on a public registry. Package managers that check public sources can resolve the attacker's public version over your private one, which is why scoped names and registry pinning matter."
+/>
+
+<Notes />

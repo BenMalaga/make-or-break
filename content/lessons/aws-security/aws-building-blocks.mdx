@@ -1,0 +1,73 @@
+---
+title: AWS Building Blocks for Security
+module: aws-security
+moduleTitle: AWS Security
+moduleOrder: 30
+moduleIcon: CloudCog
+order: 1
+summary: The five services and two boundaries that decide every AWS engagement.
+estimatedMinutes: 18
+objectives:
+  - Read an ARN and know exactly what resource it points at
+  - Explain why us-east-1 and IMDS show up in almost every AWS attack
+  - Sweep every region instead of trusting the console default
+tags:
+  - aws
+  - cloud
+  - iam
+  - imds
+  - regions
+---
+
+An AWS account is a hard wall. Everything inside it, every bucket, instance, key, and role, belongs to one 12 digit account ID, and by default nothing crosses from one account to another without someone explicitly allowing it. When you own a set of credentials, the first thing to learn is which account they live in and what identity they represent. That is one command.
+
+<CommandCard command="aws sts get-caller-identity" explain="Returns the account ID, the ARN of the identity, and the UserId. This is your ground truth: it tells you who you are before you touch anything else." />
+
+The ARN in that output is worth reading slowly, because you will read hundreds of them. The format is `arn:aws:service:region:account-id:resource`. So `arn:aws:iam::123456789012:user/deploy-bot` is an IAM user named deploy-bot in account 123456789012. IAM has no region, which is why that slot is empty. Get comfortable parsing ARNs cold, because access and denial in AWS are written entirely in them.
+
+## Regions are not cosmetic
+
+AWS splits the world into regions like us-east-1 (Northern Virginia) and eu-west-1 (Ireland). Resources live in exactly one region and mostly cannot see each other across the line. This matters to you as an attacker or defender for one blunt reason: people hide things in regions nobody watches. A crypto miner spun up in ap-south-1 will not show in a console that opened on us-east-1.
+
+<CommandBlock
+  title="never trust the default region"
+  commands={[
+    { cmd: "aws ec2 describe-regions --query 'Regions[].RegionName' --output text", comment: "list every enabled region for this account" },
+    { cmd: "for r in $(aws ec2 describe-regions --query 'Regions[].RegionName' --output text); do echo \"== $r ==\"; aws ec2 describe-instances --region $r --query 'Reservations[].Instances[].InstanceId' --output text; done", comment: "walk instances in all regions, not just one" },
+  ]}
+/>
+
+us-east-1 is special and you should treat it as such. IAM, STS, billing, CloudFront, Route 53, and the account's global CloudTrail all anchor there. When a service says it is "global," its home is us-east-1. If you only look in one place, look there first, then sweep the rest.
+
+## The services you actually meet
+
+Five carry most engagements. IAM and STS hand out and vouch for identities. S3 holds the data everyone leaks. EC2 is the virtual machines, and it drags in the single most abused feature in cloud, the Instance Metadata Service.
+
+IMDS lives at the link-local address 169.254.169.254 on every EC2 instance. Ask it nicely and it hands back the temporary credentials of the role attached to that instance. That is the whole prize behind most cloud SSRF: get a vulnerable app on an EC2 box to fetch that URL, and you get keys.
+
+<CommandCard command="curl http://169.254.169.254/latest/meta-data/iam/security-credentials/" explain="Run from inside an EC2 instance. It lists the attached role name; append that name to the path to pull live AccessKeyId, SecretAccessKey, and Token. IMDSv2 requires a PUT token first, which blocks naive SSRF." />
+
+<Callout type="warning" title="IMDSv1 is the gift that keeps giving">
+IMDSv1 answers a plain GET with no token, so any SSRF or open proxy on the instance leaks role credentials. IMDSv2 forces a short-lived session token via a PUT request first, which most SSRF payloads cannot send. If you defend AWS, enforce IMDSv2 everywhere. If you attack it, check which version is on before you write the payload off.
+</Callout>
+
+<Callout type="security" title="Authorized targets only">
+Run every command here against your own free-tier account or a lab like CloudGoat or flAWS.cloud. Enumerating an AWS account you were not contracted to test is unauthorized access, and cloud accounts hold data belonging to real people and companies.
+</Callout>
+
+The last two to know by name are Secrets Manager and SSM Parameter Store. Both store secrets, both are read through the API, and both are where you look the second you have any credential worth using. A read on those is often the difference between one foothold and the whole environment.
+
+<Quiz
+  id="awsbb-us-east-1"
+  question="You run get-caller-identity and confirm valid credentials, but describe-instances in us-east-1 returns nothing. What is the correct next move?"
+  answer={2}
+  options={[
+    "Conclude the account has no EC2 instances",
+    "Assume the credentials are read-only and give up on EC2",
+    "Loop describe-instances across every region, since resources are region-scoped",
+    "Switch to the root user to see more",
+  ]}
+  explanation="EC2 instances live in one region each. An empty us-east-1 tells you nothing about ap-south-1 or eu-west-1. Sweep all regions before deciding what exists."
+/>
+
+<Notes />

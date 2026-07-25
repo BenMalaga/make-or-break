@@ -1,0 +1,283 @@
+---
+title: Loops and Repetition
+module: programming-foundations
+moduleTitle: Programming Foundations
+moduleOrder: 1
+moduleIcon: Code
+order: 4
+summary: "Run one block of code once for every item, however many items there are: that is a loop, and it is where programs start to save real work."
+estimatedMinutes: 16
+prerequisites: ["what-code-is", "variables-and-data", "logic-and-decisions"]
+objectives:
+  - Explain why repeated work needs a loop instead of copied lines
+  - Build a list and read how many items it holds
+  - Write a for loop over a list and over range()
+  - Trace a while loop until its condition turns false
+  - Identify the loop body by its indentation
+tags:
+  - programming
+  - python
+---
+
+A program has a list of three names and needs to print a greeting for each one. Three lines by hand would do it. Then the list grows to three hundred, or it arrives from a file nobody has read yet, and the count is not known when the code is written. Copying a line per name stops being an option.
+
+The previous lesson, logic and decisions, gave a program the power to choose between paths using conditions and indented blocks. This one gives it the power to repeat: to run the same block once for every item, however many items there turn out to be. That single ability is what separates a program from a very long note. Almost everything a computer does that feels tireless is a loop underneath.
+
+## Doing the same thing by hand does not scale
+
+Here is the greeting written out the slow way. A program is just code, meaning instructions Python runs in order, and this code says the same kind of thing three times.
+
+```python
+print("Ada")
+print("Grace")
+print("Katherine")
+```
+
+The print function writes text to the screen, once per call. Running this prints the three names on three lines.
+
+<ExpectedOutput label="three names, spelled out by hand">
+```
+Ada
+Grace
+Katherine
+```
+</ExpectedOutput>
+
+Three lines is fine. The trouble shows up the moment the count changes. Adding a fourth name means editing the code. A list of three hundred means three hundred lines, and a single typo hides somewhere in them. Worst of all, if the names come from somewhere the programmer cannot see when writing the code, the count is unknown, so there is no number of lines to write. What is needed is one instruction that says "print each name, whatever the names are." That instruction is a loop.
+
+## A list holds items in order
+
+Before a loop can walk through items, the items need to live somewhere. A list is an ordered collection of values, written inside square brackets with commas between the items. Here is a list of three names stored in a variable, which is a named box holding a value:
+
+```python
+engineers = ["Ada", "Grace", "Katherine"]
+```
+
+Each item here is a string, meaning a piece of text. The variable `engineers` now holds the whole list as one value. The order is fixed and it is remembered: `"Ada"` is first, `"Grace"` is second, `"Katherine"` is third. A list can hold numbers instead, or a mix, and it can be empty. What matters for now is that it keeps its items lined up in a known order.
+
+Python can report how long a list is. The `len` function counts the items and hands back the number.
+
+```python
+engineers = ["Ada", "Grace", "Katherine"]
+print(len(engineers))
+```
+
+<ExpectedOutput label="len counts the items">
+```
+3
+```
+</ExpectedOutput>
+
+That count is exactly the thing the by-hand approach could not cope with. The list knows its own size. A loop can use that size without anyone typing it out.
+
+## The for loop walks a list
+
+A loop is an instruction that runs the same block of code more than once. The for loop is the kind that walks through a collection, taking one item at a time and running its block for each. Here is the greeting again, this time as three lines of code that handle any number of names.
+
+```python
+engineers = ["Ada", "Grace", "Katherine"]
+for name in engineers:
+    print(name)
+```
+
+Read the second line in plain words: for each item in `engineers`, call that item `name`, then run the block below. Python takes the first item, `"Ada"`, puts it in the variable `name`, and runs the indented line. Then it comes back, takes `"Grace"`, puts it in `name`, and runs the indented line again. Then `"Katherine"`. When the list runs out, the loop stops. Each trip through is one iteration.
+
+<ExpectedOutput label="the for loop, one line of code per item printed">
+```
+Ada
+Grace
+Katherine
+```
+</ExpectedOutput>
+
+The output matches the by-hand version exactly. The difference is that this code does not care how long the list is. Three names or three hundred, the loop is still three lines.
+
+The indented line is the loop body: the block that runs on every iteration. Indentation is what marks it, the same way an indented block marked the inside of an `if` in the previous lesson. Python reads the indentation to know where the body starts and stops. A line pulled back to the left margin is outside the loop and runs only once, after the loop finishes.
+
+A loop body can be more than one line, and it often carries a variable that survives across iterations. A running total is the classic case. This loop adds each price to a total that starts at zero:
+
+```python
+prices = [4, 9, 12]
+total = 0
+for price in prices:
+    total = total + price
+    print(total)
+```
+
+The variable `total` is set once, before the loop. Each iteration adds the current price to it and prints where it stands. Because `total` lives outside the loop body, its value carries from one iteration into the next instead of resetting.
+
+<ExpectedOutput label="a running total, printed after each addition">
+```
+4
+13
+25
+```
+</ExpectedOutput>
+
+First iteration: 0 plus 4 is 4. Second: 4 plus 9 is 13. Third: 13 plus 12 is 25. The loop did the arithmetic three times without the number three ever appearing in the code.
+
+<Quiz
+  id="prog-for-over-list"
+  question="A for loop runs `for word in ['red', 'green', 'blue']:` with a body of `print(word)`. How many times does the body run, and what does the loop variable `word` hold on the last iteration?"
+  answer={2}
+  options={[
+    "Once, holding the whole list ['red', 'green', 'blue'].",
+    "Four times, holding an empty value at the end.",
+    "Three times, holding 'blue' on the last iteration.",
+    "Three times, holding 'red' on the last iteration.",
+  ]}
+  explanation="The body runs once per item, so three items means three iterations. The loop variable takes each item in order, so on the final pass it holds the last item, 'blue'."
+/>
+
+## range counts without a list
+
+Sometimes the work is not "do this for each item in a collection" but "do this a set number of times." There is no list of things to walk, just a count. The `range` function fills that gap: it produces a sequence of numbers on demand, and a for loop can walk it the same way it walks a list.
+
+```python
+for count in range(5):
+    print(count)
+```
+
+`range(5)` yields five numbers, and here is the part that trips up nearly everyone at first: it starts at 0 and stops before 5. So the numbers are 0, 1, 2, 3, 4. Five numbers, but the last one is 4, not 5. Counting from zero is a habit worth building early, because Python does it constantly.
+
+<ExpectedOutput label="range(5) counts from 0 up to but not including 5">
+```
+0
+1
+2
+3
+4
+```
+</ExpectedOutput>
+
+Given two numbers, `range` starts at the first and stops before the second. `range(1, 4)` gives 1, 2, 3. The loop below prints a label for each, and the print function puts a space between the two things separated by a comma:
+
+```python
+for minute in range(1, 4):
+    print("Minute", minute)
+```
+
+<ExpectedOutput label="range(1, 4) starts at 1 and stops before 4">
+```
+Minute 1
+Minute 2
+Minute 3
+```
+</ExpectedOutput>
+
+The real strength of a loop shows when its body carries a decision from the previous lesson. This loop walks a list of scores and, for each one, chooses what to print based on a condition:
+
+```python
+scores = [88, 42, 95, 60, 71]
+for score in scores:
+    if score >= 70:
+        print(score, "pass")
+    else:
+        print(score, "fail")
+```
+
+Two indentation levels are working together here. The for loop's body is everything indented once. The `if` and `else` each open a block indented further, and those inner blocks run inside a single iteration. Python evaluates the condition fresh for every score.
+
+<ExpectedOutput label="a decision inside a loop, judged once per score">
+```
+88 pass
+42 fail
+95 pass
+60 fail
+71 pass
+```
+</ExpectedOutput>
+
+<Quiz
+  id="prog-range-bounds"
+  question="What does `for n in range(2, 6): print(n)` print?"
+  answer={1}
+  options={[
+    "2, 3, 4, 5, 6, each on its own line.",
+    "2, 3, 4, 5, each on its own line.",
+    "0, 1, 2, 3, 4, 5, each on its own line.",
+    "6 lines starting from 0.",
+  ]}
+  explanation="range with two numbers starts at the first and stops before the second. It begins at 2 and ends before 6, so it produces 2, 3, 4, 5. The upper number is never included."
+/>
+
+## while repeats until a condition turns false
+
+A for loop is the right default when the work is "once per item" or "a fixed number of times." Some repetition does not fit that shape. The count is not known ahead of time; the loop should keep going until something changes. That is the while loop.
+
+A while loop checks a condition, the same kind of true-or-false test from the previous lesson, before every pass. While the condition is true, it runs its body and checks again. The moment the condition is false, it stops. This countdown keeps looping as long as `countdown` is above zero:
+
+```python
+countdown = 3
+while countdown > 0:
+    print(countdown)
+    countdown = countdown - 1
+print("Liftoff")
+```
+
+Trace it once. `countdown` starts at 3. The condition `3 > 0` is true, so the body prints 3, then drops `countdown` to 2. Check again: `2 > 0` is true, print 2, drop to 1. Then print 1, drop to 0. Now `0 > 0` is false, so the loop stops and control falls to the last line, which is not indented and so runs once.
+
+<ExpectedOutput label="a while loop counting down, then the line after it">
+```
+3
+2
+1
+Liftoff
+```
+</ExpectedOutput>
+
+The line `countdown = countdown - 1` is doing quiet, load-bearing work. It is what eventually makes the condition false. Without it, `countdown` would stay at 3 forever, the condition would never flip, and the loop would run without end. That is not a rare mistake. It is the most common bug in every while loop ever written.
+
+<Callout type="warning" title="A while loop with no way out never stops">
+Every while loop needs something in its body that moves the condition toward false. If the condition can never become false, the loop runs forever and the program hangs, printing nothing or the same thing without end. When a running program freezes and will not return control, a while loop that forgot to change its own condition is the first suspect. Stopping a stuck program usually means pressing Ctrl and C in the terminal.
+</Callout>
+
+The choice between the two loops comes down to one question. Is the work "for each of these, do that," with a known collection or count? Reach for a for loop. Is it "keep going until something happens," with no count decided in advance? That is a while loop. Most everyday loops are for loops, which is why they came first here.
+
+<Quiz
+  id="prog-while-terminates"
+  question="A while loop reads `while lives > 0:` and its body prints a message but never changes `lives`, which started at 3. What happens?"
+  answer={3}
+  options={[
+    "The body runs three times, once per life, then stops.",
+    "The loop never runs, because 3 is not greater than 0.",
+    "Python raises an error before the loop starts.",
+    "The body runs forever, because nothing ever makes the condition false.",
+  ]}
+  explanation="The condition 3 > 0 is true and stays true, since nothing in the body lowers `lives`. With no path to false, the while loop repeats without end. A working while loop must change something the condition tests."
+/>
+
+Loops are worth practicing until they feel automatic, because they show up in nearly every program. The exercise below runs on saved code rather than a single line, so it uses a file.
+
+<CommandCard
+  command="python3 practice.py"
+  title="terminal"
+  explain="Runs the code saved in a file named practice.py. Python reads the file top to bottom and runs each loop it finds."
+/>
+
+<Exercise title="Loop three ways">
+Save this into a file called `practice.py`:
+
+```python
+fruits = ["apple", "pear", "plum"]
+
+for fruit in fruits:
+    print(fruit)
+
+for number in range(1, 4):
+    print(number)
+
+remaining = 3
+while remaining > 0:
+    print("remaining:", remaining)
+    remaining = remaining - 1
+```
+
+Run it with `python3 practice.py` and read the output against the three loops. Predict what each block prints before you run it, then check whether you were right.
+
+Now change `range(1, 4)` to `range(4)` and run it again. Notice the extra line and where the numbers now start. Then delete the line `remaining = remaining - 1` and get ready to stop the program with Ctrl and C, because the while loop no longer has any way to end.
+</Exercise>
+
+A loop repeats a block, but it cannot yet be called up by name from somewhere else, or run again on a fresh list without copying the whole thing. The next lesson, functions and reuse, packages a block of code under a name so it can be run again and again on different inputs, which is the natural next step once repeating code starts to feel worth keeping.
+
+<Notes />

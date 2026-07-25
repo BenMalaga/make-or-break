@@ -1,0 +1,308 @@
+---
+title: "How Geometries Relate: Topology and Predicates"
+module: gis-spatial-analysis
+moduleTitle: Spatial Analysis
+moduleOrder: 3
+moduleIcon: Radar
+order: 1
+summary: "Two geometries relate in one of a fixed set of ways, and a spatial predicate is the true or false test that names which one, with intersects doing most of the real work."
+estimatedMinutes: 14
+prerequisites: ["metadata-and-provenance"]
+objectives:
+  - Explain what topology means in GIS and how it differs from comparing exact coordinates
+  - Predict the result of intersects, contains, within, touches, crosses, overlaps, and disjoint for two given geometries
+  - Test spatial relationships between real geometries using Shapely in Python
+  - Explain why intersects is the predicate that selection and spatial joins lean on the most
+---
+
+The previous lesson tracked where a dataset came from and how it changed hands. This one asks a
+different question about the same data: given two shapes on a map, how do they sit relative to
+each other. A parcel and a flood zone either share ground or they don't. Two roads either cross or
+they run apart forever. A fire station either falls inside its response district or it sits just
+outside the line. None of these questions care about the exact coordinates involved. They care
+about the relationship.
+
+That relationship, described without reference to specific numbers, is what GIS calls **topology**.
+Two polygons that share a border are in the same topological relationship whether that border sits
+in Ohio or in Kenya, whether the polygons are one meter across or a hundred kilometers across. Slide
+both shapes two miles to the east and the relationship does not change, because sliding both shapes
+together does not change how they sit relative to each other. Topology is the shape of the
+relationship, stripped of its exact location.
+
+## A relationship is a yes-or-no question
+
+A GIS answers a topological question with a **spatial predicate**: a function that takes two
+geometries and returns true or false. "Does this point fall inside this polygon" is a predicate.
+"Do these two lines cross" is a predicate. Each one names a specific way two shapes can relate, and
+each one either holds for a given pair of geometries or it doesn't. There is no partial credit and
+no numeric answer, only a decision.
+
+This is a deliberately narrow tool, and that narrowness is the point. A predicate does not say how
+far apart two shapes are, or how much area they share, or which one is bigger. It says exactly one
+thing: does this specific relationship hold between them. Distance and area are separate questions
+with separate tools. A predicate is the yes-or-no layer underneath all of that, and it is usually
+the first thing an analyst reaches for, because most spatial questions in practice really are
+yes-or-no questions in disguise. Which parcels sit in the flood zone. Which sensors sit inside the
+warning radius. Which delivery stops fall within the service area. Each of those is a predicate
+applied once per candidate feature.
+
+Shapely, a Python library built around geometry objects, implements every predicate this lesson
+covers as a method that takes one geometry and asks about its relationship to another. Here is a
+point checked against a polygon:
+
+```python
+from shapely.geometry import Point, Polygon
+
+parcel = Polygon([(0, 0), (0, 10), (10, 10), (10, 0)])
+house = Point(4, 4)
+
+print(house.within(parcel))
+print(parcel.contains(house))
+```
+
+<ExpectedOutput label="the same relationship read from both directions">
+```
+True
+True
+```
+</ExpectedOutput>
+
+`house.within(parcel)` asks whether the point sits inside the polygon, and `parcel.contains(house)`
+asks the mirror question from the other geometry's point of view. Both come back true, because
+**within** and **contains** describe the same relationship looked at from opposite ends. Within
+means the first geometry sits inside the second one, contains means the second geometry encloses
+the first one, and a point that is within a polygon means that same polygon contains the point,
+always, in every case. An analyst picks whichever direction reads more naturally for the code at
+hand: "is this house within the flood zone" or "does the flood zone contain this house" ask the
+identical question.
+
+<Quiz
+  id="topology-vs-coordinates"
+  question="A polygon representing a county sits at one set of coordinates. A copy of the same polygon, shifted two hundred kilometers north, keeps the exact same shape and the same point sitting inside it in the same relative spot. What happens to the within relationship between the point and the polygon after the shift?"
+  answer={1}
+  options={[
+    "The relationship breaks, because the coordinates of both the point and the polygon are now completely different.",
+    "The relationship holds exactly as before, because within describes how the two shapes sit relative to each other, not their absolute coordinates.",
+    "The relationship becomes undefined until the shapes are moved back to their original location.",
+    "The relationship only holds in the original location because polygons are anchored to a fixed coordinate reference system.",
+  ]}
+  explanation="Topology describes the shape of a relationship, not the specific numbers involved. Moving both geometries together by the same amount changes their coordinates but leaves how they sit relative to each other untouched, so a predicate that held before still holds after. The other options treat the predicate as if it depended on absolute position, which is exactly what topology is not."
+/>
+
+## Intersects is the one to learn first
+
+Of every predicate a GIS offers, **intersects** covers the most ground. It asks the loosest
+possible question: do these two geometries share any point at all, anywhere. A point sitting inside
+a polygon intersects it. Two roads that cross intersect. Two parcels that only touch at a shared
+corner intersect. Two lakes on opposite sides of a state do not.
+
+```python
+from shapely.geometry import Point, Polygon
+
+parcel = Polygon([(0, 0), (0, 10), (10, 10), (10, 0)])
+edge_point = Point(0, 5)
+outside_point = Point(20, 20)
+
+print(parcel.intersects(edge_point))
+print(parcel.intersects(outside_point))
+```
+
+<ExpectedOutput label="a point on the boundary still counts as intersecting">
+```
+True
+False
+```
+</ExpectedOutput>
+
+That first result is worth sitting with. `edge_point` is not inside the parcel in the way `house`
+was earlier. It sits exactly on the boundary line. `intersects` still returns true, because sharing
+even a boundary point is enough. This is what makes intersects the workhorse predicate: it is the
+umbrella that every other predicate on this page fits underneath. Contains, within, touches,
+crosses, and overlaps are all specific, narrower ways of intersecting. Two shapes cannot touch,
+cross, or overlap without also intersecting, though the reverse is not true. When an analyst is
+unsure which precise relationship a question calls for, or simply needs to know whether two things
+share any ground before deciding what to do next, intersects is the first tool reached for. It is
+also usually the fastest predicate a GIS engine can evaluate, since it can often stop looking the
+moment it finds one shared point instead of working out the full shape of the overlap.
+
+<Callout type="info" title="Intersects first, then narrow down">
+A common pattern in real analysis is to filter with intersects first, because it is cheap and
+catches every candidate, then apply a narrower predicate like contains or crosses only on the
+smaller set that survived the first pass. Running an expensive predicate against every feature in a
+large dataset when intersects would have ruled most of them out immediately is a common source of
+slow analysis.
+</Callout>
+
+## The narrower predicates: touches, crosses, overlaps, disjoint
+
+Contains and within describe one geometry sitting fully inside another. The remaining predicates
+describe more particular ways two shapes can share ground, and each one rules out a specific case
+the others allow.
+
+**Touches** means two geometries share only their boundaries, with no shared interior at all. Two
+adjacent land parcels that share a property line are a clean example. Their interiors, the open
+ground each one covers, never overlap. Only the line between them is shared.
+
+```python
+from shapely.geometry import Polygon
+
+parcel_a = Polygon([(0, 0), (0, 10), (10, 10), (10, 0)])
+parcel_b = Polygon([(10, 0), (10, 10), (20, 10), (20, 0)])
+
+print(parcel_a.touches(parcel_b))
+print(parcel_a.overlaps(parcel_b))
+```
+
+<ExpectedOutput label="a shared border, but no shared interior">
+```
+True
+False
+```
+</ExpectedOutput>
+
+`parcel_a` and `parcel_b` share the vertical line at x equals ten and nothing else, so touches is
+true and overlaps is false. Move `parcel_b` five units to the left so it slides partway into
+`parcel_a`'s space, and the relationship changes entirely.
+
+```python
+overlapping_b = Polygon([(5, 0), (5, 10), (15, 10), (15, 0)])
+
+print(parcel_a.touches(overlapping_b))
+print(parcel_a.overlaps(overlapping_b))
+```
+
+<ExpectedOutput label="shared interior flips touches to overlaps">
+```
+False
+True
+```
+</ExpectedOutput>
+
+**Overlaps** means the two geometries are of the same general kind, both polygons or both lines,
+and their interiors genuinely share space, but neither one fully contains the other. `parcel_a` and
+`overlapping_b` now share a real strip of ground in the middle, so overlaps is true and touches
+turns false, because the relationship is no longer limited to a boundary.
+
+**Crosses** applies to a different shape combination: typically a line against a line, or a line
+against a polygon, where the two pass through each other's interiors without one containing the
+other. Two roads meeting at an intersection are the standard example.
+
+```python
+from shapely.geometry import LineString
+
+main_street = LineString([(0, 5), (10, 5)])
+oak_avenue = LineString([(5, 0), (5, 10)])
+
+print(main_street.crosses(oak_avenue))
+```
+
+<ExpectedOutput label="two roads meeting at a right angle">
+```
+True
+```
+</ExpectedOutput>
+
+Main Street runs east to west at y equals five. Oak Avenue runs north to south at x equals five.
+They meet at the single point (5, 5) and each line has stretches of road on both sides of that
+point, which is exactly the pattern crosses is built to catch.
+
+**Disjoint** is the opposite of intersects. Two geometries are disjoint when they share absolutely
+nothing, not even a boundary point.
+
+```python
+faraway_parcel = Polygon([(30, 0), (30, 10), (40, 10), (40, 0)])
+
+print(parcel_a.disjoint(faraway_parcel))
+print(parcel_a.intersects(faraway_parcel))
+```
+
+<ExpectedOutput label="disjoint and intersects are always opposites">
+```
+True
+False
+```
+</ExpectedOutput>
+
+Disjoint and intersects will never agree on the same pair of geometries. If a check for intersects
+comes back false, disjoint is true for that same pair, and there is rarely a reason to call both.
+Most analysts write `intersects()` and read a false result as "these are disjoint" rather than
+calling `disjoint()` a second time.
+
+<Quiz
+  id="predicate-matching"
+  question="Two parcels are drawn so that one parcel's boundary line lies exactly on top of a stretch of the other parcel's boundary, and neither parcel's open interior ever crosses into the other. Which predicate best describes their relationship?"
+  answer={0}
+  options={[
+    "touches, because they share boundary only and neither interior overlaps the other",
+    "overlaps, because any shared boundary counts as an overlap between two polygons",
+    "crosses, because the shared line means one boundary passes through the other",
+    "disjoint, because sharing only a boundary means their interiors never meet",
+  ]}
+  explanation="Touches is defined as sharing boundary with no shared interior, which is exactly this case. Overlaps requires shared interior, not just a shared line, so it does not fit. Crosses applies to lines passing through each other's interiors, not two polygons meeting edge to edge. Disjoint requires sharing nothing at all, but these parcels do share a boundary, so disjoint is wrong too."
+/>
+
+## The formal model behind the names
+
+Every predicate in this lesson has an intuitive definition, but GIS software needs something more
+precise to actually compute one. That precision comes from a model called **DE-9IM**, short for
+Dimensionally Extended nine-Intersection Model. The idea, without the notation, is that any two
+geometries can be split into three parts each: their interior, their boundary, and everything
+outside them (the exterior). Comparing all three parts of one geometry against all three parts of
+the other produces nine possible intersections, and the dimension of each intersection (empty, a
+point, a line, or an area) fully describes how the two geometries relate.
+
+Every predicate this lesson covers, intersects, contains, within, touches, crosses, overlaps, and
+disjoint, is really just a named pattern within that nine-part comparison. An analyst almost never
+needs to build the pattern by hand. Knowing that the named predicates rest on a single consistent
+model explains why they behave predictably and combine cleanly, and why a library like Shapely, or
+a spatial database like PostGIS, can offer dozens of predicate names that all reduce to one
+underlying check.
+
+## Why predicates are the building blocks of everything else
+
+A single predicate test between two geometries is useful on its own, but its bigger job is running
+many times over. **Selection**, filtering a layer down to the features that matter for a question,
+usually means running one predicate against every feature and keeping the ones that return true.
+Which parcels intersect the flood zone. Which sensors fall within two kilometers of a river. Every
+one of those questions compiles down to a predicate run once per feature.
+
+**Spatial joins** stretch the same idea across two entire layers at once, matching each feature in
+one layer to whichever features in another layer satisfy a chosen predicate. A join that matches
+each address point to the census tract that contains it is running `contains` (or its mirror,
+`within`) between every point and every candidate polygon, then keeping the matched pairs. GeoPandas
+exposes this directly:
+
+```python
+import geopandas as gpd
+
+addresses = gpd.read_file("addresses.gpkg")
+tracts = gpd.read_file("tracts.gpkg")
+
+joined = gpd.sjoin(addresses, tracts, predicate="intersects")
+```
+
+That `predicate="intersects"` argument is doing the same work every example in this lesson has
+walked through by hand, just applied automatically across two full layers instead of two single
+shapes. Swap it for `"within"` and the join tightens to points genuinely inside a tract rather than
+merely touching its edge. Swap it for `"contains"` with the layers reversed and the same join reads
+the other direction. Every spatial join is a predicate, chosen deliberately, run at scale.
+
+<Quiz
+  id="predicate-workhorse"
+  question="A GeoPandas spatial join needs to match delivery addresses to the delivery zone each one falls inside, and the zones never overlap each other. Why would an analyst reach for intersects as the default choice even though within describes the situation more precisely?"
+  answer={3}
+  options={[
+    "intersects is the only predicate GeoPandas actually supports in a spatial join.",
+    "intersects and within always return identical results, so the choice never matters.",
+    "within is slower to compute than intersects on every dataset, regardless of size.",
+    "intersects is the broad, dependable default that also correctly matches addresses sitting exactly on a zone boundary, a case within would still catch but that is easy to get wrong by hand.",
+  ]}
+  explanation="GeoPandas supports many predicates in sjoin, so the first option is false, and intersects and within are not identical since within is the stricter case, so the second option is false. Speed is not a fixed rule either. Intersects earns its place as a starting default because it is the broadest, most forgiving check and it will not silently miss an edge case the way a narrower, mis-specified predicate might."
+/>
+
+Spatial predicates are quiet tools. Nobody names them in a headline the way they might name a
+routing algorithm or a satellite image. But underneath almost every selection, every join, every
+"which of these falls inside that" question a GIS answers, one of the seven predicates in this
+lesson is doing the actual work. The next lesson builds directly on top of them: how a spatial join
+turns a predicate applied at scale into a whole new table, one where every feature carries the
+attributes of whatever it intersects, contains, or sits within.

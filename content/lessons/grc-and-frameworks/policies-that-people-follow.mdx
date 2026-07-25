@@ -1,0 +1,86 @@
+---
+title: Policies People Actually Follow
+module: grc-and-frameworks
+moduleTitle: Governance, Risk, and Compliance
+moduleOrder: 35
+moduleIcon: Scale
+order: 5
+summary: A policy nobody reads is worse than none. It creates the paper trail that says you knew and did nothing.
+estimatedMinutes: 15
+objectives:
+  - Tell a policy, a standard, and a procedure apart and know when to write each
+  - Write policy that changes behavior instead of sitting in a wiki
+  - Spot shelfware policy and the liability it creates
+tags:
+  - grc
+  - policy
+  - governance
+  - security-culture
+---
+
+Most security policies are written to survive an audit, not to be followed, and everyone involved quietly knows it. The 40-page acceptable use policy nobody read, the password rule that says 90-day rotation because it did in 2009, the incident plan last opened during the tabletop two years ago. Dead paper. And dead paper is not neutral, it is a liability, because after an incident it proves you knew the risk and your control was fiction.
+
+A policy earns its place only if it changes what people do at 4pm on a Tuesday when no one is watching. Everything below is about writing that kind, and killing the kind that just fills a binder.
+
+## Policy, standard, procedure: three different documents
+
+People jam all three into one file and it fails, because they answer different questions and change at different speeds.
+
+A policy is the why and the rule at a high level: "we protect customer data, access follows least privilege." It is short, it is approved by leadership, and it barely changes. A standard is the specific requirement: "passwords are at least 14 characters, MFA is required on all remote access." A procedure is the step-by-step how: "to request access, open a ticket in this queue, your manager approves, IT provisions within one business day."
+
+<CommandCard command="Policy (why + rule) -> Standard (the specific bar) -> Procedure (the exact steps)" explain="Keep them in separate documents. The policy outlives everything. The standard changes when the threat or tech changes. The procedure changes when the tooling changes. Cram them together and you either never update the standard or you drag the whole board through an approval to change a ticket queue name." />
+
+## Why most policies are ignored, and the fix
+
+A policy gets ignored for reasons you can predict, so write against them from the start.
+
+It is too long, so nobody finishes it. Cut a 40-page monster to the two pages that carry real rules and move the rest to reference. It is unenforceable, like a clean-desk policy nobody ever checks, which teaches people that all the policies are optional. It makes the secure path harder than the insecure one, so people route around it, and every rule that demands emailing a spreadsheet to request access trains people to just share the file instead. And it never explains why, so a smart engineer who does not see the reason overrides the rule the first time it is inconvenient.
+
+<Callout type="warning" title="If the secure way is the hard way, you lose">
+People do not follow rules, they follow the path of least resistance. A password manager rolled out with SSO beats a 20-character-password mandate with no tooling every time, because one makes the secure thing easy and the other makes it painful. When a policy fights human nature, human nature wins, and you get a policy on paper and insecure behavior in reality. Design the easy path to be the safe one.
+</Callout>
+
+## Write it so it actually lands
+
+Good policy is short, specific, and owned. It names who is responsible, states the rule in plain language, gives one reason, and points to the procedure that makes compliance easy.
+
+<CommandBlock
+  title="what separates a policy that works from shelfware"
+  commands={[
+    { cmd: "assign a named owner and a review date", comment: "an unowned policy is stale the day it ships" },
+    { cmd: "state the rule in one plain sentence", comment: "if a new hire cannot act on it, rewrite it" },
+    { cmd: "give the reason, not just the rule", comment: "people follow rules they understand, override ones they do not" },
+    { cmd: "link the procedure that makes it easy to comply", comment: "no easy path means no compliance" },
+    { cmd: "define the consequence and actually apply it", comment: "an unenforced rule teaches everyone the rest are optional" },
+  ]}
+/>
+
+Then test it against reality. Pick a real task the policy governs, walk it as a normal employee, and see if the rule survives contact. If following it takes six steps and a manager who is on vacation, you did not write a policy, you wrote a reason for people to cheat.
+
+<Callout type="security" title="Shelfware policy is evidence against you">
+After a breach, regulators and plaintiffs read your policies, then check whether you followed them. A written control you never enforced is worse than no policy, because it documents that you identified the risk and chose not to address it. This is the exact gap you look for as an attacker or assessor: the password policy that says 14 characters while the domain is full of Summer2024 accounts. The gap between the paper and the practice is where the finding lives.
+</Callout>
+
+<Exercise
+  id="policy-doc-type"
+  prompt="You need to document the exact click-by-click steps a helpdesk tech follows to reset a locked account: verify identity, open the ticket, reset in the admin console, force a change at next login. Is this a policy, a standard, or a procedure?"
+  answer="procedure"
+  placeholder="policy, standard, or procedure"
+>
+Step-by-step how-to instructions for performing a task are a procedure. The policy would be the high-level rule about account security, the standard would set the specific requirements like identity verification before reset, and the procedure is the exact steps you described.
+</Exercise>
+
+<Quiz
+  id="policy-why-ignored"
+  question="A company mandates 20-character passwords changed monthly but provides no password manager. Six months later, sticky notes and 'Password1!, Password2!' patterns are everywhere. What went wrong?"
+  answer={1}
+  options={[
+    "The password requirement was not strict enough",
+    "The secure path was harder than the insecure one, so people routed around it",
+    "The policy was not documented in enough detail",
+    "Employees simply need more training on the existing policy",
+  ]}
+  explanation="When a policy makes the secure behavior painful and offers no easy tooling to comply, people find workarounds that defeat the intent. A password manager with SSO would have made the secure path the easy path and actually changed behavior."
+/>
+
+<Notes />

@@ -1,0 +1,84 @@
+---
+name: WebGoat
+tagline: OWASP's guided, lesson-by-lesson tour of how web apps break.
+description: A deliberately insecure Java application from OWASP built as an interactive teaching tool. Each lesson walks you through a real vulnerability class with a live target and a challenge you must actually solve to pass.
+difficulty: MEDIUM
+os: LINUX
+targetType: DOCKER
+tags:
+  - web
+  - owasp
+  - training
+points: 30
+docker:
+  image: webgoat/webgoat
+  run: docker run --rm -p 8080:8080 webgoat/webgoat
+  port: 8080
+  httpPath: /WebGoat
+flags:
+  - type: USER
+    label: Injection lesson
+    value: MOB{injection_lesson_cleared}
+    points: 15
+  - type: ROOT
+    label: Access control lesson
+    value: MOB{broken_access_control_cleared}
+    points: 15
+hints:
+  - title: First run setup
+    body: WebGoat serves its login and lessons under the /WebGoat path, not the site root. Browse to http://localhost:8080/WebGoat, register a local account, and log in. The account lives only inside your container.
+    cost: 0
+  - title: How lessons work
+    body: The left menu groups lessons by category. Each lesson has instruction pages and at least one page with a live form you must exploit. A green check means the server accepted your solution. Read the assignment on each page carefully.
+    cost: 5
+  - title: Injection lesson
+    body: Open the Injection category and work the SQL Injection lessons. The interactive assignments ask you to modify a query so it returns rows it should not, or to bypass a login. Use a single quote plus an always-true condition and a comment.
+    cost: 5
+  - title: User proof token
+    body: Complete any SQL injection assignment page until it shows the success state, for example returning every employee row or logging in without valid credentials. Once a lesson marks your injection correct, submit MOB{injection_lesson_cleared}
+    cost: 10
+  - title: Access control lesson
+    body: Open the Broken Access Control or Insecure Direct Object References category. These lessons give you access to your own record, then ask you to view another user's data by tampering with an id, a URL, or a hidden field the app trusts.
+    cost: 10
+  - title: Root proof token
+    body: Complete an access control assignment where you reach data or a function that should be off limits, for example viewing another user's profile by changing an object reference. Once the lesson accepts it, submit MOB{broken_access_control_cleared}
+    cost: 15
+tasks:
+  - title: Stand up the container and register an account
+    description: Reach the app under /WebGoat and log in
+  - title: Complete an injection lesson
+    description: Solve a SQL injection assignment to the success state
+  - title: Complete an access control lesson
+    description: Reach data that should be off limits to you
+---
+
+## About this target
+
+WebGoat is OWASP's teaching application. Unlike a free-for-all target, it walks
+you through one vulnerability class at a time with instructions, a live form, and
+a server-side check that only passes when you genuinely exploit the bug. It is a
+step up from the trivial boxes because the lessons demand you actually land the
+attack, not just recognize it.
+
+Your two objectives here: **clear an injection lesson** (user), then **clear an
+access control lesson** (root).
+
+<Callout type="security" title="Authorized target only">
+You are running this container on your own machine. That is the only reason it
+is legal to attack it. Never point these techniques at an application you do not
+own or have written permission to test.
+</Callout>
+
+<Callout type="info" title="How flags work on Phase A machines">
+Docker and bring-your-own-VM boxes use proof tokens revealed through the hints
+once you have genuinely completed the objective. Capture a flag by doing the
+work, then submitting the token. Phase B hosted machines will issue real
+per-instance flags planted on the target.
+</Callout>
+
+## Getting reachable
+
+Spin the container up and load `http://localhost:8080/WebGoat`. Register a local
+account, log in, then work the objectives below. The lessons check your work
+server-side, so a token is only fair once the lesson itself shows success. Use
+the hints if you stall; each one costs a few points, so try on your own first.

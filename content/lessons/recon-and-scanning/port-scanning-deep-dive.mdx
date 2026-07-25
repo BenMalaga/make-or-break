@@ -1,0 +1,242 @@
+---
+title: Port Scanning Deep Dive
+module: recon-and-scanning
+moduleTitle: Recon and Scanning
+moduleOrder: 3
+moduleIcon: ScanSearch
+order: 3
+summary: "SYN, connect, or UDP, and what open, closed, and filtered really mean, read straight off the packet that comes back."
+estimatedMinutes: 16
+prerequisites: ["recon-methodology", "host-discovery"]
+objectives:
+  - Trace the TCP handshake a SYN scan starts and deliberately leaves unfinished
+  - Choose between a SYN, connect, and UDP scan by privilege, speed, and noise
+  - Read open, closed, and filtered off the packet the target sends back
+  - Sweep all 65535 ports fast, then re-scan only what came back open
+tags:
+  - recon
+  - port-scanning
+  - nmap
+---
+
+Host discovery narrowed a subnet full of dead addresses down to the machines
+that actually answered. That list is only addresses. It says a machine is alive.
+It says nothing about what that machine will talk to.
+
+Port scanning is the next question, asked of every live host: which doors are
+open? <Term id="port-scanning">Port scanning</Term> means probing a host's ports
+to find which ones have a program waiting behind them. A
+<Term id="port">port</Term> is a 16-bit number, 0 through 65535, that picks out
+one conversation on a machine, so a single <Term id="host">host</Term> can run a
+web server, a login service, and a database at once without their traffic
+colliding. Numbers under 1024 are the
+<Term id="well-known-ports">well-known ports</Term>, where standard services like
+SSH on 22 and HTTP on 80 sit by convention. Find an open port and you have found
+something that will answer. That is why scanning comes first: you cannot attack
+a service you do not know is there.
+
+## The handshake every TCP scan bends
+
+Almost every TCP scan is a trick played on one exchange, so that exchange is
+worth pinning down. Before two machines send any <Term id="tcp">TCP</Term> data,
+they run the <Term id="three-way-handshake">three-way handshake</Term>. The
+client sends a <Term id="syn">SYN</Term>, meaning "I want to talk." The other
+side answers SYN-ACK, meaning "go ahead, I am here." The client sends ACK, and
+the connection is open.
+
+That middle message is the whole tell. A machine only sends SYN-ACK from a port
+where something is <Term id="listening">listening</Term>: a
+<Term id="daemon">daemon</Term> bound to a <Term id="socket">socket</Term>,
+waiting for connections. A port with nothing behind it does not negotiate. It
+answers a SYN with RST, a flat "nothing here, go away." So the reply to a single
+SYN already sorts a live service from a dead port, before any real data moves.
+Every scan below is built on reading that one reply.
+
+<Quiz
+  id="ps-syn-ack-meaning"
+  question="A SYN scan sends a SYN, gets a SYN-ACK back, and stops without sending the final ACK. Why is the SYN-ACK enough to call the port open?"
+  answer={1}
+  options={[
+    "The SYN-ACK only arrives after the service has fully accepted the connection.",
+    "SYN-ACK is the listening side agreeing to connect, and only something listening sends it.",
+    "The missing ACK is what forces the port to reveal its state.",
+    "Open ports reply with RST, and closed ports reply with SYN-ACK.",
+  ]}
+  explanation="SYN-ACK is the second step of the handshake, sent only by a port with a daemon willing to connect. A closed port answers a SYN with RST instead. That single reply is all a SYN scan needs."
+/>
+
+## SYN, connect, and UDP
+
+<Term id="nmap">nmap</Term> gives three scans that matter early, and the split
+between them comes down to privilege, speed, and how much noise each one leaves
+in the target's logs.
+
+A SYN scan (`-sS`) sends the SYN, reads the reply, and stops. SYN-ACK back means
+the port is open, and the scanner never sends the final ACK. The scanning host's
+own kernel, seeing a SYN-ACK for a connection it never opened, fires off a RST
+that tears the half-open attempt down. Because the handshake never completes,
+this is called half-open scanning, and it is both fast and comparatively quiet.
+It is the default when nmap runs as <Term id="root">root</Term>, because crafting
+a bare SYN by hand needs raw-socket access that only a privileged user has.
+There is a second reason it stays quiet: the connection never completes, so the
+listening application's accept never fires and the service has no session to log.
+Only a sensor watching raw packets on the wire notices at all.
+
+A connect scan (`-sT`) hands the job to the operating system's own connect call,
+the same one every ordinary program uses to open a TCP connection. It runs the
+handshake all the way to ACK, so it needs no special privileges, which is exactly
+why nmap falls back to it when it is not root. The cost is noise. The connection
+fully opens and then closes, so the service sees a complete session and is far
+more likely to write it to a log.
+
+A UDP scan (`-sU`) probes <Term id="udp">UDP</Term> services like DNS on port 53,
+SNMP on 161, and DHCP on 67. UDP has no handshake, so silence is ambiguous. An
+open UDP port often just swallows the <Term id="packet">packet</Term> and says
+nothing, and a <Term id="firewall">firewall</Term> dropping the probe also says
+nothing, so nmap cannot tell those two apart and marks the port open|filtered. A
+closed UDP port is the only clean signal: the host answers with an
+<Term id="icmp">ICMP</Term> port-unreachable message. Most operating systems
+rate-limit those ICMP replies to roughly one per second, so a UDP scan across
+many ports crawls. That is the case for skipping UDP on the first pass and coming
+back to a short list of high-value ports later. SNMP on UDP 161 alone has handed
+over credentials for entire networks, so "skip it" is not "skip it forever."
+
+<CommandCard command="sudo nmap -sS 10.10.14.23" explain="SYN (half-open) scan. The fast, quiet default, available only when nmap runs as root." />
+
+<CommandCard command="nmap -sT 10.10.14.23" explain="Full connect scan. No root needed, but it completes the handshake, so the target is more likely to log it." />
+
+<CommandCard command="sudo nmap -sU --top-ports 20 10.10.14.23" explain="UDP scan of the 20 most common UDP ports. Slow by nature, so it is kept short on purpose." />
+
+<Quiz
+  id="ps-connect-fallback"
+  question="Run without root, nmap cannot do a SYN scan and falls back to a connect scan. What is the reason for the fallback?"
+  answer={1}
+  options={[
+    "A connect scan is stealthier, so it is the safer default anyway.",
+    "Crafting a raw SYN needs elevated privileges, but the ordinary connect call any program can make does not.",
+    "A connect scan never touches the network, so it needs no permissions.",
+    "SYN scans only work against UDP services.",
+  ]}
+  explanation="A SYN scan builds raw packets, which needs raw-socket access reserved for root. The connect call is available to every user, so nmap uses it when it lacks privileges, and accepts the extra noise."
+/>
+
+## Open, closed, filtered
+
+Every TCP port nmap reports lands in one of three states, and each state is just
+a plain name for the packet the target sent back.
+
+- **open**: a SYN-ACK came back. Something is listening. This is a live door and
+  a real lead.
+- **closed**: a RST came back. The host is up and reachable, but no service is
+  bound to that port.
+- **filtered**: nothing useful came back, or an ICMP error did. A firewall or
+  filter is dropping the probe, and nmap cannot see whether anything sits behind
+  it.
+
+The gap between closed and filtered is the one people miss, and it changes what
+the scan is telling you. Closed is an answer: the host is right there, that
+particular door is just empty. Filtered is a wall: the probe never reached the
+port, or the reply never made it back. A scan that comes back all filtered means
+a firewall stands between the scanner and the host. A scan with a healthy mix of
+open and closed means the packets are reaching the machine directly, which is the
+easier position to work from.
+
+Filtered also costs time. When a probe goes unanswered, nmap does not give up on
+the first try. It retransmits and waits before declaring the port filtered, which
+is why a heavily firewalled host scans far slower than one that answers every
+port with a clean RST or SYN-ACK.
+
+<ExpectedOutput label="Representative -sS output (addresses, latency, and timing will differ)">
+```
+Nmap scan report for 10.10.14.23
+Host is up (0.021s latency).
+Not shown: 997 closed tcp ports (reset)
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+3306/tcp open  mysql
+
+Nmap done: 1 IP address (1 host up) scanned in 1.42 seconds
+```
+</ExpectedOutput>
+
+Read that carefully. "Not shown: 997 closed tcp ports (reset)" means 997 ports
+answered with RST, so nmap folded them into one line instead of printing each.
+Three ports answered with SYN-ACK and got listed as open. The `ssh`, `http`, and
+`mysql` labels are not confirmed; they are lookups from a table of what usually
+runs on those numbers, and the next lesson is where that guess gets checked.
+
+<Quiz
+  id="ps-rst-state"
+  question="A SYN scan sends a probe to port 3306 and gets a RST back. What state does nmap assign, and what does it mean?"
+  answer={2}
+  options={[
+    "Filtered: a firewall dropped the probe on the way in.",
+    "Open: the RST confirms a service answered the handshake.",
+    "Closed: the host is reachable, but nothing is listening on that port.",
+    "Filtered: the port is open but sitting behind a firewall.",
+  ]}
+  explanation="A RST is a direct answer from the host: the machine is up and reachable, but no daemon is bound to 3306. Silence or an ICMP error would be filtered. A SYN-ACK would be open."
+/>
+
+## Scan wide, then scan deep
+
+Left alone, nmap checks its top 1000 ports and no more. Real targets do not
+cooperate with that. A service gets moved off its usual port precisely so a lazy
+scan misses it: SSH relocated to 2222, an admin panel parked on 8834. The answer
+is two passes.
+
+First, sweep every port. `-p-` tells nmap to scan all 65535 instead of the top
+1000. Pair it with `--min-rate 1000`, a floor on packets sent per second, and
+`-T4`, a timing template that scans aggressively on a network that can take the
+load. nmap has six templates, `-T0` through `-T5`; `-T3` is the default, and
+`-T4` is fast without being reckless. Save the result to a file with `-oN`.
+
+Then scan deep, but only on the ports that came back open. Feed those into
+`-p 22,80,3306` and run the slower, information-heavy scans there.
+Fingerprinting all 65535 ports would burn hours. Fingerprinting the three that
+are actually open takes seconds.
+
+<CommandCard command="nmap -p- --min-rate 1000 -T4 10.10.14.23 -oN allports.txt" explain="All 65535 TCP ports, fast, written to allports.txt. This is the sweep that finds services hiding on odd ports." />
+
+<CommandCard command="nmap -p 22,80,3306 10.10.14.23" explain="A focused scan of only the ports the sweep found open. Fast, and the base for the deeper scans in the next lesson." />
+
+<Callout type="tip" title="Never trust a top-1000 scan alone">
+The default scan never looks past port 1000. That admin panel on 8834 or the SSH
+daemon moved to 2222 is exactly where a defender hid it hoping nobody would
+check. Run `-p-` at least once per host. The full sweep is the difference between
+a real inventory and a lucky guess.
+</Callout>
+
+One more flag earns its place next to these. Host discovery marks a machine down
+when it ignores ping, but plenty of hosts drop ping while quietly serving ports
+behind a firewall. If the target is known to exist, `-Pn` tells nmap to skip
+discovery and scan it anyway, so the firewall's silence does not hide a live box.
+
+<Callout type="warning" title="Speed is loud">
+`--min-rate 1000` and `-T4` throw packets fast, which lights up intrusion
+detection. On an engagement where staying quiet matters, drop to `-T2` and scan
+fewer ports at a time. Fast scanning is a straight trade: the analyst learns
+quickly, and so does the defender watching the sensors.
+</Callout>
+
+<Exercise
+  id="ps-wide-then-deep"
+  prompt="On a host you own or a lab target you are cleared to scan, run a full-port sweep, then re-scan only the open ports, and compare the two.">
+Swap `10.10.14.23` for your authorized target. First sweep everything:
+`nmap -p- --min-rate 1000 -T4 10.10.14.23 -oN allports.txt`. Write down which
+ports come back open, and notice whether any sit above 1000, where a default scan
+never looks. Then pull just those into a focused scan, for example
+`nmap -p 22,80,3306 10.10.14.23`. Watch how much faster the second one finishes,
+and sit with the fact that the wide sweep was the only reason you knew the high
+ports existed. If every port reads `filtered`, something between you and the host
+is dropping probes; try again from inside the same network.
+</Exercise>
+
+A finished sweep hands over a column of open ports and nmap's guess at each
+service. That guess is only a guess. The next lesson, service and version
+detection, is where the scan stops guessing and the target starts telling you
+exactly what it runs, down to the version string you feed into a search for known
+holes.
+
+<Notes />

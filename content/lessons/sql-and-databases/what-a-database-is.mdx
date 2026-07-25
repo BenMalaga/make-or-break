@@ -1,0 +1,148 @@
+---
+title: What a Database Is
+module: sql-and-databases
+moduleTitle: SQL and Databases
+moduleOrder: 4
+moduleIcon: Database
+order: 1
+summary: "Plain files crack under two writers, million-row lookups, and consistency. A database is the tool built for that job: tables, rows, keys, and SQL."
+estimatedMinutes: 13
+prerequisites: ["reading-and-writing-files"]
+objectives:
+  - Explain the three failure modes that push data out of plain files and into a database
+  - Describe the relational model as tables of rows and columns, each column a named typed field
+  - Identify a primary key and explain why every row needs one unique value
+  - Define SQL and place SQLite among file-based and server databases like Postgres and MySQL
+tags:
+  - sql
+  - databases
+---
+
+The to-do app from the last lesson, reading-and-writing-files, worked because the tasks were written to a file on disk and read back on the next run. That is storage done by hand: one program, one file, a short loop that writes each task on its own line. It holds up beautifully right up until the day it doesn't. The moment the data gets bigger, or busier, or more tangled, a plain text file starts to fight back, and the fixes pile up until a person is quietly rebuilding a database out of duct tape without knowing that is the name for it.
+
+A database is the tool built for that job. Before defining it precisely, it helps to see exactly where a pile of files runs out of room, because every feature a database has is an answer to one of those breaking points.
+
+## Where a pile of files stops working
+
+Picture that todos.txt growing into something real: a library catalog with a hundred thousand books, read and written by a website that hundreds of people use at once. Three problems show up fast, and none of them is solved by writing more clever code around the file.
+
+The first is two programs writing at the same time. A file has no traffic control. If one request opens the catalog file to add a book while another opens it to edit a title, both read the old contents, both make their change in memory, and both write the whole file back. The one that finishes second wins, and the first change vanishes with no error and no warning. This is a race, and a plain file gives nothing to prevent it. The data just quietly goes wrong.
+
+The second is finding one record among a million. To answer "which books did Octavia Butler write," a program holding a text file has exactly one option: read every line from the top and check each one. That is fine for three tasks. For a million rows it means dragging the entire file through memory for every single question, and it gets slower in direct proportion to how much data there is. There is no way to jump straight to the answer, because a text file has no index, no sorted order, no shortcut.
+
+The third is keeping data consistent when a change is really several changes. Moving a book from one shelf to another might mean decrementing a count in one place and incrementing it in another. If the program crashes after the first write and before the second, the file is left in a half-updated state that no rule forbids. Nothing guarantees that a group of related edits either all happen or none of them do.
+
+<Quiz
+  id="db-why-not-files"
+  question="Two web requests both open the same catalog.txt at the same instant to add a different book, each reading the file, adding its line, and writing the whole file back. Why does a database engine handle this better than two Python scripts sharing the file?"
+  answer={2}
+  options={[
+    "Files are slower to open than databases, so one of the two requests times out and gives up.",
+    "Python cannot open the same file from two programs at once, so the operating system blocks the second write.",
+    "The engine coordinates simultaneous writes so one change does not silently overwrite the other, which a plain file offers no help with.",
+    "Databases keep data in the cloud, so the two writes never touch the same disk.",
+  ]}
+  explanation="A plain file has no traffic control: the second writer overwrites the first with no error, losing a change. A database engine serializes conflicting writes so both survive. Files are not the slow part here, the OS does let two programs open one file at once, and where the data lives (cloud or disk) is beside the point."
+/>
+
+## A store plus an engine
+
+A database is two things fused together: an organized store of data, and the software that reads and writes that store safely. That software has a name, the database engine, and it is the part that answers all three problems above.
+
+The word "safely" is carrying real weight. The engine is what stands between many programs and one shared pile of data, deciding who writes when so two changes cannot stomp on each other. It is what keeps a hidden map of where every record lives, so a lookup can jump to the answer instead of scanning everything. It is what wraps a group of edits into a single all-or-nothing unit, so a crash leaves the data whole rather than half-changed. A file is passive; it just sits there and holds bytes. An engine is active; it enforces rules about the bytes every time anyone touches them.
+
+That distinction is the whole reason the field exists. Nobody writes a text file by hand and calls it a database, because the thing that makes it a database is not the stored data, it is the engine standing guard over it.
+
+## Tables, rows, and columns
+
+The most common way an engine organizes its store is the relational model, and it is worth knowing that name because it is the family that SQL belongs to. In the relational model, data lives in tables. A table is a grid, the same shape as a spreadsheet: named columns going across, and rows going down.
+
+A column is a named field with a declared type. In a catalog of books, the columns might be `id`, `title`, `author`, `year`, and `rating`. The type says what kind of value is allowed to sit in that column across every row. Text columns like `title` and `author` hold strings. An integer column like `year` holds whole numbers. A column like `rating` holds a decimal number, a type SQLite calls REAL. Declaring the type up front is how the table promises that `year` will always be a number and never the word "soon."
+
+A row is one record: a single book, with exactly one value in each column. Here is the `books` table this whole module will use, with five rows in it.
+
+| id | title                     | author            | year | rating |
+|----|---------------------------|-------------------|------|--------|
+| 1  | The Left Hand of Darkness | Ursula K. Le Guin | 1969 | 4.8    |
+| 2  | Neuromancer               | William Gibson    | 1984 | 4.5    |
+| 3  | Kindred                   | Octavia E. Butler | 1979 | 4.7    |
+| 4  | Dune                      | Frank Herbert     | 1965 | 4.9    |
+| 5  | Snow Crash                | Neal Stephenson   | 1992 | 4.3    |
+
+Read that grid in both directions and the vocabulary locks in. A column is a vertical slice: every `year` down the table, all of one type, all the same kind of fact. A row is a horizontal slice: everything known about one book, gathered on a single line. The cell where a row and a column cross is one value. That is the entire structure, and every query later in the module is just a way of asking for some rows, or some columns, or some cells.
+
+<Quiz
+  id="db-row-vs-column"
+  question="In the books table above, the entry for Dune (id 4, Frank Herbert, 1965, 4.9) is best described as which one of these?"
+  answer={1}
+  options={[
+    "A column, because it lists several different pieces of information.",
+    "A row, a single record holding one value in each of the table's columns.",
+    "Five separate tables, one for each value.",
+    "A type, because it mixes text and numbers together.",
+  ]}
+  explanation="One book laid out across all the columns is a single row, also called a record. A column is the vertical slice (every author, or every year), not one book's whole line. Nothing here is five tables, and a row is not a type; the types belong to the columns it fills."
+/>
+
+## The column that names each row
+
+Look again at that `id` column. It exists for a reason that is easy to miss: it gives every row a value that belongs to it alone. Two different books can share a title (there are many books called "Home"), share an author, share a year, even share a rating. If the only way to point at a row is by its title, then the day two rows have the same title, there is no way to say which one is meant.
+
+The fix is a column whose value is guaranteed unique across the whole table, one number per row, never repeated. That column is the primary key, and by strong convention it is named `id` and holds an integer. The primary key is how the engine, and every other table, refers to one exact row with no ambiguity. When a later lesson connects the `books` table to a table of loans or reviews, it will do so by storing a book's `id`, not its title, precisely because the `id` is the one value that pins down a single row for certain.
+
+An engine treats the primary key as a promise it will enforce. Try to insert a second row with an `id` that already exists and the engine refuses, because the whole value of the key is that it stays unique. That refusal is a feature: it stops duplicate records at the door instead of letting them rot in the data.
+
+## SQL, the language you ask in
+
+Having a table full of rows is only useful if there is a way to ask it questions. That way is SQL, which stands for Structured Query Language. SQL is the language for talking to a relational database: asking it to hand back specific rows, and commanding it to add, change, or remove data. Instead of writing a loop that reads a file line by line, a person writes a short SQL statement that describes what they want, and the engine figures out how to fetch it. The statement says what, the engine handles how.
+
+SQL is not itself a database. It is the language many different databases understand, the way many different phones understand a phone number. One of those databases is SQLite: a real, complete relational engine that keeps an entire database inside a single ordinary file on disk. No separate server to install, no background process to start, just a file named something like `library.db`. That makes it the right place to learn, because the whole thing is one file that can be created, copied, and deleted like any other. Its bigger siblings, Postgres and MySQL, are server databases: they run as their own always-on program that many machines connect to over the network, which is what a busy website needs and what a person learning their first query does not.
+
+Creating the `books` table takes one SQL statement, run once. This is the only place this module writes SQL that builds structure rather than asking questions; everything after is querying the rows it holds.
+
+```sql
+CREATE TABLE books (
+  id      INTEGER PRIMARY KEY,
+  title   TEXT    NOT NULL,
+  author  TEXT    NOT NULL,
+  year    INTEGER,
+  rating  REAL
+);
+```
+
+Each line names a column and its type. `INTEGER PRIMARY KEY` marks `id` as the unique row identifier. `NOT NULL` on `title` and `author` tells the engine those fields can never be left empty, another rule it will enforce on every insert. Against a SQLite file, running that statement and then asking which tables exist confirms the engine really built it and saved it to disk.
+
+<CommandCard command="sqlite3 library.db" title="terminal" explain="Starts SQLite against a file named library.db, creating that file if it does not exist yet." />
+
+<ExpectedOutput label="after CREATE TABLE, listing tables with .tables">
+```
+books
+```
+</ExpectedOutput>
+
+The `.tables` command lists every table in the file, and after the `CREATE TABLE` above it prints exactly one name: `books`. The table now lives in `library.db`, a real file that survives after the program ends, the same durability the to-do file had, but with an engine guarding it.
+
+<Quiz
+  id="db-sql-vs-sqlite"
+  question="A beginner keeps mixing up SQL and SQLite. Which statement gets the relationship right?"
+  answer={0}
+  options={[
+    "SQL is the language for asking a relational database questions and giving it commands; SQLite is one engine that understands SQL and stores its data in a single file.",
+    "SQL and SQLite are two names for the same file format on disk.",
+    "SQLite is a programming language, and SQL is the program that runs it.",
+    "SQL only works with Postgres, so SQLite needs a different language of its own.",
+  ]}
+  explanation="SQL is the shared language; SQLite is one database engine that speaks it, notable for keeping everything in a single file. They are not one file format, SQLite is not a language, and SQL is not Postgres-only: SQLite, Postgres, and MySQL all understand the same core SQL."
+/>
+
+<Callout type="warning" title="SQLite does not strictly enforce column types by default">
+Declaring `year INTEGER` looks like an ironclad promise, but a normal SQLite table treats types as a preference, not a wall. Insert the text `'not a year'` into that `year` column and SQLite stores it anyway, no error raised. This is called type affinity, and it surprises people who expect the type to reject bad data. The fix is to declare the table with the `STRICT` keyword (`CREATE TABLE books (...) STRICT;`), which makes SQLite refuse a value of the wrong type. Postgres and MySQL enforce types strictly out of the box; SQLite trades that for flexibility, so knowing the difference keeps bad values from slipping into a column you thought was safe.
+</Callout>
+
+<Exercise title="Build the books table and confirm it exists">
+In a terminal, run `sqlite3 library.db` to open a fresh SQLite file. At the `sqlite>` prompt, paste the `CREATE TABLE books (...)` statement from this lesson and press enter. Then type `.tables` and confirm it prints `books`. Type `.schema books` and confirm it prints your table definition back to you, exactly as written. Type `.quit` to leave, then run `ls` and confirm `library.db` is sitting there as a real file on disk. You have just created a database, and you have not written a single query yet.
+</Exercise>
+
+An empty table is a promise with nothing to show for it. The next lesson, querying-with-select, is where the payoff arrives: SELECT is the SQL command that asks the `books` table to hand back specific rows and columns, turning that grid of data into answers. Every row shown above is about to become something a single line of SQL can pull out on demand.
+
+<Notes />

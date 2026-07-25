@@ -1,0 +1,274 @@
+[
+  {
+    "domain": 1,
+    "question": "An organization wants to grant just-in-time, time-bound access to the Global Administrator role so that eligible admins must activate the role and provide justification for each activation. Which Microsoft Entra ID licensing tier is required to use Privileged Identity Management (PIM)?",
+    "options": [
+      "Entra ID Free",
+      "Entra ID P1",
+      "Entra ID P2",
+      "Microsoft 365 Business Basic"
+    ],
+    "correct": [
+      2
+    ],
+    "explanation": "PIM is a premium capability that requires Microsoft Entra ID P2, which is included in bundles such as Microsoft 365 E5 and EMS E5. It provides eligible role assignments, activation with justification and optional approval, and access reviews. Conditional Access needs only P1, but PIM specifically requires P2.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A team runs several Azure Functions and Logic Apps that all need the same identity to read secrets from one Azure Key Vault, and they want that identity to keep working even if an individual app is deleted and recreated. Which managed identity approach best fits this requirement?",
+    "options": [
+      "Assign a separate system-assigned managed identity to each resource",
+      "Create one user-assigned managed identity and assign it to all of the resources",
+      "Share a single service principal client secret across the apps",
+      "Store a shared account password in each app's configuration"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "A user-assigned managed identity is a standalone Azure resource with its own lifecycle that can be attached to multiple resources, so the identity and its role assignments persist even when apps are recreated. A system-assigned identity is tied to a single resource and is deleted with it. Shared secrets and passwords reintroduce the credential management that managed identities are meant to eliminate.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A Conditional Access policy must force administrators to sign in only with FIDO2 security keys or Windows Hello for Business, blocking weaker methods such as SMS or Authenticator push. Which Conditional Access grant control implements this?",
+    "options": [
+      "Require multifactor authentication",
+      "Require authentication strength of phishing-resistant MFA",
+      "Require device to be marked as compliant",
+      "Require password change"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Authentication strengths let a Conditional Access policy require a specific set of methods, and the built-in phishing-resistant MFA strength permits only FIDO2 security keys, Windows Hello for Business, and certificate-based authentication. The generic Require multifactor authentication control accepts any satisfying method, including SMS or push. Device compliance and password change controls address different requirements.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A governance team member needs to assign Azure RBAC roles to other users across a subscription but must not be able to create, modify, or delete the resources themselves. Which built-in Azure role grants exactly this?",
+    "options": [
+      "Owner",
+      "Contributor",
+      "User Access Administrator",
+      "Reader"
+    ],
+    "correct": [
+      2
+    ],
+    "explanation": "The User Access Administrator role can manage user access to Azure resources by assigning and removing role assignments, but it cannot manage the resources themselves. Owner can do both, Contributor can manage resources but not access, and Reader can only view. This separation supports least privilege for access administration.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "You are authoring a custom Azure role in JSON. It must allow reading blob data in storage, explicitly forbid deleting blobs, and be assignable only within a single subscription. Which combination of role definition properties do you use?",
+    "options": [
+      "Put the blob delete in NotActions and the blob read in Actions",
+      "Put the blob read in DataActions, the blob delete in NotDataActions, and set AssignableScopes to that subscription",
+      "Put both permissions in Actions and set a Scope of the subscription",
+      "Put the blob read in DataActions and list the subscription under NotDataActions"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Operations on data inside a resource, such as reading or deleting blob contents, are data-plane actions, so they belong in DataActions and NotDataActions rather than Actions and NotActions, which cover management-plane operations. AssignableScopes controls where the role can be assigned. Placing the blob delete in NotDataActions subtracts it from the granted DataActions.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "In Privileged Identity Management you configure a user as eligible for the Contributor role rather than giving an active assignment. What does eligible mean for that user?",
+    "options": [
+      "The user permanently holds the role with no activation required",
+      "The user must activate the role when needed, satisfying any required MFA, justification, or approval, and the role is then granted only for a limited time",
+      "The user can view the role definition but can never use it",
+      "The role is automatically activated every time the user signs in"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "An eligible assignment means the user does not hold the privileges until they activate the role through PIM, meeting activation requirements such as MFA, a justification, or approval, after which access is time-bound. An active assignment grants the role continuously. Eligibility is the core of just-in-time privileged access.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Before deploying a Conditional Access policy that requires MFA for all users, a security engineer wants to avoid being locked out of the tenant if MFA services fail. What is the recommended practice for the emergency access (break-glass) accounts?",
+    "options": [
+      "Enroll the break-glass accounts in the strongest MFA method available",
+      "Exclude the cloud-only break-glass accounts from the Conditional Access policy and closely monitor their sign-ins",
+      "Federate the break-glass accounts to on-premises Active Directory",
+      "Delete the break-glass accounts after the policy is enabled"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Microsoft recommends at least two cloud-only emergency access accounts that are excluded from Conditional Access policies so that an MFA or federation outage cannot lock every administrator out. Their sign-ins should be alerted on and monitored. Federating them or applying the same MFA requirement defeats their purpose as a recovery path.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Microsoft Entra ID Protection can automatically respond to detected risk. Which two conditions can risk-based policies evaluate to require remediation such as MFA or a secure password change? (Choose two.)",
+    "options": [
+      "Sign-in risk",
+      "User risk",
+      "Resource group tag",
+      "Storage account firewall rule"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explanation": "Entra ID Protection offers a sign-in risk policy that evaluates the risk of a specific authentication in real time and a user risk policy that evaluates the probability an account is compromised over time. Sign-in risk can require MFA, and user risk can require a secure password change. Resource tags and storage firewall rules are unrelated to identity risk, and these risk policies require Entra ID P2.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "To defend against MFA fatigue (prompt bombing) attacks, Microsoft enforces a feature for Microsoft Authenticator push notifications in which the user must enter a number shown on the sign-in screen into the app. What is this feature called?",
+    "options": [
+      "Number matching",
+      "SMS passcode",
+      "Conditional Access",
+      "Security defaults"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Number matching requires the user to type a number displayed on the sign-in screen into the Microsoft Authenticator app to approve a push, which prevents blind approval of unexpected prompts. It is enabled by default for Authenticator push notifications. This directly counters MFA fatigue attacks that repeatedly trigger prompts hoping for an accidental approval.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A new employee needs to bootstrap passwordless sign-in by registering a FIDO2 security key, but has no existing credential to authenticate the registration. Which Microsoft Entra feature issues a time-limited passcode to onboard them?",
+    "options": [
+      "Self-service password reset",
+      "Temporary Access Pass",
+      "Password Protection",
+      "Seamless single sign-on"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "A Temporary Access Pass is a time-limited passcode configured in the Authentication methods policy that lets a user sign in and register passwordless methods such as FIDO2 keys or the Authenticator app. It is well suited to onboarding and to recovery when a user has lost their other methods. Self-service password reset resets passwords rather than bootstrapping passwordless registration.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Compliance requires that membership of a group granting access to sensitive finance data be recertified every quarter by the resource owner, with unapproved members automatically removed. Which Microsoft Entra Identity Governance feature meets this?",
+    "options": [
+      "Access reviews",
+      "Conditional Access",
+      "Application proxy",
+      "Password writeback"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Access reviews, part of Microsoft Entra Identity Governance, let you schedule recurring recertification of group memberships, application assignments, or role assignments, with reviewers approving or denying continued access and automatic removal of denied users. This enforces periodic attestation for sensitive access. Access reviews require Entra ID P2.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An Azure VM has a system-assigned managed identity, and an application on the VM must retrieve secrets from an Azure Key Vault that uses the Azure RBAC permission model. What must you do so the app can read secrets following least privilege?",
+    "options": [
+      "Add the managed identity to the Key Vault access policies with Get and List secret permissions",
+      "Assign the Key Vault Secrets User role to the VM's managed identity, scoped to the vault",
+      "Store a Key Vault access key in the VM's environment variables",
+      "Grant the VM's managed identity the Owner role on the subscription"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "When a Key Vault uses the Azure RBAC permission model, you grant access by assigning a data-plane role such as Key Vault Secrets User to the managed identity, scoped to the vault. Vault access policies apply only to the legacy access policy model, not the RBAC model. Granting Owner on the subscription is excessive and violates least privilege.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "A Conditional Access policy should block access to Azure management from any country outside the United States and Canada. Which Conditional Access component do you configure to define those countries so the policy can reference them?",
+    "options": [
+      "Named locations",
+      "Authentication strengths",
+      "Terms of use",
+      "Enterprise applications"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Named locations let you define locations by IP ranges or by country and region, which Conditional Access policies then reference in their Locations condition. You would define a location for the allowed or disallowed countries and build the block policy around it. Authentication strengths and terms of use address different controls.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which Microsoft Entra ID licensing tier is the minimum required to create custom Conditional Access policies?",
+    "options": [
+      "Entra ID Free with security defaults",
+      "Entra ID P1",
+      "Entra ID P2 only",
+      "No license is required"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Conditional Access policies require at least Microsoft Entra ID P1. The Free tier offers only security defaults, which apply a fixed baseline of protections without the granular targeting of Conditional Access. P2 adds risk-based Conditional Access and PIM on top of the P1 capabilities.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Your authentication strength policy must permit only phishing-resistant methods. Which two authentication methods qualify as phishing-resistant? (Choose two.)",
+    "options": [
+      "FIDO2 security key",
+      "Windows Hello for Business",
+      "SMS text message code",
+      "Microsoft Authenticator push notification"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explanation": "FIDO2 security keys and Windows Hello for Business, along with certificate-based authentication, are phishing-resistant because they use hardware-bound cryptographic credentials that cannot be relayed to a fake site. SMS codes and Authenticator push are valid MFA methods but remain susceptible to phishing, relay, or fatigue attacks, so they are not classified as phishing-resistant.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A multinational company wants its regional helpdesk in Europe to reset passwords only for users in the Europe organization, not for users worldwide. Which Microsoft Entra feature lets you scope a directory role such as Helpdesk Administrator to only that subset of users?",
+    "options": [
+      "Administrative units",
+      "Dynamic groups",
+      "Management groups",
+      "Resource groups"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Administrative units let you scope Entra directory role assignments to a subset of users, groups, or devices, so a Helpdesk Administrator can be granted rights over only the members of a specific administrative unit. Management groups and resource groups organize Azure resources, not directory role scoping. Dynamic groups automate membership but do not by themselves scope admin roles.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "Users in your tenant are blocked from consenting to third-party applications that request permissions to organizational data. You want users to be able to request access and have an administrator approve it. Which feature should you enable?",
+    "options": [
+      "The admin consent workflow",
+      "Security defaults",
+      "Continuous access evaluation",
+      "Password hash synchronization"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "The admin consent workflow lets users request administrator approval for applications they are not allowed to consent to themselves, routing the request to designated reviewers. This balances security, by restricting risky user consent that enables illicit consent grant attacks, with usability. It is configured under the Enterprise applications consent settings.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "After an administrator disables a compromised user's account, you need Azure and Microsoft 365 to stop honoring that user's already-issued access tokens in near real time instead of waiting up to an hour for token expiry. Which capability provides this?",
+    "options": [
+      "Continuous access evaluation",
+      "Token lifetime policies set to one hour",
+      "Sign-in frequency of 90 days",
+      "Security defaults"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Continuous access evaluation enables near-real-time enforcement so that critical events such as account disablement, password reset, or detected high risk cause access tokens to be revoked immediately rather than remaining valid until expiry. Simply shortening token lifetimes increases authentication traffic and still leaves a window. CAE is supported by Entra-integrated services like Exchange Online, SharePoint Online, and Teams.",
+    "difficulty": "MEDIUM"
+  }
+]

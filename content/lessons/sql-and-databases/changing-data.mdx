@@ -1,0 +1,248 @@
+---
+title: Changing Data
+module: sql-and-databases
+moduleTitle: SQL and Databases
+moduleOrder: 4
+moduleIcon: Database
+order: 5
+summary: "INSERT, UPDATE, and DELETE change the tables joins read from, and one missing WHERE can rewrite every row."
+estimatedMinutes: 15
+prerequisites: [relationships-and-joins]
+objectives:
+  - Add rows to a table with INSERT and explain why a missing required column fails
+  - Change existing rows with UPDATE and confirm the change with a before-and-after SELECT
+  - Remove rows with DELETE and predict what a missing WHERE clause hits
+  - Wrap multi-step changes in a transaction and undo them with ROLLBACK
+tags:
+  - sql
+  - insert-update-delete
+---
+
+A join answers a question by reading across tables that were never stored in one place. The previous lesson, relationships and joins, pulled a book's title from one table and its author's name from another and stitched them into a single row of output. All of that was reading. Nothing in the file changed. Run the same join twice and the data sits there, untouched, exactly as it was.
+
+That works right up until a real app has a person on the other end who adds a book, rates one they finished, or deletes one they never want to see again. The reading half of SQL is safe: the worst a bad SELECT does is show wrong rows on a screen. The writing half is where the data actually moves, and where a single careless line can rewrite an entire table with no warning and no undo. This lesson covers the three statements that write: INSERT, UPDATE, and DELETE. It also covers the one rule that keeps them from ruining a day.
+
+Everything below runs against one small table. Here it is, created once and reused for every example, so each query has real rows to act on.
+
+```sql
+CREATE TABLE books (
+  id        INTEGER PRIMARY KEY,
+  title     TEXT NOT NULL,
+  author_id INTEGER NOT NULL,
+  year      INTEGER,
+  rating    INTEGER
+);
+```
+
+The `NOT NULL` next to `title` and `author_id` matters in a minute. It is a rule the database enforces: those two columns are never allowed to be empty. After loading four rows, the table looks like this.
+
+| id | title | author_id | year | rating |
+|----|-------|-----------|------|--------|
+| 1 | The Left Hand of Darkness | 4 | 1969 | 5 |
+| 2 | Kindred | 7 | 1979 | 5 |
+| 3 | Neuromancer | 2 | 1984 | 3 |
+| 4 | Parable of the Sower | 7 | 1993 | (null) |
+
+Notice row 4 has no rating. The `rating` column has no `NOT NULL` rule, so an empty value there is allowed and shows up as null, meaning "no value recorded." That distinction between a required column and an optional one is about to decide whether an insert succeeds or fails.
+
+## INSERT adds a new row
+
+INSERT is the statement that puts a new row into a table. The shape is a list of columns, then the word `VALUES`, then a matching list of values in the same order.
+
+```sql
+INSERT INTO books (title, author_id, year)
+VALUES ('Annihilation', 9, 2014);
+```
+
+Two things are worth reading closely. The column list names only three of the five columns, and that is fine: `id` was left out because the database assigns it automatically (that is what `PRIMARY KEY` does on an integer column in SQLite), and `rating` was left out because it is optional, so the new row simply gets a null there. Every value lines up by position with the column named at the same spot: `'Annihilation'` goes to `title`, `9` to `author_id`, `2014` to `year`. Text goes in single quotes; numbers do not.
+
+There is a shorter form that skips the column list entirely, and it is a trap worth naming early. `INSERT INTO books VALUES (5, 'Annihilation', 9, 2014, NULL)` works, but only if the values are given in the exact order the columns were defined, all five of them, including the id. The first time someone adds a column to the table, every one of those column-less inserts starts writing values into the wrong fields, silently, because the positions shifted. Naming the columns costs a few extra keystrokes and buys immunity from that whole class of bug. Prefer the named form every time.
+
+Reading the row back confirms what the database filled in.
+
+<ExpectedOutput label="the new row, id and rating supplied by the database">
+```
+5|Annihilation|9|2014|
+```
+</ExpectedOutput>
+
+The `5` is the auto-assigned id. The trailing empty field after `2014` is the null rating, printed as nothing. So far so good. Now leave out a required column on purpose.
+
+```sql
+INSERT INTO books (author_id, year)
+VALUES (9, 2014);
+```
+
+This one does not add a row. It stops with an error, because `title` is declared `NOT NULL` and nothing supplied a title, which would leave that column empty.
+
+<ExpectedOutput label="the insert is rejected, no row added">
+```
+Error: stepping, NOT NULL constraint failed: books.title
+```
+</ExpectedOutput>
+
+That error is the database protecting the shape of the data. A book with no title is not a valid book, so the rule refuses to let one exist. The same thing happens if an insert skips `author_id`, or names four columns but supplies three values, or tries to reuse an id that is already taken. These failures are a feature. A rejected insert is far better than a half-formed row that quietly breaks every join that touches it later.
+
+<Quiz
+  id="changing-insert-null"
+  question="An INSERT into the books table supplies title and year but leaves out author_id, which is declared NOT NULL. What happens?"
+  answer={2}
+  options={[
+    "The row is added with author_id set to 0.",
+    "The row is added with author_id copied from the previous row.",
+    "The statement fails and no row is added, because author_id is required and nothing supplied it.",
+    "The row is added and the database emails an administrator to fill in author_id later.",
+  ]}
+  explanation="A NOT NULL column must have a value on every row. Leaving it out of the insert would create an empty required field, so the database rejects the whole statement and adds nothing. It does not invent a default like 0, copy neighboring rows, or defer the value."
+/>
+
+## UPDATE changes rows that already exist
+
+INSERT makes new rows. UPDATE reaches into rows that are already there and changes their values. The shape is the table name, then `SET column = value`, then a `WHERE` clause that picks which rows to touch.
+
+The single most useful habit with UPDATE is to look before and after. Row 3 is Neuromancer, currently rated 3. Read it first.
+
+```sql
+SELECT id, title, rating FROM books WHERE id = 3;
+```
+
+<ExpectedOutput label="before the change">
+```
+3|Neuromancer|3
+```
+</ExpectedOutput>
+
+Now change that one rating to 5.
+
+```sql
+UPDATE books SET rating = 5 WHERE id = 3;
+```
+
+UPDATE prints nothing when it succeeds, which unnerves people the first time. Silence means it worked. The proof is in reading the row again.
+
+```sql
+SELECT id, title, rating FROM books WHERE id = 3;
+```
+
+<ExpectedOutput label="after the change">
+```
+3|Neuromancer|5
+```
+</ExpectedOutput>
+
+The rating moved from 3 to 5 and nothing else changed. That `WHERE id = 3` is the entire reason only one row moved. It is a filter, exactly like the filters from the filtering and sorting lesson, and it does the same job here that it did for SELECT: it names which rows the statement applies to. The difference is the stakes. A SELECT with a loose filter shows too many rows on a screen and wastes a glance. An UPDATE with a loose filter changes too many rows on disk, and those rows do not come back on their own.
+
+One value can depend on the current value, too. Bumping every rating by one point for a whole shelf is a single statement:
+
+```sql
+UPDATE books SET rating = rating + 1 WHERE year < 1990;
+```
+
+The right side reads the existing `rating`, adds one, and writes the result back, but only for rows where `year` is before 1990. Rows that do not match the WHERE clause are left completely alone.
+
+A single UPDATE can change several columns at once by separating the assignments with commas: `UPDATE books SET title = 'Neuromancer (1984)', rating = 5 WHERE id = 3` sets both fields on that one row in a single pass. This is worth preferring over two separate UPDATE statements, because both changes land together and a reader of the code sees the full edit in one place.
+
+## DELETE removes rows
+
+DELETE takes rows out of a table. It has no `SET`, because it does not change values, it removes whole rows. The shape is `DELETE FROM`, the table name, and a WHERE clause that picks which rows go.
+
+```sql
+DELETE FROM books WHERE id = 3;
+```
+
+That removes exactly one row, the one where `id` is 3, and leaves the other four untouched. Like UPDATE, DELETE prints nothing on success, and like UPDATE, the WHERE clause is the whole safety story. A DELETE with a WHERE that matches ten rows removes ten rows. There is no trash bin the rows sit in, no thirty-day grace period, no automatic backup. Once a DELETE commits, those rows are gone from the file.
+
+That permanence is why a lot of real apps avoid hard DELETEs for anything a person might regret. Instead of removing the row, they add a column such as `deleted_at` or an `is_deleted` flag and run an UPDATE that marks the row hidden, then filter it out on every read. The data still exists, so a mistaken "delete" is a one-line UPDATE to reverse. This pattern is called a soft delete, and it is a design choice made with UPDATE and DELETE, not a separate feature. Knowing both statements is what makes the choice available.
+
+## The missing WHERE is the catastrophe
+
+Here is the rule that matters more than any other in this lesson. UPDATE and DELETE without a WHERE clause apply to every row in the table.
+
+There is no popup. No "are you sure." No selection to confirm. The database does exactly what the statement says, and a statement with no WHERE says "all of them." Drop the WHERE off that rating bump and watch what it means:
+
+```sql
+UPDATE books SET rating = 1;
+```
+
+That is not a mistake the database catches. It is a valid statement that rewrites the rating of every single book to 1, wiping out real ratings across the whole table in one line. The five-star books, the unrated book, all of them, now rated 1. The same shape with DELETE is worse:
+
+```sql
+DELETE FROM books;
+```
+
+DELETE removes rows. With a WHERE it removes the rows that match. With no WHERE it removes all of them, and the table is left empty. Both statements run instantly and report success, because from the database's point of view nothing went wrong. The command was well formed and it was carried out.
+
+<Callout type="warning" title="Read the WHERE clause out loud before you run a write">
+The pattern behind nearly every "I destroyed the data" story is the same: an UPDATE or DELETE that was meant to hit one row shipped without its WHERE clause, or with a WHERE that matched far more than intended. Before running any UPDATE or DELETE, say the WHERE clause out loud as a sentence: "only the row where id equals 3." If there is no such sentence because there is no WHERE, stop. Run it as a SELECT with the same WHERE first (SELECT * FROM books WHERE id = 3) and look at exactly which rows come back. Those are the rows the write is about to change. If that count surprises you, the filter is wrong, not the data.
+</Callout>
+
+<Quiz
+  id="changing-missing-where"
+  question="Someone runs UPDATE books SET rating = 1 intending to fix one book, but forgets the WHERE clause entirely. On the four-row table, what is the result?"
+  answer={0}
+  options={[
+    "Every row in books has its rating set to 1, because an UPDATE with no WHERE clause applies to all rows.",
+    "Nothing changes, because an UPDATE without WHERE is not a valid statement.",
+    "Only the first row is changed, since the database updates one row at a time.",
+    "The database asks for confirmation before changing more than one row.",
+  ]}
+  explanation="A missing WHERE clause is not an error and triggers no confirmation. UPDATE applies its SET to every row it is allowed to touch, and with no WHERE that is all of them. The statement is perfectly valid, which is exactly why it is dangerous."
+/>
+
+## Transactions are the safety belt
+
+The advice to run a SELECT first is good, but it does not help once several writes have to happen together. Transferring a book to a different shelf might mean one UPDATE and one DELETE that only make sense as a pair. If the first runs and the second fails, the data is left in a state that was never meant to exist.
+
+A transaction groups statements so they either all take effect or none do. It opens with `BEGIN`, runs any number of writes, and closes with either `COMMIT` to keep the changes or `ROLLBACK` to throw them all away.
+
+```sql
+BEGIN;
+UPDATE books SET rating = rating + 1 WHERE year < 1990;
+DELETE FROM books WHERE rating IS NULL;
+COMMIT;
+```
+
+Between `BEGIN` and `COMMIT`, the changes are pending. `COMMIT` makes them permanent, all at once. If anything looks wrong before committing, `ROLLBACK` in place of `COMMIT` undoes every change since `BEGIN` as if none of them happened.
+
+That makes ROLLBACK the real safety net for the missing-WHERE disaster. Wrap a risky write in a transaction, run it, check the damage with a SELECT, and only then decide.
+
+```sql
+BEGIN;
+UPDATE books SET rating = 1;
+SELECT id, rating FROM books;
+ROLLBACK;
+```
+
+The SELECT in the middle shows every rating now sitting at 1, the full extent of the mistake. Because the whole thing is inside a transaction that ends in `ROLLBACK`, none of it survives. Reading the table afterward shows the original ratings intact.
+
+<ExpectedOutput label="ratings after the ROLLBACK, unharmed">
+```
+1|5
+2|5
+3|3
+4|
+```
+</ExpectedOutput>
+
+The catch worth knowing: many SQL clients run in autocommit mode, meaning each statement commits on its own the instant it finishes, with no transaction wrapped around it. In that mode there is nothing to roll back, because the change was already made permanent. Typing `BEGIN` first is what turns autocommit off for the group of statements that follow. That single word is the difference between a mistake you can undo and one you cannot.
+
+<Quiz
+  id="changing-rollback"
+  question="Inside a transaction (after BEGIN), a DELETE removes 40 rows by mistake. Before COMMIT, ROLLBACK is run instead. What is the state of the table?"
+  answer={1}
+  options={[
+    "The 40 rows are gone, because DELETE takes effect immediately regardless of the transaction.",
+    "All 40 rows are back, because ROLLBACK undoes every change made since BEGIN.",
+    "Only the last of the 40 rows is restored.",
+    "The table is locked and must be recreated from scratch.",
+  ]}
+  explanation="BEGIN starts a transaction, so the DELETE is pending, not permanent. ROLLBACK discards every change made since BEGIN, restoring all 40 rows. COMMIT would have made the deletion permanent instead. This is exactly why wrapping risky writes in a transaction is worth the two extra words."
+/>
+
+<Exercise title="Practice a safe write end to end">
+Open a SQLite file with the books table loaded. First run SELECT id, title, rating FROM books WHERE id = 4 and note that the rating is null. Now type BEGIN, then UPDATE books SET rating = 4 WHERE id = 4, then run the same SELECT again to confirm the one row changed. Then, to prove ROLLBACK works, run ROLLBACK and SELECT the row a third time: the rating should be back to null. Finally, do the whole thing again but end with COMMIT instead, and confirm the 4 sticks. Predict each result before you read it.
+</Exercise>
+
+Reading and writing are now both on the table, and they use the exact same tables and the exact same WHERE clauses. That closes the SQL module. What is still missing is a program to run these statements on someone's behalf, because a person is not going to type raw SQL to rate a book. The Building Apps path picks up here: in the web development module, an app takes a click or a form submission, turns it into an INSERT, UPDATE, or DELETE against a real database, and shows the result back on a page. Every button that saves, edits, or removes something is one of these five statements wearing a nicer interface.
+
+<Notes />

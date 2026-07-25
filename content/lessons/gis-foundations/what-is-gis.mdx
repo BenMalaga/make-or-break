@@ -1,0 +1,193 @@
+---
+title: What GIS Is and Why It Matters
+module: gis-foundations
+moduleTitle: GIS Foundations
+moduleOrder: 1
+moduleIcon: Compass
+order: 1
+summary: "A GIS is software for data that is tied to places. It answers questions a spreadsheet cannot, because it knows where every record sits on the Earth."
+estimatedMinutes: 13
+prerequisites: []
+objectives:
+  - Define what a Geographic Information System is and what makes it different from a spreadsheet
+  - Explain the two halves of every GIS record: where it is and what it is
+  - Describe the layer model and why analysts stack data instead of merging it
+  - Give three real fields where GIS answers questions that plain tables cannot
+tags:
+  - gis
+  - foundations
+  - spatial-data
+---
+
+A Geographic Information System, almost always shortened to GIS, is software for
+working with data that is tied to a place on the Earth. That last part is the
+whole point. A list of coffee shops in a spreadsheet is just names and addresses.
+The same list in a GIS knows where each shop actually sits, so it can answer a
+question the spreadsheet cannot: which shops are within a five minute walk of the
+train station, and how many people live close enough to reach one on foot.
+
+The word "system" is doing real work in the name. A GIS is not one tool. It is the
+combination of the data, the software that stores and draws it, and the methods an
+analyst uses to ask questions of it. People use "GIS" loosely to mean the software
+(QGIS, ArcGIS), the field of study, and the whole practice of spatial analysis.
+The context usually makes the meaning clear.
+
+## Every GIS record has two halves
+
+The idea that separates GIS from an ordinary database is that every record carries
+two kinds of information at once.
+
+The first half is **where**: the location, expressed as coordinates. A single point
+might be a pair of numbers like a longitude and a latitude. A road is a string of
+such points connected in order. A county is a closed loop of points that encloses
+an area. This locational half is called the **geometry** of the record.
+
+The second half is **what**: everything else known about that place. A record for a
+fire hydrant might store its geometry (one point) alongside its install year, its
+water pressure, and its last inspection date. This descriptive half is called the
+**attributes**, and it lives in an ordinary table of rows and columns, exactly like
+a spreadsheet. One row per feature, one column per property.
+
+A **feature** is the pairing of the two: one geometry plus its row of attributes.
+A hydrant, a road segment, a lake, a census tract. GIS work is almost always work
+on features, thousands or millions of them at a time.
+
+<Callout type="info" title="Geometry plus attributes">
+Hold on to this pairing, because it explains most of what follows. Every operation
+in GIS either works on the geometry (how far apart are these two points), on the
+attributes (which parcels are zoned commercial), or on both at once (the total
+value of every parcel within the flood zone). Knowing which half a question touches
+tells an analyst which tool to reach for.
+</Callout>
+
+<Quiz
+  id="gis-two-halves"
+  question="A GIS record for a streetlight stores its coordinates along with its wattage and install date. Which half is the wattage?"
+  answer={1}
+  options={[
+    "The geometry, because wattage helps describe where the light is.",
+    "The attributes, because wattage is a property of the light, not its location.",
+    "Neither, because a GIS can only store coordinates.",
+    "Both, because every value in a GIS is geometry and attribute at the same time.",
+  ]}
+  explanation="Wattage is a descriptive property, so it belongs to the attributes, the ordinary table half of the record. The geometry is only the coordinates that place the light on the Earth. The two halves are stored together but stay distinct."
+/>
+
+## Data comes in layers, not one big table
+
+An analyst almost never keeps every kind of feature in a single table. Roads live
+in one dataset, rivers in another, buildings in a third. Each of these is a
+**layer**: a collection of features that are all the same kind of thing, all sharing
+the same set of attribute columns.
+
+Layers are the working unit of GIS. A map is built by stacking them, drawing the
+rivers, then the roads over the rivers, then the building footprints over the
+roads. Because each layer is separate, an analyst can turn one on or off, restyle
+it, or run analysis on it without disturbing the others. This is very different
+from merging everything into one giant table, which would force unrelated things to
+share columns that make no sense for most of them.
+
+The layer model also mirrors how the questions arrive. A planner asks about roads
+and parcels together, then about rivers and parcels, then about all three. Keeping
+each theme in its own layer lets the analyst combine exactly the layers a question
+needs and leave the rest out.
+
+## The questions a spreadsheet cannot answer
+
+Anything a spreadsheet can do with the attribute table, a GIS can do too, because
+that half really is a table. The reason to use a GIS is the other half. Because the
+software knows the geometry, it can answer questions that involve location, nearness,
+and shape. These are called **spatial questions**, and they are the reason the field
+exists.
+
+A few examples make the difference concrete:
+
+- Which homes are inside the 100 year flood plain? A spreadsheet has no idea where a
+  home is relative to a flood zone. A GIS checks each home's point against the flood
+  polygon and returns the ones that fall inside.
+- What is the shortest route for a delivery van that must visit twelve stops? This
+  needs the road network's connections and lengths, which live in the geometry.
+- How much forest was lost near a new highway between two satellite images? This
+  compares two grids of land cover in the same place across time.
+
+None of these can be answered by sorting or filtering a plain table, because none of
+the needed facts (inside, shortest, near) are written in any column. They have to be
+computed from the geometry. That computation is what a GIS is for.
+
+<Quiz
+  id="gis-spatial-question"
+  question="Which of these is a spatial question, the kind that specifically needs a GIS rather than a spreadsheet?"
+  answer={2}
+  options={[
+    "How many customers spent more than 100 dollars last month?",
+    "What is the average age of the people in this list?",
+    "Which customers live within two kilometers of the new store?",
+    "How many orders were placed on a Tuesday?",
+  ]}
+  explanation="Only the third question depends on location and distance, facts that are not written in any column and must be computed from the geometry. The others are ordinary table filters that a spreadsheet handles fine. A question needs a GIS when its answer depends on where things are, not just what is recorded about them."
+/>
+
+## Where GIS shows up
+
+GIS is quietly behind a large amount of everyday life, which is part of why it is a
+useful skill to have.
+
+**Cities and planning** use it to decide where to put a bus stop, which streets flood,
+and whether a proposed building blocks a neighbor's sunlight. **Environmental science**
+uses it to track deforestation, model where a wildfire will spread, and measure how a
+coastline moves. **Public health** used it to map disease spread long before the phrase
+was common, going back to a famous 1854 map that traced a cholera outbreak to a single
+water pump. **Logistics and delivery** use it to plan routes, place warehouses, and
+promise a delivery window. **Utilities** use it to know which homes lose power when a
+particular line goes down.
+
+The common thread is that all of these depend on where things are in relation to each
+other, and that relationship is exactly what a GIS keeps track of. Learning GIS is
+learning to ask and answer that kind of question with real data.
+
+## A GIS is not a drawing program
+
+A common early confusion is to treat a GIS as a fancier version of a drawing app.
+Both put shapes on a screen, so the difference is easy to miss. The gap is that a
+drawing program only knows how a shape looks: this line is blue, two pixels wide,
+starting here and ending there. It has no idea that the line is a river, how long
+the river is in kilometers, or which towns the river passes through.
+
+A GIS knows all of that, because its shapes are anchored to real coordinates on the
+Earth and carry their attributes with them. Ask a drawing program for the total
+length of every road in a city and it cannot answer, since to it the roads are just
+strokes of color. Ask a GIS the same thing and it sums the real world lengths from
+the geometry in seconds. The shapes look similar on screen, but only one of them
+means anything.
+
+This is also why a screenshot of a map is not GIS data. The picture has lost the
+coordinates and the attributes; it is now just colored pixels, the same as any
+photo. The living data behind the map, the features with their geometry and their
+tables, is the thing an analyst actually works with. The map is only one of many
+ways to look at it.
+
+## The road from here
+
+The rest of this module builds the foundation underneath everything above. The next
+lesson looks at the two ways a GIS stores the world, points and lines and polygons on
+one side and grids of cells on the other. After that comes the part that trips up
+almost every beginner: coordinate reference systems, the agreement about what a pair
+of numbers actually means on a round Earth. Get those ideas solid and the analysis,
+the programming, and the maps that come later all rest on firm ground.
+
+<Quiz
+  id="gis-layers"
+  question="Why do analysts keep roads, rivers, and buildings in separate layers instead of one combined table?"
+  answer={0}
+  options={[
+    "Each layer holds one kind of feature with its own columns, so layers can be styled, toggled, and analyzed independently and combined only when a question needs them.",
+    "A GIS is technically unable to store more than one geometry type in a project.",
+    "Separate layers make the files smaller, which is the only reason to split them.",
+    "Combining them is impossible because roads and rivers use different coordinate systems by law.",
+  ]}
+  explanation="Layers group features of the same kind with a shared set of attributes, which keeps unrelated things from being forced into the same columns and lets an analyst combine exactly the layers a question needs. It is a modeling choice for clarity and flexibility, not a technical limit of the software."
+/>
+
+A GIS, then, is not a fancy map program. It is a way of holding data that never
+forgets where each record belongs, and a set of tools for turning that location into
+answers. Everything else in this track is a variation on that one theme.

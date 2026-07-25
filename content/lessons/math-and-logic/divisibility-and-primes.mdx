@@ -1,0 +1,287 @@
+---
+title: Divisibility and Primes
+module: math-and-logic
+moduleTitle: Math and Logic
+moduleOrder: 5
+moduleIcon: Sigma
+order: 2
+summary: "The remainder test, factors, what makes a number prime, and two fast tools: trial division up to the square root and the Sieve of Eratosthenes."
+estimatedMinutes: 15
+prerequisites: ["problems-into-code"]
+objectives:
+  - Use the remainder test n % d == 0 to decide whether one number divides another with nothing left over
+  - List the factors of a number with the same loop-and-test shape from the last lesson
+  - Explain what makes a number prime, why 1 is not, and why trial division only needs to reach the square root
+  - Choose between a single primality test and the Sieve of Eratosthenes, and break a number into its prime factors
+tags:
+  - math
+  - python
+  - algorithms
+---
+
+The number 91 looks prime. It is odd, it does not end in 0 or 5, and no divisor
+jumps out. Yet 91 is 7 times 13, so it is not prime at all. Telling those two
+cases apart, the numbers that split into smaller pieces and the numbers that
+refuse to, is the whole subject of this lesson.
+
+The last lesson, problems into code, drilled one shape until it was automatic:
+loop over a range of candidates, test each one, keep the ones that pass. Pointing
+that same loop-and-test shape at the factors of a number answers almost every
+question below. What changes is only the test in the middle. Here the test is a
+question about division, and Python answers it with a single operator.
+
+## Dividing evenly, and the factors that fall out
+
+A number divides another evenly when the division leaves nothing over. 56 divided
+by 7 is exactly 8, no scraps. 56 divided by 9 is 6 with 2 left over, so 9 does not
+divide 56. That leftover has a name, the remainder, and Python hands it back
+directly with the percent operator, `%`, which is called modulo.
+
+```python
+print(56 % 7)   # 0, nothing left over
+print(56 % 9)   # 2, two left over
+```
+
+When the remainder is 0, the division came out exact. That one fact is the entire
+divisibility test, and it reads almost like plain English.
+
+```python
+print(56 % 7 == 0)   # True
+print(56 % 9 == 0)   # False
+```
+
+A number that divides another evenly is called a factor, or a divisor. The two
+words mean the same thing. 7 is a factor of 56, and so are 1, 2, 4, 8, 14, 28, and
+56 itself. Finding all of them is the loop-and-test shape from the last lesson,
+unchanged except for the one test sitting inside it.
+
+```python
+n = 56
+factors = []
+for d in range(1, n + 1):
+    if n % d == 0:
+        factors.append(d)
+print(factors)   # [1, 2, 4, 7, 8, 14, 28, 56]
+```
+
+The loop walks every candidate from 1 up to n. The test `n % d == 0` asks whether
+that candidate divides n with no remainder. Candidates that pass get collected,
+the rest get dropped. Every number picks up at least two factors this way, 1 and
+itself, because 1 divides everything and every number divides itself. The
+interesting numbers are the ones that have nothing in between those two.
+
+<Quiz
+  id="math-primes-remainder-test"
+  question="Which expression is Python's way of asking whether 7 is a factor of 56, meaning it divides 56 with nothing left over?"
+  answer={1}
+  options={[
+    "56 // 7 == 0",
+    "56 % 7 == 0",
+    "7 % 56 == 0",
+    "56 / 7",
+  ]}
+  explanation="The % operator returns the remainder of a division, and a remainder of 0 means the division was exact, so 7 is a factor. 56 % 7 is 0, so the second option is True. By contrast 56 // 7 is 8 (floor division gives the quotient, not the remainder), 7 % 56 is 7, and 56 / 7 is the float 8.0, not a yes-or-no answer."
+/>
+
+## Primes, and why the square root is far enough
+
+A prime number is a whole number greater than 1 whose only factors are 1 and
+itself. 7 is prime: the factor loop run on 7 returns only 1 and 7. 56 is not
+prime, since it carries six extra factors in between. Numbers that are not prime,
+like 56 and 91, are called composite, because they are composed of smaller factors
+multiplied together.
+
+The definition draws a hard line at 1, and 1 lands on the wrong side of it. The
+number 1 is not prime. The reason hides in the phrase "and itself." For 1, the
+factor 1 and the number itself are the very same factor, so 1 has only one
+distinct factor, not two, and a prime is defined to have exactly two. This is not a
+rule invented to be annoying. Prime factorization, coming up shortly, stays clean
+only when 1 is kept out, because otherwise any number could soak up an unlimited
+pile of 1s in its factor list.
+
+Testing one number for primality does not call for the full factor list. The
+moment a single factor turns up between 2 and n minus 1, the number is composite
+and there is no reason to keep looking. That early exit is trial division.
+
+```python
+def is_prime(n):
+    if n < 2:
+        return False
+    d = 2
+    while d < n:
+        if n % d == 0:
+            return False
+        d += 1
+    return True
+
+print(is_prime(7))    # True
+print(is_prime(91))   # False, because 91 % 7 is 0
+```
+
+The function guards the low end first: anything below 2 is not prime, which
+handles 1, 0, and negatives in a single line. Then it tries divisors starting at 2.
+The first one that divides n evenly triggers `return False`, and the function is
+done. If the loop runs all the way out without finding a divisor, n survived every
+check and `return True` fires.
+
+That loop does far more work than it needs to, because factors come in pairs. If d
+divides n, then n divided by d is also a factor, and the two multiply back to n.
+The number 36 shows the pattern plainly: its factor pairs are 1 and 36, 2 and 18, 3
+and 12, 4 and 9, and 6 and 6. The pairs mirror around 6, which is the square root
+of 36. In every pair one member sits at or below the square root and the other at
+or above it. So if n had any factor larger than its square root, that factor would
+come with a partner smaller than the square root, and trial division would have run
+into the smaller one first.
+
+The payoff: trial division only has to reach the square root of n. Past that point
+there is nothing new left to find. Written as `d * d <= n` instead of `d < n`, the
+loop skips computing a square root at all and simply stops once d squared passes n.
+
+```python
+def is_prime(n):
+    if n < 2:
+        return False
+    d = 2
+    while d * d <= n:
+        if n % d == 0:
+            return False
+        d += 1
+    return True
+
+print(is_prime(97))   # True
+print(is_prime(91))   # False
+```
+
+For 97 the loop tests only 2 through 9 and then stops, because 10 times 10 is 100,
+already past 97. Eight checks settle it instead of ninety-five. For a number near a
+million the difference grows to roughly a thousand steps against a million.
+
+<Quiz
+  id="math-primes-sqrt-cutoff"
+  question="Trial division is checking whether 97 is prime, trying divisors from 2 upward. Once no divisor up to which number has divided 97, is_prime can safely stop and return True?"
+  answer={2}
+  options={[
+    "96, one below 97 itself",
+    "48, about half of 97",
+    "9, because 10 times 10 already passes 97",
+    "2, since only even divisors can matter",
+  ]}
+  explanation="Factors pair up, so if 97 had a factor above its square root of about 9.8, that factor would come with a smaller partner below 9.8 that trial division would have hit first. Testing 2 through 9 is therefore enough to be sure. The loop condition d * d <= n encodes exactly this, stopping as soon as 10 * 10 overshoots 97."
+/>
+
+## Many primes at once: the sieve, and taking numbers apart
+
+A single primality test answers one question: is this number prime. A different
+question comes up constantly: what are all the primes up to some limit. Running
+is_prime on every number from 2 to a million does work, but it repeats an enormous
+amount of dividing. The Sieve of Eratosthenes, a method more than two thousand
+years old, produces every prime up to a limit in one sweep by working the opposite
+way. Rather than testing each number for factors, it starts with all numbers marked
+prime and crosses out the multiples.
+
+The method, run to 30 by hand, goes like this. Write the numbers 2 through 30, all
+assumed prime to begin with. The first is 2, so 2 is prime, and every larger
+multiple of 2 gets crossed out: 4, 6, 8, and onward to 30. The next number still
+standing is 3, which was never crossed out, so 3 is prime, and its multiples go:
+9, 15, 21, 27 (6, 12, 18, 24, 30 were already gone). Next standing is 5, so 25 gets
+crossed out (10, 15, 20, 30 already gone). Next is 7, but 7 times 7 is 49, past 30,
+so the crossing is finished. Everything still standing, 2, 3, 5, 7, 11, 13, 17, 19,
+23, 29, is prime.
+
+```python
+def sieve(limit):
+    prime = [True] * (limit + 1)
+    prime[0] = prime[1] = False
+    for n in range(2, limit + 1):
+        if prime[n]:
+            for multiple in range(n * n, limit + 1, n):
+                prime[multiple] = False
+    return [n for n in range(2, limit + 1) if prime[n]]
+
+print(sieve(30))
+# [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+```
+
+The list `prime` holds a True or False for each number up to the limit. Marking 0
+and 1 as False handles the two exceptions up front. The outer loop walks the
+numbers, and whenever it lands on one still marked True, that number is prime and
+the inner loop crosses out its multiples. The inner loop starts at n times n, not 2
+times n, for the reason the hand run showed: every smaller multiple of n was
+already crossed out by an earlier, smaller prime. The last line reads off every
+index still marked True.
+
+One more question rounds out the toolkit: which primes multiply together to build a
+given number. That is its prime factorization, and every whole number above 1 has
+exactly one, a fact solid enough that much of modern cryptography rests its weight
+on it. Repeated division finds it. Divide n by the smallest divisor that fits, as
+many times as it fits, then step up to the next candidate.
+
+```python
+def prime_factors(n):
+    factors = []
+    d = 2
+    while d * d <= n:
+        while n % d == 0:
+            factors.append(d)
+            n //= d
+        d += 1
+    if n > 1:
+        factors.append(n)
+    return factors
+
+print(prime_factors(360))   # [2, 2, 2, 3, 3, 5]
+```
+
+The inner `while` strips out every copy of the current divisor before the outer
+loop advances, so 360 gives up its three 2s, then its two 3s, then a single 5. The
+`n //= d` uses floor division, `//`, which divides and discards any remainder;
+since d divides n exactly at that point, nothing is lost. The final guard earns its
+place: if anything above 1 is left once the loop ends, that leftover is itself a
+prime too large to have been paired off, so it joins the list. Multiplying the
+results back, 2 times 2 times 2 times 3 times 3 times 5, returns 360.
+
+Which tool fits depends on the shape of the question. For one number, especially a
+large one, a single is_prime call is right, since there is no sense in building a
+giant table to check one value. For every prime up to a bound, or for many
+primality questions across a fixed range, the sieve wins by a wide margin, because
+it pays the crossing-out cost once and then answers instantly. And when the
+question is about the building blocks of one specific number, repeated division
+takes it apart. The nth-prime and largest-prime-factor problems in the Challenges
+tab run directly on these three functions, so this is a good moment to try them.
+
+<Quiz
+  id="math-primes-sieve-vs-test"
+  question="A program needs a list of every prime below one million to answer many questions quickly. Which approach does the least total work?"
+  answer={1}
+  options={[
+    "Call the trial-division is_prime on each number from 2 up to one million",
+    "Run the Sieve of Eratosthenes once and read the primes off the finished table",
+    "Prime-factor every number and keep the ones that come back with a single factor",
+    "There is no way to produce that many primes inside a program",
+  ]}
+  explanation="The sieve crosses out multiples in one sweep and then holds every prime up to the limit at once, which is far cheaper than running a separate is_prime, each with its own division loop, on a million numbers. A single primality test is the right tool for one number, especially a large one; the sieve is the right tool for all primes up to a bound."
+/>
+
+<Exercise title="Break a number into its primes">
+Open the Build tab and type in the `prime_factors` function from above. Run it on
+84 and then on 1000, and read the two lists it returns. Now check your work the
+honest way: multiply each list back together, by hand or with a second line of
+code, and confirm the product equals the number you started with. 84 should come
+back as 2, 2, 3, 7, and multiplying those gives 84 again.
+
+Once that feels solid, feed the function the number 600851475143 and look at the
+largest value in the list it returns. Watch how few steps the square-root cutoff
+takes even on a number that big. That single run is most of the answer to the
+largest-prime-factor challenge, so carry the result straight over to the Challenges
+tab.
+</Exercise>
+
+Every test in this lesson leaned on one operator, the `%` that reports what is left
+after a division. That leftover carried more weight than the quotient did: it is
+the whole of divisibility, the heart of trial division, and the engine inside the
+sieve. The next lesson, on remainders and modular arithmetic, makes the remainder
+itself the subject and shows how counting that wraps around, clock faces, days of
+the week, hashing, and the keys behind cryptography, is built almost entirely out
+of `%`.
+
+<Notes />

@@ -1,0 +1,196 @@
+---
+title: "GeoJSON: The Web-Native Spatial Format"
+module: gis-data-formats
+moduleTitle: Spatial Data and Formats
+moduleOrder: 2
+moduleIcon: Database
+order: 3
+summary: "A GeoJSON file is a FeatureCollection of Features, and the one fact that trips up nearly everyone is that its coordinates run longitude first, then latitude."
+estimatedMinutes: 14
+prerequisites: ["raster-formats"]
+objectives:
+  - Describe the exact nesting of a GeoJSON FeatureCollection, its Features, and each Feature's geometry and properties
+  - Name the four core geometry types and their Multi variants, and state what shape their coordinate arrays take
+  - State the coordinate order rule, longitude then latitude, and explain why GeoJSON assumes EPSG:4326
+  - Weigh GeoJSON's readability and web-native ease against its verbosity, file size, and precision bloat to judge when it fits a job
+tags:
+  - gis
+  - geojson
+  - formats
+---
+
+The last lesson left data as a grid: a raster file where the whole area becomes a mesh of cells, each one holding a single number for elevation, temperature, or reflectance. Vector data, points and lines and polygons with attributes attached, works nothing like that, and the format that carries most of it around the web is GeoJSON. An earlier lesson in this module introduced it briefly, next to Shapefile and GeoPackage, as the plain-text option built on JSON. It earns a closer look on its own, because a large share of the maps that load in a browser today, a delivery tracker, a city's open-data portal, a weather dashboard, are shipping exactly this format across the network on every page load.
+
+## Feature, geometry, properties: what is actually inside the file
+
+Every GeoJSON file resolves down to the same small set of nested pieces, and once those are clear the rest of the format is just variations on them.
+
+The outermost wrapper is a **FeatureCollection**, a JSON object with a `type` field set to the literal string `"FeatureCollection"` and a `features` field holding a list. That list can hold one item or a hundred thousand; the wrapper looks the same either way. Each item in that list is a **Feature**, and a Feature always carries exactly two things worth paying attention to: a `geometry` object and a `properties` object.
+
+The `geometry` object is the where. It has its own `type`, one of a fixed small set of geometry types covered below, and a `coordinates` array shaped to match that type. The `properties` object is the what: an ordinary set of key-value pairs, the descriptive columns that would sit in a spreadsheet or a Shapefile's `.dbf` table if the data lived there instead. Nothing forces `properties` to hold any particular keys. One point feature might carry a name and a capacity, another point feature in the same file might carry entirely different keys, though in practice most real datasets keep every feature's properties consistent so software downstream can treat them as columns.
+
+Here is a complete, valid GeoJSON file: one weather station, as a Point, with three properties attached.
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-104.9903, 39.7392]
+      },
+      "properties": {
+        "station_id": "DEN047",
+        "elevation_m": 1609,
+        "last_reading_c": 18.4
+      }
+    }
+  ]
+}
+```
+
+That is a whole, working file. A weather service could serve exactly this from an API endpoint, and a browser could drop it straight onto a map with no conversion step. Reading it back out in Python needs nothing beyond the standard library, since GeoJSON is just JSON with an agreed-upon shape.
+
+```python
+import json
+
+with open("station.geojson") as f:
+    data = json.load(f)
+
+feature = data["features"][0]
+print(feature["properties"]["station_id"])
+print(feature["geometry"]["coordinates"])
+```
+
+<ExpectedOutput label="properties and coordinates pulled straight out of the parsed JSON">
+```
+DEN047
+[-104.9903, 39.7392]
+```
+</ExpectedOutput>
+
+<Quiz
+  id="geojson-structure-halves"
+  question="A GeoJSON Feature for a fire station has geometry.coordinates set to a single lon/lat pair and properties set to {\"engines\": 3, \"built\": 1987}. Where does the number 3 live, structurally?"
+  answer={1}
+  options={[
+    "Inside the geometry object, because every number in a Feature describes its location.",
+    "Inside the properties object, because it is a descriptive attribute of the station, not a location.",
+    "Split between geometry and properties, since GeoJSON stores every value in both places for redundancy.",
+    "Nowhere valid, since GeoJSON properties can only hold text, never numbers.",
+  ]}
+  explanation="The engine count describes what the station has, not where it sits, so it belongs in properties alongside the built year. The geometry object holds only the coordinates that place the feature on the Earth. GeoJSON does not duplicate values between the two objects, and properties can hold numbers, strings, booleans, or null just fine."
+/>
+
+## Four shapes, and the arrays that describe them
+
+A geometry's `type` field is one of a small fixed list, and each type demands a differently nested `coordinates` array. Learning the nesting for each one is most of what it takes to read or write GeoJSON confidently.
+
+A **Point** is the simplest case, already shown above: `coordinates` is a single pair of numbers, nothing nested around it.
+
+A **LineString** is a path: a sequence of points connected in order, like a hiking trail or a stretch of road. Its `coordinates` array holds a list of pairs, not just one.
+
+```json
+{
+  "type": "LineString",
+  "coordinates": [
+    [-104.9903, 39.7392],
+    [-104.9878, 39.7368],
+    [-104.9845, 39.7355]
+  ]
+}
+```
+
+A **Polygon** is an enclosed area, and it is the geometry type with the trickiest nesting. Its `coordinates` is a list of rings, where a ring is itself a list of point pairs whose first and last entries are identical, closing the loop. The first ring in the list is always the outer boundary. Any further rings describe holes cut out of that boundary, areas the polygon explicitly excludes. A city park with a lake inside it that the park does not own is exactly this shape: an outer ring for the park's edge, a second ring for the lake.
+
+```json
+{
+  "type": "Polygon",
+  "coordinates": [
+    [
+      [-104.9600, 39.7460],
+      [-104.9500, 39.7460],
+      [-104.9500, 39.7540],
+      [-104.9600, 39.7540],
+      [-104.9600, 39.7460]
+    ],
+    [
+      [-104.9560, 39.7490],
+      [-104.9540, 39.7490],
+      [-104.9540, 39.7510],
+      [-104.9560, 39.7510],
+      [-104.9560, 39.7490]
+    ]
+  ]
+}
+```
+
+The outer ring above traces a simple rectangle for illustration, and the second ring, the hole, sits entirely inside it. A polygon with no holes just has one ring in its list, but the nesting is still a list of rings even then, one level deeper than a LineString's list of points. Missing that extra level of brackets is a common source of a Polygon that fails to parse.
+
+The last three geometry types are the **Multi** variants: MultiPoint, MultiLineString, and MultiPolygon. Each one describes a single feature made of several disconnected pieces of the same kind, wrapped in one more list than its singular counterpart. A single US state made of several separate landmasses, Hawaii's main islands for instance, is one feature, one row of properties, and one MultiPolygon geometry holding several separate polygon rings rather than several separate features. A river system with two channels that never touch could be one MultiLineString rather than two LineString features. Choosing Multi over several plain features is a modeling call: use it when the pieces genuinely represent one thing with one set of attributes, not several unrelated things that happen to be nearby.
+
+```json
+{
+  "type": "MultiPolygon",
+  "coordinates": [
+    [ [ [-156.7, 20.9], [-156.6, 20.9], [-156.6, 21.0], [-156.7, 21.0], [-156.7, 20.9] ] ],
+    [ [ [-155.2, 19.5], [-155.0, 19.5], [-155.0, 19.7], [-155.2, 19.7], [-155.2, 19.5] ] ]
+  ]
+}
+```
+
+Those two boxes are simplified stand-ins for two islands, not real coastlines, but the nesting is genuine: a MultiPolygon's `coordinates` is a list of polygons, and each of those polygons is in turn a list of rings, exactly like a standalone Polygon.
+
+<Quiz
+  id="geojson-polygon-hole"
+  question="A park's boundary is drawn as a Polygon, and a private lake sits entirely inside the park that the park layer needs to exclude. How does the GeoJSON represent this?"
+  answer={0}
+  options={[
+    "One Polygon geometry with two rings: the first ring is the park's outer boundary, the second ring is the lake acting as a hole.",
+    "Two separate Point features, one marking the park's center and one marking the lake's center.",
+    "A MultiPolygon with the park as one polygon and the lake as a second, unrelated polygon in the same list.",
+    "A Polygon whose coordinates array lists the park's boundary twice, once forward and once reversed.",
+  ]}
+  explanation="A Polygon's coordinates array is a list of rings, where the first ring is always the outer boundary and any further ring is a hole cut out of it. That is exactly the park-with-a-lake shape: one ring for the park's edge, one more ring for the lake. Points would lose the shapes entirely, a MultiPolygon is for several disconnected same-kind pieces rather than an outline with a hole, and repeating the same ring twice does not create a hole."
+/>
+
+## The trap: longitude comes first
+
+Every one of the coordinate pairs above lists a negative number first, then a smaller positive number. That negative number is longitude, degrees east or west of the prime meridian, and the positive number is latitude, degrees north of the equator. GeoJSON always writes coordinates in that order, longitude then latitude, which is the reverse of how a location is normally said out loud. A person gives directions as "39.74 north, 104.99 west," latitude first. GeoJSON's own coordinate array for that exact spot is `[-104.9903, 39.7392]`, longitude first. Reading that array as latitude-first would place the weather station near the coast of Somalia instead of a mile east of downtown Denver.
+
+This single reversed order accounts for more broken maps than any other GeoJSON mistake. A script that swaps `lat` and `lon` variable names, or a developer who assumes the more familiar spoken order, produces a file that parses without any error at all. Nothing in the JSON syntax flags the swap. The only symptom is every point landing in the wrong place, sometimes on the opposite side of the planet, sometimes just far enough off to go unnoticed until someone checks the map against a known landmark.
+
+<Callout type="info" title="Longitude first, no exceptions">
+GeoJSON's coordinate order is fixed by its specification: longitude, then latitude, always. There is no per-file setting that flips it and no header that says which order a particular file chose. A script that reads coordinates as `[lat, lon]` will run without crashing and produce a silently wrong map. When a location looks wrong on screen, checking whether the two numbers got swapped is one of the first things worth trying.
+</Callout>
+
+That fixed order pairs with a second assumption: every coordinate in a GeoJSON file is in WGS84, the standard longitude and latitude system carrying the code EPSG:4326. A Shapefile ships a separate `.prj` file naming whatever coordinate reference system its numbers use, because a Shapefile could use any of hundreds of them. GeoJSON has no equivalent file and needs none, because the format simply does not support any other system. Software reading a `.geojson` file never has to ask which coordinate system applies. That is a real strength dressed up as a limitation.
+
+## Why the format took over the web
+
+GeoJSON's biggest advantage is that it is not really its own format at all. It is JSON, the exact syntax that JavaScript, and by extension every browser, already parses natively with a single built-in function call. A web map built on MapLibre GL or a similar JavaScript library can fetch a `.geojson` file from a server and pass it straight to the map with no translation step, because the map's rendering code and the file's syntax already speak the same language. A Shapefile or a GeoPackage needs a library capable of reading a binary format before a browser can touch it. GeoJSON needs nothing extra.
+
+That plain-text nature carries a second benefit past the browser: a person can open a `.geojson` file in any text editor and read exactly what is inside, coordinates and all, the same way a person reads a JSON config file or an API response. Version control systems like Git can show a readable diff when one coordinate changes, since the file is text, not a binary blob that changes wholesale on every edit. Small edits, quick manual fixes, and one-off API responses are all comfortable in this format for the same reason: nothing stands between a human, a script, or a browser and the actual numbers.
+
+## What the format costs
+
+That same plain-text openness is also where GeoJSON gets expensive. A binary format packs a coordinate into a few fixed bytes. GeoJSON writes that same coordinate out as human-readable digits, commas, brackets, and often generous indentation, which typically runs several times larger byte for byte than the equivalent binary encoding. A file with a few dozen features barely notices. A file with a few hundred thousand detailed polygons, a full parcel layer for a county, gets large enough that a browser has to download, then parse, the entire text file into memory before it can draw a single shape, with no way to read just one region without pulling in the rest.
+
+A second, quieter cost is precision bloat. Most GPS-grade location data is meaningful to about six or seven decimal degrees, roughly the width of a doorway. Software that writes coordinates without rounding often exports fifteen or more decimal digits per number by default, digits that describe distances thousands of times smaller than a doorway and carry no real information, just floating-point noise. Across a file with millions of coordinate pairs, those extra digits alone can double a file's size for zero gain in accuracy. Rounding coordinates to a sensible number of decimal places before export is a cheap habit that shrinks a file with no visible change to the map.
+
+<Quiz
+  id="geojson-when-to-use"
+  question="A county needs to publish its full parcel layer, roughly 400,000 detailed polygons, as a long-term archive that several departments will query for years. Based on GeoJSON's strengths and costs, what is the better call?"
+  answer={2}
+  options={[
+    "GeoJSON, since its plain text is always the safest long-term archive format regardless of dataset size.",
+    "GeoJSON, since a browser can page through a file of any size without loading all of it into memory first.",
+    "A different format such as GeoPackage, since GeoJSON's verbose text encoding and lack of internal structure make a dataset this large slow to load and awkward to query repeatedly.",
+    "It makes no difference, since every vector format stores the same bytes on disk once compressed.",
+  ]}
+  explanation="GeoJSON's plain-text, non-indexed structure is exactly what makes a small file easy to read and a browser easy to feed, but it is also what makes a very large file slow to parse and impossible to query without loading the whole thing. A single-file database format built for querying and multiple layers is the better fit for a large, long-lived, repeatedly-queried archive. GeoJSON does not page itself into a browser incrementally, and formats are not interchangeable once compressed, since the underlying structure still differs."
+/>
+
+Neither of these costs makes GeoJSON a bad format. They make it a format with a job it does exceptionally well, moving a modest amount of vector data straight into a browser or a script with zero translation overhead, and a job it does poorly, holding an enormous, frequently queried archive where a database-backed format earns its keep instead.

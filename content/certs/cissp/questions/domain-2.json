@@ -1,0 +1,210 @@
+[
+  {
+    "domain": 2,
+    "question": "What is the primary purpose of a data classification program?",
+    "options": [
+      "To assign a precise monetary value to every dataset for the accounting ledger",
+      "To determine the appropriate level of protection based on each asset's sensitivity and potential impact",
+      "To satisfy a hardware asset inventory requirement for the finance department",
+      "To ensure every piece of data is encrypted with exactly the same strength"
+    ],
+    "correct": [1],
+    "explanation": "Classification sorts information by sensitivity and the impact of its loss so that controls can be matched to value. Higher classifications receive stronger protection, while lower ones avoid wasted spend. It is about right-sizing security, not accounting or uniform treatment.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Which two responsibilities typically belong to the data owner rather than the data custodian? (Choose two.)",
+    "options": [
+      "Assigning the initial classification level to the data",
+      "Defining who may access the data and for what business purpose",
+      "Performing routine backups of the database",
+      "Applying operating system patches to the storage server"
+    ],
+    "correct": [0, 1],
+    "explanation": "The data owner is a senior or business role accountable for the information itself. Owners set the classification and define access and acceptable use. Backups and patching are hands-on custodian tasks carried out to implement the owner's decisions.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A data custodian is primarily responsible for which of the following?",
+    "options": [
+      "Establishing the classification level and value of the data",
+      "Implementing and maintaining the security controls the owner specifies",
+      "Approving individual user access requests based on business need",
+      "Formally accepting residual risk on behalf of the organization"
+    ],
+    "correct": [1],
+    "explanation": "The custodian carries out the protection requirements that the owner defines, such as backups, patching, and control configuration. Setting classification, approving access, and accepting risk are owner or management functions. The custodian executes rather than decides.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "What does the term data remanence refer to?",
+    "options": [
+      "Residual data that remains on storage media after attempts to erase or delete it",
+      "The length of time data must be retained to meet a regulation",
+      "Data that has been replicated across multiple geographic regions",
+      "Metadata that describes the sensitivity level of a file"
+    ],
+    "correct": [0],
+    "explanation": "Remanence is the leftover representation of data that persists even after deletion or a simple format. It is why proper sanitization matters before media is reused or disposed of. Attackers can sometimes recover this residual data with forensic tools.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Degaussing is an effective sanitization technique for which type of media?",
+    "options": [
+      "Solid-state drives that store data in flash memory",
+      "Magnetic media such as spinning hard disk drives and backup tapes",
+      "Optical media such as DVDs and Blu-ray discs",
+      "Paper records stored in a filing cabinet"
+    ],
+    "correct": [1],
+    "explanation": "Degaussing exposes media to a strong magnetic field that scrambles the stored magnetic domains. It works on hard disk drives and tapes but has no effect on flash-based SSDs or optical discs, which do not store data magnetically. Paper requires shredding or incineration instead.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "According to NIST SP 800-88, which sanitization method applies logical techniques to overwrite all user-addressable storage, protecting against non-invasive recovery but not against advanced laboratory attacks?",
+    "options": [
+      "Clearing",
+      "Purging",
+      "Destruction",
+      "Marking"
+    ],
+    "correct": [0],
+    "explanation": "Clearing overwrites data through the normal read/write interface, defeating simple recovery attempts like undelete tools. Purging uses stronger methods such as cryptographic erase or block erase to resist laboratory recovery. Destruction physically renders the media unusable, and marking is unrelated to sanitization.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Full-disk encryption on a laptop primarily protects data in which state?",
+    "options": [
+      "Data in use",
+      "Data at rest",
+      "Data in transit",
+      "Data in negotiation"
+    ],
+    "correct": [1],
+    "explanation": "Full-disk encryption protects the contents of the stored drive when the device is powered off or lost, which is data at rest. It does not protect data while it is decrypted in memory during use or while it moves across a network. Transport protections like TLS cover data in transit.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Under the GDPR, an organization that determines the purposes and means of processing personal data is known as the:",
+    "options": [
+      "Data processor",
+      "Data controller",
+      "Data subject",
+      "Supervisory authority"
+    ],
+    "correct": [1],
+    "explanation": "The controller decides why and how personal data is processed and bears primary accountability under the GDPR. A processor acts on the controller's behalf and instructions. The data subject is the individual the data is about, and a supervisory authority is the regulator.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "What should PRIMARILY drive how long an organization retains a given category of records?",
+    "options": [
+      "The amount of storage capacity currently available",
+      "Legal, regulatory, and legitimate business requirements",
+      "The personal preference of the IT department",
+      "The color of the label assigned to the records"
+    ],
+    "correct": [1],
+    "explanation": "Retention periods are set by laws, regulations, and business or contractual needs, balanced against the risk of holding data too long. Keeping data beyond its required period increases exposure and liability. Storage capacity and preference are not valid drivers of a defensible retention policy.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "The privacy principle of collection limitation, also called data minimization, states that an organization should:",
+    "options": [
+      "Collect as much personal data as possible in case it becomes useful later",
+      "Collect only the personal data that is necessary for the stated purpose",
+      "Retain all collected personal data indefinitely for future analysis",
+      "Share collected personal data freely with any interested third party"
+    ],
+    "correct": [1],
+    "explanation": "Data minimization limits collection to what is directly needed to accomplish the declared purpose. Gathering excess data raises privacy risk and regulatory exposure without added benefit. The principle is a cornerstone of frameworks like the GDPR and OECD privacy guidelines.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An organization applies a security control baseline and then removes the controls that do not apply to its specific environment. This process of eliminating non-applicable baseline controls is called:",
+    "options": [
+      "Tailoring",
+      "Scoping",
+      "Supplementation",
+      "Accreditation"
+    ],
+    "correct": [1],
+    "explanation": "Scoping reviews a baseline and removes controls that are not relevant to a given system or environment. Tailoring is the broader activity of adjusting a baseline, which can include scoping decisions, parameter settings, and adding compensating controls. Supplementation adds controls, and accreditation is a management authorization decision.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Which statement BEST distinguishes tokenization from encryption?",
+    "options": [
+      "Tokenization is a reversible mathematical cipher applied with a secret key",
+      "Tokenization replaces sensitive data with a surrogate value that has no mathematical relationship to the original",
+      "Tokenization always requires a longer key than AES encryption",
+      "Tokenization and encryption are functionally identical in every implementation"
+    ],
+    "correct": [1],
+    "explanation": "Tokenization swaps a sensitive value for a random surrogate token, with the mapping held in a separate secure token vault. Because the token is not derived mathematically from the original, compromising it alone reveals nothing. Encryption, by contrast, transforms the data with a key and can be reversed by anyone holding that key.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A data loss prevention (DLP) system is BEST described as a control that:",
+    "options": [
+      "Automatically encrypts every outbound email message",
+      "Detects and blocks unauthorized transmission or exfiltration of sensitive data",
+      "Backs up sensitive data to a geographically separate site",
+      "Assigns classification labels to newly created documents"
+    ],
+    "correct": [1],
+    "explanation": "DLP inspects data in motion, at rest, and in use to identify sensitive content and stop it from leaving through unauthorized channels. It relies on policies and content matching such as pattern or fingerprint detection. Backup and label assignment are separate functions, and DLP is broader than email encryption alone.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Applying a visible \"Confidential\" banner to a document is an example of:",
+    "options": [
+      "Data labeling, also called marking",
+      "Data encryption",
+      "Data remanence",
+      "Data tokenization"
+    ],
+    "correct": [0],
+    "explanation": "Labeling or marking attaches the classification of the data to the asset so people and systems handle it correctly. Markings can be human-readable banners or machine-readable metadata tags. Encryption, remanence, and tokenization are unrelated technical concepts.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Which of the following statements are TRUE regarding data anonymization and pseudonymization? (Choose two.)",
+    "options": [
+      "Properly anonymized data cannot be re-identified and generally falls outside the scope of privacy regulations",
+      "Pseudonymization replaces identifiers with a reversible token or key, so re-identification remains possible",
+      "Pseudonymization permanently and irreversibly removes all identifying information",
+      "Anonymization is designed to preserve the ability to link records back to specific individuals"
+    ],
+    "correct": [0, 1],
+    "explanation": "True anonymization irreversibly strips identifiers so individuals cannot be re-identified, which usually removes the data from privacy law scope. Pseudonymization substitutes identifiers with tokens that can be reversed using additional information held separately, so the data is still personal data. The reversibility of pseudonymization is exactly what distinguishes it from anonymization.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "In a cloud environment where you cannot physically destroy the underlying storage, which technique renders encrypted data unrecoverable by destroying the encryption keys?",
+    "options": [
+      "Degaussing the virtual disk",
+      "Cryptographic erasure, also called crypto-shredding",
+      "Overwriting the physical platters of the drive",
+      "Physically shredding the storage hardware"
+    ],
+    "correct": [1],
+    "explanation": "Cryptographic erasure destroys the keys needed to decrypt data, leaving the ciphertext intact but permanently unreadable. It is ideal for shared cloud storage where physical destruction or overwriting is impossible or impractical. The technique only works if the data was strongly encrypted and all key copies are reliably destroyed.",
+    "difficulty": "MEDIUM"
+  }
+]

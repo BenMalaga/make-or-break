@@ -1,0 +1,69 @@
+---
+title: What Detection Engineering Is
+module: detection-engineering
+moduleTitle: Detection Engineering
+moduleOrder: 37
+moduleIcon: BellRing
+order: 1
+summary: Your SOC has 400 alerts nobody wrote on purpose. This is how you fix that.
+estimatedMinutes: 18
+objectives:
+  - Explain why detections are software, not one-off alert rules
+  - Map a detection to a threat behavior instead of a single indicator
+  - Describe the detection-as-code pipeline from hypothesis to git
+tags:
+  - detection-engineering
+  - blue-team
+  - detection-as-code
+  - mitre-attack
+---
+
+Walk into most SOCs and pull up the alert console. You will find hundreds of rules the vendor shipped on by default, a dozen someone added during an incident two years ago and never touched again, and nobody who can tell you what any given rule is supposed to catch or how often it lies. That pile is the problem detection engineering exists to kill.
+
+A detection engineer treats a detection like a piece of software. It has a purpose you can state in one sentence, an input it reads, logic you can review, a test that proves it works, and an owner. When it breaks or gets noisy, someone fixes it on purpose instead of muting it and moving on.
+
+## A detection is not an alert
+
+An alert is the thing that fires. A detection is the whole design behind it: the attacker behavior you are trying to see, the log source that would show it, the query that separates that behavior from normal activity, and the decision about what happens when it matches. Alerts are the output. Detections are the engineering.
+
+The difference shows up the moment something changes. A new EDR agent renames a field. A domain controller stops forwarding a log. If your detections are ad hoc rules clicked into a console, that breakage is silent and you find out during the next incident. If they are code in a repository with tests, the test fails and you get told.
+
+## Behaviors beat indicators
+
+The weakest detection is a hash or an IP on a blocklist. It catches exactly one thing and dies the instant the attacker recompiles or rotates infrastructure, which is cheap for them and free. David Bianco's Pyramid of Pain is the map here: hashes and IPs sit at the bottom where changes cost the attacker nothing, and TTPs sit at the top where forcing a change actually hurts.
+
+So you aim higher. Instead of "block this hash," you write "alert when a Microsoft Office process spawns a command interpreter," which catches a whole class of macro-based intrusions regardless of the specific payload. That maps cleanly to a MITRE ATT&CK technique, T1059 Command and Scripting Interpreter, and ATT&CK is the shared vocabulary detection teams use to describe what they cover and where the gaps are.
+
+## Detection as code
+
+The practice that makes this a discipline is detection as code. Your detections live in a git repository, get reviewed in pull requests, run through CI, and deploy to the SIEM through a pipeline instead of a human clicking save in a web UI.
+
+<CommandBlock
+  title="a detection repo, same shape as any codebase"
+  commands={[
+    { cmd: "git clone git@github.com:yourorg/detections.git", comment: "rules are versioned, reviewed, and diffable" },
+    { cmd: "ls rules/windows/", comment: "one file per detection, grouped by platform" },
+    { cmd: "git log --oneline rules/windows/office_spawns_shell.yml", comment: "who changed this rule, when, and why" },
+  ]}
+/>
+
+That last command is the whole pitch. When a detection misfires at 3am, you can read its history and see the tuning decision that caused it instead of guessing.
+
+<Callout type="security" title="Build and test on systems you control">
+Everything in this module involves generating attack behavior to prove a detection fires. Only do that against lab machines, a dedicated test range, or production systems your organization has explicitly cleared you to test under change control. Running attacker techniques on hosts you do not own, even to validate a rule, is unauthorized access.
+</Callout>
+
+<Quiz
+  id="de-behavior-vs-indicator"
+  question="Why does a detection for 'Office application spawns a shell' beat a detection that blocks a specific malware hash?"
+  answer={2}
+  options={[
+    "It uses less storage in the SIEM",
+    "Hashes are harder to compute than process trees",
+    "The behavior catches a whole class of attacks even when the payload changes",
+    "Hash blocklists are not supported by most SIEMs",
+  ]}
+  explanation="A hash catches exactly one file and is free for the attacker to change. A behavioral detection maps to a technique like T1059 and keeps working across different payloads, which is why it sits higher on the Pyramid of Pain."
+/>
+
+<Notes />

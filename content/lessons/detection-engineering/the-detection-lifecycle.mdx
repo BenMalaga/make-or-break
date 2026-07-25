@@ -1,0 +1,64 @@
+---
+title: The Detection Lifecycle
+module: detection-engineering
+moduleTitle: Detection Engineering
+moduleOrder: 37
+moduleIcon: BellRing
+order: 5
+summary: Detections rot. The ones you shipped last year are lying to you right now.
+estimatedMinutes: 19
+objectives:
+  - Walk a detection through every stage from idea to retirement
+  - Track detection health with metrics instead of vibes
+  - Decide when to retire a rule instead of hoarding it
+tags:
+  - detection-engineering
+  - lifecycle
+  - detection-as-code
+  - maintenance
+---
+
+The detection you wrote 14 months ago fired 400 times last quarter and every one was a false positive from a tool that got deployed fleet-wide in March. Nobody noticed because nobody owns it. That is the default fate of a detection with no lifecycle: it gets written, deployed, and then rots quietly until it is pure noise or, worse, silently broken and catching nothing.
+
+Detections are not a build-once asset. They are living code that tracks a moving target, and they need the same lifecycle any other production system gets. Idea, build, test, deploy, monitor, retire.
+
+## The stages, in order
+
+Each detection moves through the same path, and skipping a stage is where teams get burned.
+
+- **Requirement.** Start from a threat, not a tool. "We have no coverage for T1053 scheduled-task persistence" is a requirement. Tie it to a real gap, often one you found in an ATT&CK Navigator heat map.
+- **Research.** Learn how the technique actually behaves and which log source shows it. If the data does not exist, you have a logging problem to fix before a detection problem to write.
+- **Develop.** Write the logic, as a Sigma rule or native query, with its known false positives filtered from the start.
+- **Test.** Fire the technique with an atomic and confirm the alert appears. No fire, no ship.
+- **Deploy.** Merge through the detection-as-code pipeline so the change is reviewed and versioned, not clicked into a console.
+- **Monitor and tune.** Watch precision in production and add scoped exclusions as benign sources surface.
+- **Retire.** When the technique is dead or the rule is superseded, remove it on purpose.
+
+## Track health, do not guess
+
+You cannot manage detections you are not measuring. For each rule, watch a few numbers: how often it fires, what fraction of those were true positives, when it last fired at all, and when it was last tested. Those four tell you almost everything.
+
+A rule that has not fired in a year might be perfect coverage for a rare technique, or it might be quietly broken because a field got renamed. The metric does not tell you which, but it tells you which rules to go re-test. A rule with a true-positive rate near zero is burning analyst trust and needs tuning or retirement now.
+
+<CommandCard command="git log --since='6 months ago' --oneline rules/ | wc -l" explain="A cheap health signal from the repo itself. A detection library with almost no commits in six months is not stable, it is abandoned. Real coverage against a changing threat landscape means steady tuning, so a flatlined change history is a warning, not a trophy." />
+
+## Retire without guilt
+
+New engineers hoard detections. Every rule feels like coverage you would be crazy to delete. But a rule for a technique that no longer exists in your environment, or one fully replaced by a better detection, is not coverage. It is noise and maintenance cost pretending to be security.
+
+Retire it the same way you shipped it: a pull request, a reason in the commit, a record you can point to later. Because it lived in version control, the rule is never truly gone. If the threat comes back, you restore it from history instead of rebuilding from memory.
+
+<Callout type="security" title="Test and retire under change control">
+Re-testing a live detection means firing the technique again, and retiring one changes what your SOC can see. Do both in a lab or under your organization's change-control process, never by ad hoc edits to a production detection during an active shift. A quiet untested change to a detection is how real attacks slip through the window you opened.
+</Callout>
+
+<Exercise
+  id="de-lifecycle-stale-rule"
+  prompt="A detection has not fired in 12 months. Name the one stage of the lifecycle you should return it to before you trust that silence."
+  answer="test"
+  placeholder="one stage"
+>
+Silence could mean rare-but-working or quietly-broken. Which stage proves which one it is by firing the technique on purpose?
+</Exercise>
+
+<Notes />

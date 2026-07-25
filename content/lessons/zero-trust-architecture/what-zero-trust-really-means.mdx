@@ -1,0 +1,68 @@
+---
+title: What Zero Trust Really Means
+module: zero-trust-architecture
+moduleTitle: Zero Trust Architecture
+moduleOrder: 49
+moduleIcon: ShieldQuestion
+order: 1
+summary: Every vendor sells zero trust as a box you buy. It is a design principle, and the principle is that the network earns you nothing.
+estimatedMinutes: 16
+objectives:
+  - Strip the marketing off zero trust and state the actual principle
+  - Map a request to the policy engine, administrator, and enforcement point
+  - Explain why network location is a broken basis for trust
+tags:
+  - zero-trust
+  - architecture
+  - nist
+  - access-control
+---
+
+Every security vendor has a zero trust product now. Firewalls, VPNs, badge readers, email gateways, all rebranded overnight with the same two words. So start here: zero trust is not a thing you buy. It is a design principle, and once the principle is clear the sales deck falls apart.
+
+The principle fits in one sentence. Never trust, always verify. Unpacked, it means you stop granting access based on where a request comes from. Sitting on the corporate LAN, riding the VPN tunnel, living inside the firewall: none of that earns trust. Every request to every resource gets authenticated and authorized on its own, every single time.
+
+That is a direct rejection of the model most networks still run. The castle and moat: a hard perimeter, a soft trusted interior, and one assumption baked into everything, that "inside the network" means "allowed." The moment anything inside is compromised, and something always is, that assumption hands the attacker the whole interior for free. Zero trust deletes the assumption. Location tells you nothing.
+
+## The document that actually defines it
+
+Skip the vendor whitepapers and read NIST SP 800-207. Published in 2020, it is the closest thing to a neutral definition, and it describes the machinery in three logical parts.
+
+The **policy engine** decides. It takes a request plus signals about the user, device, and resource, and returns allow or deny. The **policy administrator** carries out that decision, setting up or tearing down the session. The **policy enforcement point** is the thing in the data path that actually blocks or forwards the traffic. Engine and administrator together are the policy decision point, the brain; the enforcement point is the hands.
+
+Every access follows the same loop. A request hits the enforcement point, the enforcement point asks the decision point, the decision point evaluates policy against live signals, and only then does traffic flow. No standing trust, no "you authenticated an hour ago so you are fine." The check happens per request.
+
+You can watch the model in action with an identity-aware proxy in front of an internal app. No valid identity, no access, regardless of what network you are on.
+
+<CommandBlock
+  title="probing an identity-aware proxy"
+  commands={[
+    { cmd: "curl -s -o /dev/null -w '%{http_code}\\n' https://app.internal.example", comment: "no session token, expect a 302 redirect to the identity provider" },
+    { cmd: "curl -s -o /dev/null -w '%{http_code}\\n' -H \"Authorization: Bearer $TOKEN\" https://app.internal.example", comment: "valid identity, policy allows this user to this app, expect 200" },
+  ]}
+/>
+
+<ExpectedOutput label="the point of the two calls">
+302 then 200. The proxy trusted your network position zero percent. It trusted a verified identity that policy explicitly permits for that one app.
+</ExpectedOutput>
+
+Google's BeyondCorp is the reference implementation of exactly this. They moved every internal app behind an access proxy, dropped the privileged corporate network entirely, and now an engineer on hotel wifi and one at a desk in Mountain View get identical scrutiny. There is no "inside" to be on.
+
+<Callout type="security" title="Verify the model on systems you own">
+Poking at an access proxy, mapping what a token can reach, or testing whether an app leaks past its enforcement point is active assessment. Do it against a lab you built or infrastructure you are explicitly cleared to test. A local setup with an OPA or Pomerium proxy in front of a dummy app teaches the whole loop without touching anything you do not own.
+</Callout>
+
+<Quiz
+  id="zt-not-a-product"
+  question="A vendor pitches a 'zero trust firewall' that, once deployed at the perimeter, marks everything behind it as trusted. Why does this miss the point?"
+  answer={2}
+  options={[
+    "Firewalls cannot inspect encrypted traffic",
+    "Zero trust requires a VPN in front of the firewall",
+    "It reintroduces implicit trust based on network location, which is the exact assumption zero trust removes",
+    "The firewall should be placed at the core, not the perimeter",
+  ]}
+  explanation="Zero trust rejects location as a basis for trust. A device that trusts everything behind it just rebuilds the soft interior of the castle and moat. The principle demands per-request authentication and authorization for every resource, no matter where the request originates."
+/>
+
+<Notes />

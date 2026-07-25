@@ -1,0 +1,179 @@
+---
+title: "Buffers and Proximity: What Is Near What"
+module: gis-spatial-analysis
+moduleTitle: Spatial Analysis
+moduleOrder: 3
+moduleIcon: Radar
+order: 2
+summary: "A buffer draws a zone at a fixed distance around a feature, and getting that distance right depends on projecting to a metric CRS before drawing it."
+estimatedMinutes: 14
+prerequisites: ["spatial-relationships"]
+objectives:
+  - Explain what a buffer is and build one around a point, line, and polygon
+  - Identify why buffering in a geographic CRS produces the wrong distance and fix it by projecting to a metric CRS
+  - Distinguish nearest-neighbor distance analysis from a simple containment test
+  - Explain the difference between a straight-line buffer and a network-based service area
+---
+
+The previous lesson covered spatial predicates: intersects, contains, within, the fixed set of ways two geometries can relate to each other. Those predicates answer yes-or-no questions about shapes that already exist. Proximity analysis answers a different kind of question: how close is close enough, and what does an analyst do about it. The tool that turns "close enough" into a real geometry is the buffer.
+
+## What a buffer actually is
+
+A buffer is a new polygon built around an existing feature, out to a fixed distance in every direction. Give it a point and a distance of 500 meters, and the buffer is a circle 500 meters in radius, centered on that point. Give it a line, like a stream, and the buffer is a stretched, rounded band that follows the line's whole length, 500 meters wide on each side. Give it a polygon, like a lake, and the buffer is a slightly larger version of that shape, its edge pushed outward by the buffer distance.
+
+The shape of the input barely matters once the operation runs. A buffer's job is the same regardless: take every point on the boundary of a feature and trace a line that stays exactly the buffer distance away from the nearest part of that feature. The result is always a polygon, even when the thing being buffered was a point or a line, because "the zone within 500 meters" is inherently an area, not a point or a line.
+
+This single operation covers a surprising amount of real GIS work. A city planner drawing a 500 meter walking catchment around a proposed transit stop is buffering a point. An environmental regulator marking off a 30 meter no-disturbance strip along every stream is buffering a set of lines. A zoning office enforcing a 200 meter setback from an industrial site is buffering a polygon. Different domains, same underlying computation.
+
+In GeoPandas, the Python library covered in earlier lessons for working with vector data, a buffer is one method call:
+
+```python
+import geopandas as gpd
+
+schools = gpd.read_file("schools.gpkg")
+catchments = schools.buffer(500)
+```
+
+`schools.buffer(500)` returns a new GeoSeries, one polygon per school, each one the shape traced 500 units out from that school's point. That word "units" is doing quiet, important work, and it is the first trap this lesson exists to catch.
+
+<Quiz
+  id="buffer-what-shape"
+  question="A buffer is built around a road, which is a line geometry. What shape does the buffer operation return?"
+  answer={2}
+  options={[
+    "A line, because buffering a line always produces another line.",
+    "A point, because the buffer distance collapses the line to its midpoint.",
+    "A polygon, a band that follows the road's length at the given width on each side.",
+    "The same road geometry, unchanged, since lines cannot be buffered.",
+  ]}
+  explanation="A buffer always returns a polygon, because a zone of distance around a feature is inherently an area. Buffering a road produces a band-shaped polygon that traces the road's length at the specified width. The input can be a point, line, or polygon, but the output is a polygon every time."
+/>
+
+## The trap: buffering in degrees
+
+Here is where a buffer goes wrong in a way that looks fine and is not. Every geometry lesson before this one has mentioned coordinate reference systems, usually shortened to CRS, the agreement about what a pair of numbers means on a round Earth. A huge amount of vector data, including anything pulled straight from OpenStreetMap or stored as GeoJSON, sits in EPSG:4326, the WGS84 geographic CRS that stores coordinates as longitude and latitude in degrees.
+
+A degree of longitude and a degree of latitude are not fixed distances. A degree of latitude is roughly 111 kilometers everywhere on Earth, but a degree of longitude shrinks the further a location sits from the equator, because lines of longitude converge at the poles. At the equator, a degree of longitude is also about 111 kilometers. At 45 degrees north, roughly the latitude of Minneapolis or Milan, it has shrunk to about 79 kilometers. At 60 degrees north, close to Anchorage or Oslo, it is down to about 56 kilometers.
+
+Call `.buffer(500)` on data still sitting in EPSG:4326, and GeoPandas does not know any of this. It has no way to know the numbers are degrees rather than meters, so it obediently draws a shape 500 degrees across. Not 500 meters. Five hundred degrees is more than the entire width of the Earth, so in practice the software either throws a nonsensical, wildly oversized polygon or the analyst catches the mistake because the map suddenly looks absurd. The quieter and more dangerous version of this bug is a buffer distance small enough to still produce a plausible-looking shape, like 0.005, that an analyst assumes is close enough and never checks against a real ground distance.
+
+<Callout type="warning" title="A degree is not a distance">
+The single most common buffer mistake in GIS is calling `.buffer()` on data still in a geographic CRS, one measured in degrees, like EPSG:4326. The number passed to `.buffer()` is always interpreted in whatever unit the current CRS uses. In degrees, that number means nothing as a real-world distance, and the amount of ground it covers even changes depending on how far the data sits from the equator. Always check the CRS before buffering, and reproject first when it is geographic.
+</Callout>
+
+The fix is to reproject the data into a metric CRS before running the buffer, then reproject the result back if the map needs to display in EPSG:4326 or EPSG:3857 (Web Mercator, the projection most web maps use) afterward. For most work at a city or regional scale, the right choice is a UTM zone, one of sixty narrow north-south strips that divide the globe, each with its own EPSG code, each measured in meters, and each accurate to within a fraction of a percent across its own zone. New Jersey sits in UTM zone 18N, EPSG:32618. A dataset covering Portland, Oregon would reproject to UTM zone 10N, EPSG:32610, instead.
+
+```python
+import geopandas as gpd
+
+schools = gpd.read_file("schools.gpkg")
+print(schools.crs)
+
+schools_utm = schools.to_crs("EPSG:32618")
+catchments_utm = schools_utm.buffer(500)
+
+catchments_wgs84 = catchments_utm.to_crs("EPSG:4326")
+```
+
+<ExpectedOutput label="the CRS printed before reprojecting">
+```
+EPSG:4326
+```
+</ExpectedOutput>
+
+`schools.to_crs("EPSG:32618")` reprojects every geometry into UTM zone 18N, where coordinates are now meters on a flat plane rather than degrees on a sphere. `.buffer(500)` on that reprojected data draws a genuine 500 meter zone, because the CRS's unit really is the meter. The last line reprojects the finished buffers back to EPSG:4326 only for display or for saving alongside data that expects that CRS. The buffering itself never happens in degrees.
+
+<Quiz
+  id="buffer-crs-trap"
+  question="A dataset of parks is stored in EPSG:4326 and an analyst runs parks.buffer(1000) directly on it, intending a 1000 meter buffer. What actually happens?"
+  answer={0}
+  options={[
+    "The buffer is drawn as 1000 degrees, an enormous and meaningless shape, because .buffer() interprets its argument in whatever unit the current CRS uses.",
+    "GeoPandas automatically detects the CRS is geographic and converts 1000 to meters before buffering.",
+    "The operation fails immediately with an error, so the mistake is always caught right away.",
+    "The buffer is correct, because EPSG:4326 measures distance in meters near the equator.",
+  ]}
+  explanation="GeoPandas does not convert units for the analyst. The number passed to .buffer() is always read in the current CRS's unit, and EPSG:4326 measures in degrees everywhere, not meters. That produces a wildly oversized shape rather than an error, which is exactly why the mistake is dangerous: nothing crashes, it is just wrong."
+/>
+
+## Nearest neighbor and distance analysis
+
+A buffer answers "what falls inside this fixed distance." A related but different question is "how far is the nearest one," which does not require picking a distance in advance at all. This is nearest-neighbor analysis, and it shows up constantly: how far is each house from the nearest fire station, how far is each field from the nearest water source, how far is each customer from the nearest store location.
+
+GeoPandas exposes this through `.distance()`, which measures the straight-line distance from each geometry in a GeoSeries to a single target geometry, and through spatial join helpers built for nearest-feature matching. The key requirement is the same one that governs buffers: the data has to be in a metric CRS first, or the distances that come back are in degrees and mean nothing on their own.
+
+```python
+homes_utm = homes.to_crs("EPSG:32618")
+stations_utm = stations.to_crs("EPSG:32618")
+
+nearest_station_geom = stations_utm.union_all()
+homes_utm["dist_to_station_m"] = homes_utm.distance(nearest_station_geom)
+```
+
+<ExpectedOutput label="one distance value per home, in meters">
+```
+    dist_to_station_m
+0            412.7
+1           1893.2
+2            205.9
+```
+</ExpectedOutput>
+
+`stations_utm.union_all()` merges every station into a single combined geometry, so `.distance()` against it returns, for each home, the distance to whichever station happens to be closest, not the distance to some fixed single station. The result is a plain number in meters per row, ready to filter, sort, or map. A buffer would have asked "which homes fall within 500 meters of a station." This distance column answers the related but distinct question of exactly how far every home actually is, which supports finer analysis like ranking the most underserved homes rather than a flat inside-or-outside split.
+
+## Service areas: a buffer is not a walk
+
+A buffer is a straight-line, as-the-crow-flies zone. It has no idea that a wall, a highway, or a river sits between the center and the edge of the circle. That is a fine approximation for some questions and a genuinely wrong answer for others.
+
+Consider a 400 meter buffer around a park entrance meant to represent "how far someone can walk in about five minutes." A straight-line buffer draws a clean circle. Real pedestrians do not move in straight lines. They walk along sidewalks and streets, they detour around fenced lots, and a river or a highway with no nearby crossing can put a home that is geometrically 300 meters from the entrance a 15 minute walk away, because the only route loops far around. The straight-line buffer says that home is well within range. The real walking distance says otherwise.
+
+A service area, sometimes called an isochrone when it is built around a fixed travel time rather than a fixed distance, fixes this by measuring distance along the actual road or path network instead of through open space. It uses the same graph of connected road segments that routing software already relies on to find directions, walking outward from the starting point edge by edge until it has covered the target distance or time, then tracing the boundary of everywhere that was reached. The result looks like a lopsided, organic blob that hugs the real street pattern, not a clean circle.
+
+Building a proper network-based service area needs a routable street graph and typically a dedicated tool or library, which is more than a single buffer call. It is worth knowing the distinction exists now, because a later lesson on network analysis and web-based routing builds directly on this idea. For a first pass, or when the area in question is dense and well-connected with no major barriers, a straight-line buffer is a reasonable stand-in. Near a river, a highway, or a large fenced property, it can be misleading enough to change a decision, and that is the moment to reach for a real service area instead.
+
+<Quiz
+  id="buffer-vs-service-area"
+  question="A 400 meter straight-line buffer is drawn around a park entrance that sits directly across a river from a nearby neighborhood, with the closest bridge a kilometer away. What is the main problem with using that buffer to represent walking access?"
+  answer={3}
+  options={[
+    "The buffer is drawn in the wrong CRS, since parks always require UTM coordinates.",
+    "Buffers can only be built around points, and a park entrance is not a point.",
+    "The buffer's radius is too small to be useful for any walking analysis.",
+    "The buffer includes homes across the river that are close in straight-line distance but far in actual walking distance, because it ignores the river as a barrier.",
+  ]}
+  explanation="A straight-line buffer measures distance through open space and has no concept of a river, a wall, or a road network. It will happily mark homes across the river as within range even though no direct path exists, overstating real walking access. That is precisely the gap a network-based service area closes, since it walks the actual street graph instead of drawing a circle."
+/>
+
+## Worked example: homes within 400 meters of a park
+
+Putting the pieces together end to end. The dataset has a GeoPackage of home points and a GeoPackage of park polygons, both delivered in EPSG:4326, the ordinary state for data pulled from OpenStreetMap. The task: find every home within 400 meters of a park, walking distance ignored for this first pass.
+
+```python
+import geopandas as gpd
+
+homes = gpd.read_file("homes.gpkg")
+parks = gpd.read_file("parks.gpkg")
+
+homes_utm = homes.to_crs("EPSG:32618")
+parks_utm = parks.to_crs("EPSG:32618")
+
+park_zones = parks_utm.buffer(400)
+all_zones = park_zones.union_all()
+
+nearby = homes_utm[homes_utm.intersects(all_zones)]
+print(f"{len(nearby)} of {len(homes_utm)} homes are within 400m of a park")
+```
+
+<ExpectedOutput label="a count of homes that fall inside the combined buffer zone">
+```
+1,842 of 3,105 homes are within 400m of a park
+```
+</ExpectedOutput>
+
+Both layers are reprojected to EPSG:32618, UTM zone 18N, before anything else happens, so the 400 passed to `.buffer()` really does mean 400 meters. `parks_utm.buffer(400)` draws a 400 meter zone around every park polygon, one buffer per park, some of which may overlap each other near clustered parks. `.union_all()` merges all of those individual buffers into one combined shape, so a home only needs to fall inside any park's zone, not a specific one, to count. `.intersects()`, the predicate from the previous lesson, then does the actual selection: it filters `homes_utm` down to only the rows whose point falls inside that combined zone.
+
+Every step depends on the one before it: the CRS has to be right before the buffer distance means anything, the buffer has to be merged before a single intersects call can check against every park at once, and the predicate has to be run against that merged shape rather than against each park separately, or the code would need a loop and a set union to get the same answer. This is the shape most real proximity analysis takes: reproject, buffer, merge if needed, test.
+
+The result is a boolean-filtered set of homes, ready to save as its own layer, join with census data to estimate a population reached, or feed into a report on park access equity across a city. Nothing here needed a network graph or an isochrone, because a straight first pass at "within some distance" of a park is usually a fair approximation for a feature as large and evenly distributed as parks tend to be. A single hospital or a single grocery store, sitting at one location that many people rely on, is exactly the case where the crow-flies shortcut starts to matter and a service area earns its extra work.
+
+The next lesson in this module turns to overlay operations, combining two layers into a genuinely new one rather than just testing or measuring between them, the natural next step once proximity and predicates are both in hand.

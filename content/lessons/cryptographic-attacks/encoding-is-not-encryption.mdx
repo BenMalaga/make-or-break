@@ -1,0 +1,71 @@
+---
+title: Encoding Is Not Encryption
+module: cryptographic-attacks
+moduleTitle: Cryptographic Attacks
+moduleOrder: 41
+moduleIcon: Unlock
+order: 2
+summary: A string that looks scrambled but has no key protects nothing.
+estimatedMinutes: 15
+objectives:
+  - Tell encoding, encryption, and hashing apart on sight
+  - Recognize base64 and hex from their shape
+  - Decode a value in seconds and explain why that is not a break
+tags:
+  - crypto
+  - encoding
+  - base64
+  - hex
+---
+
+You pull a session cookie off an app and it looks like this: `eyJ1c2VyIjoiYWRtaW4ifQ==`. Random gibberish, right? Paste it into a base64 decoder and it says `{"user":"admin"}`. That took two seconds and no key. Whoever built that app confused encoding with encryption, and it is one of the most common mistakes in web security.
+
+Here is the distinction that matters. Encoding is a reversible format change with no secret. Anyone can reverse it. Encryption is a reversible transformation that requires a key, so only a key holder can reverse it. Hashing is one-way and reversible by no one. Three different jobs. People blur them constantly, usually because base64 output happens to look scrambled to a human eye.
+
+## Reading the shapes
+
+You want to recognize encodings without decoding first, because it tells you what tool to reach for.
+
+Base64 uses `A-Z`, `a-z`, `0-9`, `+`, and `/`, often ending in one or two `=` padding characters. Length is always a multiple of four. That trailing `==` is the loudest tell there is.
+
+Hex uses only `0-9` and `a-f`, and its length is always even. A 32-character hex string is 16 bytes, which is a hint it might be an MD5 digest or a 128-bit value. URL encoding is the one full of `%` signs, like `%2F` for a slash.
+
+<CommandBlock
+  title="attacker@lab, decoding in a shell"
+  commands={[
+    { cmd: "echo 'eyJ1c2VyIjoiYWRtaW4ifQ==' | base64 -d", comment: "prints the raw JSON, no key needed" },
+    { cmd: "echo '61646d696e' | xxd -r -p", comment: "hex to ascii, prints admin" },
+    { cmd: "python3 -c \"import base64;print(base64.b64decode('...'))\"", comment: "when the shell base64 chokes on url-safe input" },
+  ]}
+/>
+
+<ExpectedOutput label="what the first command prints">
+{"user":"admin"}
+</ExpectedOutput>
+
+## Why this is a real vulnerability
+
+The failure is not the encoding itself. Encoding is fine and necessary, it moves binary safely through text channels like HTTP headers, JSON, and URLs. The failure is trusting it to hide or protect anything.
+
+When an app stores `role=YWRtaW4=` in a cookie and reads it back without a signature, you decode it, change `user` to `admin`, re-encode, and send it back. Nothing stops you, because there was never a secret involved. This is exactly how unsigned session tokens and tampered JWTs get abused. A JWT with `"alg":"none"` is the same trap: the payload is just base64, and if the server does not verify the signature, you rewrite the payload freely.
+
+<Callout type="security" title="Decode only what you are cleared to touch">
+Decoding a token you captured from your own test account in an authorized assessment is fair game. Grabbing another user's cookie, or tampering with tokens on a production app you have no scope for, crosses into unauthorized access. Keep it to your own accounts and in-scope targets.
+</Callout>
+
+The habit to build: whenever a value looks scrambled, try to decode it before you assume it is protected. If it decodes with no key, it was never protected. Real protection leaves a signature or an authentication tag you cannot forge, and it does not fall over to a two-second `base64 -d`.
+
+<Quiz
+  id="encoding-vs-encryption"
+  question="You find a value ending in == in a cookie. What does that most likely tell you?"
+  answer={0}
+  options={[
+    "It is base64-encoded and you can decode it with no key",
+    "It is AES-encrypted and needs the server's key to read",
+    "It is a bcrypt hash that must be cracked offline",
+    "It is a random nonce with no recoverable meaning",
+  ]}
+  explanation="Trailing = padding and a length that is a multiple of four are the signature of base64. Base64 is encoding, not encryption, so it decodes instantly without any secret."
+/>
+
+<Notes />

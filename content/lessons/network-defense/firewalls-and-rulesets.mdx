@@ -1,0 +1,84 @@
+---
+title: Firewalls and Rulesets
+module: network-defense
+moduleTitle: Network Defense
+moduleOrder: 28
+moduleIcon: ShieldHalf
+order: 1
+summary: A firewall is only as good as the rules you write, and most rulesets leak.
+estimatedMinutes: 20
+objectives:
+  - Explain the difference between stateful and stateless filtering
+  - Write a default-deny ruleset that actually holds
+  - Read an existing ruleset and spot the holes an attacker will find
+tags:
+  - firewall
+  - iptables
+  - nftables
+  - defense
+---
+
+A firewall that allows everything outbound and half of everything inbound is theater. You see it constantly: a box with a hundred rules, and buried in there is an `ACCEPT` on `0.0.0.0/0` that someone added at 2am to fix a broken deploy and never removed. That one line is the whole attack surface. Filtering packets is easy. Writing rules that fail closed instead of open is the hard part, and it is where most setups fall down.
+
+Start with what the firewall actually decides. Every packet that hits it gets matched against your rules top to bottom, and the first match wins. What happens when nothing matches is the single most important choice you make. That is your default policy.
+
+## Stateless vs stateful
+
+A stateless filter looks at each packet alone. Source IP, destination IP, port, protocol, done. It has no memory that you sent a SYN out three milliseconds ago, so when the SYN-ACK comes back it has to be allowed by a separate explicit rule. That means you end up writing rules for both directions of every conversation, and the return-traffic rules are wide by necessity. Wide rules are where attackers live.
+
+Stateful is the default you want. The firewall tracks connections in a table: this outbound TCP session is `ESTABLISHED`, so its return packets are expected and allowed without a rule that says "let anything from port 443 back in." You allow the outbound connection once, and the reply traffic rides the connection state. Smaller ruleset, tighter surface, fewer mistakes.
+
+```bash
+# stateful accept: let replies to connections you started come back
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+```
+
+That one rule replaces a pile of stateless return-path rules, and it does not open a hole a scanner can walk through, because a packet only matches if it belongs to a connection the box already tracked.
+
+## Default deny, then allow what you need
+
+Set the policy to drop, then open the specific things that must work. Never the other way around.
+
+<CommandBlock
+  commands={[
+    { cmd: "iptables -P INPUT DROP", comment: "default: nothing inbound unless a later rule allows it" },
+    { cmd: "iptables -P FORWARD DROP", comment: "not a router by default" },
+    { cmd: "iptables -A INPUT -i lo -j ACCEPT", comment: "loopback, or you break local services" },
+    { cmd: "iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT", comment: "return traffic" },
+    { cmd: "iptables -A INPUT -p tcp --dport 22 -s 10.0.0.0/8 -j ACCEPT", comment: "SSH, from the mgmt range only" },
+  ]}
+/>
+
+Notice the SSH rule is scoped to a source range. Opening 22 to the whole internet is the difference between a bastion and a brute-force magnet. If a rule does not name a source, ask why it is that generous.
+
+The order matters as much as the rules. Because first match wins, a broad `ACCEPT` placed above a narrow `DROP` makes the `DROP` dead code. Read your ruleset top down the way the kernel does and find the first rule that swallows traffic you meant to filter later.
+
+<Callout type="security" title="Authorized testing only">
+Probing a firewall, mapping which ports it drops versus rejects, and testing egress filtering are all recon. Do it against your own infrastructure or a target with written authorization. Scanning someone else's edge to profile their ruleset is a hostile act in most jurisdictions.
+</Callout>
+
+## Egress matters as much as ingress
+
+Most people lock down inbound and let outbound run wide open. That is backwards for containing a breach. Once an attacker has a shell on an internal host, the outbound rules decide whether their reverse shell to `attacker.example:4444` connects and whether they can exfiltrate over a random high port. Filter egress to the ports and destinations your services genuinely need. A web server almost never needs to make arbitrary outbound TCP connections to the internet, so do not let it.
+
+On modern systems `nftables` is the successor to `iptables` and uses one unified framework with a cleaner syntax. The concepts are identical: default policy, state matching, first-match ordering. Learn the model once and the tool is just syntax.
+
+<Quiz
+  id="fw-default-policy"
+  question="You set INPUT policy to DROP, add a rule accepting ESTABLISHED,RELATED, then add ACCEPT for tcp/443 from anywhere. A remote host sends a fresh SYN to port 80. What happens?"
+  answer={2}
+  options={[
+    "Accepted, because ESTABLISHED covers new connections",
+    "Rejected with a TCP RST so the client fails fast",
+    "Dropped silently, because no rule matches and the policy is DROP",
+    "Accepted, because port 443 is open",
+  ]}
+  explanation="The SYN is a new connection to port 80. It does not match ESTABLISHED,RELATED (that is only for existing connections), it does not match the 443 rule, so it falls through to the default DROP policy. DROP is silent, no RST is sent, which is why the client hangs instead of getting a clean refusal."
+/>
+
+<Exercise
+  id="fw-audit-ruleset"
+  prompt="Dump a live ruleset with 'iptables -L -n -v --line-numbers'. Walk it top to bottom and find the first ACCEPT rule that has no source restriction and no port restriction. Write down why it is there and what would break if you deleted it. That rule is almost always your biggest exposure."
+/>
+
+<Notes />

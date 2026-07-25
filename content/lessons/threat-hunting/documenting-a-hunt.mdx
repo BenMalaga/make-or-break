@@ -1,0 +1,67 @@
+---
+title: Documenting a Hunt
+module: threat-hunting
+moduleTitle: Threat Hunting
+moduleOrder: 26
+moduleIcon: Footprints
+order: 5
+summary: An undocumented hunt you finished is a hunt someone else has to run again from scratch.
+estimatedMinutes: 16
+objectives:
+  - Record a hunt so it is repeatable by someone who was not there
+  - Convert a hunt finding into a durable detection rule
+  - Feed hunt results back into coverage and future hypotheses
+tags:
+  - threat-hunting
+  - documentation
+  - detection-engineering
+  - sigma
+---
+
+The best hunt of your career is worthless in six months if the only record of it lives in your head. Someone will ask "did we ever check for Kerberoasting," and if your answer is "yeah, I think so, sometime last spring," you get to run the whole thing again. Documentation is what turns a one-time search into an asset the team keeps.
+
+This is the step everyone skips because the exciting part, the chase, is over. Skip it and every hunt is amnesia.
+
+## Write it so a stranger can rerun it
+
+Your hunt notes have one job: let someone who was not in the room reproduce your work and reach the same verdict. That means the record has to hold more than a conclusion. Capture the hypothesis you tested, the exact queries you ran, the data sources and time window, what you found, and the verdict.
+
+A tight hunt record reads like this:
+
+<CommandBlock
+  title="minimum viable hunt record"
+  commands={[
+    { cmd: "Hypothesis: a service account performed an interactive logon in the last 30 days", comment: "the falsifiable claim you started with" },
+    { cmd: "Data: Windows 4624, logon type 2 and 10, all DCs, 2026-06-15 to 2026-07-15", comment: "sources, filters, exact window" },
+    { cmd: "Query: EventCode=4624 LogonType IN (2,10) Account_Name IN (svc_*)", comment: "the literal search, copy-pasteable" },
+    { cmd: "Finding: svc_backup, interactive logon, host FIN-DB01, 2026-07-02 03:14", comment: "what came back, or 'none'" },
+    { cmd: "Verdict: escalated to IR, service account should never log on interactively", comment: "incident, tuning, or clean" },
+  ]}
+/>
+
+The query line is the part people cut, and it is the part that matters most. "I searched the auth logs" is not reproducible. The literal search string is.
+
+<Callout type="security" title="Hunt records contain sensitive evidence">
+These notes name real accounts, hosts, and timestamps from your environment. Store them where incident evidence belongs, control who can read them, and keep them only for systems you were authorized to hunt. A hunt log is discoverable material, so write it like it might be read in a legal proceeding, because it might.
+</Callout>
+
+## Turn the find into a detection
+
+A hunt that found something and did not produce a detection failed at the last step. The entire point of hunting is to teach the machine what you learned by hand, so it catches the next instance automatically while you go hunt something new.
+
+Write the finding up as a detection rule in a portable format. Sigma is the sensible default because it is vendor-neutral and converts to Splunk, Elastic, or Sentinel with one command. The hunt above becomes a rule that fires on any `svc_*` account with logon type 2 or 10.
+
+<CommandCard command="sigmac -t splunk service_account_interactive_logon.yml" explain="Convert a Sigma rule into the query language your SIEM actually speaks. One rule, many backends. Write the logic once during the hunt and deploy it everywhere, so the behavior you found by hand becomes an alert nobody has to hunt for again." />
+
+Not every clean hunt produces a rule, and that is fine. A hunt that found nothing still produces two things worth recording: proof of coverage for that technique on that date, and any visibility gap you hit. "I could not answer this because we do not log task creation on the file servers" is a finding that drives your next logging project.
+
+## Close the loop
+
+Feed every hunt back into the program. A find becomes a detection. A gap becomes a telemetry request. A false positive becomes a tuning note. And the questions you could not answer become next quarter's hypotheses. Do that consistently and your hunting stops being a series of disconnected searches and becomes a coverage map that fills in over time.
+
+<Exercise
+  id="hunt-doc-sigma"
+  prompt="Take any hunt from this module that returned a finding. Write its five-line record (hypothesis, data, query, finding, verdict). Then in one or two sentences, describe the detection rule it should become, including the exact condition that would make it fire. If the hunt returned nothing, document the coverage it proves and one visibility gap it exposed instead."
+/>
+
+<Notes />

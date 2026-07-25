@@ -1,0 +1,102 @@
+---
+title: Kernel Exploits and Capabilities
+module: linux-privilege-escalation
+moduleTitle: Linux Privilege Escalation
+moduleOrder: 18
+moduleIcon: ArrowUpFromLine
+order: 4
+summary: When configs fail, the kernel and capabilities are your next look.
+estimatedMinutes: 18
+objectives:
+  - Decide when a kernel exploit is worth the risk
+  - Match a kernel version to a known public exploit safely
+  - Find and abuse Linux capabilities like cap_setuid
+tags:
+  - privesc
+  - kernel
+  - capabilities
+  - cve
+---
+
+You checked sudo, SUID, cron, writable files, and creds. Nothing. Now the kernel
+becomes interesting. A kernel exploit gives root regardless of configuration
+because it attacks the operating system itself, not a misconfigured program. That
+power comes with a real cost: a failed exploit can panic the box, and on a live
+engagement a kernel panic means downtime and a very unhappy client.
+
+So treat kernel exploits as a late move. Read the version, confirm a public
+exploit matches it closely, and understand what the exploit does before you run
+a stranger's C file as root.
+
+## Read the version
+
+Start with the exact kernel and distro. The kernel version plus the distro build
+number narrows you to the exploits that actually apply.
+
+<CommandBlock
+  title="user@target"
+  commands={[
+    { cmd: "uname -a", comment: "kernel version and architecture" },
+    { cmd: "cat /etc/os-release", comment: "distro and release, exploits are often distro-specific" },
+    { cmd: "searchsploit linux kernel 5.8", comment: "match the version against Exploit-DB locally" },
+  ]}
+/>
+
+Two names worth knowing because they hit a huge range of kernels: DirtyPipe
+(CVE-2022-0847, kernels 5.8 and up) and the older Dirty COW (CVE-2016-5195). If
+`uname -a` lands in one of those windows, you have a strong candidate. Do not
+grab the first proof-of-concept you see. Read it, prefer a well-reviewed one, and
+know whether it writes to disk or just spawns a shell.
+
+<Callout type="warning" title="Kernel exploits can crash the target">
+A version-mismatched exploit often does not fail cleanly, it panics the machine.
+Only run one when the softer paths are exhausted, and never on production without
+the client understanding the risk. On a shared CTF box, a crash boots everyone.
+</Callout>
+
+## Capabilities: root powers without the SUID bit
+
+Modern Linux splits root's power into fine-grained capabilities. An admin can
+give one binary a single capability instead of full SUID root. That sounds safer,
+and it usually is, but the wrong capability on the wrong binary is still a root
+shell. List them across the filesystem.
+
+<CommandCard command="getcap -r / 2>/dev/null" title="user@target" explain="Recursively lists every file with capabilities set. The 2>/dev/null drops the noise so you see only the flagged binaries." />
+
+<ExpectedOutput label="A dangerous result">
+```
+/usr/bin/python3.8 = cap_setuid+ep
+```
+</ExpectedOutput>
+
+`cap_setuid` lets a process change its user ID to anything, including 0. If
+`python3` carries it, you call `setuid(0)` and launch a shell as root, no SUID
+bit and no sudo required.
+
+<CommandCard command="/usr/bin/python3.8 -c 'import os; os.setuid(0); os.system(\"/bin/bash\")'" title="user@target" explain="cap_setuid lets Python drop to UID 0, then it spawns bash as root." />
+
+The other capabilities to flag on sight: `cap_dac_read_search` (read any file,
+including /etc/shadow), `cap_setuid`, and `cap_sys_admin` (broad, often a path to
+root). GTFOBins lists the capability abuse command for each binary, same as it
+does for SUID.
+
+<Callout type="security" title="Test only what you are authorized to test">
+Kernel exploits and capability abuse hand you full control of a machine. Run them
+only against systems you own or are explicitly contracted to assess, and document
+what you did so it can be cleaned up and remediated.
+</Callout>
+
+<Quiz
+  id="cap-setuid"
+  question="You run getcap and see `/usr/bin/perl = cap_setuid+ep`. Why does that matter?"
+  answer={3}
+  options={[
+    "Perl can now read network sockets",
+    "It means Perl is corrupted and should be reinstalled",
+    "Nothing, cap_setuid is harmless",
+    "Perl can call setuid(0) and become root, then spawn a shell",
+  ]}
+  explanation="cap_setuid permits changing the process UID to 0. A scripting binary that carries it can drop to root and launch a shell without any SUID bit or sudo rule."
+/>
+
+<Notes />

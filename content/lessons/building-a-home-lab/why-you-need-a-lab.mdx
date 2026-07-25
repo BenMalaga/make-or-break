@@ -1,0 +1,148 @@
+---
+title: Why You Need a Lab
+module: building-a-home-lab
+moduleTitle: Building a Home Lab
+moduleOrder: 42
+moduleIcon: FlaskConical
+order: 1
+summary: "The one place where breaking things is legal: what a lab is, and why every other lesson depends on it."
+estimatedMinutes: 14
+prerequisites: []
+objectives:
+  - State plainly why running a scan or an exploit against a machine nobody granted permission for can be a crime, whatever the intent
+  - Define authorization and scope, and say who is allowed to grant them
+  - Explain what makes a lab isolated and why that isolation is the whole point
+  - List the parts a working lab is built from
+  - Estimate whether a given computer has the memory and disk to run one
+tags:
+  - lab
+  - fundamentals
+  - safety
+  - virtualization
+---
+
+A beginner finishes a tutorial that ends with a command: `nmap scanme.example.com`. The tutorial pointed at a domain built for practice, so the command was harmless. The momentum is the danger. Feeling it, the beginner swaps in the address of their bank, or their employer, or a game server that kicked them an hour ago, and runs it again. Nothing visible happens. No error, no alarm, no knock at the door. That silence is exactly the trap.
+
+The command landed on a computer owned by someone else. It was written into that computer's logs next to a source address that traces back to one internet connection. And the person who owns that computer, not the person who ran the command, gets to decide what happens next. This lesson is about the one place where a command like that is nobody's business but the operator's: a lab. The law comes first, because the law is the reason the lab has to exist.
+
+## Sending a packet is reaching out and touching
+
+A computer on a network is someone's property, and the packets sent to it are unsolicited contact with that property. The most basic reconnaissance move in security, a port scan, sends a stream of small packets to a target and watches which ones come back, which reveals what network services the machine is running. Aiming that stream at a computer across the internet is not passive reading. It is one machine reaching out and prodding another that never asked to be prodded.
+
+Two laws are worth naming because they are the ones prosecutors actually reach for. In the United States, the Computer Fraud and Abuse Act (18 U.S.C. 1030) makes it a federal offense to access a computer "without authorization or exceeding authorized access." In the United Kingdom, the Computer Misuse Act 1990 does the same job, with unauthorized access as its very first offense. Most countries have a close equivalent. The wording drifts from place to place. The idea does not: touching a computer system that is not yours, without permission, is where the criminal line sits.
+
+A bare port scan sits in a genuine gray area. Courts have split on whether a scan alone counts as unauthorized access, and it rarely gets charged on its own. That gray area is a terrible thing to lean on. A scan is the opening move of an attack, it is recorded in the target's logs beside the source address, and anything past the scan, a login attempt, a probe against a form, a single exploit, falls out of the gray and into the clear. The rule practitioners actually follow ignores the gray entirely: send nothing at a machine nobody gave permission to test.
+
+Intent does not rescue any of this. Curiosity, education, "I was only looking," and "I was never going to do anything with it" are not defenses to unauthorized access. The law asks whether there was permission, not whether there was malice. A locked door does not become an open one because the person trying the handle was only wondering whether it was locked.
+
+<Quiz
+  id="lab-scan-intent"
+  question="A student port-scans a company's public web server out of curiosity, takes no further action, and tells no one. Which statement is accurate?"
+  answer={2}
+  options={[
+    "It's fine. Curiosity plus taking no further action means no crime happened.",
+    "It's fine. The server is public and it answered the packets, so it consented.",
+    "A bare scan is a legal gray area, but it's logged and traceable and it's the first move of an attack, so the standard rule is to send nothing at a machine nobody authorized.",
+    "It's an automatic federal felony the instant the first packet leaves.",
+  ]}
+  explanation="The honest answer is neither 'harmless' nor 'guaranteed felony.' A lone scan is a genuine gray area, but it is attributable and it is hostile reconnaissance. Professionals do not gamble on the gray area, because permission is the entire game."
+/>
+
+## Permission has a shape
+
+Authorization is explicit permission to test a specific system, given by someone who owns it or has the standing to speak for it. Explicit means written down and specific. A friend texting "sure, poke at my website" is weaker than a signed document, and neither one covers a server that friend merely rents from a hosting company, because the hosting company owns the hardware and agreed to nothing. Permission has to come from the party with the real authority to grant it, which is not always the obvious one.
+
+Authorization never arrives alone. It comes attached to a scope: the exact list of what is in bounds. A professional engagement writes the scope down as specific addresses, specific domains, and often time windows and forbidden techniques. A scope reads like "these three IP addresses and this one domain, no denial-of-service, testing only between 9pm and 5am." Everything outside that list is off limits. Stepping outside scope, even by scanning one address that was not named, is unauthorized access all over again, no matter that the rest of the work was permitted.
+
+The document that carries all of this, the scope plus the rules plus the emergency contacts plus what to do when something breaks, is the rules of engagement. Bug bounty programs publish a public version of it: a page listing which domains are fair game and which are explicitly banned. A penetration test, a paid and authorized simulated attack on a client's own systems, begins by signing one. Reading that document and staying inside it is the whole difference between a security professional and a defendant.
+
+A lab collapses all of this to nothing. The person who owns the lab owns every machine in it, wrote the scope, which is everything, and granted the authorization, which is to themselves. That is why the lab is where practice belongs. There is no one to notify, no page to read, no line to trip over in the dark, because there is no second party at all.
+
+<Quiz
+  id="lab-scope-boundary"
+  question="A tester is authorized to assess the range 10.0.5.0/24. Mid-test they spot an interesting server at 10.0.6.10 and scan it. Where do they stand?"
+  answer={2}
+  options={[
+    "Fine. It's a single address and obviously part of the same company.",
+    "Fine. They already hold authorization for a test running that night.",
+    "Outside scope, which makes that one scan unauthorized access, even though the rest of the engagement is permitted.",
+    "Fine, as long as they don't exploit anything they find on it.",
+  ]}
+  explanation="Authorization only ever covers what the scope names. 10.0.6.10 was not in the authorized range, so touching it is unauthorized, exactly as if there had been no engagement at all. Scope is a fence, not a suggestion, and a permitted test next door does not move it."
+/>
+
+## Why the lab has to be sealed off
+
+An isolated lab is one whose machines can reach each other and nothing else. No packet from a lab machine reaches the home network, the wider internet, or a neighbor's Wi-Fi, and nothing from outside reaches in. Isolation is what turns "the operator owns everything in here" from a claim into a physical fact, because a lab that can quietly send traffic to the outside world is no longer touching only machines its owner controls.
+
+Isolation buys two concrete things. The first is freedom to break. A lab machine exists to be destroyed. Running an exploit that corrupts the target, filling a disk until it dies, detonating a live malware sample inside the sealed network to watch what it does: all of it is fair, because the worst outcome is rebuilding a machine whose entire job is to be rebuilt. Nothing outside the lab can be harmed, so nothing inside it is off limits.
+
+The second is the defender's view. Building the vulnerable target teaches more than attacking a finished one. Standing up a deliberately broken web application forces its builder to see why the configuration is broken, and that is the understanding that transfers to defending real systems later. The attack tools are how the lab gets exercised. Knowing what those tools reveal, and how to shut down what they find, is the actual reason to run them.
+
+There is a quieter benefit too. An isolated lab contains mistakes. A scan that fat-fingers the wrong address hits another lab machine instead of a stranger. An exploit that misfires, or a sample that turns out to be more aggressive than expected, stays behind the wall. The isolation is a safety net for the operator every bit as much as it is a courtesy to everyone else on the internet.
+
+<Quiz
+  id="lab-isolation-value"
+  question="Beyond keeping things tidy, why does an isolated lab network actually matter?"
+  answer={1}
+  options={[
+    "It makes exploits run faster by cutting out internet latency.",
+    "It guarantees the only machines lab traffic can reach are ones the operator owns, so a misfired scan or a live malware sample can't escape to a real system.",
+    "It is required by the Computer Fraud and Abuse Act.",
+    "It lets the lab safely share the home network's internet connection.",
+  ]}
+  explanation="Isolation is what makes 'I only touch machines I own' physically true instead of a promise. A mistake or a piece of live malware inside a sealed lab lands on another lab machine, not on a stranger's computer and not on the home network."
+/>
+
+## What a lab is actually made of
+
+A lab is not special hardware. It is a handful of software machines running on one ordinary computer, wired together on a private network that goes nowhere.
+
+The host is the physical computer everything runs on: a laptop, a desktop, a spare box in a closet. Its own operating system stays untouched. The lab lives inside it, walled off from it. Inside the host, each lab machine is a virtual machine, a complete computer simulated in software, with its own operating system, disk, and network card that exist only as files on the host. A typical lab has at least two of them: an attacker machine loaded with tools, and a target machine running something worth attacking. More targets get added as the practice demands.
+
+Those virtual machines are joined by a virtual network the host creates, configured so its traffic stays between them and never crosses onto the real one. That is the isolation from the last section, made concrete. A snapshot is a saved copy of a virtual machine's exact state at a single moment. Break the target beyond repair, restore the snapshot, and it is whole again in seconds. Snapshots are what make "destroy it and rebuild" cost seconds instead of an afternoon. Each of these parts gets its own lesson later in this module, so the mechanics can wait.
+
+The hardware bar is lower than most people expect. A computer with 16 GB of memory and 100 GB of free disk runs a two-machine lab comfortably, one attacker and one target, both sitting idle most of the time. 8 GB works with a single target running at once. The two numbers that decide it are free memory and free disk, and both are one command away.
+
+<CommandCard
+  command="free -h"
+  title="linux"
+  explain="Prints total, used, and available memory in human-readable units. The 'available' column is the number that matters: memory the system can actually hand to a new virtual machine right now."
+/>
+
+<ExpectedOutput label="free -h on a 16 GB laptop">
+```
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       2.4Gi       9.8Gi       410Mi       3.1Gi        12Gi
+Swap:          2.0Gi          0B       2.0Gi
+```
+</ExpectedOutput>
+
+A 16 GB machine reports 15Gi because firmware and integrated graphics quietly reserve a slice of it. The figure to read is the `available` column, 12Gi here: that is what is free for new work. Two lean virtual machines at 2 GB each fit inside it with room to spare. macOS has no `free` command; there, `sysctl hw.memsize` prints total physical memory in bytes, which divided by 1073741824 gives gigabytes. The numbers above are from one specific machine and will differ on any other.
+
+<CommandCard
+  command="df -h /"
+  title="linux / macOS"
+  explain="Reports total and available space on the root filesystem in human-readable units. Works on any system with a standard shell, Linux or macOS alike."
+/>
+
+<ExpectedOutput label="df -h / on the same laptop">
+```
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p2  468G  204G  241G  46% /
+```
+</ExpectedOutput>
+
+The `Avail` column, 241G here, is the headroom for virtual machine disk files. A fresh Linux target takes 10 to 20 GB. A Windows target runs 30 to 40 GB. A machine that is thin on memory is a reason to plan around the limit, not to skip the lab. One target at a time, generous use of snapshots, and shutting down idle machines stretch modest hardware a long way.
+
+<Exercise title="Take inventory before you build">
+On a Linux host, run `free -h` and read the `available` column. On macOS, run `sysctl hw.memsize` and divide the number by 1073741824 to get gigabytes. Write down how much memory is genuinely free.
+
+Then run `df -h /` on either system and note the `Avail` figure for the root filesystem.
+
+Now do the arithmetic. Budget 2 GB of memory and 20 GB of disk for one attacker machine, and the same again for each target. How many machines can this hardware run at once before memory runs out and it starts swapping to disk? That number decides whether the lab runs two machines side by side or one at a time, and it is the first real constraint the next lesson has to work inside.
+</Exercise>
+
+The law, the permission, the isolation, and the parts list are the why. The how starts with the software that turns one computer into several: the hypervisor. The next lesson, choosing virtualization, covers what a hypervisor is, the split between type 1 and type 2, the specific options a beginner picks between (VirtualBox, VMware, UTM, Proxmox), how to budget memory and disk across several guest machines at once, the line between a guest and its host, and where a lightweight container is the better tool than a full virtual machine.
+
+<Notes />

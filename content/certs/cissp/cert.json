@@ -1,0 +1,22 @@
+{
+  "slug": "cissp",
+  "code": "CISSP",
+  "name": "CISSP",
+  "vendor": "(ISC)2",
+  "description": "The management-track flagship. Broad and a mile wide across eight domains, from risk and governance to architecture and software security. Think like a manager, not a hands-on-keyboard technician.",
+  "passScore": 70,
+  "examMinutes": 180,
+  "questionCount": 125,
+  "icon": "Award",
+  "order": 10,
+  "domains": [
+    { "number": 1, "name": "Security and Risk Management", "weight": 16 },
+    { "number": 2, "name": "Asset Security", "weight": 10 },
+    { "number": 3, "name": "Security Architecture and Engineering", "weight": 13 },
+    { "number": 4, "name": "Communication and Network Security", "weight": 13 },
+    { "number": 5, "name": "Identity and Access Management", "weight": 13 },
+    { "number": 6, "name": "Security Assessment and Testing", "weight": 12 },
+    { "number": 7, "name": "Security Operations", "weight": 13 },
+    { "number": 8, "name": "Software Development Security", "weight": 10 }
+  ]
+}

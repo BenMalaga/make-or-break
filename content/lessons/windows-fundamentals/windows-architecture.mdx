@@ -1,0 +1,320 @@
+---
+title: Windows Architecture and Processes
+module: windows-fundamentals
+moduleTitle: Windows Fundamentals
+moduleOrder: 12
+moduleIcon: AppWindow
+order: 1
+summary: "Kernel mode, user mode, processes, threads, objects, and services: the structure every Windows attack and every Windows detection is written against."
+estimatedMinutes: 18
+prerequisites: []
+objectives:
+  - Define kernel mode and user mode and explain what a system call actually crosses
+  - Separate a process from a thread, and both from the token that decides what they may do
+  - Explain the NT object model and why a handle is the unit of access on Windows
+  - Describe what a service is, what runs it, and why Session 0 exists
+  - Name what the SAM stores and what LSASS holds in memory that the SAM does not
+  - Contrast the Windows process, identity, and configuration model against Linux structurally
+tags:
+  - windows
+  - processes
+  - services
+---
+
+A support engineer opens Task Manager on a machine that feels slow and finds
+sixty-one processes named `svchost.exe`. Nothing is wrong. That is a healthy
+Windows host. On the same machine, one of those sixty-one is running out of a
+folder in `C:\Users\Public`, and that one is malware wearing a familiar name in
+the wrong place.
+
+Telling those apart is not a trick or a tool. It comes from knowing what a
+process is on Windows, who is allowed to create one, what starts them at boot,
+and which of them are permitted to hold the machine's passwords in memory.
+Windows has a specific answer to each of those, and the answers are different
+from the ones a Linux background supplies. This lesson lays out the structure.
+
+## Two modes, one gate
+
+The processor Windows runs on enforces privilege in hardware. It offers rings,
+numbered levels of trust, and Windows uses exactly two of them.
+
+Kernel mode, ring 0, is the trusted core. The kernel image itself,
+`ntoskrnl.exe`, lives there. So do device drivers, and so does the hardware
+abstraction layer, the thin shim that hides the differences between one machine's
+chipset and another's. Code in kernel mode can read any byte of physical memory,
+talk to any device, and switch off any check. There is nothing above it to say
+no.
+
+User mode, ring 3, is where every application runs. A browser, a text editor, a
+remote shell, all of it. A user-mode process gets a private view of memory and no
+direct access to hardware at all. When it needs something real, reading a file,
+opening a network connection, creating another process, it cannot just do it. It
+asks.
+
+That asking is a system call, and the path is worth knowing precisely because
+half of Windows security tooling hooks somewhere along it. An application calls a
+documented function like `CreateFileW`. That lands in a Windows library, which
+calls into `ntdll.dll`, the lowest user-mode library on the system. Inside
+`ntdll.dll` sits a tiny stub: load a number identifying the requested operation
+into a register, execute a `syscall` instruction, and the processor itself
+switches to ring 0 and jumps to a fixed entry point in the kernel. The kernel
+looks up the number, validates every argument coming from the untrusted side,
+does the work, and returns.
+
+The gate is the only way across, which is why a kernel bug is worth so much more
+than a user-mode one. A user-mode vulnerability yields code execution as whoever
+owned that process. A kernel-mode vulnerability yields the ring with no seatbelt.
+Drivers are the soft spot: a signed but badly written driver is kernel code
+written by someone who was not on the kernel team, and attackers load known-bad
+signed drivers on purpose to get a foothold in ring 0.
+
+## Processes hold, threads run
+
+A process on Windows is a container. It owns a private virtual address space, so
+one process cannot read another's memory by accident. It owns a handle table,
+which is the list of things it currently has open. It owns a security token,
+which is the record of who it runs as. What a process does not do is execute
+anything.
+
+A thread executes. It is the unit the kernel scheduler actually puts on a
+processor: a stack, a set of register values, and a priority. Every process
+starts with one thread and may create more, and all threads inside a process
+share the same address space. That sharing is exactly why process injection
+works. An attacker with enough access to a running process can allocate memory
+inside it and start a new thread pointed at that memory, and the payload now runs
+under that process's name, its token, and its network reputation.
+
+The token is the part that decides outcomes. It is a kernel structure holding a
+security identifier, a SID, for the user, SIDs for every group that user belongs
+to, and a list of privileges. A SID is a string like `S-1-5-21-1004336348-
+1177238915-682003330-512`, and Windows compares SIDs, never usernames. Rename an
+account and its SID does not change. Delete an account and recreate it with the
+same name and the SID is different, so the new one inherits nothing.
+
+Here is the part that catches people. Windows checks the token, not the password.
+A process holding a token that says SYSTEM is SYSTEM, and nothing anywhere
+re-verifies how that token was obtained. Token theft and impersonation attacks
+all sit on that single fact: copy a privileged token out of a process that has
+one, apply it to a thread, and the checks that follow have no idea anything
+happened.
+
+<Quiz
+  id="win-arch-token-vs-process"
+  question="A payload is injected into a process running as SYSTEM and starts a new thread there. Why does the payload run with SYSTEM privileges?"
+  answer={1}
+  options={[
+    "The injection technique requests SYSTEM from the kernel as it runs.",
+    "Threads run under the token of the process that contains them, and the kernel checks that token rather than re-verifying any password.",
+    "Injected code always runs in kernel mode.",
+    "The payload inherits the privileges of whoever performed the injection.",
+  ]}
+  explanation="A thread is just execution inside a container. The container carries the token, the token carries the SIDs and privileges, and every access check reads the token. Nothing re-checks how the process came to hold it, which is what makes token abuse so effective."
+/>
+
+## Everything is an object, and access is a handle
+
+Linux has a slogan: everything is a file. Windows has a stricter version that is
+rarely stated out loud. Everything is an object, managed by one component called
+the Object Manager.
+
+A file is an object. So is a process, a thread, a registry key, a mutex, an
+event, a semaphore, a network endpoint, a device, and a chunk of shared memory.
+Each one is a kernel structure with a type, a name, a reference count, and a
+security descriptor listing exactly who may do what to it. The objects live in a
+single hierarchical namespace that looks like a filesystem but is not one:
+`\Device` holds device objects, `\BaseNamedObjects` holds the named mutexes and
+events that applications create, `\Sessions` holds per-session namespaces.
+`C:\Windows` is a symbolic link inside that namespace, not the root of anything.
+
+User mode never touches an object directly. It asks the Object Manager to open
+one, the kernel runs the access check once against the security descriptor and
+the caller's token, and on success it returns a handle: a small integer that
+indexes into that process's private handle table. Every later operation passes
+the handle, and the kernel does not repeat the full check. The permissions were
+baked in at open time.
+
+Two consequences fall straight out of that design. A handle can be inherited or
+duplicated into another process, which means a privileged process that opens
+something powerful and then hands the handle to a less privileged one has just
+given away access no permission check will ever revisit. And a file cannot be
+deleted while a handle is open with the right sharing mode denied, which is why
+Windows refuses deletions that Linux would allow without complaint, and why the
+SAM file in the next section cannot simply be copied off a running machine.
+
+<Quiz
+  id="win-arch-handle-check"
+  question="A process opens a file for read and write access, then its token is stripped of every privilege. Can it still write to that file through the handle it already holds?"
+  answer={2}
+  options={[
+    "No. The kernel re-checks the token on every write.",
+    "No. Stripping privileges automatically closes open handles.",
+    "Yes. The access check ran once when the handle was created, and later operations trust the handle.",
+    "Yes, but only until the file is closed by another process.",
+  ]}
+  explanation="The Object Manager checks access at open time and encodes the granted rights into the handle. Operations afterward validate the handle, not the token. This is why handle duplication and inheritance are real attack paths rather than curiosities."
+/>
+
+## Services, and the session they hide in
+
+A service is a program that runs without anyone logged in: no window, no desktop,
+started at boot, restarted when it dies. The Service Control Manager,
+`services.exe`, is the process that starts and supervises them, and it reads what
+to start from configuration on disk.
+
+Many services are not standalone programs at all. They are DLLs, libraries with
+no `main` of their own, loaded into a generic host process named `svchost.exe`.
+That is why a healthy machine shows dozens of them. Each `svchost.exe` is a
+container for a group of service DLLs, and since Windows 10 build 1703, machines
+with more than about 3.5 GB of RAM split nearly every service into its own
+`svchost.exe` for isolation. Sixty of them is not suspicious. One of them running
+from the wrong directory is.
+
+Every service runs under an account, and the account decides how much damage a
+compromise of that service does. Three built-in ones cover most cases.
+`LocalSystem` is the machine's own most-privileged account, effectively SYSTEM,
+and a service running as it that gets exploited hands over the whole box.
+`NetworkService` and `LocalService` are deliberately weaker: they exist so a
+service that needs little privilege does not run as SYSTEM out of laziness. The
+first question to ask about any service is which account starts it, because that
+is the token every thread inside it will carry.
+
+Sessions are the other half of this. A session is a container for an interactive
+logon: its own desktop, its own window manager, its own `csrss.exe`. Session 0 is
+reserved for services and has no interactive desktop at all. The first user to
+log in gets Session 1, the next gets Session 2. That separation, called Session 0
+isolation, was added in Windows Vista specifically because services and user
+applications used to share a desktop, and any low-privilege application could
+send window messages to a SYSTEM service's window and drive it. The attack had a
+name, shatter attacks, and the fix was structural.
+
+`tasklist /svc` maps processes to the services inside them.
+
+<CommandCard
+  command="tasklist /svc"
+  title="windows (cmd)"
+  explain="Lists every running process with the services hosted inside it. Processes with no services show 'N/A'."
+/>
+
+<ExpectedOutput label="tasklist /svc, trimmed to the interesting lines">
+```
+Image Name                     PID Services
+========================= ======== ============================================
+System                           4 N/A
+smss.exe                       340 N/A
+csrss.exe                      448 N/A
+wininit.exe                    524 N/A
+services.exe                   636 N/A
+lsass.exe                      660 KeyIso, SamSs, VaultSvc
+svchost.exe                    780 DcomLaunch
+svchost.exe                    880 RpcSs
+spoolsv.exe                   1544 Spooler
+```
+</ExpectedOutput>
+
+The PIDs differ on every machine and every boot, but the shape does not. `System`
+is always PID 4 and is the kernel's own container for kernel threads. `smss.exe`
+is the session manager, the first user-mode process. `wininit.exe` starts the
+Session 0 chain. `services.exe` is the SCM. And `lsass.exe` hosts `SamSs`, which
+is the tell for the next section.
+
+## Where the passwords actually live
+
+Local accounts on a Windows machine are stored in the Security Account Manager
+database, the SAM. It is a registry hive backed by a file at
+`C:\Windows\System32\config\SAM`, and it holds the NT hash of each local
+account's password. Not the password. The hash.
+
+The SAM is locked while Windows runs, because `lsass.exe` holds an open handle to
+it, and the handle model from earlier is precisely why a plain copy fails.
+
+The Local Security Authority Subsystem Service, `lsass.exe`, is the process that
+enforces the security policy: it validates logons, issues the tokens described
+earlier, and manages the machine's participation in a domain. To do its job
+without prompting for a password on every action, it keeps material in memory
+that exists nowhere on disk. NT hashes for currently logged-on users. Kerberos
+tickets. Sometimes cached domain credentials.
+
+That is the whole reason `lsass.exe` is the single most attacked process on
+Windows. Reading the SAM yields the local accounts on one machine. Reading LSASS
+memory yields whatever is currently logged in, which on a shared server can
+include a domain administrator who connected an hour ago and left tickets behind.
+Modern Windows fights back here: Credential Guard moves the secrets into a
+virtualization-isolated process the normal kernel cannot read, and LSA protection
+marks the process as protected so unprotected code cannot open a handle to it.
+Both are defenses on a process that is doing exactly what it was designed to do.
+
+<Callout type="security" title="Authorized systems only">
+Enumerating processes, reading service configuration, and touching credential
+stores on a machine without written permission is unauthorized access under laws
+including the US Computer Fraud and Abuse Act and the UK Computer Misuse Act.
+Practice on a virtual machine that belongs to the practitioner, or inside a lab
+with a signed scope. Intent is not a defense.
+</Callout>
+
+<Quiz
+  id="win-arch-lsass-vs-sam"
+  question="An investigator has a full offline copy of a server's SAM hive. What can it not tell them?"
+  answer={3}
+  options={[
+    "The names of the local accounts on that machine.",
+    "The NT hashes of local account passwords.",
+    "Which local accounts are disabled.",
+    "The Kerberos tickets of a domain administrator who logged in that morning.",
+  ]}
+  explanation="The SAM is an on-disk store of local account data. Tickets and cached domain credentials for active logons live in LSASS memory and are never written to the SAM, which is why memory access and disk access are separate problems with separate defenses."
+/>
+
+## Where a Linux mental model breaks
+
+The differences are structural, not cosmetic, and each one changes how the system
+gets attacked.
+
+Linux creates processes by `fork`, cloning the caller and then replacing its
+image. Windows has no `fork`. `CreateProcess` builds a new process from scratch
+and takes explicit arguments for which token it runs under and which handles it
+inherits. That is why parent process spoofing exists on Windows: a caller can
+name any process as the parent of the one it creates, and telemetry that trusts
+the parent-child chain gets a false story.
+
+Linux identity is a numeric UID on the process, and privilege elevation happens
+through setuid binaries and, later, capabilities. Windows identity is a token
+carrying SIDs and a privilege list, and elevation happens by acquiring a
+different token. There is no Windows equivalent of a setuid bit on a file.
+
+Linux configuration is text files under `/etc`, readable with any editor. Windows
+configuration is the registry, a structured binary database, which is the subject
+of the next lesson and is not optional knowledge.
+
+Linux daemons are started by an init system, usually systemd, and PID 1 is that
+init process. Windows services are started by `services.exe`, and PID 4 is the
+kernel's own `System` process, not an init.
+
+Linux loads shared code as `.so` files resolved through a documented search path.
+Windows loads `.dll` files through a search order that has historically preferred
+the application's own directory, which is the root of DLL hijacking, one of the
+most durable persistence techniques on the platform.
+
+<Exercise title="Read the process tree honestly">
+On a Windows virtual machine you control, open a command prompt and run
+`tasklist /svc`. Find `lsass.exe` and confirm it hosts `SamSs`. Note its PID.
+
+Now run `wmic process get Name,ProcessId,ParentProcessId,ExecutablePath` and find
+every process whose executable path is not under `C:\Windows` or
+`C:\Program Files`. On a clean machine that list is short and every entry has an
+obvious explanation. Write down what each one is.
+
+Finally run `query session`. Note that Session 0 has no user attached to it, and
+that your own logon is Session 1 or higher. Then ask why Microsoft went to the
+trouble of splitting those apart. The answer is in this lesson.
+</Exercise>
+
+Kernel and user mode, processes carrying tokens, threads doing the running,
+objects reached through handles, services hosted in `svchost.exe`, and LSASS
+holding the secrets. That is the runtime picture. What it leaves out is where all
+of it is configured: which services start at boot, which DLL loads with which
+program, which account auto-logs-in. None of that lives in a text file. It lives
+in the registry, and the next lesson takes that database apart: hives, keys,
+values, types, and the specific locations where both Windows configuration and
+attacker persistence end up.
+
+<Notes />

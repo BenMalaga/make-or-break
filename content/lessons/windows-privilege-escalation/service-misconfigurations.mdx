@@ -1,0 +1,81 @@
+---
+title: Service Misconfigurations
+module: windows-privilege-escalation
+moduleTitle: Windows Privilege Escalation
+moduleOrder: 19
+moduleIcon: ChevronsUp
+order: 2
+summary: Most Windows wins are a service running as SYSTEM that a normal user is allowed to reconfigure or replace.
+estimatedMinutes: 18
+objectives:
+  - Find services whose binary or config a low-priv user can modify
+  - Exploit weak service permissions by rewriting binPath
+  - Spot and abuse an unquoted service path
+tags:
+  - windows
+  - privilege-escalation
+  - services
+  - misconfiguration
+---
+
+A Windows service is a program the OS starts on its own, usually as `LocalSystem`. That is the whole prize: if you can change what a SYSTEM service runs, or swap the file it runs, the OS runs your code as SYSTEM the next time it starts. Admins misconfigure this constantly, so it's the first thing to hunt after checking your token.
+
+Three flavors show up over and over: you can reconfigure the service, you can overwrite its binary, or the service path is unquoted. Check all three.
+
+## Weak service permissions
+
+Start by asking which services your user is allowed to change. `accesschk` from Sysinternals answers this directly.
+
+<CommandCard command="accesschk.exe /accepteula -uwcqv user *" explain="-w writable, -c service names, -v verbose, targeting the 'user' identity. SERVICE_CHANGE_CONFIG or SERVICE_ALL_ACCESS in the output is a live wire." />
+
+If a service grants you `SERVICE_CHANGE_CONFIG`, you can point its `binPath` at anything. The service doesn't care that the new binary isn't the real one, it just runs it as its configured account.
+
+<CommandBlock
+  commands={[
+    { cmd: "sc qc VulnSvc", comment: "Read the current config: binary path and the SERVICE_START_NAME account" },
+    { cmd: "sc config VulnSvc binPath= \"net localgroup administrators youruser /add\"", comment: "Note the space after binPath= , sc is strict about it" },
+    { cmd: "sc stop VulnSvc && sc start VulnSvc", comment: "Restart to fire the payload as the service account" },
+  ]}
+/>
+
+Adding yourself to Administrators is cleaner than an EXE payload because there's nothing to clean up on disk. If the service runs as SYSTEM and you can't restart it yourself, check whether it has `SERVICE_START` or wait for a reboot.
+
+## Weak binary permissions
+
+Sometimes you can't touch the config but you can write to the executable itself. That happens when the service EXE sits in a directory with loose ACLs.
+
+<CommandCard command="accesschk.exe /accepteula -quvw \"C:\\Program Files\\VulnApp\\service.exe\"" explain="Checks the file itself. FILE_ALL_ACCESS or write on the EXE means you replace it and restart the service." />
+
+Back up the real binary, drop your payload in its place with the same name, restart the service. Your code runs as the service account on start.
+
+## Unquoted service paths
+
+This one is a classic. When a service path has spaces and no quotes, Windows tries each space-delimited prefix as an executable before falling through to the real one. A path of `C:\Program Files\Vuln App\service.exe` unquoted means Windows tries `C:\Program.exe`, then `C:\Program Files\Vuln.exe`, in that order.
+
+<CommandCard command="wmic service get name,pathname,startmode | findstr /i /v \"c:\\windows\\\\\" | findstr /i /v \\\"\"" explain="Lists services whose path is not quoted and not under C:\\Windows. Each hit is a candidate." />
+
+If you can write to `C:\` or `C:\Program Files\`, drop `Vuln.exe` in the spot Windows checks first. On next start it runs your file instead of the real service. Writable `C:\` is rare on hardened boxes, but writable intermediate app folders are not.
+
+<Callout type="security" title="Authorized targets only">
+Rewriting a service binPath or dropping a payload runs code as SYSTEM. Only do this on machines you own or are explicitly authorized to test. Restore any binary you replaced so you leave the lab as you found it.
+</Callout>
+
+<Quiz
+  id="unquoted-path"
+  question="A service runs from the unquoted path C:\\Program Files\\Dev Tools\\svc.exe. Which file does Windows try to run first?"
+  answer={0}
+  options={[
+    "C:\\Program.exe",
+    "C:\\Program Files\\Dev.exe",
+    "C:\\Program Files\\Dev Tools\\svc.exe",
+    "C:\\Program Files\\Dev Tools\\Dev.exe",
+  ]}
+  explanation="Windows splits on spaces left to right and tries each prefix plus .exe. C:\\Program.exe comes first. If you can write there, you win before the real binary is ever reached."
+/>
+
+<Exercise
+  id="service-hunt"
+  prompt="On a lab box, run the wmic unquoted-path command and the accesschk service command. For each service you can reconfigure or whose path is unquoted, write down its SERVICE_START_NAME and whether it runs as SYSTEM. Pick the single best target and explain why."
+/>
+
+<Notes />

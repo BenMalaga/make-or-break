@@ -1,0 +1,249 @@
+[
+  {
+    "domain": 4,
+    "question": "A hospital deploys tamper-evident logging so that any unauthorized change to patient records can be detected after the fact. Which element of the CIA triad does this control most directly support?",
+    "options": [
+      "Confidentiality",
+      "Integrity",
+      "Availability",
+      "Authentication"
+    ],
+    "correct": [1],
+    "explanation": "Detecting unauthorized changes to data protects integrity, which ensures information is not altered without authorization. Confidentiality concerns keeping data secret, availability concerns keeping it reachable, and authentication is proving identity, none of which is the primary goal of tamper-evident logging.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "An attacker sends a flood of spoofed ARP replies telling hosts on a subnet that the attacker's MAC address belongs to the default gateway, so traffic bound for the internet passes through the attacker first. Which attack is described?",
+    "options": [
+      "DNS poisoning",
+      "VLAN hopping",
+      "ARP spoofing (on-path)",
+      "MAC flooding"
+    ],
+    "correct": [2],
+    "explanation": "Forging ARP replies to associate the attacker's MAC with the gateway IP is ARP spoofing, which enables an on-path (man-in-the-middle) position. DNS poisoning corrupts name resolution, VLAN hopping crosses VLAN boundaries, and MAC flooding overflows the CAM table to force a switch to fail open.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A network engineer wants to prevent unauthorized DHCP servers from handing out addresses on access ports while still allowing the legitimate server on an uplink. Which switch feature should be enabled?",
+    "options": [
+      "DHCP snooping",
+      "Dynamic ARP inspection",
+      "BPDU guard",
+      "Port mirroring"
+    ],
+    "correct": [0],
+    "explanation": "DHCP snooping designates trusted ports (toward the real DHCP server) and drops server-class DHCP messages arriving on untrusted access ports, stopping rogue DHCP servers. Dynamic ARP inspection validates ARP against the snooping binding table, BPDU guard protects spanning tree, and port mirroring copies traffic for analysis.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which feature builds a binding table of legitimate IP-to-MAC mappings and then validates ARP packets against it, dropping forged ARP replies used in on-path attacks?",
+    "options": [
+      "Port security",
+      "Dynamic ARP inspection (DAI)",
+      "Root guard",
+      "802.1Q trunking"
+    ],
+    "correct": [1],
+    "explanation": "Dynamic ARP inspection inspects ARP packets against the DHCP snooping binding table and discards those with invalid IP-to-MAC pairings, defeating ARP spoofing. Port security limits MAC addresses per port, root guard protects the STP root bridge, and 802.1Q is a VLAN trunking standard, not an ARP defense.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A company uses a physical control at its data center entrance: a two-door area where the outer door must close and lock before the inner door will open, preventing tailgating. What is this control called?",
+    "options": [
+      "Bollard",
+      "Access control vestibule (mantrap)",
+      "Faraday cage",
+      "Air gap"
+    ],
+    "correct": [1],
+    "explanation": "An access control vestibule, historically called a mantrap, uses interlocking doors so only one person can pass at a time, mitigating tailgating and piggybacking. Bollards stop vehicles, a Faraday cage blocks electromagnetic signals, and an air gap physically isolates a network.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A remote user needs to reach internal file servers over an encrypted tunnel while all of their other internet browsing goes directly out their local ISP connection, not through the corporate network. Which VPN configuration provides this?",
+    "options": [
+      "Full tunnel VPN",
+      "Split tunnel VPN",
+      "Clientless SSL VPN",
+      "Site-to-site VPN"
+    ],
+    "correct": [1],
+    "explanation": "Split tunneling routes only corporate-destined traffic through the VPN while other traffic uses the local connection directly. A full tunnel sends all traffic through the VPN, a clientless SSL VPN provides browser-based access to specific apps, and a site-to-site VPN links whole networks rather than an individual remote client.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which protocol suite provides authentication and encryption at the network layer and is commonly used to build site-to-site VPN tunnels, using IKE to negotiate security associations?",
+    "options": [
+      "TLS",
+      "IPsec",
+      "SSH",
+      "GRE"
+    ],
+    "correct": [1],
+    "explanation": "IPsec operates at the network layer and uses IKE to establish security associations, providing confidentiality and integrity for site-to-site and client tunnels. TLS operates above the transport layer (used by SSL VPNs), SSH secures remote shell sessions, and GRE is an encapsulation protocol with no encryption of its own.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An administrator configures a switch access port to learn a single MAC address and to shut the port down if a second device is connected. Which hardening feature is being used?",
+    "options": [
+      "Port security",
+      "Flow control",
+      "Jumbo frames",
+      "Spanning Tree Protocol"
+    ],
+    "correct": [0],
+    "explanation": "Port security restricts which and how many MAC addresses can use a switch port and can take a violation action such as shutdown, protecting against unauthorized devices and MAC flooding. Flow control paces traffic, jumbo frames increase MTU, and STP prevents switching loops, none of which restrict device access.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A wireless client connects to an SSID that looks identical to the corporate network but is actually broadcast by an attacker's laptop to harvest credentials. Which two terms best describe this scenario? (Choose two.)",
+    "options": [
+      "Evil twin",
+      "Rogue access point",
+      "Deauthentication flood",
+      "WPS PIN brute force"
+    ],
+    "correct": [0, 1],
+    "explanation": "An access point set up without authorization is a rogue AP, and one that impersonates a legitimate SSID to lure clients is specifically an evil twin, so both apply. A deauthentication flood forces clients to disconnect, and WPS PIN brute forcing attacks the setup PIN, neither of which describes the impersonating SSID itself.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An organization wants port-based network access control so that a device plugging into a switch port must authenticate to a RADIUS server before the port forwards normal traffic. Which standard should be implemented?",
+    "options": [
+      "802.1X",
+      "802.1Q",
+      "802.3af",
+      "802.11ax"
+    ],
+    "correct": [0],
+    "explanation": "IEEE 802.1X provides port-based network access control, using an authenticator (switch), a supplicant (client), and a RADIUS authentication server. 802.1Q is VLAN tagging, 802.3af is Power over Ethernet, and 802.11ax is a Wi-Fi generation, none of which handle port authentication.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "During a security review, an engineer finds that IoT thermostats, cameras, and door controllers share the same VLAN and IP subnet as employee workstations and servers. What is the best hardening recommendation?",
+    "options": [
+      "Enable jumbo frames on the IoT devices",
+      "Place the IoT devices on a segmented VLAN isolated from corporate systems",
+      "Assign the IoT devices static ARP entries",
+      "Increase the DHCP lease time for the IoT devices"
+    ],
+    "correct": [1],
+    "explanation": "IoT devices are frequently insecure, so segmenting them onto their own VLAN with filtered access limits lateral movement if one is compromised. Jumbo frames, static ARP entries, and longer DHCP leases affect performance or addressing but do not isolate the vulnerable devices from critical systems.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A technician is provisioning new managed switches and routers before deployment. Which action is the single most important hardening step to perform first?",
+    "options": [
+      "Enable SNMPv1 for monitoring",
+      "Change the default administrative credentials",
+      "Open Telnet for remote management",
+      "Disable logging to reduce storage use"
+    ],
+    "correct": [1],
+    "explanation": "Default credentials are publicly documented and are among the most exploited weaknesses, so changing them is a foundational hardening step. Enabling SNMPv1 and Telnet actually weakens security because both send data in cleartext, and disabling logging removes the ability to detect and investigate incidents.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "An attacker on an access port crafts frames with two 802.1Q tags so that when the first tag is stripped by the native VLAN, the inner tag causes the frame to be forwarded onto a VLAN the attacker should not reach. Which attack and mitigation are correct?",
+    "options": [
+      "MAC flooding; enable BPDU guard",
+      "Double-tagging VLAN hopping; change the native VLAN to an unused ID and do not use it on access ports",
+      "ARP poisoning; enable DHCP snooping",
+      "Smurf attack; disable directed broadcasts"
+    ],
+    "correct": [1],
+    "explanation": "Double-tagging is a VLAN hopping technique that abuses the native VLAN, mitigated by setting the native VLAN to an unused, dedicated ID and explicitly tagging or pruning it on trunks. MAC flooding, ARP poisoning, and the Smurf amplification attack are different threats with unrelated mitigations.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A finance team is trained to recognize emails that impersonate the CEO and urgently request wire transfers. Which category of threat does this training primarily address?",
+    "options": [
+      "Social engineering (phishing)",
+      "Denial of service",
+      "Cross-site scripting",
+      "Zero-day exploitation"
+    ],
+    "correct": [0],
+    "explanation": "Impersonation emails that pressure a target into an action are phishing, a form of social engineering that manipulates people rather than exploiting code. Denial of service disrupts availability, cross-site scripting targets web applications, and a zero-day exploits an unknown software flaw.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A network relies on RADIUS for AAA. Which statement accurately distinguishes RADIUS from TACACS+?",
+    "options": [
+      "RADIUS encrypts the entire packet payload, while TACACS+ encrypts only the password",
+      "RADIUS combines authentication and authorization and encrypts only the password, while TACACS+ separates AAA functions and encrypts the entire payload",
+      "RADIUS uses TCP port 49, while TACACS+ uses UDP ports 1812 and 1813",
+      "Both protocols are Cisco proprietary and cannot interoperate with third-party devices"
+    ],
+    "correct": [1],
+    "explanation": "RADIUS merges authentication and authorization and encrypts only the password field, whereas TACACS+ separates authentication, authorization, and accounting and encrypts the full packet body. RADIUS uses UDP 1812/1813, TACACS+ uses TCP 49, and while TACACS+ is Cisco-developed, RADIUS is an open standard.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A security policy requires that users authenticate with something they know and something they have before accessing the VPN. A password plus which of the following satisfies multifactor authentication?",
+    "options": [
+      "A security question about their first pet",
+      "A one-time code from a hardware token",
+      "A second, longer password",
+      "Their username typed in uppercase"
+    ],
+    "correct": [1],
+    "explanation": "A hardware token code is something you have, so combining it with a password (something you know) uses two distinct factors, satisfying MFA. A security question, a second password, and a username are all knowledge factors, so pairing any of them with a password stays within a single factor.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An administrator needs encrypted, command-line remote management of a router and wants to eliminate the cleartext protocol currently in use. Which change should be made?",
+    "options": [
+      "Replace Telnet (port 23) with SSH (port 22)",
+      "Replace SSH with Telnet for compatibility",
+      "Replace HTTPS with HTTP for the web interface",
+      "Enable SNMPv1 in place of SNMPv3"
+    ],
+    "correct": [0],
+    "explanation": "SSH on TCP 22 encrypts remote CLI sessions and should replace Telnet, which transmits credentials and commands in cleartext on TCP 23. The other options each move from a secure protocol to an insecure one (Telnet, HTTP, SNMPv1), which is the opposite of hardening.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A managed services provider needs to reach a customer's console for configuration even when the production network or WAN link is down. Which access method meets this requirement?",
+    "options": [
+      "In-band management over the data VLAN",
+      "Out-of-band management via a dedicated console or cellular modem",
+      "A clientless SSL VPN through the primary firewall",
+      "Remote Desktop Protocol over the production subnet"
+    ],
+    "correct": [1],
+    "explanation": "Out-of-band management uses a separate path such as a console server or cellular modem so devices remain reachable when the primary network fails. In-band management, an SSL VPN through the main firewall, and RDP over the production subnet all depend on the production network being up, so they fail when it does.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A DDoS attack is saturating an organization's internet-facing web servers with traffic from thousands of compromised hosts. Which element of the CIA triad is being attacked, and what is a suitable mitigation?",
+    "options": [
+      "Confidentiality; deploy full-disk encryption",
+      "Integrity; enable file hashing on the servers",
+      "Availability; use upstream traffic scrubbing and rate limiting",
+      "Availability; disable all logging to conserve resources"
+    ],
+    "correct": [2],
+    "explanation": "A DDoS overwhelms resources to deny legitimate access, so it targets availability, and upstream scrubbing services plus rate limiting absorb or shed the malicious flood. Encryption and hashing protect confidentiality and integrity but do nothing for capacity, and disabling logging removes visibility without restoring availability.",
+    "difficulty": "MEDIUM"
+  }
+]

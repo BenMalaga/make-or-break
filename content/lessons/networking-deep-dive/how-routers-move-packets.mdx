@@ -1,0 +1,152 @@
+---
+title: How Routers Move Packets
+module: networking-deep-dive
+moduleTitle: Networking Deep Dive
+moduleOrder: 2
+moduleIcon: Waypoints
+order: 1
+summary: "How a packet crosses from one network to a completely different one, one hop at a time, with no device ever knowing the full path."
+estimatedMinutes: 15
+prerequisites:
+  - ip-addressing-and-subnetting
+objectives:
+  - Distinguish what a router does from what a switch does
+  - Explain the default gateway and when a device uses it
+  - Read a routing table and apply longest-prefix match to pick a route
+  - Contrast static routing with dynamic routing protocols like OSPF and BGP
+tags:
+  - routing
+  - networking
+---
+
+The subnetting lesson ended with a host doing one calculation before it sent anything: mask its own address, mask the destination, compare. A match meant a neighbor reachable by ARP and a direct frame. A mismatch meant the packet went to a default gateway and became, as that lesson put it, "the router's problem." This lesson is about what the router actually does with it.
+
+A packet addressed to a server on the other side of the planet does not know the way there any more than a letter knows the route from a mailbox to a house three states over. Something along the path has to keep making local decisions, one at a time, until the packet lands where it belongs. That something is a router, and the decisions it makes are the entire subject of routing.
+
+## A router connects different networks; a switch does not
+
+It helps to say plainly what a switch is not, because the two devices get confused constantly by people early in networking. A switch operates inside one network. It reads the destination MAC address on a frame, checks a table that maps MAC addresses to physical ports, and sends the frame out the right port. Every device plugged into that switch, directly or through other switches, shares the same IP subnet. The switch has no concept of an IP address at all in its basic forwarding logic; it works one layer down, at the frame level.
+
+A router does something categorically different. It sits at the boundary between two or more networks, each with its own address range, and its entire job is deciding how to get a packet from one of those networks into another. A small office might have a router with one interface facing an internal network at 192.168.10.0/24 and another interface facing an internet service provider. A packet arriving on the internal interface, bound for an address outside 192.168.10.0/24, gets forwarded out the other interface, toward the provider. That is routing in one sentence: matching a destination address against a set of known networks and choosing which interface, and which next device, gets the packet closer.
+
+Real routers usually do both jobs at once, which is part of why the distinction gets muddy. A home router runs a small switch internally for the wired ports and a router function for anything crossing between the local network and the internet. A large enterprise runs dedicated switches for local traffic and dedicated routers, sometimes with far more horsepower, purely for inter-network forwarding. The job titles differ even when one box wears both hats.
+
+## The default gateway is the router a device already trusts
+
+Every device on a subnet that expects to talk beyond that subnet is configured with a default gateway, which is simply the IP address of the router sitting on that same subnet. When a device figures out that a destination is not local, from the subnet mask comparison covered in the last lesson, it does not go hunting for the right router. It has one already on file, and it hands the packet to that address without hesitation.
+
+A laptop on 10.20.4.0/24 with a default gateway of 10.20.4.1 sends every non-local packet to 10.20.4.1, whether the real destination is a file server two buildings away or a search engine on another continent. The laptop does not need to know which. It trusts the gateway to figure out the next step, and the gateway trusts whatever sits beyond it to figure out the step after that. This is worth sitting with, because it is the entire reason large networks scale. No single device carries the burden of knowing the whole internet's layout. Each one only has to know its own small piece and one address to hand off anything outside it.
+
+Losing the default gateway, through a misconfiguration or a failed link, produces a very specific symptom: a device can still talk to anything on its own subnet, since that never needed the gateway, but everything else goes silent. That split is often the fastest diagnostic signal in a networking problem. Local pings succeed, external pings time out, and the gateway address is the first thing worth checking.
+
+<Quiz
+  id="gateway-role"
+  question="A workstation at 172.20.5.40/24 needs to reach a server at 172.20.9.100. What does it do?"
+  answer={2}
+  options={[
+    "Broadcasts an ARP request for 172.20.9.100 directly, since both addresses start with 172.20",
+    "Refuses to send the packet because the destination is outside its subnet",
+    "Sends the packet to its default gateway, because 172.20.9.100 falls outside 172.20.5.0/24",
+    "Sends the packet directly to 172.20.9.100 using the destination's own MAC address"
+  ]}
+  explanation="Masking both addresses with /24 gives 172.20.5.0 and 172.20.9.0, which differ, so the destination is remote even though the first two octets match. ARP only works within the local subnet, so the workstation cannot learn a MAC address for a host that far away. It hands the packet to the default gateway and lets that router take it from there."
+/>
+
+## The routing table is the list a router checks for every single packet
+
+A router keeps a routing table, and that table is consulted for every packet that crosses it, without exception. Each entry in the table names a destination network, written as a prefix like 10.1.2.0/24, along with a next hop, which is the address of the next router to send matching packets toward, and an outgoing interface. A route can also point to a directly connected network, meaning the router itself has an interface on that subnet and can deliver straight there with no further hop needed.
+
+The matching process is straightforward in concept: take the packet's destination address, compare it against every prefix in the table, and find the ones that match. A prefix matches when the packet's address falls inside that network's range, the same range arithmetic from the subnetting lesson. The catch is that more than one entry can match at once. A route for 0.0.0.0/0, the default route, matches literally every address, since a /0 prefix has zero bits that have to agree. A route for 10.1.2.0/24 also matches any address inside that block. Both can be sitting in the same table, and a packet bound for 10.1.2.55 satisfies both.
+
+## Longest-prefix match: the most specific route wins
+
+When more than one route matches, the router does not pick the first one it finds or the oldest one configured. It picks the route with the longest prefix, meaning the most specific match, the one with the fewest addresses covered. A /24 beats a /16, and a /32, a route naming exactly one address, beats everything.
+
+The logic behind this is not arbitrary. A more specific route represents more precise knowledge. If a router has a default route of 0.0.0.0/0 pointing toward an internet provider, and also has a route for 10.1.2.0/24 pointing toward a directly connected branch office, a packet addressed to 10.1.2.55 should obviously go to the branch office, not out to the internet. The default route is a catch-all for everything nobody has said anything more specific about. The moment a more specific route exists, it overrides the catch-all for exactly the addresses it covers, and nothing else changes.
+
+This rule is why adding a route for a new subnet does not require touching the default route at all. The two coexist peacefully; the specific one simply wins for its slice of address space and the default absorbs everything else. It is also why a misconfigured specific route is dangerous in a way a misconfigured default route is not: a wrong /32 route silently hijacks traffic for one address while every other route on the table looks completely healthy.
+
+<Quiz
+  id="longest-prefix"
+  question="A router's table has a default route 0.0.0.0/0 via 203.0.113.1 and a route for 10.4.0.0/16 via 10.4.0.1. A packet arrives for 10.4.9.20. Which route does the router use?"
+  answer={1}
+  options={[
+    "The default route, because it was configured first",
+    "The 10.4.0.0/16 route, because it is the more specific match",
+    "Both routes at once, splitting the packet across them",
+    "Neither route, since 10.4.9.20 is not an exact match for either prefix"
+  ]}
+  explanation="10.4.9.20 falls inside both 0.0.0.0/0 (which matches everything) and 10.4.0.0/16. Longest-prefix match always picks the more specific prefix when several match, so the /16 route wins even though the default route also technically matches. Configuration order plays no part in the decision."
+/>
+
+## No device knows the whole path, and TTL keeps that safe
+
+Here is the part that surprises people coming from a mental model of routing as following a map. No router, anywhere, knows the complete path a packet will take from source to destination. Each router only knows its own routing table, which tells it the next hop for a given destination, and nothing about what that next router will do, or the one after that. The path emerges from a chain of independent, local decisions, each one made by a device that has never seen the whole route and never needs to.
+
+This works because every router along the way is trying to get the packet strictly closer to its destination, using whatever it currently knows. A packet crossing from a home network to a distant server might pass through a home router, an internet provider's router, several routers inside that provider's backbone, a router at an internet exchange point, another provider's backbone, and finally a router local to the destination's network. Each of those routers looked at the destination address, checked its own table, and forwarded to its own idea of the next hop. Nobody along that chain drew the whole line from end to end in advance.
+
+A system built on decisions this local needs a safety valve, because a mistake in a routing table, or two routers each pointing at the other as the way toward some destination, could send a packet in circles forever. That valve is TTL, time to live, a field in the packet header that starts at some number, commonly 64, and gets decremented by one at every router it passes through. When TTL hits zero, the packet is discarded, and the router that discarded it sends a small message back to the source saying so. A packet trapped in a routing loop dies within a bounded number of hops instead of consuming bandwidth indefinitely. It is a blunt mechanism, and it works precisely because it does not need any router to understand the loop it is part of.
+
+## Static routes for small networks, dynamic protocols for everything else
+
+Every route in a table has to come from somewhere. The simplest source is a human typing it in directly, called a static route: an administrator declares that traffic for 192.168.50.0/24 goes via 10.0.0.2, and that entry sits in the table until someone changes it. Static routing works fine for a small network with one or two paths in and out, where the topology almost never changes and a person can reasonably keep every route in their head.
+
+It falls apart at any real scale. The internet is not one network; it is tens of thousands of independently operated networks, each one called an autonomous system, constantly gaining and losing connections to each other, with links failing and new ones coming online continuously. No team of humans could hand-type routes fast enough to keep that current, and a single mistake could black-hole an enormous amount of traffic. What actually runs the global internet is a dynamic routing protocol called BGP, Border Gateway Protocol. Every autonomous system runs BGP to tell its neighbors which address blocks it can reach, either directly or through further neighbors, and those announcements ripple outward until every network with a BGP session has a working picture of how to reach everywhere else. When a link goes down, the affected networks stop advertising the routes that depended on it, neighbors recalculate, and traffic reroutes, often in seconds, without a person touching a keyboard. BGP is not a nice-to-have layered on top of the internet; it is the mechanism holding the whole thing together, and an error in a BGP announcement, even an accidental one from a small network misconfiguring a router, has knocked major services offline before.
+
+Inside a single organization, a different protocol usually does the equivalent job on a smaller scale. OSPF, Open Shortest Path First, lets routers within one company or campus discover each other automatically, share their local connectivity, and calculate the shortest path to every other point in that network, adjusting instantly when a link fails. OSPF and BGP solve the same underlying problem, routers needing current information without a human updating it by hand, but at very different scales and with different trust assumptions: OSPF trusts every router inside one administrative domain, while BGP has to deal with thousands of independent organizations, some of them adversarial, which is why BGP security remains an active and genuinely hard problem in the field.
+
+Static and dynamic routing are not mutually exclusive within one network either. A small branch office might have exactly one path out, to a single internet provider, and a static default route handles that perfectly well since there is nothing to adjust to. A data center with dozens of interconnected routers and multiple providers needs OSPF or a similar protocol internally and BGP at its edges, because the number of paths and the frequency of change make static configuration unworkable. Choosing between them is a judgment call about how much the topology moves and how much damage a stale route would cause.
+
+<Quiz
+  id="static-vs-dynamic"
+  question="Why does the global internet rely on BGP instead of statically configured routes between every network?"
+  answer={0}
+  options={[
+    "The number of networks and the rate of link changes make hand-typed routes impossible to keep current and safe at that scale",
+    "Static routes are technically incapable of pointing to more than one next hop",
+    "BGP is required by international law for any network connected to the internet",
+    "Static routes do not support IPv4, only IPv6"
+  ]}
+  explanation="Static routing is perfectly usable and common inside small, stable networks. It breaks down at internet scale because tens of thousands of independently run networks change their connectivity constantly, and BGP lets each one announce reachability automatically instead of requiring every operator to coordinate route changes by hand. The other options describe limitations static routes do not actually have."
+/>
+
+## What this looks like on a real device
+
+A routing table on an actual router or Linux host reads like a short, plain list once the format is familiar.
+
+```text
+Destination        Gateway          Genmask          Flags   Iface
+0.0.0.0             203.0.113.1     0.0.0.0          UG      eth0
+10.4.0.0            10.4.0.1        255.255.0.0      UG      eth1
+10.4.9.0            0.0.0.0         255.255.255.0    U       eth2
+192.168.1.0         0.0.0.0         255.255.255.0    U       eth0
+```
+
+Each line is a destination network and mask, a gateway to reach it, and the interface it goes out. The U flag marks a route as up; the G flag marks one that goes through a gateway rather than a directly connected network. Note the 10.4.9.0/24 entry sitting alongside the broader 10.4.0.0/16 route: that is longest-prefix match ready to act, exactly as worked through earlier. A packet for 10.4.9.20 takes the /24, everything else in 10.4.0.0/16 falls back to the /16, and anything matching nothing else at all rides the default route out eth0.
+
+Tracing the hop-by-hop journey makes the same idea visible from the outside. A traceroute-style tool sends a series of packets with increasing TTL values, one, then two, then three, and records which router's address comes back each time the TTL hits zero one hop early. The result is a list of every router that handled the packet along the way, in order:
+
+```text
+ 1  10.4.0.1        1.2 ms
+ 2  203.0.113.1      4.8 ms
+ 3  198.51.100.9     9.1 ms
+ 4  198.51.100.201  14.7 ms
+ 5  93.184.216.1    22.3 ms
+ 6  93.184.216.34   22.9 ms
+```
+
+Each row is a separate router that had no idea what the next one would look like, only that it was, by its own table's judgment, closer to the destination than not sending it anywhere at all. Six independent local decisions produced one coherent path, and nobody involved ever saw the full list until the packets returning from each hop got collected here.
+
+<Callout type="warning" title="Rising hop times do not always mean a slow link">
+A hop showing 40 milliseconds after a previous hop at 5 milliseconds looks alarming, but the number measures the round trip to that specific router, not the delay it adds to the packet's forward journey. Some routers deprioritize generating these reply messages compared to forwarding real traffic, so a busy or deliberately low-priority router can show an inflated time while everything actually flowing through it stays fast. Judge a suspected slow link by testing throughput and latency to the final destination, not by staring at one inflated row in the hop list.
+</Callout>
+
+<Exercise title="Trace the match">
+A router's table has these four entries: a default route 0.0.0.0/0, a route for 172.16.0.0/16, a route for 172.16.30.0/24, and a route for 172.16.30.128/25. A packet arrives addressed to 172.16.30.200. Work out which entries actually match that address, then decide which one the router picks and explain why in one sentence using the longest-prefix rule.
+</Exercise>
+
+Everything in this lesson has assumed IPv4 addresses, but nothing about the mechanism is IPv4-specific. An IPv6 router keeps a routing table the same way, matches destination addresses against known prefixes the same way, and applies longest-prefix match the same way. The only real difference is that the addresses are 128 bits instead of 32 and get written in hex instead of decimal, so a table entry might read 2001:db8:4::/48 instead of 10.4.0.0/16. The logic underneath does not change at all, which is worth remembering once IPv6 gets its own full treatment later in this module.
+
+Routing gets a packet from one network to a completely different one, hop by hop, with no device ever seeing the whole path. But most traffic on any given day never leaves the local network at all, and getting a frame from one device to the one right next to it is a different problem with a different device solving it. The next lesson, switching and VLANs, goes back inside the network routing was built to connect, and covers how devices sharing one subnet actually find each other before a router ever gets involved.
+
+<Notes />

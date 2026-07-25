@@ -1,0 +1,58 @@
+---
+title: Repeating Key
+summary: A short keyword was used to Vigenere-encrypt a flag. Reverse the shifts.
+track: break
+category: crypto
+difficulty: HARD
+tags: [cipher, vigenere, keyword]
+daily: true
+answer: "MOB{vigenere_repeats_itself}"
+answerType: flag
+starterLang: python
+starter: |
+  # The text below was Vigenere-encrypted with the keyword MAKE.
+  # Only letters were shifted; braces and underscores passed through unchanged.
+  # The key advances only on letters, never on the passed-through characters.
+  cipher = "YOL{zugorqro_vqpoefs_sxeevj}"
+  key = "MAKE"
+
+  def vig_decrypt(text, key):
+      out = []
+      ki = 0
+      for ch in text:
+          if ch.isalpha():
+              base = ord('A') if ch.isupper() else ord('a')
+              k = ord(key[ki % len(key)].upper()) - ord('A')
+              out.append(chr((ord(ch) - base - k) % 26 + base))
+              ki += 1
+          else:
+              out.append(ch)
+      return ''.join(out)
+
+  print(vig_decrypt(cipher, key))
+hints:
+  - A Vigenere cipher is a Caesar cipher whose shift changes each letter, cycling through the keyword. Letter i uses key letter i mod len(key).
+  - The keyword is MAKE, so the shifts repeat 12, 0, 10, 4 across the letters. To decrypt, subtract each shift instead of adding it.
+  - Only alphabetic characters advance the key. The braces and underscores are copied straight through and do not consume a key letter.
+---
+
+A Vigenere cipher extends the Caesar idea. Instead of one fixed shift, it uses a
+repeating keyword: the first letter of the message is shifted by the first letter
+of the key, the second by the second, and so on, wrapping back to the start of the
+key when it runs out. That repetition is exactly the weakness the cipher is named
+for here.
+
+The flag below was Vigenere-encrypted with the keyword `MAKE`. Only the letters
+were shifted. The braces and underscores passed through unchanged, and they do not
+consume a key letter, so the key advances only when it lands on an actual letter.
+
+```
+YOL{zugorqro_vqpoefs_sxeevj}
+```
+
+To decrypt, walk the ciphertext left to right. For each letter, take the next key
+letter in the cycle `M`, `A`, `K`, `E`, convert it to a shift of 12, 0, 10, 4, and
+subtract that shift from the ciphertext letter (mod 26), keeping upper and lower
+case as they are. Copy every non-letter straight across without advancing the key.
+
+Run your code, read the recovered text, and submit the full `MOB{...}` flag.

@@ -1,0 +1,95 @@
+---
+title: Common Cluster Misconfigurations
+module: kubernetes-security
+moduleTitle: Kubernetes Security
+moduleOrder: 31
+moduleIcon: Ship
+order: 3
+summary: Clusters rarely fall to zero-days, they fall to defaults nobody changed.
+estimatedMinutes: 22
+objectives:
+  - Spot an exposed dashboard or anonymous kubelet from the outside
+  - Recognize over-permissive RBAC that grants far more than intended
+  - Find secrets sitting in plain text where they should not be
+tags:
+  - kubernetes
+  - misconfiguration
+  - rbac
+  - secrets
+---
+
+Almost nobody breaks into a Kubernetes cluster with a memory corruption bug in the API server. They walk in through a dashboard with no login, a service account bound to `cluster-admin`, or a kubelet that answers to anyone. These are configuration choices, usually made once during setup and never revisited. Your job on an assessment is to find the one that got left open.
+
+## The Kubernetes Dashboard with no auth
+
+The web dashboard used to ship in a way that, if exposed and granted a strong service account, let anyone who reached it run as that account. People still deploy it, still expose it through an ingress or a `kubectl proxy` someone forgot to kill, and still skip the token prompt.
+
+<CommandBlock
+  title="find and reach an exposed dashboard"
+  commands={[
+    { cmd: "kubectl get svc -n kubernetes-dashboard", comment: "is the dashboard service present, and is it type LoadBalancer or NodePort" },
+    { cmd: "kubectl get ingress --all-namespaces | grep -i dashboard", comment: "check for an ingress route exposing it externally" },
+  ]}
+/>
+
+If it is reachable and its service account is over-privileged, the dashboard becomes a point-and-click console for the cluster. The fix is never "hide the URL." It is auth plus a tiny service account.
+
+## RBAC that grants the world
+
+The single most common finding is a binding to the built-in `cluster-admin` ClusterRole on something that should have almost no rights: a default service account, an app, a CI runner. `cluster-admin` is `*` verbs on `*` resources. One token holding it is the whole cluster.
+
+Hunt for it directly.
+
+<CommandBlock
+  title="find over-permissive bindings"
+  commands={[
+    { cmd: "kubectl get clusterrolebindings -o wide", comment: "scan the subjects column for service accounts bound to cluster-admin" },
+    { cmd: "kubectl get clusterrolebindings -o json | jq -r '.items[] | select(.roleRef.name==\"cluster-admin\") | .subjects[]?.name'", comment: "list exactly which subjects hold cluster-admin" },
+    { cmd: "kubectl auth can-i '*' '*'", comment: "a blunt confirmation your own token is god" },
+  ]}
+/>
+
+Wildcard verbs like `create` on `pods` or `secrets` are almost as good. So is anything that can create or update RoleBindings, because that account can grant itself everything on demand.
+
+## Anonymous kubelet access
+
+Each node runs a kubelet on 10250. If it was started with `--anonymous-auth=true` and no authorization mode, it will run commands in any pod on that node for anyone who can reach the port. On a flat pod network, that means any pod can reach every node's kubelet.
+
+<CommandBlock
+  title="probe a node's kubelet"
+  commands={[
+    { cmd: "curl -sk https://NODE_IP:10250/pods", comment: "no error and a pod list means anonymous access is on" },
+    { cmd: "curl -sk https://NODE_IP:10250/run/NAMESPACE/POD/CONTAINER -d 'cmd=id'", comment: "exec into a pod through the open kubelet" },
+  ]}
+/>
+
+A kubelet that answers `/pods` without a token is a straight path to command execution across everything scheduled on that node.
+
+## Secrets in the clear
+
+Kubernetes Secrets are base64, not encryption. Anyone who can read the secret object, or read etcd, reads the value. Worse is the habit of stuffing credentials into plain environment variables or ConfigMaps, which get no special treatment at all.
+
+<CommandCard command="kubectl get secrets --all-namespaces -o json | jq -r '.items[] | .metadata.namespace + \"/\" + .metadata.name'" explain="Inventory every secret you can read. If your enumeration from the last lesson showed list on secrets, the actual values are one kubectl get -o yaml and a base64 -d away." />
+
+<Callout type="warning" title="ConfigMaps are the softer target">
+Teams know to be careful with Secret objects. They are sloppier with ConfigMaps, which are the same API shape with none of the caution. Always `kubectl get configmaps -o yaml` across namespaces. Database URLs with inline passwords, API keys, and admin tokens turn up there constantly.
+</Callout>
+
+<Callout type="security" title="Authorized targets only">
+Scanning kubelets and dumping secrets is active intrusion. Run it only against clusters you own or have signed scope for. Kubernetes Goat is built to practice exactly these findings safely. Doing this to someone else's cluster is a crime and it is logged.
+</Callout>
+
+<Quiz
+  id="k8s-misconfig-worst"
+  question="Which finding gives the fastest path to full cluster control on its own?"
+  answer={0}
+  options={[
+    "A default service account bound to the cluster-admin ClusterRole",
+    "A Secret object that is base64-encoded",
+    "A Service of type ClusterIP",
+    "A pod with a readiness probe disabled",
+  ]}
+  explanation="cluster-admin is wildcard verbs on wildcard resources. A token bound to it can do anything the API server allows, so a single over-permissive ClusterRoleBinding is total control. base64 secrets and internal services matter only after you can reach or read them."
+/>
+
+<Notes />

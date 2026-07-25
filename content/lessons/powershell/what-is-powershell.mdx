@@ -1,0 +1,180 @@
+---
+title: What PowerShell Is and Why It Matters
+module: powershell
+moduleTitle: PowerShell
+moduleOrder: 1
+moduleIcon: Terminal
+order: 1
+summary: "PowerShell is both a command shell and a scripting language, and its defining trait is that it passes whole objects down the pipeline instead of plain text."
+estimatedMinutes: 13
+prerequisites: []
+objectives:
+  - Explain that PowerShell is both an interactive shell and a scripting language, and that it runs on Windows, macOS, and Linux
+  - Describe the verb-noun naming pattern of cmdlets and why it makes commands easy to guess
+  - Explain the single biggest idea in PowerShell, that the pipeline carries objects rather than lines of text
+  - Name where PowerShell is used day to day, from Windows administration to cloud automation
+tags:
+  - powershell
+  - scripting
+  - automation
+---
+
+PowerShell is two things at once, and holding both in mind from the start makes
+everything else easier. It is a command shell, the kind of prompt where someone
+types a command and gets an answer back, and it is a full scripting language for
+writing programs that automate work. Most tools are one or the other. PowerShell
+is deliberately both, so a command typed once by hand can be saved into a script
+and run a thousand times without a person watching.
+
+It also runs almost everywhere now. The modern version, called PowerShell 7 and
+launched with the command `pwsh`, is open source and cross-platform. It runs on
+Windows, macOS, and Linux from the same codebase. The older Windows PowerShell 5.1
+still ships inside Windows and is common in the field, but new work targets
+PowerShell 7. This track uses the modern version, and the ideas carry back to the
+older one.
+
+## Cmdlets are named verb then noun
+
+The commands in PowerShell are called **cmdlets**, pronounced "command-lets", and
+they follow one strict naming rule: a verb, a hyphen, then a noun. `Get-Date`
+returns the current date. `Get-Process` lists running programs. `Stop-Process`
+ends one. `Get-ChildItem` lists the files in a folder. Once the pattern is clear,
+a cmdlet name is often guessable: to read the contents of a file, the reasonable
+guess is `Get-Content`, and that is exactly the cmdlet.
+
+The verbs are not a free-for-all. PowerShell defines an approved list, so `Get`
+retrieves, `Set` changes, `New` creates, `Remove` deletes, and `Start` and `Stop`
+do what they say. This consistency is the point. A person who learns the verbs can
+work with cmdlets they have never seen before, because the name already says what
+the cmdlet does to what kind of thing.
+
+<Callout type="info" title="Getting help without leaving the shell">
+Two cmdlets make PowerShell explorable. `Get-Command` lists cmdlets, and can
+filter, so `Get-Command -Verb Get` shows everything that retrieves something.
+`Get-Help` explains a cmdlet and shows examples. Reaching for these two is faster
+than searching the web, and it works offline.
+</Callout>
+
+<Quiz
+  id="ps-verb-noun"
+  question="Following PowerShell's naming rule, which cmdlet name is the most likely one for creating a new folder?"
+  answer={2}
+  options={[
+    "MakeFolder, because it says what it does in plain words.",
+    "Folder-Create, since the thing being acted on comes first.",
+    "New-Item, using the approved verb New with a noun for the thing to create.",
+    "Create.Folder, matching the style of other languages.",
+  ]}
+  explanation="Cmdlets are always verb then noun, and the approved verb for creating something is New, so New-Item is the PowerShell name (a folder is created with New-Item and a type of Directory). MakeFolder and Create.Folder break the verb-noun rule, and Folder-Create reverses the order."
+/>
+
+## A first taste at the prompt
+
+Before the big idea, it helps to see how ordinary a first session looks. A cmdlet
+typed on its own runs and prints its result. `Get-Date` prints the current date and
+time. A bare value prints itself, so typing `2 + 2` returns `4`, which means the
+shell doubles as a calculator. Text in quotes is a string, and `Write-Output "Hello"`
+prints it, though at the interactive prompt the quotes alone would print it too.
+
+Values can be stored in variables, which in PowerShell always begin with a dollar
+sign. Assigning `$name = "Ada"` puts the text into `$name`, and from then on the
+name stands in for the value. Double-quoted strings even reach inside themselves for
+variables, so `"Hello $name"` becomes `Hello Ada`. That small feature, called string
+interpolation, shows up constantly, because so much of scripting is building a
+message or a path out of pieces.
+
+None of this is unique to PowerShell; every shell has variables and a way to print.
+What is worth noticing is that the same short commands a person types to explore are
+the exact lines that go into a script later. There is no separate "scripting mode" to
+learn. The prompt is the language, and the language is the prompt, which is why
+picking up PowerShell interactively pays off the moment a task is worth automating.
+
+## The one big idea: the pipeline carries objects
+
+This is the idea that separates PowerShell from older shells like bash, and it is
+worth slowing down for. In a traditional shell, when one command's output is piped
+into another, what flows through the pipe is plain text: lines of characters. The
+receiving command has to pick the text apart again, guessing at columns and
+splitting on spaces, which is fragile and breaks the moment the formatting shifts.
+
+PowerShell sends **objects** through the pipeline instead. An object is a
+structured value that carries named properties. When `Get-Process` runs, it does
+not hand back a wall of text; it hands back process objects, each with a `Name`, a
+`CPU`, an `Id`, and more, as real fields. The next cmdlet in the pipeline receives
+those objects whole and can work with the fields by name, with no text parsing at
+all.
+
+That is why a request like "list the running processes, keep only the ones using
+more than one hundred units of CPU, and sort them" reads so cleanly:
+
+```powershell
+Get-Process | Where-Object { $_.CPU -gt 100 } | Sort-Object CPU
+```
+
+Each `|` passes the objects along. `Where-Object` keeps the ones whose `CPU`
+property passes a test, and `Sort-Object` orders them by that same property. The
+`$_` is a placeholder for the current object as it moves through the pipeline. No
+column counting, no splitting on spaces. The property is simply named and used.
+
+<Quiz
+  id="ps-objects"
+  question="What is the key difference between a PowerShell pipeline and a traditional text-based shell pipeline?"
+  answer={0}
+  options={[
+    "PowerShell passes structured objects with named properties, while a traditional shell passes plain text that the next command must parse.",
+    "PowerShell can only pipe two commands together, while a traditional shell allows any number.",
+    "A PowerShell pipeline runs each command on a separate computer for speed.",
+    "There is no real difference; the object idea is only a display style.",
+  ]}
+  explanation="PowerShell's pipeline carries objects that keep their fields, so the next cmdlet reads a property like CPU by name instead of parsing text out of columns. That is the defining feature, not a limit on how many commands can be chained or where they run."
+/>
+
+## Where PowerShell earns its keep
+
+PowerShell started as the answer to a real problem: administering Windows at scale.
+Clicking through menus is fine for one machine and hopeless for a thousand, so
+administrators use PowerShell to create user accounts, configure servers, read
+event logs, and manage services, all from scripts that run the same way every
+time.
+
+From there it spread. Cloud platforms lean on it heavily; Microsoft Azure has a
+full set of PowerShell cmdlets for creating and managing cloud resources from a
+script. DevOps pipelines use it as the automation glue that builds, tests, and
+deploys software. Security teams use it for both defense and investigation,
+reading logs and hunting for signs of an intruder. Even outside those worlds, it
+is a handy way to rename a batch of files, pull a summary out of a folder, or
+process a spreadsheet, because the same language works for a quick one-liner and a
+serious program.
+
+The through line is automation. Anything a person does repeatedly on a computer,
+especially on Windows or in the cloud, is a candidate for a short PowerShell
+script that does it faster and without mistakes.
+
+## Trying it as this track goes
+
+The rest of this module builds PowerShell up from these foundations: the cmdlets
+and their parameters, variables and types, the pipeline in depth, arrays and
+collections, the flow-control that makes scripts decide and repeat, and finally
+writing functions and full scripts. To make the learning hands-on, the Build tab
+in this platform includes a practice PowerShell that runs the common commands in
+the browser. Typing a cmdlet and seeing the result is the fastest way for the
+verb-noun pattern and the object pipeline to become second nature, so the lessons
+ahead lean on running the examples rather than only reading them.
+
+PowerShell rewards a small amount of memorized structure with a large amount of
+reach. Learn the verb-noun shape and the object pipeline, and a great deal of the
+language opens up, because nearly everything else is a variation on those two
+ideas.
+
+<Quiz
+  id="ps-two-things"
+  question="Why is it accurate to call PowerShell both a shell and a scripting language?"
+  answer={1}
+  options={[
+    "Because it can only be used interactively, never saved to a file.",
+    "Because the same commands can be typed one at a time at a prompt or saved into a script that runs many commands automatically.",
+    "Because a shell and a scripting language are the same thing in every tool.",
+    "Because it replaces the operating system entirely when it runs.",
+  ]}
+  explanation="PowerShell is interactive like a shell, taking commands one at a time, and it is also a scripting language, so those same commands can be saved into a file and run as an automated program. The two roles share one language, which is the whole design."
+/>

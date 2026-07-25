@@ -1,0 +1,210 @@
+[
+  {
+    "domain": 2,
+    "question": "During an Nmap TCP SYN scan (-sS), which response from the target indicates that a port is open?",
+    "options": ["A SYN/ACK packet", "A RST/ACK packet", "An ICMP type 3 unreachable message", "No response at all"],
+    "correct": [0],
+    "explanation": "In a SYN scan the scanner sends a SYN and an open port replies with SYN/ACK. A closed port replies with RST/ACK, and a filtered port typically produces no response or an ICMP unreachable message.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Why is the Nmap TCP SYN scan often called a 'half-open' scan?",
+    "options": ["It only scans half of the target's ports", "It sends a RST after receiving SYN/ACK instead of completing the three-way handshake", "It uses half the normal timing to stay quiet", "It leaves connections in the ESTABLISHED state on the target"],
+    "correct": [1],
+    "explanation": "The scanner never sends the final ACK. After the SYN/ACK arrives it tears the connection down with a RST, so a full TCP session is never established. This can avoid logging by applications that only record completed connections.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which TCP flags are set in the packets sent by an Nmap Xmas scan (-sX)?",
+    "options": ["SYN, ACK, and RST", "FIN, PSH, and URG", "SYN and FIN only", "ACK only"],
+    "correct": [1],
+    "explanation": "The Xmas scan lights up the FIN, PSH, and URG flags, like ornaments on a tree. On an RFC 793-compliant host a closed port replies with RST and an open port sends nothing.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "On an RFC 793-compliant target, what does a closed port return in response to an Nmap NULL scan?",
+    "options": ["RST", "SYN/ACK", "FIN/ACK", "Nothing"],
+    "correct": [0],
+    "explanation": "A NULL scan sends a packet with no flags set. Per RFC 793 a closed port responds with RST while an open port stays silent, which is why open ports show as open|filtered.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Why are NULL, FIN, and Xmas scans unreliable against most Windows hosts?",
+    "options": ["Windows blocks all TCP traffic by default", "Windows sends RST for both open and closed ports, so open ports cannot be distinguished", "Windows only supports UDP scanning", "Windows requires the ACK flag on every incoming packet"],
+    "correct": [1],
+    "explanation": "Windows does not follow RFC 793 for these stealth scans and returns RST regardless of whether a port is open or closed. That makes every port look closed, defeating the purpose of the scan.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which Nmap option performs a UDP scan?",
+    "options": ["-sU", "-sT", "-sS", "-sN"],
+    "correct": [0],
+    "explanation": "-sU scans UDP ports. -sS is a SYN scan, -sT is a full TCP connect scan, and -sN is a NULL scan.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "What is the effect of the Nmap -Pn option?",
+    "options": ["It performs a ping sweep only, with no port scan", "It skips host discovery and treats every listed target as online", "It disables DNS resolution", "It scans only privileged ports below 1024"],
+    "correct": [1],
+    "explanation": "-Pn (no ping) tells Nmap to skip the host discovery phase and scan every listed host as if it were up. It is useful when targets drop ICMP but still respond on TCP or UDP ports.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An Nmap UDP scan reports a port as 'open|filtered'. What does this state mean?",
+    "options": ["The port is confirmed open and unfiltered", "Nmap received no response and cannot tell whether the port is open or filtered by a firewall", "The port is closed but reachable", "The port responded with an ICMP redirect"],
+    "correct": [1],
+    "explanation": "open|filtered means Nmap got no reply, so it cannot distinguish an open port that simply stays silent from one blocked by a firewall. It is common in UDP scans and in NULL, FIN, and Xmas scans.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Which Nmap option attempts to determine the service and version running on open ports?",
+    "options": ["-sV", "-O", "-sn", "-Pn"],
+    "correct": [0],
+    "explanation": "-sV enables version detection by probing open ports and matching responses against the nmap-service-probes database. -O performs OS detection, which is a separate feature.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "The Nmap -O flag is used to do what?",
+    "options": ["Write results to an output file", "Perform OS detection by TCP/IP stack fingerprinting", "Scan only ports found open", "Run the scan in an offline mode"],
+    "correct": [1],
+    "explanation": "-O enables OS detection, which fingerprints the target's TCP/IP stack behavior and compares it to the nmap-os-db database. Use -oN, -oX, or -oG to write output to files.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An Nmap idle scan (-sI) determines port state by observing what characteristic of a 'zombie' host?",
+    "options": ["Its MAC address rotation", "The incremental behavior of its IP identification (IPID) field", "Its advertised TCP window size", "Its default TTL value"],
+    "correct": [1],
+    "explanation": "The idle scan uses a zombie whose IPID increments predictably. By watching how the zombie's IPID changes, the attacker infers the target's port state without sending packets from their own address, making it very stealthy.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "What does the Nmap -D option accomplish?",
+    "options": ["It delays each probe to evade rate limiting", "It launches the scan alongside decoy source addresses to obscure the real scanner", "It disables service detection", "It duplicates the scan across multiple targets"],
+    "correct": [1],
+    "explanation": "-D performs a decoy scan, making probes appear to come from several spoofed source addresses in addition to the real one. This makes it harder for the target to identify which host is the true scanner.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Why might a penetration tester use the Nmap -f option?",
+    "options": ["To scan faster by sending fewer packets", "To split probe packets into small IP fragments in an attempt to evade packet filters", "To force a full three-way handshake", "To fingerprint the operating system"],
+    "correct": [1],
+    "explanation": "-f fragments the probe packets into smaller IP fragments so that simple packet filters or IDS sensors may fail to reassemble and inspect them. It is a firewall and IDS evasion technique.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "In Nmap timing templates, which option requests the most aggressive (fastest) timing?",
+    "options": ["-T0", "-T2", "-T4", "-T5"],
+    "correct": [3],
+    "explanation": "Timing templates range from -T0 (paranoid, slowest) to -T5 (insane, fastest). -T4 is aggressive and commonly used, but -T5 is the fastest and most likely to overwhelm targets or trip detection.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which of the following tools can be used to manually grab a service banner? (Choose two.)",
+    "options": ["Netcat (nc)", "Telnet", "Wireshark", "Nikto"],
+    "correct": [0, 1],
+    "explanation": "Netcat and Telnet can open a raw TCP connection to a port and display whatever banner the service returns. Wireshark is a passive sniffer and Nikto is a web vulnerability scanner, not interactive banner-grabbing tools.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Which TCP ports are most associated with SMB and NetBIOS session services during enumeration? (Choose two.)",
+    "options": ["139", "445", "161", "389"],
+    "correct": [0, 1],
+    "explanation": "TCP 139 carries the NetBIOS session service and TCP 445 carries SMB directly over TCP. Port 161 is SNMP (UDP) and 389 is LDAP.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A null session in SMB enumeration is established by connecting to which share with a blank username and password?",
+    "options": ["ADMIN$", "C$", "IPC$", "SYSVOL"],
+    "correct": [2],
+    "explanation": "A null session connects to the IPC$ (inter-process communication) share with empty credentials. On older or misconfigured systems this can reveal users, groups, shares, and policy information.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "SNMP enumeration primarily targets which port and protocol?",
+    "options": ["UDP 161", "TCP 161", "UDP 389", "TCP 445"],
+    "correct": [0],
+    "explanation": "SNMP agents listen on UDP 161, while UDP 162 is used for SNMP traps. Enumerating SNMP can expose device configuration, interfaces, routing tables, and running processes.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Which default SNMP community strings are commonly tested during enumeration, providing read-only and read-write access respectively?",
+    "options": ["public and private", "admin and root", "guest and user", "read and write"],
+    "correct": [0],
+    "explanation": "By default many devices use 'public' as the read-only community string and 'private' as the read-write string. SNMPv1 and v2c send these in cleartext, so guessing or sniffing them exposes the device.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "What does the snmpwalk utility do during SNMP enumeration?",
+    "options": ["Cracks SNMPv3 encryption keys", "Traverses the MIB tree by issuing successive GETNEXT requests to retrieve OIDs", "Brute-forces the device web login", "Sends spoofed SNMP traps to the manager"],
+    "correct": [1],
+    "explanation": "snmpwalk repeatedly issues GETNEXT (or GETBULK) requests to walk the Management Information Base tree and return the values of many OIDs. It is a standard way to dump device information when a valid community string is known.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Standard unencrypted LDAP services listen on which TCP port?",
+    "options": ["389", "636", "3268", "445"],
+    "correct": [0],
+    "explanation": "LDAP uses TCP 389 by default. LDAPS (LDAP over TLS) uses 636, and the Active Directory Global Catalog uses 3268 (or 3269 over TLS).",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Which port does the Active Directory Global Catalog use, making it a target for enumerating forest-wide objects?",
+    "options": ["389", "636", "3268", "88"],
+    "correct": [2],
+    "explanation": "The Global Catalog listens on TCP 3268 (and 3269 for the TLS variant). It holds a partial replica of every object in the forest, so querying it can enumerate users and groups across all domains.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An LDAP anonymous bind during enumeration allows an attacker to do what?",
+    "options": ["Reset any user's password", "Query the directory for objects without providing valid credentials", "Encrypt all future LDAP traffic", "Promote a host to a domain controller"],
+    "correct": [1],
+    "explanation": "When anonymous binds are permitted, tools such as ldapsearch can query the directory without authenticating, potentially exposing users, groups, and organizational structure. Hardened directories disable anonymous binds.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which SMTP commands are commonly abused to enumerate valid email accounts on a mail server?",
+    "options": ["HELO and QUIT", "VRFY and EXPN", "MAIL and DATA", "AUTH and STARTTLS"],
+    "correct": [1],
+    "explanation": "VRFY asks the server to verify a username and EXPN expands a mailing list to its members, both of which can confirm valid accounts. RCPT TO can be used similarly. Many servers now disable these to prevent enumeration.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which Nmap option performs host discovery only (a ping sweep) without scanning any ports?",
+    "options": ["-sn", "-sS", "-Pn", "-sV"],
+    "correct": [0],
+    "explanation": "-sn (formerly -sP) tells Nmap to discover which hosts are up without doing a port scan. It is the classic ping-sweep mode for mapping live hosts on a subnet.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "During NetBIOS enumeration on Windows, what does the command 'nbtstat -A <IP>' return?",
+    "options": ["The remote host's routing table", "The remote machine's NetBIOS name table", "A list of open TCP ports", "The Active Directory schema"],
+    "correct": [1],
+    "explanation": "nbtstat -A queries a remote host by IP and returns its NetBIOS name table, which can reveal the computer name, domain or workgroup, and registered services. The lowercase -a performs the same lookup by name.",
+    "difficulty": "MEDIUM"
+  }
+]

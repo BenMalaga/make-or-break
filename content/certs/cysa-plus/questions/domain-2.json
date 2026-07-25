@@ -1,0 +1,194 @@
+[
+  {
+    "domain": 2,
+    "question": "Under CVSS v3.1, which numeric base score range corresponds to a severity rating of Critical?",
+    "options": ["0.1 to 3.9", "4.0 to 6.9", "7.0 to 8.9", "9.0 to 10.0"],
+    "correct": [3],
+    "explanation": "In CVSS v3.1 the Critical band is 9.0 to 10.0. The 0.1 to 3.9 range is Low, 4.0 to 6.9 is Medium, and 7.0 to 8.9 is High, so the other options name the wrong bands.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "What is the primary advantage of a credentialed (authenticated) vulnerability scan over a non-credentialed scan?",
+    "options": ["It requires no agent to be installed on target hosts", "It logs in to inspect configuration, installed patches, and local settings, producing deeper and more accurate results", "It guarantees zero performance impact on the scanned system", "It can only enumerate externally exposed services"],
+    "correct": [1],
+    "explanation": "A credentialed scan authenticates to the host so it can read patch levels, registry, and config for far fewer false positives. Non-credentialed scans only see what an unauthenticated attacker sees, so they miss local detail. The agent and zero-impact claims are unrelated to credentials.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "The Exploit Prediction Scoring System (EPSS) is designed to express which of the following?",
+    "options": ["The technical severity of a vulnerability's impact", "The probability that a vulnerability will be exploited in the wild within the next 30 days", "The total dollar cost of remediating a vulnerability", "The number of assets affected by a vulnerability"],
+    "correct": [1],
+    "explanation": "EPSS produces a 0 to 1 probability that a given CVE will be exploited in the wild in the near term, which complements severity-based prioritization. CVSS, not EPSS, expresses technical severity. Cost and asset counts are separate organizational context factors.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "What does a CVE identifier provide?",
+    "options": ["A numeric severity score from 0 to 10", "A unique identifier for one specific publicly disclosed vulnerability", "A category label for a type of weakness such as buffer overflow", "A direct link to the vendor's patch"],
+    "correct": [1],
+    "explanation": "CVE (Common Vulnerabilities and Exposures), maintained by MITRE, assigns a unique ID to a specific disclosed vulnerability. The 0 to 10 score is CVSS, and the weakness category is CWE. A CVE record does not itself host the vendor patch.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "In CVSS v3.1, a base metric of Attack Vector: Network indicates that the vulnerability is exploitable in what way?",
+    "options": ["Only with direct physical access to the device", "Remotely across a network, including the internet", "Only by an attacker on the same local subnet or broadcast domain", "Only by an attacker with a local shell or console session"],
+    "correct": [1],
+    "explanation": "Attack Vector Network means the flaw is remotely exploitable over a network stack. Adjacent limits the attacker to the same subnet, Local requires a local account or shell, and Physical requires physically touching the device.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which statement correctly describes Static Application Security Testing (SAST)?",
+    "options": ["It tests a running application by sending crafted malicious input", "It analyzes source code or compiled binaries without executing the application", "It requires live production traffic to identify flaws", "It can only find vulnerabilities after the application is deployed"],
+    "correct": [1],
+    "explanation": "SAST is white-box testing that inspects source or binaries at rest, so it can be run early in the SDLC. DAST is the technique that tests a running app with malicious input. SAST does not need production traffic or deployment.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "In CVSS v3.1, what does a Scope value of Changed mean?",
+    "options": ["The base score will change over time as exploit code matures", "An exploited vulnerability can affect resources beyond the security authority of the vulnerable component", "The vulnerability affects confidentiality but leaves integrity intact", "The analyst has customized the environmental metric group"],
+    "correct": [1],
+    "explanation": "Scope Changed means the impact crosses a security boundary, affecting components managed by a different security authority (for example, a VM escape hitting the host). Score changes over time are the Temporal metrics, and analyst customization is the Environmental group.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Why is agent-based scanning often preferred for laptops and other roaming assets?",
+    "options": ["It can collect vulnerability data even when the device is off the corporate network", "It never consumes any host CPU or memory", "It requires no software to be installed on the endpoint", "It is only capable of scanning servers, not mobile endpoints"],
+    "correct": [0],
+    "explanation": "A local agent reports in whenever the device has connectivity, so roaming and remote assets get covered without being reachable by a network scanner. Agents do use some host resources and do require installed software, which is the tradeoff versus agentless scanning.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which Nmap option performs service and version detection on open ports?",
+    "options": ["-sn", "-sV", "-Pn", "-oX"],
+    "correct": [1],
+    "explanation": "-sV probes open ports to determine the service and version running. -sn does host discovery with no port scan, -Pn skips host discovery, and -oX writes results to XML output.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which control most effectively prevents SQL injection in an application?",
+    "options": ["Enforcing a strong password policy for user accounts", "Using parameterized queries, also called prepared statements", "Enabling full-disk encryption on the database server", "Deploying a network intrusion detection system"],
+    "correct": [1],
+    "explanation": "Parameterized queries separate SQL code from user-supplied data so input can never be interpreted as commands, which is the root fix for injection. Passwords, disk encryption, and an IDS address other risks and do not stop the app from concatenating unsafe SQL.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "What is the primary defense against cross-site scripting (XSS)?",
+    "options": ["Contextual output encoding combined with input validation", "Disabling TLS 1.0 on the web server", "Rotating API keys on a fixed schedule", "Increasing session timeout values"],
+    "correct": [0],
+    "explanation": "Encoding untrusted data for the exact output context (HTML, attribute, JavaScript) plus input validation stops the browser from treating injected data as executable script. TLS versions, API key rotation, and session timeouts do not address how untrusted content is rendered.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which mechanism best mitigates Cross-Site Request Forgery (CSRF)?",
+    "options": ["Anti-CSRF tokens that are unique per session and validated on state-changing requests", "Salting and hashing stored passwords", "Enabling verbose application error messages", "Using a longer symmetric encryption key"],
+    "correct": [0],
+    "explanation": "A synchronizer (anti-CSRF) token that the attacker cannot predict or read ensures forged cross-site requests are rejected; SameSite cookies help as well. Password hashing, verbose errors, and key length do not defend against forged requests riding a valid session.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A vulnerability scanner flags a critical vulnerability, but hands-on verification proves the issue does not actually exist on the host. How is this result classified?",
+    "options": ["False negative", "True positive", "False positive", "True negative"],
+    "correct": [2],
+    "explanation": "A false positive is an alert for a condition that is not really present. A false negative is a real vulnerability the scanner missed, a true positive is a correctly identified real issue, and a true negative is correctly reporting no issue.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Which statement describes passive vulnerability scanning?",
+    "options": ["It sends crafted packets directly to hosts to probe for weaknesses", "It observes existing network traffic to infer assets and issues without generating its own probes", "It always requires administrative credentials on each host", "It is the method most likely to crash fragile devices"],
+    "correct": [1],
+    "explanation": "Passive scanning listens to traffic already on the wire, so it adds no load and will not disrupt fragile systems, but it only sees what happens to traverse the sensor. Active scanning is the technique that sends probes and can stress delicate devices.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which best defines a compensating control in vulnerability management?",
+    "options": ["A control that permanently removes the vulnerability from the system", "An alternative safeguard used when the primary remediation cannot be applied, reducing risk to an acceptable level", "A legal mandate imposed by an external regulator", "A control that can only detect activity and never prevent it"],
+    "correct": [1],
+    "explanation": "A compensating control is a substitute measure, such as network segmentation or a WAF rule, applied when you cannot patch or remove the flaw directly. It does not eliminate the underlying vulnerability, and it is not defined by being detective-only or regulatory.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "In a vulnerability management program, what does a remediation SLA specify?",
+    "options": ["The maximum agreed time to remediate a vulnerability of a given severity", "The guaranteed uptime of the scanning appliance", "The encryption strength required for data at rest", "The number of scanner licenses purchased"],
+    "correct": [0],
+    "explanation": "A remediation SLA sets time-to-fix targets tied to severity, for example patch Critical findings within 15 days. Appliance uptime, encryption strength, and license counts are operational details unrelated to the remediation deadline.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "What does the Common Weakness Enumeration (CWE) catalog?",
+    "options": ["Specific instances of disclosed vulnerabilities in named products", "Categories and types of software or hardware weaknesses, such as CWE-89 for SQL injection", "The exploitation probability of a vulnerability", "Vendor patch release schedules"],
+    "correct": [1],
+    "explanation": "CWE is a taxonomy of weakness types (CWE-89 SQL injection, CWE-79 XSS) that explains the root cause class. CVE catalogs specific product instances, EPSS gives exploit probability, and vendors publish their own patch schedules.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "What is the main risk introduced by insecure deserialization?",
+    "options": ["An attacker can supply crafted serialized objects that lead to remote code execution or abuse of application logic", "The application will always leak memory over time", "TLS certificates can no longer be validated", "User passwords are automatically stored in plaintext"],
+    "correct": [0],
+    "explanation": "When untrusted serialized data is deserialized without validation, an attacker can manipulate object state or trigger gadget chains, potentially achieving remote code execution or privilege abuse. Memory leaks, certificate validation, and plaintext passwords are unrelated failure modes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A web application retrieves a URL supplied by the user, and an attacker abuses it to reach the cloud metadata service at 169.254.169.254 and steal credentials. Which vulnerability is this?",
+    "options": ["Cross-site scripting", "Server-Side Request Forgery (SSRF)", "SQL injection", "Insecure direct object reference"],
+    "correct": [1],
+    "explanation": "SSRF tricks the server into making requests to attacker-chosen destinations, including internal or metadata endpoints the attacker cannot reach directly. XSS runs in the victim browser, SQL injection targets the database, and IDOR abuses object references, none of which match server-side URL fetching.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which control best mitigates a directory (path) traversal vulnerability?",
+    "options": ["Canonicalize and validate file paths, rejecting traversal sequences such as ../", "Increase the TLS key size on the web server", "Disable ICMP echo replies at the firewall", "Add an anti-clickjacking response header"],
+    "correct": [0],
+    "explanation": "Resolving the path to its canonical form and enforcing an allowed base directory stops attackers from using ../ sequences to read files outside the web root. TLS keys, ICMP, and clickjacking headers do not constrain which files a request can reach.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "You must prioritize four findings for remediation. Considering severity, exposure, and exploitability together, which should be fixed first?",
+    "options": ["A medium-severity flaw on an isolated lab host with no network connectivity", "A Critical CVSS vulnerability on an internet-facing server with a published public exploit and a high EPSS score", "A low-severity informational finding on an internal print server", "A high-severity vulnerability on a decommissioned system already scheduled for disposal"],
+    "correct": [1],
+    "explanation": "Effective prioritization weighs severity, exposure, exploit availability, and asset value together, so an internet-facing Critical with a working exploit and high EPSS is the clear top risk. The isolated, low-severity, and about-to-be-retired systems all carry far lower real-world risk despite their ratings.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Which of the following is a dedicated web application vulnerability scanner?",
+    "options": ["Nikto", "Nmap", "Wireshark", "netstat"],
+    "correct": [0],
+    "explanation": "Nikto scans web servers for known vulnerable files, misconfigurations, and outdated software. Nmap is a network and port mapper, Wireshark is a packet analyzer, and netstat lists local network connections, none of which are web app scanners.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A time-of-check to time-of-use (TOCTOU) flaw, where state changes between validation and use, is an example of which class of vulnerability?",
+    "options": ["Race condition", "Buffer overflow", "Cross-site scripting", "Cryptographic failure"],
+    "correct": [0],
+    "explanation": "TOCTOU is the classic race condition: an attacker changes a resource in the window between the check and the use. Buffer overflows involve memory bounds, XSS involves rendered script, and cryptographic failures involve weak or misused crypto.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Which two operating-system protections specifically help mitigate exploitation of buffer overflow vulnerabilities? (Choose two.)",
+    "options": ["Address Space Layout Randomization (ASLR)", "Data Execution Prevention (DEP / NX bit)", "Increasing the length of session cookies", "Disabling verbose application logging"],
+    "correct": [0, 1],
+    "explanation": "ASLR randomizes memory layout so attackers cannot reliably predict addresses, and DEP/NX marks data regions non-executable so injected shellcode will not run. Cookie length and logging verbosity are unrelated to memory-corruption exploitation.",
+    "difficulty": "MEDIUM"
+  }
+]

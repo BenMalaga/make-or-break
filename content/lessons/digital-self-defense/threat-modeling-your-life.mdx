@@ -1,0 +1,111 @@
+---
+title: Threat Modeling Your Life
+module: digital-self-defense
+moduleTitle: Digital Self-Defense
+moduleOrder: 6
+moduleIcon: EyeOff
+order: 1
+summary: Privacy is not about hiding, it is about deciding who gets access to what, and matching effort to a real threat instead of a movie one.
+estimatedMinutes: 15
+objectives:
+  - Frame privacy as access control, not secrecy, and name what a threat model actually decides
+  - Identify the assets, adversaries, and costs that make up a personal threat model
+  - Explain why a journalist, an abuse survivor, and an average person reach different answers
+  - Run a four-question worksheet that matches protection to real risk instead of paranoia
+tags:
+  - privacy
+  - threat-modeling
+  - opsec
+prerequisites: []
+---
+
+Privacy is not about having something to hide. It is about deciding who gets access to what. The person who closes the bathroom door is not covering up a crime, they are drawing a line about who sees what, and when. Security works the same way. There is no such thing as perfect security, no setting that makes anyone untouchable. There is only security matched to a threat: the right locks for the door that actually gets tried, and no more. A threat model is the tool that decides where those lines go and how much effort each one is worth.
+
+Threat modeling sounds like something a security team does to a bank. Stripped down, it is four honest questions asked about one life. What is worth protecting. Who might want it. What it would cost if they got it. And how much trouble is worth spending to stop them. Answer those and the fog clears, because most privacy advice fails not from bad tools but from no target. A person handed five apps and a VPN with no target has no way to know which one matters, so they either do all of it badly or none of it at all.
+
+## What the model is made of
+
+Start with the asset, the thing worth protecting. For most people it is a short, concrete list. Accounts come first, and the email inbox above all, because that inbox is the reset button for nearly every other login a person owns. Money is next, meaning the bank and card and anything that can move funds. Location, which is where a person sleeps and which school their kids walk to. Identity, the name and number and date of birth that let a stranger open credit under someone else's name. And relationships, the private conversations and photos and the plain fact of who talks to whom. None of these is a secret in the guilty sense. They are ordinary, and they are exactly what an attacker wants.
+
+Next, the adversary, and this is where generic advice falls apart, because adversaries are not interchangeable. A scammer wants money and works at scale, firing a million phishing emails to catch the few thousand who click. A data broker is not a criminal at all, it is a business that buys and sells a profile of a person's habits, addresses, and purchases, legally, to anyone who pays. A bored acquaintance or an ex already knows the answers to the security questions and does not need to break anything. An abusive ex-partner is the most dangerous adversary many people will ever face, because that person has physical access, knows the passwords, and is motivated in a way a random scammer never is. At the far end sits a nation state, with resources almost nobody can counter, and which almost nobody is actually the target of.
+
+The cost is the third piece, and it decides everything else. If a stranger reads a grocery list, the cost is nothing, so no effort is warranted. If a stranger gets into the email inbox, the cost is every other account chained to it, so the effort should be large. The same breach carries wildly different costs for different people. A leaked home address is a minor annoyance for one person and a genuine danger for someone hiding from a violent ex. Threat modeling is the habit of pricing the loss before shopping for the lock.
+
+<Quiz
+  id="threat-modeling-your-life-what-makes-a-measure-fit"
+  question="In personal threat modeling, what makes a security measure the right one?"
+  answer={1}
+  options={[
+    "It is the most advanced tool available, since more protection is always better",
+    "It matches a specific asset, a specific adversary, and the cost of losing that asset",
+    "It hides everything about a person from everyone at all times",
+    "It is whatever a security company recommends buying",
+  ]}
+  explanation="A measure is appropriate when it fits the asset being protected, the adversary who wants it, and the cost of losing it. 'More is always better' ignores that protection has costs, and total secrecy is neither possible nor the goal."
+/>
+
+## Same question, different answers
+
+This is why one privacy checklist cannot serve everyone, and why the honest response to almost every security question is that it depends on the threat model. Three people make the point.
+
+A journalist protecting a source has a real and named adversary: whoever does not want that story told, sometimes with legal or state power behind them. That model justifies serious measures. Tor Browser, which routes traffic through three relays so no single hop sees both who the person is and what they are reading. Signal for messages, so the content of conversations stays end-to-end encrypted. Separate devices and burner accounts that never touch the person's real name. This setup is heavy and inconvenient, and it is correct for that person, because the cost of failure is someone else's safety.
+
+A domestic-abuse survivor has an overlapping toolset and one crucial difference: the adversary already has, or recently had, physical access and insider knowledge. The threat is not a distant hacker, it is a phone that two people set up together, a shared account, a location that leaks through a family plan or a tagged photo. The right moves are about revoking access that a trusted person was once given. Changing passwords from a device the ex never touched. Checking which devices are logged into each account. Turning off location sharing. Auditing a phone for stalkerware. A VPN does nothing against any of that. The National Network to End Domestic Violence runs a Safety Net project with guides written for exactly this model, and it is better first reading than any generic privacy blog.
+
+The average person has neither adversary and does not need Tor. Their realistic threats are dull and common. A password reused across sites that later shows up in a breach. A phishing text dressed up as the bank. A data broker fattening a profile. A company losing a database full of customers. The measures that actually move the needle here are small. A password manager such as Bitwarden, free and open source, so every login is unique and a single breach cannot open the rest. Two-factor authentication on the email and the bank. A tracker blocker like uBlock Origin, also free and open source, living in the browser. A credit freeze at the three bureaus, which is free and shuts down the most common identity-theft path. None of that requires living like a spy.
+
+It helps to be blunt about what popular tools do and do not do, because most people buy the wrong one for their model. A VPN, such as Mullvad or Proton VPN, encrypts traffic between a device and the VPN company's server. That hides browsing from the local network and the internet provider, and it earns its keep on untrusted public Wi-Fi. It does not make anyone anonymous. Every website the person signs into still knows exactly who they are, and the VPN company now sees the traffic the provider used to. A VPN moves trust, it does not erase identity. Tor gets closer to real anonymity but is slow and breaks the instant someone logs into a real-name account through it. Signal hides the content of messages but not the fact that two specific people are talking. Naming the limit is the whole point. A tool bought for anonymity that only moves trust is worse than nothing, because it sells a sense of safety the model never actually bought.
+
+<Quiz
+  id="threat-modeling-your-life-vpn-moves-trust"
+  question="A commercial VPN like Mullvad or Proton VPN changes one thing about a person's browsing. Which statement is accurate?"
+  answer={2}
+  options={[
+    "It makes the person anonymous online",
+    "It hides browsing from every website the person logs into",
+    "It moves trust from the internet provider to the VPN company, and does not hide identity from sites where the person signs in",
+    "It removes the need for two-factor authentication",
+  ]}
+  explanation="A VPN encrypts traffic to the VPN provider, so the local network and internet provider lose visibility and the VPN company gains it. Sites the person logs into still know who they are. It relocates trust rather than granting anonymity."
+/>
+
+## Match the effort to the risk
+
+Every one of these choices trades convenience for protection, and that trade is the quiet core of threat modeling. Protection is never free. It costs time, money, friction, and sometimes access a person will later wish they had kept. Full-disk encryption means a forgotten password can lose the data for good. Aggressive tracker blocking breaks some sites. The strongest setups are the most miserable to live inside, which is why they get abandoned. Security that gets switched off after a week protects nothing at all. So the goal is not maximum privacy, it is enough privacy for the actual threat, chosen so it survives contact with ordinary life.
+
+Chasing paranoia carries its own cost. Hours spent hardening against a nation state that has no interest in a given person are hours not spent turning on two-factor authentication, which would have stopped the attack that was actually coming. Over-protection is a failure mode, not a virtue. It drains the attention and patience that the likely threats deserve.
+
+<Callout type="info" title="Match the effort to the threat, not to the fear">
+The instinct after reading about a breach is to reach for the heaviest tool available. That instinct usually aims at the wrong target. The average person is not being chased by a spy agency, they are being ground down by reused passwords, phishing, and data brokers. A password manager and two-factor authentication stop more real attacks than Tor ever will for someone whose adversary is a scammer. Spend the effort where the threat actually lives.
+</Callout>
+
+The worksheet below is this whole lesson compressed into four questions, and running it against one account or one device takes about ten minutes.
+
+Question one names the asset. What is actually worth protecting here, stated concretely: this email inbox, this bank login, this home address, these photos. A vague answer like "my privacy" does not survive the next question.
+
+Question two names the adversary and how hard they will try. Who would want this asset, and are they a scammer working at scale, a person who already holds the passwords, a broker assembling a profile, or nobody in particular. Motivation counts as much as capability. A determined insider beats a lazy stranger with better tools.
+
+Question three prices the loss. If that adversary succeeds, what is the real cost, measured in money, in physical safety, in the other accounts that fall alongside it. An inbox that resets ten other logins is priced by those ten, not by itself.
+
+Question four sets the budget. Given that cost, how much money, time, and daily friction is worth spending to prevent it, and which single change buys the most protection for the least pain. The answer is almost always smaller and cheaper than the fear suggested.
+
+<Quiz
+  id="threat-modeling-your-life-effort-vs-risk"
+  question="Why does chasing maximum privacy for an average person's threat model often backfire?"
+  answer={1}
+  options={[
+    "Strong privacy tools are illegal for ordinary people to use",
+    "The inconvenience gets abandoned, and effort spent on unlikely threats is effort not spent on likely ones like phishing and reused passwords",
+    "Privacy tools always leak more data than they protect",
+    "Maximum privacy has no downside, so more is always better",
+  ]}
+  explanation="Protection costs friction, and setups that are too painful get turned off, protecting nothing. Time poured into unlikely threats is time stolen from the common ones. Matching effort to the real risk beats maxing out every tool."
+/>
+
+<Exercise title="Threat model one account tonight">
+Pick the single account whose loss would hurt you most. For most people that is a primary email address, because it resets nearly everything else. Open a note and write four short answers. One, name the asset in plain words: this inbox, and every account it can reset. Two, name who would realistically come after it and how hard they would try. Three, write the honest cost if they got in. Four, choose the cheapest change that lowers that risk the most, and make that one change right now. Then check the same email against Have I Been Pwned, a free service that tells you which known breaches already include your address. If it shows up, that account has already been part of someone's data set, and the change you just picked matters more than it looked a minute ago.
+</Exercise>
+
+That cheapest change lands, almost every time, on the same ground: the passwords guarding the account and the second factor sitting behind them. A threat model tells a person what to protect. The lock that does the most protecting, across the widest range of threats, is the credential itself, and nearly everyone is using it wrong. The next lesson, on passwords and authentication, is where this worksheet turns into the first real defense.
+
+<Notes />

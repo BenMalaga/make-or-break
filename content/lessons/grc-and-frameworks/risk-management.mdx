@@ -1,0 +1,73 @@
+---
+title: Risk Management
+module: grc-and-frameworks
+moduleTitle: Governance, Risk, and Compliance
+moduleOrder: 35
+moduleIcon: Scale
+order: 2
+summary: You cannot fix everything, so risk management is how you decide what to fix first without guessing.
+estimatedMinutes: 16
+objectives:
+  - Score a risk from its likelihood and impact instead of gut feel
+  - "Choose the right treatment: accept, mitigate, transfer, or avoid"
+  - Explain the difference between inherent and residual risk to a stakeholder
+tags:
+  - grc
+  - risk
+  - risk-assessment
+  - risk-treatment
+---
+
+Your scan came back with 4,000 findings. You have three engineers and a quarter to burn. Which ones do you touch? Answer that wrong and you spend six weeks hardening a printer nobody can reach while the internet-facing Jenkins with default creds sits there waiting. Risk management is the discipline that stops you from doing exactly that.
+
+The core move is simple: stop treating every problem as equally urgent. A finding only matters as much as the chance it gets exploited multiplied by the damage if it does. Get those two numbers, even roughly, and the 4,000 findings sort themselves into an order you can defend to a CFO.
+
+## Likelihood times impact, and why both are required
+
+Risk is not "how bad is the bug." It is likelihood times impact, and you need both because either one alone lies to you.
+
+A remote code execution vuln sounds terrifying. If it is on an air-gapped box in a locked room that ten people can reach, the likelihood is low and the real risk is modest. A weak password policy sounds boring. On your single sign-on portal facing the whole internet, the likelihood is high, the impact is total, and it outranks the scary RCE. Impact without likelihood is fear. Likelihood without impact is noise.
+
+<CommandCard command="risk = likelihood x impact" explain="Score each on a 1-5 scale and multiply. A likelihood-2 impact-5 finding (score 10) and a likelihood-5 impact-2 finding (score 10) demand attention for opposite reasons. The number is not precise science, it is a way to force a consistent conversation instead of whoever argues loudest winning." />
+
+Do not pretend the scores are exact. A 5x5 matrix that buckets things into low, medium, high, and critical beats a false-precision model that spits out "risk score 73.4." The point is a repeatable ranking, not a physics equation. Anyone who hands you a risk figure to two decimal places is selling something.
+
+## The four things you can do with a risk
+
+Once a risk is scored, you have exactly four options, and every risk on the register ends up as one of them.
+
+Mitigate means reduce it: patch the box, add MFA, segment the network. This is what engineers reach for by default. Transfer means hand the financial hit to someone else, usually cyber insurance or a contract clause that makes a vendor liable. Avoid means stop doing the risky thing entirely: kill the legacy app instead of defending it. Accept means look at it, decide the cost of fixing exceeds the risk, and sign your name to living with it.
+
+<Callout type="warning" title="Risk acceptance is a decision with a signature">
+Accepting a risk is legitimate. Ignoring one is not. The difference is a named person with the authority to own it signing a document that says "I understand this risk and I choose to accept it." An unsigned accepted risk is just an unowned problem waiting to become an incident, and after a breach, "we accepted it" with no signature reads as negligence.
+</Callout>
+
+## Inherent versus residual, the number that actually matters
+
+Inherent risk is how bad it is with no controls at all. Residual risk is what is left after your controls do their job. Stakeholders constantly confuse the two, and the confusion is expensive.
+
+Say phishing is your top inherent risk, scored critical. You roll out MFA, email filtering, and user training. The residual risk is now medium. That is the number a board should be tracking, because it reflects reality, not a hypothetical with the defenses stripped away. When someone asks "how exposed are we to phishing," they mean residual, whether they know the word or not.
+
+<Exercise
+  id="risk-treatment-choice"
+  prompt="A 15-year-old legacy billing app has a critical unpatched vuln. No patch exists, the vendor is defunct, and rewriting it costs $2M. The app processes real revenue so you cannot just delete it, but you could move it behind a locked-down segment with strict access controls and monitoring. Name the risk treatment you are applying."
+  answer="mitigate"
+  placeholder="accept, mitigate, transfer, or avoid"
+>
+You cannot patch it and cannot avoid it by deleting it, so you are reducing the likelihood of exploitation with segmentation and monitoring. That is mitigation through compensating controls, the standard play when a direct fix is off the table.
+</Exercise>
+
+<Quiz
+  id="risk-likelihood-impact"
+  question="Finding A is a critical RCE on an isolated lab box only three admins can reach. Finding B is a default password on an internet-facing admin panel. Which is the higher risk and why?"
+  answer={1}
+  options={[
+    "A, because RCE has the highest possible impact",
+    "B, because high likelihood of exploitation combines with high impact",
+    "They are equal, both are serious findings",
+    "A, because it scored critical on the vulnerability scanner",
+  ]}
+  explanation="Risk is likelihood times impact. The RCE has severe impact but low likelihood behind isolation. The default password is both easy to reach and high impact, so it outranks the scarier-sounding but harder-to-reach RCE."
+/>
+
+<Notes />

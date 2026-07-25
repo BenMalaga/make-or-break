@@ -1,0 +1,257 @@
+---
+title: The OSI Model
+module: networking-foundations
+moduleTitle: Networking Foundations
+moduleOrder: 1
+moduleIcon: Network
+order: 2
+summary: "Seven layers, what each one actually does, and why the layer of an attack decides where the attacker has to be standing."
+estimatedMinutes: 16
+prerequisites: ["what-is-a-network"]
+objectives:
+  - Name the seven OSI layers bottom to top and say what each one moves
+  - Trace one HTTP request down the stack and name the headers added at each layer
+  - Explain why the layer of an attack decides where an attacker must sit
+  - Say where the model stops describing any real network stack
+tags:
+  - networking
+  - fundamentals
+---
+
+What Is a Network left off with a working picture: data gets chopped into
+<Term id="packet">packets</Term>, each packet carries a source
+<Term id="ip-address">IP address</Term>, a destination IP address, and a
+<Term id="port">port</Term>, and <Term id="router">routers</Term> pass those
+packets along until they arrive.
+
+That picture is correct. It is also compressed. One packet leaving a browser has
+passed through four separate sets of rules on the way out, each adding its own
+labels, none of them aware of the others. The <Term id="osi-model">OSI
+model</Term> is the name the field uses for those sets of rules: a seven-layer
+map of networking, numbered from the wire up to the program. Nobody types it
+into a shell. Everybody speaks it. "That's a layer 2 attack" and "put a layer 7
+firewall in front of it" are sentences engineers say out loud, and they carry
+real meaning about where a thing sits and what it can reach.
+
+## Why split it into layers at all
+
+The split buys independence. A layer only has to understand the layer directly
+below it, which means either one can be swapped without touching anything else.
+A browser speaking HTTP does not change one line when a laptop moves from
+Ethernet to Wi-Fi, because HTTP never knew which one it was riding on. Wi-Fi
+replaced a cable at layer 2 and every layer above it kept working.
+
+That independence cuts both ways for an attacker. Each layer trusts the labels
+the layer below hands up, and mostly does not verify them. A
+<Term id="client">client</Term> that receives a frame has no way to know whether
+the MAC address inside it belongs to the router or to somebody pretending. The
+layering that makes networks buildable is the same layering that makes them
+forgeable, one layer at a time.
+
+## Seven layers, bottom to top
+
+The numbers count up from the physical wire. Layer 1 is closest to the copper,
+layer 7 is closest to the human.
+
+**Layer 1, Physical.** Moves raw bits as voltage on copper, light in fiber, or
+radio energy in the air. Cables, connectors, and Wi-Fi's radio side live here.
+Nothing at this layer knows what any bit means.
+
+**Layer 2, Data Link.** Moves frames between two devices sharing a single
+physical link. This is where the <Term id="mac-address">MAC address</Term>
+matters, and where Ethernet and Wi-Fi do their framing. A
+<Term id="switch">switch</Term> is a layer 2 device. The key limit: layer 2
+spans one link and stops there.
+
+**Layer 3, Network.** Moves packets between different networks. IP lives here,
+along with <Term id="icmp">ICMP</Term> and every routing decision. A router is a
+layer 3 device. This is the first layer that can leave a
+<Term id="lan">LAN</Term>.
+
+**Layer 4, Transport.** Moves segments between programs on two
+<Term id="host">hosts</Term>. <Term id="tcp">TCP</Term> and
+<Term id="udp">UDP</Term> live here, and so do port numbers. The
+<Term id="three-way-handshake">three-way handshake</Term> is a layer 4 event.
+
+**Layer 5, Session.** Opens, maintains, and closes a conversation. In OSI's
+design it decides who talks when and how to pick up after an interruption.
+
+**Layer 6, Presentation.** Agrees on how the data is written down: character
+encoding, compression, encryption. TLS is usually filed here.
+
+**Layer 7, Application.** The <Term id="protocol">protocol</Term> the program
+itself speaks. HTTP, <Term id="dns">DNS</Term>, <Term id="ssh">SSH</Term>, SMTP.
+
+The mnemonic that has survived forty years, read bottom-up: Please Do Not Throw
+Sausage Pizza Away.
+
+<Quiz
+  id="osi-layer2-scope"
+  question="Two hosts sit on different networks with three routers between them. Why can't the sending host simply address its frame to the destination's MAC address?"
+  answer={1}
+  options={[
+    "MAC addresses are assigned by the router, so the sender does not know it yet",
+    "Layer 2 only spans a single link, so the frame is unwrapped and rebuilt at every router",
+    "MAC addresses work over Wi-Fi but not over fiber or copper",
+    "The destination MAC would collide with a MAC on the sender's own network",
+  ]}
+  explanation="A MAC address is meaningful on one link only. Crossing networks is layer 3's job, which is why the IP address exists at all."
+/>
+
+## Encapsulation, one request at a time
+
+<Term id="encapsulation">Encapsulation</Term> is the mechanic that makes the
+layers stack: each layer takes whatever the layer above handed it, treats the
+whole thing as opaque <Term id="payload">payload</Term>, and prepends its own
+<Term id="header">header</Term>. Nesting envelopes, each addressed by a
+different postal service.
+
+Trace a real one. A browser on 192.168.1.15 asks a web
+<Term id="server">server</Term> on 192.168.1.10 for a page.
+
+1. **Layer 7** writes `GET / HTTP/1.1` and a Host header. Just bytes.
+2. **Layer 4** prepends a TCP header, 20 bytes at minimum: source port 51234,
+   destination port 80, sequence number, flags. The result is called a
+   **segment**.
+3. **Layer 3** prepends an IP header, 20 bytes at minimum: source 192.168.1.15,
+   destination 192.168.1.10, a time-to-live counter, and protocol number 6
+   meaning "TCP inside". The result is a **packet**.
+4. **Layer 2** prepends a 14-byte Ethernet header: source MAC, destination MAC,
+   and EtherType 0x0800 meaning "IPv4 inside". The result is a **frame**.
+5. **Layer 1** turns the frame into signals.
+
+The receiver runs the same steps in reverse, stripping one header per layer on
+the way up. That direction has its own name: decapsulation.
+
+Those names for the chunk at each layer, the protocol data unit, are worth
+knowing cold, because tools use them precisely. Data, segment, packet, frame,
+bits.
+
+<Callout type="info" title="Where 1460 comes from">
+An empty TCP segment over IPv4 over Ethernet costs 54 bytes of headers before a
+single byte of content. Standard Ethernet carries 1500 bytes of payload, so
+subtracting 20 for IP and 20 for TCP leaves 1460. That is why TCP's default
+maximum segment size on an ordinary link is 1460 bytes, and why anything that
+adds a header, like a VPN tunnel, quietly shrinks it.
+</Callout>
+
+All four headers are visible in a single line of packet capture. `tcpdump`
+prints them left to right in the order they were unwrapped.
+
+<CommandCard
+  command="tcpdump -e -n -i eth0 'tcp port 80'"
+  title="linux"
+  explain="Capture web traffic on interface eth0. -e prints the layer 2 Ethernet header, which tcpdump hides by default. -n skips name lookups so raw addresses and port numbers show. Capturing requires root or the CAP_NET_RAW capability."
+/>
+
+<ExpectedOutput label="One SYN, captured on a Linux client">
+```
+15:04:22.113942 00:1a:2b:3c:4d:5e > 00:50:56:c0:00:08, ethertype IPv4 (0x0800), length 74: 192.168.1.15.51234 > 192.168.1.10.80: Flags [S], seq 1829304421, win 64240, options [mss 1460,sackOK,TS val 3612889 ecr 0,nop,wscale 7], length 0
+```
+</ExpectedOutput>
+
+Read that line as three layers, not one blob. `00:1a:2b:3c:4d:5e > 00:50:56:c0:00:08`
+is layer 2, one MAC talking to the next device on the link. `192.168.1.15 >
+192.168.1.10` is layer 3, the addresses that survive the whole trip.
+`.51234 > .80` and `Flags [S]` are layer 4, a <Term id="syn">SYN</Term> opening
+a connection to a port. `length 74` is the frame: 14 bytes of Ethernet, 20 of
+IP, 40 of TCP with its options. `length 0` at the end is the layer 7 payload,
+which is empty, because no application data moves until the handshake finishes.
+The addresses and sequence number are from one capture, not constants.
+
+<Quiz
+  id="osi-hop-rewrite"
+  question="A packet crosses three routers on its way to a server. Which header is thrown away and built fresh at every single hop?"
+  answer={2}
+  options={[
+    "The TCP header, because the port numbers change at each hop",
+    "The IP header's source address, so that replies find their way back",
+    "The Ethernet header, because each hop is a brand new layer 2 link",
+    "None of them. Headers are read-only once the sender writes them",
+  ]}
+  explanation="Each hop is a separate link with its own pair of MAC addresses, so the frame is rebuilt every time. The IP header survives end to end, though the router does decrement its time-to-live counter and recompute the checksum."
+/>
+
+## Where the model stops being true
+
+The OSI model describes a protocol suite that lost. ISO published it in 1984 as
+a reference design, and the internet went on to run TCP/IP instead, which has
+four layers: link, internet, transport, application. OSI's layers 5, 6, and 7
+all collapse into that last one. The vocabulary survived. The implementation did
+not.
+
+That gap explains a few things that confuse beginners.
+
+Nothing on a Linux host has a component labeled "layer 5". Session and
+presentation are design ideas, not code, and arguing about whether an HTTP
+cookie is really session-layer is a way to lose an afternoon.
+
+<Term id="arp">ARP</Term> is genuinely contested. It carries layer 3 addresses
+inside layer 2 frames and exists to serve layer 3, so people file it at 2, at 3,
+or at "2.5" and none of them are wrong. Skip that argument.
+
+TLS gets called layer 6 out of habit, but it runs on top of TCP and gets driven
+by the application, so it behaves like layer 7 in practice. That is why a "layer
+7 <Term id="firewall">firewall</Term>" is the one that can actually read an HTTP
+request, while a layer 4 firewall only sees an IP and a port.
+
+Product marketing bends the numbers hardest. A "layer 3 switch" is a router
+wearing a switch's chassis. A "layer 7 load balancer" is one that reads URLs
+before it picks a backend.
+
+## The part that actually pays
+
+Under the noise, the layer number carries one piece of information worth more
+than the rest: it names where the attacker has to be standing.
+
+ARP spoofing is layer 2, so it only works from a foothold on the same local
+network as the target. No amount of skill runs it across the internet, because
+the frame it forges dies at the first router. A SYN scan is layer 4, so it works
+from anywhere a packet can be routed to the target. A SQL injection is layer 7,
+so it needs nothing but a reachable web form. Same target, three attacks, three
+completely different prerequisites, and the layer number is what separates them.
+
+<Diagram type="osi" />
+
+<Callout type="tip" title="Troubleshoot bottom-up">
+When something will not connect, the fastest path is upward from the wire. Is
+the link up and is there an IP address (layers 1 to 3)? Does the port answer
+(layer 4)? Is the service speaking the expected protocol (layer 7)? The layer
+where it breaks names the tool to reach for, and it stops the classic waste of
+scanning ports on a host that has no route to begin with.
+</Callout>
+
+<Exercise title="Walk the stack in three commands">
+On any Linux host, three commands report on three consecutive layers. Before
+running each one, say out loud which layer it reports on, then check yourself
+against the output.
+
+- `ip -brief link show` prints layer 2: each interface and its MAC address.
+- `ip -brief addr show` prints layer 3: the IP address and its subnet.
+- `ss -tln` prints layer 4: every TCP port currently listening.
+
+If an interface has a MAC but no IP, the break is at layer 3, and no amount of
+port scanning will help until that is fixed.
+</Exercise>
+
+<Quiz
+  id="osi-attack-position"
+  question="An attacker wants to run ARP spoofing, a layer 2 attack, against a server. What does that layer number tell them about what they need?"
+  answer={0}
+  options={[
+    "They need a foothold on the same local network as the target",
+    "They need to break the server's TLS certificate first",
+    "They can run it from anywhere on the internet as long as one port is open",
+    "They need root on the target server before they can start",
+  ]}
+  explanation="Layer 2 stops at the first router, so the attack requires a position on the target's own local network. Layer 4 and layer 7 attacks carry no such requirement, which is exactly what makes the layer number useful."
+/>
+
+Layer 3 does more work than any other layer in this course, and this model only
+gives it a name and a number. The next lesson, IP Addressing and Subnetting,
+takes it apart: how an address is built, what the /24 in 192.168.1.0/24 actually
+fixes in place, and how a host decides whether a destination is a neighbor it
+can hand a frame to directly or a stranger it has to pass to the
+<Term id="gateway">default gateway</Term>.
+
+<Notes />

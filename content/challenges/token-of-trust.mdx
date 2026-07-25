@@ -1,0 +1,61 @@
+---
+title: Token of Trust
+summary: Decode a JWT payload to read a claim it never hid.
+track: break
+category: web
+difficulty: EASY
+tags: [jwt, encoding, base64url]
+daily: true
+answer: "MOB{jwt_is_signed_not_secret}"
+answerType: flag
+starterLang: python
+starter: |
+  # A JSON Web Token has three base64url parts separated by dots:
+  #   header.payload.signature
+  # The payload is only encoded, not encrypted. Decode the middle part
+  # and read the "flag" claim.
+  import base64, json
+
+  token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMzM3IiwibmFtZSI6Im1vYi1sZWFybmVyIiwicm9sZSI6InN0dWRlbnQiLCJmbGFnIjoiTU9Ce2p3dF9pc19zaWduZWRfbm90X3NlY3JldH0ifQ.not-a-real-signature-decode-the-middle-part"
+
+  def b64url_decode(part):
+      # base64url may drop padding; add it back before decoding
+      part += "=" * (-len(part) % 4)
+      return base64.urlsafe_b64decode(part)
+
+  payload_b64 = token.split(".")[1]
+  payload = json.loads(b64url_decode(payload_b64))
+  print(payload)
+  print(payload["flag"])
+hints:
+  - A JWT is three base64url strings joined by dots. The middle one is the payload.
+  - Signed is not the same as secret. The payload is base64url, so you can decode it with no key.
+  - base64url swaps + and / for - and _ and often drops the = padding. Add padding back, decode, then read the "flag" claim and submit it exactly.
+---
+
+A **JSON Web Token** (JWT) is what a lot of sites hand your browser after you log
+in. It looks like one long random blob, so people assume it is encrypted and safe
+to stuff secrets into. It is not. A JWT is **signed, not encrypted**. The
+signature only proves the token was not tampered with. It does nothing to hide
+what is inside.
+
+A JWT has three parts separated by dots:
+
+```
+header.payload.signature
+```
+
+Each part is **base64url**, a URL-safe variant of base64 (it uses `-` and `_`
+instead of `+` and `/`, and often drops the `=` padding). Anyone holding the
+token can decode the payload and read every claim in it, no key required.
+
+Here is a token. Someone dropped a `flag` claim into its payload:
+
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMzM3IiwibmFtZSI6Im1vYi1sZWFybmVyIiwicm9sZSI6InN0dWRlbnQiLCJmbGFnIjoiTU9Ce2p3dF9pc19zaWduZWRfbm90X3NlY3JldH0ifQ.not-a-real-signature-decode-the-middle-part
+```
+
+Split it on the dots, take the middle part (the payload), base64url-decode it to
+JSON, and read the value of the `flag` claim. The signature is a placeholder and
+is not checked here. Run the starter code, or decode it however you like, then
+submit the flag exactly as it reads, including the `MOB{...}` wrapper.

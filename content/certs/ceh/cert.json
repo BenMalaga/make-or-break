@@ -1,0 +1,20 @@
+{
+  "slug": "ceh",
+  "code": "312-50",
+  "name": "Certified Ethical Hacker",
+  "vendor": "EC-Council",
+  "description": "A broad tour of the attacker's toolkit, from footprinting through exploitation, evasion, and cryptography. Wide rather than deep, and a common HR checkbox for offensive roles.",
+  "passScore": 70,
+  "examMinutes": 240,
+  "questionCount": 125,
+  "icon": "Swords",
+  "order": 6,
+  "domains": [
+    { "number": 1, "name": "Reconnaissance and Footprinting", "weight": 15 },
+    { "number": 2, "name": "Scanning and Enumeration", "weight": 18 },
+    { "number": 3, "name": "System Hacking and Malware Threats", "weight": 20 },
+    { "number": 4, "name": "Network Attacks and Sniffing", "weight": 17 },
+    { "number": 5, "name": "Web, Wireless, Mobile, IoT, and Cloud", "weight": 20 },
+    { "number": 6, "name": "Cryptography and Evasion", "weight": 10 }
+  ]
+}

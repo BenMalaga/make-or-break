@@ -1,0 +1,192 @@
+---
+title: "Spatial Joins: Combining Data by Location"
+module: gis-spatial-analysis
+moduleTitle: Spatial Analysis
+moduleOrder: 3
+moduleIcon: Radar
+order: 4
+summary: "A spatial join attaches one layer's attributes to another based on where two geometries sit, not on a shared key, using a predicate like within or nearest and often needing a groupby afterward to summarize a one-to-many match."
+estimatedMinutes: 14
+prerequisites: ["overlay-operations"]
+objectives:
+  - Explain what a spatial join does and how it differs from an attribute join that matches on a shared key
+  - Perform a point-in-polygon spatial join in GeoPandas and choose the right predicate for a given question
+  - Explain why a spatial join often produces a one-to-many match and summarize it with a groupby before mapping the result
+  - Compute a rate, such as bus stops per 1000 residents, by joining spatially and then dividing by a population field
+tags:
+  - gis
+  - analysis
+  - spatial-join
+---
+
+The previous lesson, overlay operations, took two layers and cut their actual shapes into a new geometry. An intersection kept only the ground two layers share. A union merged every shape from both. A clip trimmed one layer down to the outline of another. In every case the output was new geometry, built from the input shapes themselves. A spatial join does something different. It never moves a single coordinate. Every geometry stays exactly as drawn, and instead the other layer's attributes get copied over, matched to whichever features actually sit near, inside, or against them.
+
+## The key question versus the location question
+
+The foundations module covered the attribute join: attaching one table to another by a column both tables share, a FIPS code, a customer number, a parcel ID. Two rows join because the values in that column are identical strings. Location never enters the decision. A county's population figure lands on the right polygon because both tables happen to carry the same five digit code, not because anyone checked where the polygon sits on the Earth.
+
+A spatial join answers the same basic question, whose information belongs with which feature, but drops the shared column entirely. It tests the geometries themselves. Instead of asking whether this row's code equals that row's code, it asks whether this shape actually touches, contains, or sits near that shape. No key is required, and no shared column is required either. A city's crime reports and a state's neighborhood boundaries can come from two agencies that have never coordinated an ID scheme in their lives, and a spatial join still lines them up correctly, because it only cares where each shape is.
+
+That is the whole reason this operation gets its own name instead of just being another kind of merge. A join by key can only ever be as good as the ID system behind it. A join by location needs no ID system at all.
+
+## Point in polygon: tagging a report with its neighborhood
+
+The clearest case for a spatial join is a point that needs the properties of whatever polygon it falls inside. A city's crime reports arrive as points: a latitude, a longitude, an incident type, nothing about which neighborhood the crime happened in. A layer of neighborhood polygons exists separately, each one carrying a name and a handful of demographic fields. Nothing links the two tables by key, because the reports were never tagged with a neighborhood ID in the first place. The only fact available is where each point sits, and that is exactly enough.
+
+```python
+import geopandas as gpd
+
+crimes = gpd.read_file("crime_reports.gpkg")
+neighborhoods = gpd.read_file("neighborhoods.gpkg")
+
+tagged = gpd.sjoin(crimes, neighborhoods, predicate="within", how="left")
+print(tagged[["incident_id", "neighborhood_name"]].head(3))
+```
+
+<ExpectedOutput label="each crime point now carries the name of the neighborhood polygon it falls inside">
+```
+   incident_id neighborhood_name
+0        10442          Downtown
+1        10443          Eastside
+2        10444         Riverside
+```
+</ExpectedOutput>
+
+`gpd.sjoin` is GeoPandas' spatial join function, and it takes the same left and right shape as the attribute join's `.merge()`, a left table and a right table, but instead of an `on=` column it takes a `predicate=` argument. `predicate="within"` tests each crime point against every neighborhood polygon and keeps the match where the point sits inside that polygon's interior. `how="left"` plays the same role it played in the attribute join lesson: every crime report survives the join even if a stray point falls outside all mapped neighborhoods, with its neighborhood fields left null instead of the whole row disappearing.
+
+<Quiz
+  id="spatial-vs-attribute-join"
+  question="A table of restaurant inspection records has a latitude and longitude column but no field that matches anything in a layer of city council district polygons. What is the right way to tag each inspection with its council district?"
+  answer={1}
+  options={[
+    "An attribute join on a shared ID column, since council districts are official government boundaries.",
+    "A spatial join, using each inspection point's location to test which district polygon contains it.",
+    "Sort both tables by name and assume rows in the same position belong together.",
+    "The tables cannot be combined, since they were produced by two different city departments.",
+  ]}
+  explanation="With no shared column to match on, an attribute join has nothing to work with. A spatial join sidesteps that entirely by testing location instead of a key, matching each point to whichever polygon actually contains it. Sorting and assuming matching positions is exactly the fragile shortcut the foundations module warned against, since position tells nothing about identity. Two tables from different departments join fine as long as their geometries occupy the same real space, which is the whole point of matching by location."
+/>
+
+## Choosing the predicate that fits the question
+
+The `predicate` argument is doing the real matching work, the same way `intersects`, `within`, and `contains` did back in the lesson on spatial relationships. `within` tests whether each point sits inside a polygon's interior, so a report that lands exactly on a shared boundary line can slip past it. `intersects` is looser, catching any point that touches a polygon anywhere, including its edge, which is the safer default when a report should never be silently dropped over a boundary technicality. `contains` reads the identical relationship from the other direction and is the natural choice when the polygon layer sits on the left side of the join rather than the point layer. All three of these still require actual overlap between the two shapes.
+
+Sometimes overlap is not the question being asked at all. A delivery company wants to know which warehouse is closest to an address, even though the address point will never sit inside a warehouse's small footprint. That calls for a different kind of match entirely, one based on distance rather than containment, and GeoPandas gives it a separate function:
+
+```python
+import geopandas as gpd
+
+addresses = gpd.read_file("addresses.gpkg").to_crs("EPSG:32618")
+warehouses = gpd.read_file("warehouses.gpkg").to_crs("EPSG:32618")
+
+nearest = gpd.sjoin_nearest(addresses, warehouses, distance_col="dist_m")
+print(nearest[["address_id", "warehouse_name", "dist_m"]].head(3))
+```
+
+<ExpectedOutput label="each address matched to its closest warehouse, with the distance in meters">
+```
+   address_id warehouse_name  dist_m
+0        4001       Elizabeth  8213.4
+1        4002         Newark   2190.7
+2        4003        Elizabeth  5602.1
+```
+</ExpectedOutput>
+
+`sjoin_nearest` exists as its own function rather than another predicate string, because nearest is not a yes-or-no overlap test at all. It measures the distance from each address to every candidate warehouse and keeps whichever one comes back smallest, overlap or no overlap, and `distance_col` names the new column that carries that measured distance along with the match.
+
+<Callout type="warning" title="Nearest still needs a metric CRS">
+Both layers were reprojected to EPSG:32618 before the nearest join ran, and that step matters for the same reason it mattered when buffering. `sjoin_nearest` will still return an answer if the data is left in EPSG:4326, degrees of longitude and latitude, and the ranking of which warehouse is closest is often still correct at a small scale. But the `dist_m` column would report a number in degrees, not meters, a value with no real-world meaning that looks like a distance and is not one. Reproject to a metric CRS first whenever the distance value itself needs to be trusted, not just the ranking.
+</Callout>
+
+<Quiz
+  id="predicate-choice-nearest-vs-within"
+  question="A logistics company wants to match every delivery address to the single closest distribution warehouse, and an address will essentially never sit inside a warehouse's small building footprint. Which approach fits the question?"
+  answer={2}
+  options={[
+    "sjoin with predicate=&quot;within&quot;, since it is the strictest and most reliable predicate.",
+    "sjoin with predicate=&quot;intersects&quot;, since it is the loosest predicate and will catch the most matches.",
+    "sjoin_nearest, since the question is about distance to the closest candidate, not whether the point falls inside a polygon at all.",
+    "An attribute join, since warehouses and addresses are both real-world locations.",
+  ]}
+  explanation="Within and intersects both require the point to actually overlap the polygon, which will almost never happen between an address and a tiny warehouse footprint, so both predicates would return mostly empty matches. sjoin_nearest is built for exactly this shape of question, ranking candidates by distance rather than testing containment. An attribute join needs a shared key column, which two location-only tables do not have."
+/>
+
+## One match becomes many, and a groupby follows
+
+Point-in-polygon joins rarely stop at one match per polygon. A single neighborhood polygon usually contains dozens or hundreds of crime points, which means after the earlier join, that neighborhood's name appears dozens or hundreds of times over in the result, once per point tagged to it. This is the natural shape of the operation, not a mistake that needs fixing. It commits the analyst to a second step almost every time: collapsing many rows per polygon back down into one summary row per polygon before anything gets mapped, charted, or handed to someone else.
+
+This is the same one-to-many situation the foundations module covered for attribute joins, where many business license rows shared one FIPS code and needed counting before they could join cleanly onto a single polygon per county. The fix here follows the identical shape, run with a groupby after the spatial match instead of before an attribute match:
+
+```python
+tagged = gpd.sjoin(crimes, neighborhoods, predicate="within")
+counts = tagged.groupby("neighborhood_name").size()
+print(counts.head(3))
+```
+
+<ExpectedOutput label="one count per distinct neighborhood, collapsed from the point-level table">
+```
+neighborhood_name
+Downtown     184
+Eastside      62
+Riverside    211
+dtype: int64
+```
+</ExpectedOutput>
+
+`tagged.groupby("neighborhood_name").size()` gathers every row that shares the same neighborhood name into one group and counts how many rows landed in it, turning a table with one row per crime back into a table with one row per neighborhood. Counting is not the only aggregation a groupby can run here. Swapping `.size()` for `.groupby("neighborhood_name")["assessed_value"].mean()` would compute the average assessed value of every property point that fell inside each neighborhood instead of a plain count, same shape, different question about the points that landed there.
+
+<Quiz
+  id="spatial-join-needs-groupby"
+  question="A spatial join tags 8,000 delivery stops with the ID of the census tract each one falls inside, producing 8,000 rows, one per stop. What is needed to find out how many stops fall in each tract?"
+  answer={1}
+  options={[
+    "Nothing further, since the spatial join already produced one row per tract.",
+    "Group the joined table by tract ID and count the rows in each group, collapsing the stop-level table down to one row per tract.",
+    "Run the same spatial join again with a different predicate.",
+    "Delete every row except the first stop found in each tract.",
+  ]}
+  explanation="The join produced one row per stop, not one row per tract, so a further step is needed to get a per-tract count. Grouping by tract ID and counting the rows in each group is exactly that step, collapsing 8,000 stop rows into one summary row per tract. Running the join again would not aggregate anything, and deleting all but one stop per tract throws away the very count being asked for."
+/>
+
+## Worked example: bus stops per 1000 residents
+
+Putting the whole pipeline together end to end. The data is a GeoPackage of bus stop points and a GeoPackage of census tract polygons, the tracts already carrying a population field from an earlier attribute join. The task: for every tract, count how many bus stops fall inside it, then express that count as a rate per 1000 residents so a tract of 40,000 people is not unfairly compared against one of 4,000 on raw stop count alone.
+
+```python
+import geopandas as gpd
+
+stops = gpd.read_file("bus_stops.gpkg")
+tracts = gpd.read_file("tracts.gpkg")
+
+print(stops.crs == tracts.crs)
+stops = stops.to_crs(tracts.crs)
+
+joined = gpd.sjoin(stops, tracts, predicate="within")
+stop_counts = joined.groupby("tract_id").size().reset_index(name="stop_count")
+
+tracts = tracts.merge(stop_counts, on="tract_id", how="left")
+tracts["stop_count"] = tracts["stop_count"].fillna(0)
+tracts["stops_per_1000"] = tracts["stop_count"] / tracts["population"] * 1000
+
+print(tracts[["tract_id", "population", "stop_count", "stops_per_1000"]].head(3))
+```
+
+<ExpectedOutput label="stop counts and a per capita rate, one row per tract">
+```
+False
+   tract_id  population  stop_count  stops_per_1000
+0  34003001        4210         3.0        0.712589
+1  34003002        6875        11.0        1.600000
+2  34003003        3102         0.0        0.000000
+```
+</ExpectedOutput>
+
+`stops.crs == tracts.crs` prints `False` here, which is worth catching before the join rather than after. A spatial join compares raw coordinates between the two layers, and if one layer sits in a different coordinate reference system than the other, GeoPandas will warn about the mismatch but still run the comparison, silently lining up numbers that do not describe the same points in space. `stops.to_crs(tracts.crs)` fixes that by reprojecting the stops to match the tracts exactly, so the predicate that follows is comparing geometries that actually agree on what a coordinate means.
+
+`gpd.sjoin(stops, tracts, predicate="within")` matches each stop to the tract polygon that contains it, same operation as the crime reports example. `joined.groupby("tract_id").size()` collapses that stop-level table into one row per tract, and `.reset_index(name="stop_count")` turns that grouped result back into an ordinary table with `tract_id` and `stop_count` as real columns instead of an index, which the merge on the next line needs in order to find `tract_id` at all.
+
+The merge that follows is worth pausing on, because it is not a spatial join at all. `tracts.merge(stop_counts, on="tract_id", how="left")` matches the summarized counts back onto the tract polygons using `tract_id`, a shared key both tables now carry. The spatial join's job already finished the moment stops were matched to tracts. Reattaching the summarized result onto the tract geometry is the plain attribute join from the foundations module, doing exactly what it was built for. A real workflow like this one almost always chains both kinds of join: one to match by location, one to reattach a summary by key.
+
+`tracts["stop_count"].fillna(0)` covers a gap that a `.groupby()` cannot fill on its own. A tract with zero bus stops never produced a matching row in `joined` at all, so it never shows up in `stop_counts`, and the merge leaves it null rather than zero, the same absence-versus-zero trap a raw groupby summary always carries into a merge. Filling that null with 0 before dividing turns a missing value into the correct number for a tract genuinely served by no stops. The last line, `stop_count / population * 1000`, is the rate itself: stops per resident, scaled up to a per-1000 figure that reads naturally and lets a tract of 40,000 people compare fairly against one of 4,000.
+
+Every join in this lesson followed the same shape underneath: pick a predicate, or a distance for nearest, run it across every candidate pair of geometries, and expect a one-to-many result that needs a groupby before it goes anywhere near a map or a report. That shape is why a spatial join belongs in the same family as the attribute join rather than being some unrelated skill. Both attach outside information onto a layer's rows, one by key and one by location, and a workflow like the bus stop rate above usually needs both in sequence. The next lesson in this module leaves discrete points and polygons behind and turns to data stored as a grid of cells, where distance, overlap, and a join mean something a little different once nothing has a clean edge to test against.

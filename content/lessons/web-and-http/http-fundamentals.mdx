@@ -1,0 +1,300 @@
+---
+title: HTTP Fundamentals
+module: web-and-http
+moduleTitle: Web and HTTP
+moduleOrder: 5
+moduleIcon: Globe
+order: 1
+summary: "How a browser and a server trade plain-text requests and responses over one TCP connection, line by line."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - Split an HTTP request into its request line, headers, blank line, and body
+  - Place any response code in the right 2xx, 3xx, 4xx, or 5xx class and say what it means
+  - State what GET, POST, PUT, and DELETE each do to a resource
+  - Name the headers that carry identity, content type, and session state
+  - Rebuild a raw request by hand with curl and read the full exchange both directions
+tags:
+  - web
+  - http
+  - fundamentals
+---
+
+The last module ended with a working pipe. Two machines complete a
+<Term id="three-way-handshake">three-way handshake</Term>, <Term id="tcp">TCP</Term>
+guarantees the bytes arrive in order with nothing missing, and after that the
+network stops caring what travels through. HTTP is what a browser pours into that
+pipe. And it is text.
+
+That is the part worth sitting with. When a <Term id="client">client</Term> asks
+a <Term id="server">server</Term> for a web page, it does not send a special
+binary blob. It sends a few lines of readable ASCII, the server sends a few lines
+back, and everything the browser paints on screen started as that plain
+conversation. <Term id="http">HTTP</Term>, the HyperText Transfer Protocol, is the
+agreed format for those lines: what the client may say, what the server says back,
+and where each message ends. Anyone who can read the raw text can see everything
+the two sides said.
+
+## Where HTTP sits
+
+HTTP does not move bytes on its own. It hands them to TCP, which handles the
+delivery. A browser opens a TCP connection to <Term id="port">port</Term> 80 on
+the server, writes the request as text, and reads the response off the same
+connection. Port 80 is HTTP's home by convention, one of the
+<Term id="well-known-ports">well-known ports</Term> reserved for common services.
+
+When the traffic is encrypted it runs over <Term id="https">HTTPS</Term> on port
+443 instead, wrapped in <Term id="tls">TLS</Term> so anyone reading the wire sees
+ciphertext. The message format inside is identical either way. TLS changes who can
+read the conversation, not what the conversation says. Everything in this lesson is
+that inner format.
+
+## Anatomy of a request
+
+A request is three parts stacked top to bottom, in a fixed order the server counts
+on.
+
+```
+POST /login HTTP/1.1
+Host: shop.example.com
+User-Agent: Mozilla/5.0
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 27
+
+user=admin&password=hunter2
+```
+
+The first line is the request line: a method, a path, and the protocol version.
+`POST` is the method, `/login` is the path on the server being addressed, and
+`HTTP/1.1` is the version both sides speak. Then come the
+<Term id="header">header</Term>s, one per line, each a name and a value. They carry
+metadata about the request: which host, what software is asking, what kind of data
+follows. A single blank line marks the end of the headers. Everything after that
+blank line is the body, the <Term id="payload">payload</Term> the client is
+submitting. A request that only reads a page carries no body, so it stops at the
+blank line.
+
+Two headers in that example do real work. `Host` names which site the request is
+for, because one server often answers for many domains on the same IP address and
+has to be told which one. `Content-Length` tells the server exactly how many bytes
+of body to read, which is how it knows where this request ends and the next one
+could begin on a reused connection. A wrong `Content-Length` leaves the server
+hanging, waiting for bytes that never arrive.
+
+## The methods
+
+The method is the verb. It tells the server what the client wants done with the
+resource at that path.
+
+- `GET` reads a resource and changes nothing. Any parameters ride in the URL after
+  a `?`, so `GET /search?q=shoes` carries its input in the address itself. That
+  input lands in server logs and browser history, which is why passwords never
+  belong in a GET.
+- `POST` submits data in the body, below the blank line. Logins, uploads, and form
+  posts use it. The body is not more secret than a URL, but it stays out of the
+  address bar and the logs that record URLs.
+- `PUT` writes a resource at the given path, creating or replacing it. `DELETE`
+  removes it. Both change server state, and both are often left switched on by a
+  misconfiguration when nobody meant to expose them.
+
+Two more are worth knowing on sight. `HEAD` asks for the response headers with no
+body, a fast way to check whether a path exists and what it would return.
+`OPTIONS` asks which methods a path accepts, and the server answers in an `Allow`
+header. A server that lists `PUT` or `DELETE` there has told an attacker how to
+write to it.
+
+<Quiz
+  id="http-method-body"
+  question="A browser submits a login form and the username and password appear nowhere in the URL. Which method is almost certainly in use, and where did the credentials go?"
+  answer={1}
+  options={[
+    "GET, and the credentials are in the query string after the ?",
+    "POST, and the credentials are in the request body, below the blank line",
+    "PUT, and the credentials replaced the resource at /login",
+    "HEAD, and the credentials came back in the response headers",
+  ]}
+  explanation="GET puts its parameters in the URL, so credentials that are not in the address bar did not travel by GET. A login form uses POST, which carries its data in the body after the blank line that ends the headers."
+/>
+
+## The response
+
+The server answers in the same shape, flipped. First a status line, then headers,
+then a blank line, then the body.
+
+```
+HTTP/1.1 200 OK
+Server: Apache/2.4.41 (Ubuntu)
+Content-Type: text/html; charset=UTF-8
+Content-Length: 3021
+Set-Cookie: session=9f2c8a1b; HttpOnly
+
+<!DOCTYPE html>
+...
+```
+
+The status line leads with the version, then a three-digit status code, then a
+short reason phrase. `200 OK` means the request succeeded and the body is the thing
+that was asked for. The reason phrase (`OK`, `Not Found`) is for humans, and clients
+ignore it; the number is what they act on. Below the status line the headers
+describe the response: what kind of content the body is, how long it is, what
+software produced it. Then the blank line, then the body itself, which for a web
+page is HTML.
+
+## Status codes
+
+The first digit of the code sorts every response into one of five classes, and
+knowing the class is usually enough to know what happened.
+
+| Class | Meaning | Codes seen constantly |
+|---|---|---|
+| 2xx | Success | 200 OK, 201 Created, 204 No Content |
+| 3xx | Redirect | 301 Moved Permanently, 302 Found, 304 Not Modified |
+| 4xx | Client error | 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found |
+| 5xx | Server error | 500 Internal Server Error, 502 Bad Gateway, 503 Service Unavailable |
+
+A 2xx means the request worked. A 3xx means the thing moved, and the response
+carries a `Location` header pointing where to go next; a browser follows it
+automatically, which is why a login often ends in a `302` to a dashboard. A 4xx
+blames the request: `401` means no valid credentials were sent, `403` means the
+server understood the request and refuses it, `404` means nothing lives at that
+path. A 5xx means the server broke while handling a request it accepted, and the
+error page it returns sometimes spills a stack trace or a framework version.
+
+The gap between two 4xx codes is information. A `404` on one path and a `403` on
+another draws a map: the `403` confirms something real exists there and the server
+is guarding it, which is exactly where an attacker pushes next. A wall of identical
+`404`s says nothing is there. One `403` in the middle says something is.
+
+<Quiz
+  id="http-redirect-3xx"
+  question="A request returns 301 Moved Permanently with a Location header. What does a correct client do next, and what does the first digit tell you?"
+  answer={2}
+  options={[
+    "Treat it as a dead end and stop, because 3xx is a client error",
+    "Resend the exact same request, because 3xx means the server is busy",
+    "Send a fresh request to the URL in the Location header, because 3xx is a redirect",
+    "Resend the request with credentials, because 3xx means authentication is required",
+  ]}
+  explanation="The 3 in 3xx marks a redirect. The real address is in the Location header, and the client issues a new request to it. A browser does this automatically, which is why a redirect chain can be invisible until you read the raw responses."
+/>
+
+## One connection, many messages
+
+Opening a TCP connection costs a full three-way handshake, and a single page pulls
+dozens of resources: HTML, stylesheets, scripts, images. HTTP/1.1 keeps the
+connection open by default so those requests reuse one handshake instead of paying
+for a new one each time. The header that governs it is `Connection`. A
+`Connection: keep-alive` holds the socket open for the next request, and a
+`Connection: close` tells the other side to hang up after this exchange.
+
+Reusing a connection raises the one question the protocol has to answer: where does
+a message stop and the next one start? Two mechanisms settle it. A `Content-Length`
+header gives the exact byte count, so the reader consumes that many bytes and knows
+the message is finished. When the length is not known up front, the server switches
+to chunked transfer encoding (`Transfer-Encoding: chunked`), sending the body in
+labeled pieces followed by a final zero-length chunk that marks the end. Either
+way, the boundary is explicit, because a connection carrying request after request
+cannot leave it to guesswork.
+
+## Headers that carry identity
+
+Most headers are bookkeeping. A few decide who the server thinks you are.
+
+HTTP is stateless: every request stands completely alone, and the server keeps no
+memory of the last one. That is a problem the moment a site needs to know a visitor
+already logged in. The fix is the <Term id="cookie">cookie</Term>. On a successful
+login the server sends `Set-Cookie: session=9f2c8a1b`, the browser stores that
+value, and it attaches the value to every later request to the same site as
+`Cookie: session=9f2c8a1b`. That echoed value is the
+<Term id="session-id">session id</Term>, and it is the only thing tying a stream of
+unrelated requests into one logged-in <Term id="session">session</Term>. Whoever
+holds a valid session cookie is, as far as the server can tell, the user.
+
+A handful of other headers matter on sight. `User-Agent` names the client software
+and is trivially faked. `Content-Type` declares what the body is, and a server that
+trusts it blindly can be fed the wrong type. `Authorization` carries credentials on
+APIs. `Server` and `X-Powered-By` name the software and often its version, which is
+free reconnaissance: the version string points straight at whatever known
+weaknesses that release shipped with, before an attacker has sent anything real.
+
+<Quiz
+  id="http-cookie-state"
+  question="A response includes Set-Cookie: session=9f2c8a1b. On the next request to the same site, what does the browser do with that value, and why does it matter?"
+  answer={1}
+  options={[
+    "Nothing. Set-Cookie only affects the response it arrived on",
+    "It sends Cookie: session=9f2c8a1b back, which is how a stateless protocol recognizes the same visitor",
+    "It stores the value but only replays it after the user logs in a second time",
+    "It attaches the value to requests for every other domain the user visits",
+  ]}
+  explanation="HTTP has no memory, so the cookie is what carries identity forward. The browser echoes the value in a Cookie header on later requests to that same site, and steal or forge that value and you inherit the session. Cookies are scoped to the site that set them, not sprayed across every domain."
+/>
+
+## Do it by hand
+
+The whole exchange is reproducible from a shell. curl speaks HTTP directly, and
+its `-v` flag prints the full request and response, every header in both
+directions, so nothing hides behind a browser.
+
+<CommandCard
+  command="curl -v http://example.com/"
+  title="shell"
+  explain="Opens a TCP connection, sends a GET, and prints both sides. Request lines start with >, response lines with <, and curl's own connection notes with *."
+/>
+
+<CommandCard
+  command="curl -I http://example.com/"
+  title="shell"
+  explain="Sends a HEAD request: status line and headers only, no body. The fast way to see whether a path exists and what it would return."
+/>
+
+<ExpectedOutput label="curl -v, trimmed to the exchange (the curl version and the exact header values differ by machine and server)">
+```
+> GET / HTTP/1.1
+> Host: example.com
+> User-Agent: curl/8.5.0
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Content-Type: text/html; charset=UTF-8
+< Content-Length: 1256
+<
+```
+</ExpectedOutput>
+
+The `>` block is the request curl built and sent. Four lines, and every one is
+readable: a request line, three headers, and the blank line that ends them. The
+`<` block is the server's answer, opening with the status line the client acts on.
+This is the same conversation a browser has, minus the rendering.
+
+<Callout type="security" title="The Server header is free reconnaissance">
+A line like `Server: Apache/2.4.41 (Ubuntu)` hands over the exact software and
+build before any real probing. Cross-reference that version against published
+advisories for that release and the first weakness to try often falls out of one
+request. Plenty of servers strip or fake the header for exactly this reason.
+</Callout>
+
+<Exercise title="Read one real exchange">
+On any machine with curl installed, run `curl -v http://example.com/` and watch
+the split. Lines that start with `>` are the request your machine sent. Lines that
+start with `<` are the response the server sent back. Lines with `*` are curl's own
+notes about the connection, not part of HTTP at all.
+
+Find the request line at the top (`GET / HTTP/1.1`) and the status line in the
+reply (`HTTP/1.1 200 OK`). Then run `curl -I http://example.com/` and confirm you
+get headers and a status with no HTML body underneath. That is the HEAD method
+doing its one job.
+
+Last, add `-H "User-Agent: nothing-real"` to the first command and find your fake
+value echoed back in the `>` request lines. Nothing on the client side is
+trustworthy, and you just proved it in one flag.
+</Exercise>
+
+A request and a response are the whole vocabulary of the web, and reading them cold
+is the skill everything else here rests on. What none of this shows is what happens
+between the server accepting a request and sending the response back: the
+application code, the database sitting behind it, and the seams where one component
+trusts another it should have checked. The next lesson, how web apps work, opens
+that box.
+
+<Notes />

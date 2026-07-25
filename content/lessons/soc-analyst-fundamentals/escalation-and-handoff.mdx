@@ -1,0 +1,66 @@
+---
+title: Escalation and Handoff
+module: soc-analyst-fundamentals
+moduleTitle: SOC Analyst Fundamentals
+moduleOrder: 24
+moduleIcon: Headset
+order: 5
+summary: The difference between a smooth escalation and a dropped ball is one well-written paragraph.
+estimatedMinutes: 16
+objectives:
+  - Decide when to escalate versus keep working an alert
+  - Write an escalation that a Tier 2 analyst can act on without asking you anything
+  - Hand off an open case at end of shift so nothing gets dropped
+tags:
+  - soc
+  - escalation
+  - handoff
+  - communication
+---
+
+A Tier 2 analyst gets pinged at 2am with a ticket that says "suspicious activity on server, please look." That is useless. They now have to reconstruct everything you already knew, half-asleep, while the attacker keeps working. The whole point of escalation is to transfer your understanding, not just the problem. A bad handoff throws away the twenty minutes you spent and starts the clock over.
+
+Escalation is moving an alert to someone with more access, more authority, or more time, because it is past what you can or should handle at your tier. Get the timing right and the response is fast. Get it wrong in either direction and you either flood Tier 2 with noise or sit on a real breach too long.
+
+## Know when to escalate
+
+Escalate when you have confirmed something real that exceeds your tier. A true positive you cannot fully scope. Anything touching a critical asset like a domain controller or a payments system. Signs of active lateral movement or data leaving the network. When in genuine doubt about whether it is real and the potential impact is high, escalate. A false alarm sent up costs a few minutes. A missed breach held back costs the company.
+
+Do not escalate to dodge work. If it is a routine alert you can close with a bit more digging, close it. Kicking easy tickets upstairs burns Tier 2's time and, worse, it trains them to distrust your escalations. The point is judgment, not reflex in either direction.
+
+## Write it so they can act cold
+
+A good escalation answers the questions the next analyst will ask before they ask them. Assume they know nothing about this alert and are tired.
+
+<CommandBlock
+  title="the anatomy of a usable escalation"
+  commands={[
+    { cmd: "What fired: T1003 LSASS access alert, WKSTN-14, user jsmith, 02:14 UTC", comment: "the fact, the host, the who, the when" },
+    { cmd: "Why it is real: parent proc is a macro-enabled Word doc, not a normal admin tool", comment: "the evidence that made you escalate" },
+    { cmd: "Scope so far: only WKSTN-14 seen, checked FS01 and DC01, clean as of 02:30", comment: "what you already ruled in and out" },
+    { cmd: "Done + next: host isolated in Defender, recommend jsmith password reset", comment: "actions taken and your recommendation" },
+  ]}
+/>
+
+Those four lines let a Tier 2 analyst act in the first minute instead of interviewing you. What fired, why it is real, what you have scoped, and what you already did. Attach the raw log and the ticket link so they can verify rather than take your word for it. Precision here is the whole skill.
+
+<Callout type="security" title="Note every action you took on the host">
+If you isolated a machine, killed a process, or reset a credential during triage, that goes in the escalation in plain words. The next analyst has to know the current state of the system before they act, and they must stay inside authorized scope too. An undocumented containment step can look like the attacker moving, or destroy the evidence trail. Record what you touched and when.
+</Callout>
+
+## The end-of-shift handoff
+
+Escalation moves one alert up. A handoff moves your whole open workload sideways to the next shift, and it is where cases go to die if you are sloppy. When you clock out, the incoming analyst needs a short brief: what is still open, what you are mid-investigation on, and anything that needs eyes soon.
+
+Keep it to the live items. "Case 4471 open, likely phishing wave from marketing-themed sender, three hosts confirmed clicked, waiting on email security to pull the campaign, check back at 08:00." That one sentence keeps a real investigation moving across a shift boundary instead of stalling for eight hours because you went home. Put it in the case system, not a chat message that scrolls away.
+
+<Exercise
+  id="escalation-missing-piece"
+  prompt="An escalation lists what fired, why it looks real, and the scope checked so far, but the receiving analyst still has to message you to ask one thing before they can safely act. What did you leave out?"
+  answer="actions taken"
+  placeholder="what is missing"
+>
+Think about the current state of the host. Before they touch it, they need to know what you already did to it, like isolating it or killing a process.
+</Exercise>
+
+<Notes />

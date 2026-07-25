@@ -1,0 +1,146 @@
+[
+  {
+    "domain": 3,
+    "question": "You must encrypt the OS and data disks of a Windows Server VM at the guest level, storing the encryption keys and secrets in Azure Key Vault. Which Azure feature meets this requirement?",
+    "options": ["Azure Disk Encryption using BitLocker", "Server-side encryption with platform-managed keys", "Transparent Data Encryption", "Azure Storage service encryption"],
+    "correct": [0],
+    "explanation": "Azure Disk Encryption (ADE) encrypts VM disks inside the guest operating system, using BitLocker on Windows and DM-Crypt on Linux, and stores the wrapping keys and secrets in Azure Key Vault. Server-side encryption operates at the storage platform level, not the guest OS. Transparent Data Encryption applies to SQL databases, not VM disks.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A security team wants to encrypt VM temp disks, OS/data disk caches, and disk data starting at the Azure host, with no encryption agent running inside the guest operating system. Which capability should they enable?",
+    "options": ["Azure Disk Encryption", "Encryption at host", "Double encryption using customer-managed keys only", "Confidential computing enclaves"],
+    "correct": [1],
+    "explanation": "Encryption at host encrypts data in the VM host before it is persisted to Azure Storage, covering temp disks and disk caches without any in-guest agent. Azure Disk Encryption requires an agent (BitLocker or DM-Crypt) inside the guest and does not encrypt the temp disk in the same way. Confidential computing enclaves protect data in use, not disk-at-rest at the host.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "You are configuring a storage account to use customer-managed keys (CMK) for encryption at rest with a key stored in Azure Key Vault. Which two Key Vault settings must be enabled to support CMK? (Choose two.)",
+    "options": ["Soft delete", "Purge protection", "Public network access", "Legal hold"],
+    "correct": [0, 1],
+    "explanation": "Azure Storage customer-managed keys require the Key Vault (or Managed HSM) to have both soft delete and purge protection enabled so an accidental or malicious key deletion cannot permanently orphan the encrypted data. Public network access is not required and is often disabled in favor of private endpoints. Legal hold is an immutable-storage feature, unrelated to key management.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An application needs delegated, time-limited access to a blob container. You want the shared access signature to be secured with Microsoft Entra credentials rather than the storage account key, so it can be revoked by revoking the delegation key. Which SAS type should you use?",
+    "options": ["Account SAS", "Service SAS", "User delegation SAS", "Stored access policy SAS"],
+    "correct": [2],
+    "explanation": "A user delegation SAS is signed with a user delegation key obtained using Microsoft Entra credentials, so it does not rely on the storage account key and can be invalidated by revoking that delegation key. Account and service SAS tokens are signed with the storage account key. A stored access policy is a way to constrain a service SAS, not a distinct Entra-backed SAS type.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "In Microsoft Defender for Cloud, which single value summarizes your overall security posture as a percentage, rising as you remediate recommendations across subscriptions?",
+    "options": ["Secure Score", "Compliance Score", "Risk Level", "Coverage Percentage"],
+    "correct": [0],
+    "explanation": "Secure Score in Microsoft Defender for Cloud aggregates the state of your security recommendations into a single percentage that improves as you remediate findings. Regulatory compliance is tracked separately in the compliance dashboard. Risk level and coverage percentage are not the posture summary metric.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "You want to reduce the attack surface of management ports (RDP/SSH) on production VMs by keeping them closed and opening them only on approved, time-bounded requests. Which Microsoft Defender for Cloud feature provides this?",
+    "options": ["Adaptive application controls", "Just-in-time (JIT) VM access", "File integrity monitoring", "Adaptive network hardening"],
+    "correct": [1],
+    "explanation": "Just-in-time VM access uses network security group rules to keep management ports closed and opens them only for an approved user, source IP, and limited time window. Adaptive application controls allow-list software, file integrity monitoring watches for changes to critical files, and adaptive network hardening recommends NSG rules, none of which provide on-demand port access.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Microsoft recommends managing permissions to keys, secrets, and certificates in a modern Key Vault using role assignments scoped at the management group, subscription, resource group, or individual key level. Which Key Vault authorization model provides this?",
+    "options": ["Vault access policy", "Azure RBAC", "Shared access signatures", "Managed identity federation"],
+    "correct": [1],
+    "explanation": "The Azure RBAC permission model for Key Vault lets you assign built-in roles (such as Key Vault Secrets User) at multiple scopes, including individual objects, and integrates with Privileged Identity Management. The legacy vault access policy model grants permissions only at the whole-vault level. SAS and managed identity federation are not Key Vault authorization models.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which two Key Vault features together ensure that a deleted key or secret can be recovered during a retention period and cannot be permanently purged before that period elapses? (Choose two.)",
+    "options": ["Soft delete", "Purge protection", "Key rotation policy", "Private endpoint"],
+    "correct": [0, 1],
+    "explanation": "Soft delete retains deleted vaults and objects for a configurable retention period so they can be recovered, and purge protection blocks anyone, including administrators, from permanently purging them until the period ends. A key rotation policy automates creating new key versions, and a private endpoint controls network access, neither of which governs deletion recovery.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Which security feature encrypts an Azure SQL Database's data files, log files, and backups at rest and is enabled by default for newly created databases?",
+    "options": ["Always Encrypted", "Transparent Data Encryption (TDE)", "Dynamic Data Masking", "Row-Level Security"],
+    "correct": [1],
+    "explanation": "Transparent Data Encryption performs real-time encryption of the database, its log files, and backups at rest, and is enabled by default for new Azure SQL databases. Always Encrypted protects specific columns from the client side, Dynamic Data Masking only obfuscates results for display, and Row-Level Security filters rows by user, none of which encrypt the data files at rest.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A regulation requires that database administrators managing an Azure SQL Database must never be able to see the plaintext of certain sensitive columns, even while running queries. Which feature encrypts those columns so the database engine only ever handles ciphertext?",
+    "options": ["Transparent Data Encryption", "Dynamic Data Masking", "Always Encrypted", "Transport Layer Security"],
+    "correct": [2],
+    "explanation": "Always Encrypted encrypts designated columns on the client side using keys the database engine never possesses, so high-privileged users such as DBAs see only ciphertext. TDE encrypts at rest but the engine decrypts data in memory, Dynamic Data Masking only masks display output for non-privileged users, and TLS protects data in transit only.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "When configuring Always Encrypted, you must choose an encryption type per column. Which two encryption types does Always Encrypted support? (Choose two.)",
+    "options": ["Deterministic", "Randomized", "Homomorphic", "Format-preserving"],
+    "correct": [0, 1],
+    "explanation": "Always Encrypted supports deterministic encryption, which always produces the same ciphertext for a given value and allows equality lookups and joins, and randomized encryption, which is more secure but does not support those operations. Homomorphic and format-preserving encryption are not options offered by Always Encrypted.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A developer proposes using Dynamic Data Masking on Azure SQL as the sole protection for credit card numbers, claiming it prevents privileged users from reading the real values. Why is this claim incorrect?",
+    "options": ["Dynamic Data Masking encrypts the column but shares the key with all users", "Dynamic Data Masking only obscures results at query time and privileged users can still access the underlying data", "Dynamic Data Masking permanently overwrites the stored values", "Dynamic Data Masking applies only to backups, not live queries"],
+    "correct": [1],
+    "explanation": "Dynamic Data Masking hides data in the result set returned to non-privileged users but does not encrypt or change the stored values, and privileged users (or anyone who can run ad hoc queries with sufficient rights) can still retrieve the real data. It is a presentation-layer limitation, not an encryption or access-control boundary, so it should not be the sole protection for sensitive data.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "Which Microsoft Defender plan provides SQL vulnerability assessment scans and advanced threat protection alerts (such as potential SQL injection and anomalous access) for Azure SQL Database?",
+    "options": ["Microsoft Defender for SQL", "Microsoft Defender for Storage", "Microsoft Defender for Key Vault", "Microsoft Defender for Resource Manager"],
+    "correct": [0],
+    "explanation": "Microsoft Defender for SQL bundles a vulnerability assessment that scans for misconfigurations and advanced threat protection that alerts on anomalous activities like SQL injection attempts and unusual access patterns. Defender for Storage, Key Vault, and Resource Manager protect their respective resource types, not SQL databases.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "You need to ensure that traffic from a VNet to an Azure Storage account traverses a private IP address inside your virtual network and that the storage account can reject all public internet traffic. Which feature should you configure?",
+    "options": ["Service endpoint", "Private endpoint", "NAT gateway", "Storage account firewall IP rule"],
+    "correct": [1],
+    "explanation": "A private endpoint projects the storage account into your VNet with a private IP via Azure Private Link, so access uses a private address and public network access can be fully disabled. A service endpoint still uses the resource's public IP even though traffic stays on the Azure backbone. A NAT gateway handles outbound SNAT, and an IP firewall rule only allow-lists public addresses.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A compliance mandate requires that financial audit blobs be stored in a write-once, read-many state so they cannot be modified or deleted for seven years. Which Azure Storage capability satisfies this?",
+    "options": ["Blob soft delete", "Immutable storage with a time-based retention policy", "Blob versioning", "Lifecycle management tiering"],
+    "correct": [1],
+    "explanation": "Immutable storage for Blob Storage enforces WORM semantics through time-based retention policies (and legal holds), preventing modification or deletion for the retention interval to meet regulatory requirements. Soft delete and versioning help recover from accidental changes but do not prevent authorized deletion, and lifecycle management only moves or expires data between tiers.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "You want administrators to connect to Azure VMs over RDP and SSH through the Azure portal using TLS, without exposing any public IP address on the VMs. Which service provides this?",
+    "options": ["Azure Bastion", "Azure Firewall", "Azure Application Gateway", "Azure Private Link"],
+    "correct": [0],
+    "explanation": "Azure Bastion is a managed PaaS jump host deployed in the VNet that lets administrators reach VMs over RDP/SSH from the portal via TLS, so the VMs need no public IP and management ports need not be internet-exposed. Azure Firewall filters traffic, Application Gateway is a web load balancer, and Private Link exposes private connectivity to services rather than an RDP/SSH gateway.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "An organization must store cryptographic keys in a single-tenant, FIPS 140-2 Level 3 validated hardware security module that they fully control, while still using the Azure Key Vault APIs. Which offering should they choose?",
+    "options": ["Azure Key Vault Standard tier", "Azure Key Vault Premium tier", "Azure Key Vault Managed HSM", "Azure Dedicated HSM classic"],
+    "correct": [2],
+    "explanation": "Azure Key Vault Managed HSM is a fully managed, single-tenant service backed by FIPS 140-2 Level 3 validated hardware security modules and exposes Key Vault-compatible APIs. The Standard tier is software-protected, the Premium tier shares multi-tenant HSMs at Level 2, and Dedicated HSM classic does not use the Key Vault API surface.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "To enforce that all access to blobs in a storage account is authorized with Microsoft Entra ID and never with the storage account access keys, which action should you take?",
+    "options": ["Rotate the storage account keys every 24 hours", "Disable shared key authorization on the storage account", "Enable blob soft delete", "Assign a stored access policy to every container"],
+    "correct": [1],
+    "explanation": "Disabling shared key authorization forces every request to use Microsoft Entra ID (OAuth) authorization, so requests presenting the account key or a key-based SAS are rejected. Rotating keys still permits key-based access, soft delete only affects recovery of deleted data, and stored access policies govern SAS tokens rather than blocking shared key access.",
+    "difficulty": "MEDIUM"
+  }
+]

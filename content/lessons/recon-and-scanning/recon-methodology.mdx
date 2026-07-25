@@ -1,0 +1,266 @@
+---
+title: Recon Methodology and Attack Surface
+module: recon-and-scanning
+moduleTitle: Recon and Scanning
+moduleOrder: 3
+moduleIcon: ScanSearch
+order: 1
+summary: "Recon is the first move against any target: what it is, passive versus active, the loop from live hosts to service versions, and why authorization bounds every packet."
+estimatedMinutes: 14
+prerequisites: []
+objectives:
+  - Explain what reconnaissance is and why it is the first stage of an attack
+  - Tell passive reconnaissance from active reconnaissance by what the target can see
+  - Walk the recon loop from live hosts to open ports to services to versions
+  - Say why written authorization and scope bound every active packet a tester sends
+  - Connect a single finding in recon to the vulnerability and exploit it enables later
+tags:
+  - recon
+  - methodology
+  - fundamentals
+---
+
+The Networking Foundations module built its vocabulary on machines that already
+belonged to the reader: a laptop, the router in the corner, a printer down the
+hall. A <Term id="host">host</Term> sits on a <Term id="network">network</Term>
+at an <Term id="ip-address">IP address</Term>. A <Term id="port">port</Term> is
+how one program on that host gets told apart from another. A
+<Term id="tcp">TCP</Term> connection is the handshake that has to finish before
+any real data moves. Reconnaissance is the first time that vocabulary gets aimed
+at a machine nobody handed over.
+
+The tester does not own the target, was never shown its layout, and has to find
+everything worth knowing by asking. Recon is that asking, done carefully. It is
+the whole gap between an attacker who knows a target runs one old web server on
+an odd port and an attacker who fires blindly and hopes. The second one loses.
+
+## What recon is, and why nothing good happens before it
+
+Reconnaissance, recon for short, is the work of learning what a target is and
+what it exposes before doing anything that could break it or set off an alarm.
+Every model of an intrusion puts it first. The
+<Term id="kill-chain">kill chain</Term>, the usual name for the ordered stages of
+an attack, opens with a research phase for a plain reason: the later stages all
+need its output. A tester cannot pick an <Term id="exploit">exploit</Term>
+without knowing what software is running, and cannot know what software is
+running without going and looking.
+
+Skipping recon does not save time. It moves the cost. An attacker who maps
+nothing has to guess, and guessing against a real network means throwing
+exploits at services that were never there, tripping every alarm on the way, and
+learning the layout the slow and loud way. The mapping happens either before the
+attack or during it. Before is quieter, and it is cheaper.
+
+## The line between passive and active
+
+The one distinction that shapes every recon decision is whether the target can
+tell it is being looked at.
+
+Passive reconnaissance gathers information without sending a single packet to the
+target's own machines. The data already sits somewhere public.
+<Term id="dns">DNS</Term> records name a company's servers. Certificate
+transparency logs, the public ledgers every web certificate gets recorded in,
+leak subdomain names by the hundred. WHOIS records list registration contacts
+and address ranges. Search engines have already crawled the target's own pages.
+None of it touches the target, so the target sees nothing and logs nothing.
+
+Active reconnaissance sends packets straight at the target and reads what comes
+back. A ping to check whether a host answers, a scan to see which ports are open,
+a request to a web server to read the banner it returns: all of it lands on
+infrastructure the target owns and watches. Every active packet is a line in a
+log somewhere, and a well-run target has a <Term id="firewall">firewall</Term>
+and detection sensors reading those lines. Active recon is where a tester stops
+being invisible.
+
+The order is not a preference, it is the method. Passive comes first, always,
+because it is free intelligence that costs the target nothing to give up and
+narrows the active work from thousands of possible hosts down to the handful that
+matter. A tester who has read the DNS and the certificate logs already knows
+roughly what to scan before making the first sound.
+
+<Callout type="security" title="Every active packet is evidence">
+Passive recon leaves no trace on the target. Active recon leaves one on purpose,
+because there is no way to learn whether a port is open without asking it. The
+goal is not silence, it is spending noise where it buys something. A focused scan
+of ten known hosts is cheap. A blind sweep of the whole address space is loud,
+slow, and tells the defender an attack is underway before it has found anything.
+</Callout>
+
+<Quiz
+  id="passive-vs-active"
+  question="A tester pulls a target's subdomains from certificate transparency logs and reads its WHOIS record, without sending anything to the target's own servers. Which kind of recon is that, and what does the target see?"
+  answer={1}
+  options={[
+    "Active recon, and the target logs every query.",
+    "Passive recon, and the target sees nothing, because the data comes from public third parties, not the target's machines.",
+    "Active recon, because any subdomain lookup counts as touching the target.",
+    "Passive recon, but the target still records the WHOIS lookup in its own web logs.",
+  ]}
+  explanation="Certificate logs and WHOIS records live on third-party systems. Reading them touches none of the target's infrastructure, so the work is passive and the target has nothing to log."
+/>
+
+## The recon loop, quiet to loud
+
+Once passive work has pointed at a set of addresses, active recon runs the same
+four steps in the same order, each one feeding the next.
+
+**Find the live hosts first.** An address range in scope is mostly empty. Host
+discovery asks which addresses actually answer, usually with
+<Term id="icmp">ICMP</Term> echo requests, the protocol behind ping.
+<Term id="nmap">nmap</Term>, the standard scanner, does this with `-sn`, which
+runs the discovery and skips the port scan entirely.
+
+<CommandCard
+  command="nmap -sn 192.168.1.0/24"
+  title="linux"
+  explain="A ping sweep. The -sn flag disables the port scan, so nmap only asks which addresses in the range answer at all, then reports the live ones and stops."
+/>
+
+<ExpectedOutput label="nmap -sn across a 256-address home range">
+```
+Starting Nmap 7.94 ( https://nmap.org )
+Nmap scan report for 192.168.1.1
+Host is up (0.0011s latency).
+Nmap scan report for 192.168.1.10
+Host is up (0.00042s latency).
+Nmap scan report for 192.168.1.23
+Host is up (0.0016s latency).
+Nmap done: 256 IP addresses (3 hosts up) scanned in 2.14 seconds
+```
+</ExpectedOutput>
+
+Three hosts answered out of 256 addresses. The other 253 are not worth another
+packet. That is the point of doing discovery first: it turns a wide range into a
+short list before any louder scanning starts.
+
+**Then find the open ports.** <Term id="port-scanning">Port scanning</Term>
+probes a live host's ports to learn which ones have a program
+<Term id="listening">listening</Term> behind them. An open port is a door with
+something on the other side willing to talk. A closed port refuses the
+connection. A filtered port is one a firewall is silently dropping, which is
+itself a finding. nmap scans the 1000 most common ports by default, and `-p-`
+widens that to all 65535 when the common set is not enough.
+
+**Then identify the service.** An open port number is a hint, not an answer. Port
+80 usually means a web server, but "usually" is not "always," and the program
+answering there is what actually gets attacked. That program is typically a
+<Term id="daemon">daemon</Term>, a service left running in the background to
+field requests. Listing what a target exposes this way, host by host and port by
+port, is <Term id="enumeration">enumeration</Term>.
+
+**Then note the version.** The single most valuable fact recon produces is the
+exact version string of each service. nmap's `-sV` flag runs a normal scan, then
+probes each open port and matches the reply against its service-probe database to
+name the software and the version behind it.
+
+<CommandCard
+  command="nmap -sV 192.168.1.10"
+  title="linux"
+  explain="Version detection. -sV port-scans the host, then interrogates each open port and matches the response to name the exact software and release."
+/>
+
+<ExpectedOutput label="nmap -sV against one live host">
+```
+PORT    STATE SERVICE  VERSION
+22/tcp  open  ssh      OpenSSH 8.9p1 Ubuntu 3ubuntu0.10 (Ubuntu Linux; protocol 2.0)
+80/tcp  open  http     nginx 1.18.0 (Ubuntu)
+443/tcp open  ssl/http nginx 1.18.0 (Ubuntu)
+```
+</ExpectedOutput>
+
+Those three version strings are what this one host returned. A different host
+answers with different software, and some services refuse to name a version at
+all. That refusal is a finding too, because it tells the tester the target was
+configured by someone paying attention.
+
+<Quiz
+  id="scan-vs-version"
+  question="An nmap line reads `80/tcp open http nginx 1.18.0`. Which part came from the port scan, and which part came from version detection?"
+  answer={0}
+  options={[
+    "The port scan found that 80 is open; version detection added the `nginx 1.18.0` part.",
+    "The port scan produced the entire line, software name and number included.",
+    "Version detection found the open port; the port scan added the software name.",
+    "The whole line came from passive research, not an active scan.",
+  ]}
+  explanation="A port scan reports state: port 80 is open. Version detection, nmap's -sV, probes that open port and names the software and version, which is the nginx 1.18.0 half of the line."
+/>
+
+## Scope is the fence, and it is not optional
+
+Everything above assumes one thing that has to be true before a single active
+packet goes out: written authorization that names exactly what may be touched.
+That authorization is the scope. It lists the IP ranges, domains, and hosts a
+tester is allowed to look at, and it is a hard boundary, not a starting
+suggestion.
+
+Scope matters most at the exact step where recon is at its most productive.
+Enumeration keeps turning up new assets: a subdomain nobody mentioned, an address
+range that turns out to belong to a cloud provider, a linked host owned by a
+different company entirely. Every one of those is tempting, and some of them are
+out of bounds. A discovered asset is not an authorized one. Scanning a machine
+that was never in scope is not clever recon, it is unauthorized access, and the
+fact that a certificate log pointed at it changes nothing.
+
+<Callout type="warning" title="Confirm ownership before every active packet">
+Passive recon can safely surface assets that sit outside the scope, because it
+never touches them. Active recon cannot. Before a host receives a scan, it has to
+be confirmed as both owned by the target and named in the authorization. When
+those two disagree, the authorization wins and the host stays untouched.
+</Callout>
+
+## Where every finding goes
+
+Recon earns its care because everything after it is built directly on what it
+found. A service name paired with a version string is not trivia. It is the input
+to finding a <Term id="vulnerability">vulnerability</Term>, a flaw that lets
+someone make software do something it should not. A specific version maps to
+specific known flaws, and a known flaw maps to a specific exploit.
+
+The chain is tight and it runs one direction. Enumeration produces "this host
+runs this version of this service." That version points to a vulnerability. That
+vulnerability points to an exploit. Miss the version and the chain never starts,
+which is the real reason a sloppy scan is worse than a slow one.
+
+There is one more reason the version matters, and it is the thing beginners get
+wrong most often. A flaw only counts if it can be reached. A host can run a
+service with a serious, well-documented vulnerability and still be safe from it,
+because a firewall drops every route to the port that service listens on. Recon
+is what separates the two cases. It does not just find flaws, it finds the
+reachable ones, and reachable is the only kind worth an exploit.
+
+<Quiz
+  id="reachable-vulnerability"
+  question="A host runs a service with a serious, well-documented vulnerability, but a firewall drops every route to the port that service listens on. What has recon established about that flaw?"
+  answer={2}
+  options={[
+    "That it is exploitable right now, because the vulnerable version is installed.",
+    "That the firewall itself is the real vulnerability.",
+    "That the flaw is present but not reachable, so it is not part of the attack surface an exploit could use right now.",
+    "Nothing, because recon cannot detect firewalls.",
+  ]}
+  explanation="A vulnerability only matters if it can be reached. The version says the flaw exists; the blocked route says nothing can get to it. Recon separates a flaw that is merely present from one that is actually exploitable."
+/>
+
+<Exercise title="Read a target the quiet way first">
+Pick a domain that runs a public website, either one that belongs to you or one
+that openly invites testing. Never pick one you have no permission to probe.
+Start passive. Look the domain up in a certificate transparency log (crt.sh is a
+public one) and write down every subdomain it lists. You sent nothing to the
+target's own servers to get that list.
+
+Now compare the length of that list to the single address the bare domain
+resolves to. The gap is the lesson: one name you were handed just became a dozen
+you were not. That expansion is what recon does, and pulling it from public
+records means the target never saw you counting.
+</Exercise>
+
+Recon is a loop, and this was the shape of it: live hosts, open ports, named
+services, exact versions, each step narrowing the next. The first rung is the one
+worth slowing down on. Before anything gets scanned, the live hosts have to be
+pulled out of the dead addresses around them. The next lesson, host discovery, is
+entirely about that step: how a scanner decides which addresses in a range are
+actually answering, and why the obvious method, a plain ping, quietly misses more
+hosts than it finds.
+
+<Notes />

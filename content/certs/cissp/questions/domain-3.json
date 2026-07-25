@@ -1,0 +1,244 @@
+[
+  {
+    "domain": 3,
+    "question": "An organization implements a mandatory access control model whose primary goal is to prevent the unauthorized disclosure of classified information. The model enforces a rule that a subject cleared at Secret cannot write data to a document classified as Confidential. Which model and property are being described?",
+    "options": [
+      "Biba, the simple integrity property",
+      "Bell-LaPadula, the star (*) security property",
+      "Clark-Wilson, the certification rule",
+      "Bell-LaPadula, the simple security property"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Bell-LaPadula is a confidentiality model, and its star property enforces no write down, preventing a subject from writing to a lower classification where the data could leak. The simple security property is the no read up rule. Biba and Clark-Wilson are integrity models, not confidentiality models.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A financial system must ensure that data written by a low-integrity process cannot corrupt high-integrity records. The chosen model enforces no read down and no write up. Which security model is in use?",
+    "options": [
+      "Biba",
+      "Bell-LaPadula",
+      "Brewer-Nash",
+      "Graham-Denning"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Biba is an integrity model. Its simple integrity property is no read down (do not read lower integrity data) and its star integrity property is no write up (do not write to higher integrity). Bell-LaPadula protects confidentiality with the opposite direction of rules, and Brewer-Nash addresses conflicts of interest.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A security architect wants an integrity model that requires subjects to access data only through certified, well-formed transformation procedures and that enforces separation of duties. Which model best fits this requirement?",
+    "options": [
+      "Bell-LaPadula",
+      "Take-Grant",
+      "Clark-Wilson",
+      "Harrison-Ruzzo-Ullman"
+    ],
+    "correct": [
+      2
+    ],
+    "explanation": "Clark-Wilson enforces integrity through well-formed transactions, the access triple (subject, transformation procedure, constrained data item), and separation of duties, so users never touch data directly. Bell-LaPadula is a confidentiality model, while Take-Grant and Harrison-Ruzzo-Ullman are formal access-rights models rather than transaction-integrity frameworks.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A consulting firm needs an access control model that dynamically prevents an analyst who has viewed one client's data from accessing a competitor's data, to avoid conflicts of interest. Which model is designed for this purpose?",
+    "options": [
+      "Brewer-Nash (Chinese Wall)",
+      "Biba",
+      "Lattice-based access control",
+      "Bell-LaPadula"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "The Brewer-Nash model, also called the Chinese Wall, changes a subject's permissions dynamically based on prior access to prevent conflicts of interest between competing datasets. Biba and Bell-LaPadula address integrity and confidentiality using static classification, and a generic lattice model does not specifically handle conflict of interest.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "The reference monitor concept defines the requirements for the component that mediates all access between subjects and objects. Which of the following are required properties of a reference monitor? (Choose two.)",
+    "options": [
+      "It must be tamperproof and isolated from modification",
+      "It must be able to decrypt all network traffic",
+      "It must be small enough to be completely analyzed and verified",
+      "It must run only in user mode to reduce its privileges"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "explanation": "A reference monitor must be tamperproof, always invoked (non-bypassable), and small enough to be verifiable. Decrypting network traffic is unrelated to the concept, and the reference monitor is implemented in the trusted security kernel with privileged access, not restricted to user mode.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "When a system encounters an unexpected error or failure, a secure design principle dictates that it should default to a state that denies access rather than granting it. What is this principle called?",
+    "options": [
+      "Fail-open",
+      "Fail-secure (fail-closed)",
+      "Least common mechanism",
+      "Open design"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Fail-secure, also called fail-closed, means the system defaults to a protected, access-denied state when it fails. Fail-open does the opposite and favors availability over security. Least common mechanism and open design are separate secure design principles.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Symmetric cryptography is significantly faster than asymmetric cryptography but has a well-known drawback that limits its use for communication between parties who have never met. What is that primary drawback?",
+    "options": [
+      "It cannot encrypt large files",
+      "Secure distribution of the shared secret key is difficult",
+      "It provides non-repudiation that cannot be revoked",
+      "It requires a certificate authority for every message"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Symmetric ciphers use the same secret key for encryption and decryption, so both parties must securely share that key beforehand, which is the key distribution problem. Symmetric algorithms handle large data efficiently, do not provide non-repudiation, and do not inherently require a certificate authority.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A recipient verifies a digital signature on a received message using the sender's public key. Assuming the signature validates, which security services does a digital signature provide? (Choose two.)",
+    "options": [
+      "Confidentiality of the message contents",
+      "Integrity of the message",
+      "Non-repudiation of the sender",
+      "Guaranteed availability of the message"
+    ],
+    "correct": [
+      1,
+      2
+    ],
+    "explanation": "A digital signature is the message hash encrypted with the sender's private key, so a valid signature proves the message was not altered (integrity) and that only the holder of the private key could have signed it (non-repudiation and authentication). It does not encrypt the message body, so it provides no confidentiality, and it has nothing to do with availability.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An analyst notices that a bitmap image encrypted with a block cipher still reveals the outline of the original picture. Which block cipher mode of operation was most likely used, and why is it weak here?",
+    "options": [
+      "Cipher Block Chaining (CBC), because it reuses the initialization vector",
+      "Electronic Codebook (ECB), because identical plaintext blocks produce identical ciphertext blocks",
+      "Counter (CTR), because it lacks message authentication",
+      "Galois/Counter Mode (GCM), because it omits padding"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "ECB encrypts each block independently, so identical plaintext blocks yield identical ciphertext blocks and structural patterns such as an image outline remain visible. CBC, CTR, and GCM chain or randomize blocks with an IV or counter so repeating patterns are hidden.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A web server needs to check in real time whether a presented X.509 certificate has been revoked, without downloading a large periodically published list. Which mechanism should it use?",
+    "options": [
+      "Certificate Revocation List (CRL)",
+      "Online Certificate Status Protocol (OCSP)",
+      "Certificate Signing Request (CSR)",
+      "Key escrow"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "OCSP lets a relying party query the status of a single certificate in real time, avoiding the latency and size of a CRL. A CRL is the periodically published list OCSP is meant to replace or supplement, a CSR is used to request a certificate, and key escrow stores keys for recovery.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Two parties want to establish a shared secret over an insecure channel without ever transmitting the secret itself. The method relies on the difficulty of the discrete logarithm problem. Which algorithm accomplishes this?",
+    "options": [
+      "RSA",
+      "AES",
+      "Diffie-Hellman",
+      "SHA-256"
+    ],
+    "correct": [
+      2
+    ],
+    "explanation": "Diffie-Hellman is a key agreement algorithm that lets two parties derive a shared secret over an untrusted channel based on the discrete logarithm problem. RSA is primarily used for encryption and signatures, AES is a symmetric cipher, and SHA-256 is a hashing algorithm.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A password database stores unsalted hashes. An attacker who steals the database uses a large precomputed table of hash values to reverse many passwords quickly. Adding which value to each password before hashing best defeats this attack?",
+    "options": [
+      "A unique random salt per password",
+      "A longer symmetric key",
+      "A second CRC checksum",
+      "An initialization vector shared by all hashes"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A unique random salt makes each stored hash different even for identical passwords, which defeats precomputed rainbow tables because the attacker would need a separate table per salt. A longer key and a CRC do not address the precomputation problem, and a single shared IV would not make each hash unique.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An attacker recovers a device's cryptographic key by carefully measuring the power consumption and electromagnetic emissions of the processor while it performs encryption, rather than by attacking the algorithm's mathematics. What category of attack is this?",
+    "options": [
+      "Chosen plaintext attack",
+      "Side-channel attack",
+      "Birthday attack",
+      "Meet-in-the-middle attack"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Side-channel attacks exploit physical characteristics of an implementation such as timing, power draw, or electromagnetic emanation instead of weaknesses in the algorithm itself. Chosen plaintext, birthday, and meet-in-the-middle attacks all target the cryptographic algorithm or its mathematical properties.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A data center operator wants a fire suppression system that will extinguish an electrical fire in a room full of running servers without leaving residue or damaging the equipment. Which option is most appropriate?",
+    "options": [
+      "A wet pipe water sprinkler system",
+      "A clean agent gas system such as FM-200 or inert gas",
+      "A dry chemical (powder) extinguisher discharge",
+      "A high-volume foam deluge system"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Clean agent systems such as FM-200 or inert gases suppress fire without water or residue, making them suitable for electrical (Class C) fires around sensitive electronics. Water, dry chemical powder, and foam all damage equipment or leave conductive or corrosive residue.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A program checks that a user has permission to open a file, and then, a moment later, opens the file. An attacker replaces the file with a symbolic link to a protected file in the gap between the check and the open. What class of vulnerability does this exploit?",
+    "options": [
+      "Buffer overflow",
+      "SQL injection",
+      "Time-of-check to time-of-use (TOCTOU) race condition",
+      "Cross-site scripting"
+    ],
+    "correct": [
+      2
+    ],
+    "explanation": "A TOCTOU flaw is a race condition where the state of a resource changes between the moment it is validated and the moment it is used, letting an attacker substitute a different target. Buffer overflow, SQL injection, and cross-site scripting are unrelated classes of software vulnerability.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "Under the Common Criteria (ISO/IEC 15408), a vendor's product is evaluated and assigned an EAL4. What does the Evaluation Assurance Level actually indicate?",
+    "options": [
+      "The degree of rigor and depth applied during the evaluation of the product",
+      "That the product is guaranteed to be free of all vulnerabilities",
+      "The classification level of data the product may process",
+      "The specific set of security requirements the customer must implement"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "An EAL (1 through 7) expresses how thoroughly the Target of Evaluation was tested and verified, not how secure it is in absolute terms. It does not guarantee zero vulnerabilities, does not set a data classification, and is distinct from a Protection Profile, which is the implementation-independent set of requirements.",
+    "difficulty": "MEDIUM"
+  }
+]

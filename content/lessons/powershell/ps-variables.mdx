@@ -1,0 +1,224 @@
+---
+title: "Variables and Types"
+module: powershell
+moduleTitle: PowerShell
+moduleOrder: 1
+moduleIcon: Terminal
+order: 3
+summary: "A PowerShell variable always starts with a dollar sign and holds a typed value, and the quote style chosen for a string decides whether PowerShell reads the variables inside it or leaves the text alone."
+estimatedMinutes: 14
+prerequisites: ["ps-cmdlets"]
+objectives:
+  - Create a variable with the $ prefix and explain what PowerShell stores in it
+  - Identify the core types (string, int, double, bool, array) and how PowerShell picks one automatically
+  - Contrast single-quoted and double-quoted strings, including string interpolation
+  - Use arithmetic and comparison operators, and force a type change with a cast like [int]
+tags:
+  - powershell
+  - variables
+  - types
+---
+
+The previous lesson ran cmdlets one at a time and let each one print its own result. That works for a single answer, but a script rarely stops at one step. It needs to hold onto a value from an earlier line and use it three lines later, maybe after doing some arithmetic on it or building a sentence around it. That is what a variable is for.
+
+## A variable is a labeled box for a value
+
+In PowerShell, a variable name always starts with a dollar sign. `$name` is a variable. `$count` is a variable. The dollar sign is not decoration, it is how PowerShell tells a variable apart from a plain word, which might otherwise be mistaken for a cmdlet or a string.
+
+Assignment uses a single equals sign: the variable name on the left, the value on the right.
+
+```powershell
+$name = "Ada"
+$count = 5
+```
+
+Once `$name` holds `"Ada"`, typing `$name` on its own line prints `Ada`. The variable stands in for the value everywhere it is used afterward, whether that is three lines down in the same script or ten cmdlets deep in a pipeline.
+
+```powershell
+$name = "Ada"
+Write-Output $name
+```
+
+<ExpectedOutput label="the variable prints the value stored in it">
+```
+Ada
+```
+</ExpectedOutput>
+
+Nothing has to be declared ahead of time. There is no line that says "this is going to be a variable" before the assignment happens. The first `$name = "Ada"` both creates the variable and gives it a value in one move. Reassigning it later, say `$name = "Grace"`, replaces the old value outright. A variable holds exactly one value at a time, whatever was assigned most recently.
+
+## PowerShell decides the type, based on what is assigned
+
+Every value in PowerShell has a type, meaning a category that determines what can be done with it. Text is one type, whole numbers are another, and so on. PowerShell figures out the type from the value itself, without a separate declaration.
+
+- **String**: text, always written in quotes. `$name = "Ada"` makes `$name` a string.
+- **Int**: a whole number, no decimal point. `$count = 5` makes `$count` an int.
+- **Double**: a number with a decimal point. `$price = 19.99` makes `$price` a double.
+- **Bool**: a true or false value, written as `$true` or `$false`. `$isReady = $true` makes `$isReady` a bool.
+- **Array**: a collection of values in order. `$scores = 1,2,3` makes `$scores` an array holding three ints, and so does `$scores = @(1,2,3)`, which is the same idea written with an explicit `@()` wrapper.
+
+A quick way to see this in action is the `.GetType()` method, which every value carries and which reports its own type back.
+
+```powershell
+$count = 5
+$price = 19.99
+$isReady = $true
+Write-Output $count.GetType().Name
+Write-Output $price.GetType().Name
+Write-Output $isReady.GetType().Name
+```
+
+<ExpectedOutput label="each value reports its own type">
+```
+Int32
+Double
+Boolean
+```
+</ExpectedOutput>
+
+`Int32` is PowerShell's internal name for a whole number that fits in 32 bits, which covers essentially every count a script deals with day to day. The lesson calls it an int, PowerShell's own label is `Int32`, and both refer to the same type. Nobody had to write `Int32 $count = 5` or anything like it. The value `5` had no decimal point and no quotes, so PowerShell assigned it the int type on the spot. Change the value and the type follows: `$count = 5.0` would make `$count` a double instead, because the decimal point changes what the value looks like.
+
+Arrays deserve one more look, because indexing into one uses the same square-bracket pattern seen with strings. Given `$scores = 1,2,3`, `$scores[0]` is `1`, the first item, and `$scores.Count` is `3`, the number of items. Ranges build a sequence quickly: `1..5` is the array `1,2,3,4,5`, without typing each number by hand.
+
+<Quiz
+  id="ps-var-type-inference"
+  question="After running $level = 3.5, what type does PowerShell assign to $level, and why?"
+  answer={1}
+  options={[
+    "String, because every PowerShell variable defaults to text unless told otherwise.",
+    "Double, because the value has a decimal point, which is how PowerShell tells a double apart from an int.",
+    "Bool, because 3.5 is treated as a truthy value.",
+    "Array, because any number by itself is wrapped in a one-item collection.",
+  ]}
+  explanation="PowerShell looks at the value being assigned to decide its type. A decimal point means the value is a double, not an int. There is no default-to-string rule, no truthy-bool conversion for a plain number, and a single number is not wrapped into an array on its own."
+/>
+
+## Single quotes are literal, double quotes look inside themselves
+
+PowerShell has two ways to write a string, and the difference between them matters the moment a variable needs to appear inside one. Double-quoted strings support string interpolation, meaning PowerShell scans the text for a `$variable` and swaps in its current value. Single-quoted strings do neither. Whatever is typed between the single quotes is exactly what gets stored, dollar sign and all.
+
+```powershell
+$name = "Ada"
+Write-Output "Hello $name"
+Write-Output 'Hello $name'
+```
+
+<ExpectedOutput label="double quotes interpolate, single quotes do not">
+```
+Hello Ada
+Hello $name
+```
+</ExpectedOutput>
+
+The first line reads naturally: `"Hello $name"` becomes `Hello Ada`, because PowerShell replaced `$name` with the value it currently holds. The second line looks almost identical but is written with single quotes, and the output shows the literal text `Hello $name`, dollar sign included. PowerShell made no attempt to look inside a single-quoted string at all.
+
+This distinction is worth internalizing early, because it explains a whole category of confusing bugs later on. A script that builds a file path or a message by mixing several variables together needs double quotes to get interpolation. A script that needs to print a literal dollar amount, a regular expression, or any text where a dollar sign should stay a dollar sign, reaches for single quotes on purpose. Neither style is the "right" one in general. The choice depends on whether the dollar sign inside the string is meant to trigger a lookup or not.
+
+Interpolation is not limited to a bare variable name. Arithmetic and property access can go inside double quotes too, wrapped in `$()`, called the subexpression operator, so `"Total: $($count + 1)"` runs the addition and drops the result into the string. That is a detail worth knowing exists, though most everyday interpolation is just a plain `$variable` sitting inside the text.
+
+<Callout type="info" title="Quotes decide behavior, not just appearance">
+It is tempting to treat single and double quotes as a style choice, the way tabs versus spaces might be. They are not interchangeable in PowerShell. Double quotes turn on interpolation; single quotes turn it off. Picking the wrong one either interpolates something that was meant to stay literal, or leaves a dollar sign sitting unresolved in output that was supposed to show a value.
+</Callout>
+
+<Quiz
+  id="ps-quote-styles"
+  question="A variable $city holds the string 'Boston'. What does Write-Output 'City is $city' print?"
+  answer={0}
+  options={[
+    "City is $city, because single quotes are literal and do not look inside the string for a variable.",
+    "City is Boston, because PowerShell always interpolates variables regardless of quote style.",
+    "An error, because a variable cannot appear inside a string at all.",
+    "City is $city.ToString(), because single quotes call ToString on anything found inside.",
+  ]}
+  explanation="Single-quoted strings in PowerShell are taken literally, so $city stays as the literal characters dollar-sign c i t y rather than being replaced by Boston. Interpolation only happens inside double quotes. Nothing about this raises an error, and single quotes do not call any method on the text."
+/>
+
+## Arithmetic and comparison, PowerShell style
+
+Numbers behave the way they do in most languages: `+`, `-`, `*`, and `/` do addition, subtraction, multiplication, and division. Two variables can be combined directly.
+
+```powershell
+$a = 10
+$b = 3
+Write-Output ($a + $b)
+Write-Output ($a - $b)
+Write-Output ($a * $b)
+```
+
+<ExpectedOutput label="plain arithmetic on two int variables">
+```
+13
+7
+30
+```
+</ExpectedOutput>
+
+Comparisons look different from most languages, and this trips people up the first time they see it. Many languages write `==` for equals and `!=` for not equals. PowerShell spells comparisons as words, prefixed with a hyphen: `-eq` for equals, `-ne` for not equals, `-gt` for greater than, `-lt` for less than, `-ge` for greater than or equal, and `-le` for less than or equal. The reason is practical. In a shell, the `>` and `<` characters already mean something else: redirecting output to a file. Reusing them for comparison would collide with that, so PowerShell uses words instead, and every comparison returns a bool, `$true` or `$false`.
+
+```powershell
+$a = 10
+$b = 3
+Write-Output ($a -gt $b)
+Write-Output ($a -eq $b)
+Write-Output ($a -ne $b)
+```
+
+<ExpectedOutput label="each comparison returns a bool">
+```
+True
+False
+True
+```
+</ExpectedOutput>
+
+`$a -gt $b` asks "is 10 greater than 3," and the answer is `True`. `$a -eq $b` asks "does 10 equal 3," and the answer is `False`. These comparisons are the building block for every `if` statement, `Where-Object` filter, and `while` loop later in this module, so getting comfortable with the word-based operators now pays off immediately. `-and`, `-or`, and `-not` combine or invert comparisons the same way `&&`, `||`, and `!` do in other languages, again spelled as words instead of symbols.
+
+## Casting: telling PowerShell to treat a value as a different type
+
+Sometimes a value arrives as the wrong type for what a script needs to do with it. A common case is text that looks like a number. Reading a line from a file or a user prompt hands back a string even if that string is `"5"`, and adding two strings together does not do arithmetic, it glues the text end to end.
+
+```powershell
+$textNumber = "5"
+Write-Output ($textNumber + $textNumber)
+```
+
+<ExpectedOutput label="adding two strings glues them together, it does not add numbers">
+```
+55
+```
+</ExpectedOutput>
+
+`"5" + "5"` produced `55`, not `10`, because both sides were strings, and `+` on strings means concatenation, not addition. Casting fixes this by forcing PowerShell to treat the value as a specific type. Casting is written as the type name in square brackets placed right before the value: `[int]"5"` takes the string `"5"` and produces the int `5`.
+
+```powershell
+$textNumber = "5"
+$realNumber = [int]$textNumber
+Write-Output ($realNumber + $realNumber)
+```
+
+<ExpectedOutput label="casting to int makes + do addition instead of gluing text">
+```
+10
+```
+</ExpectedOutput>
+
+`[int]$textNumber` reads as "treat this value as an int from now on." Once `$realNumber` holds the int `5` instead of the string `"5"`, `$realNumber + $realNumber` does ordinary addition and returns `10`. The same idea works in reverse: `[string]5` turns the int `5` into the string `"5"`, which is useful when a number needs to be glued into a larger piece of text rather than added to something. `[double]"3.5"` casts a string into a double the same way `[int]` casts into a whole number.
+
+Casting matters most whenever data enters a script from the outside, a file, a network response, a person typing at a prompt, because that data nearly always arrives as text first, whether or not it looks like a number.
+
+<Quiz
+  id="ps-casting"
+  question="A script has $raw = &quot;10&quot; and needs to add 5 to it as a number, getting 15. Which line does that correctly?"
+  answer={3}
+  options={[
+    "$raw + 5, since PowerShell always converts strings to numbers automatically inside addition.",
+    "$raw.ToInt(5), calling a built-in ToInt method with the number to add.",
+    "[string]$raw + 5, casting to string first so the numbers can combine.",
+    "[int]$raw + 5, casting the string to an int first so + performs numeric addition.",
+  ]}
+  explanation="Casting with [int] converts the string '10' into the int 10, and only then does + perform addition, giving 15. PowerShell does not auto-convert a string to a number inside +, it would concatenate instead. There is no built-in ToInt method taking an argument like that, and casting to [string] moves in the wrong direction, since it would produce text concatenation instead of arithmetic."
+/>
+
+## What carries forward
+
+Variables, types, quoting, arithmetic, and casting show up in nearly every line of PowerShell from here on. The pipeline work in the previous lesson already leaned on comparisons inside `Where-Object`, and the flow-control lessons ahead build directly on the `-eq`, `-gt`, and bool results covered here: an `if` statement is, underneath, just running a comparison and branching on whether it came back `$true` or `$false`. Knowing that `-eq` is a comparison and not an assignment, and that `[int]` forces a string into real math, removes two of the most common early mistakes before they happen.

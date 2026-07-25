@@ -1,0 +1,43 @@
+---
+title: Power Digit Sum
+summary: Add up every decimal digit of 2 raised to the power 1000.
+track: make
+category: math
+difficulty: EASY
+tags: [big-integers, digits, exponentiation]
+answer: 1366
+answerType: number
+starterLang: python
+starter: |
+  # Goal: compute 2**1000, then sum its decimal digits.
+  # Python integers are arbitrary precision, so 2**1000 is exact.
+  n = 2 ** 1000
+  digits = str(n)
+  total = 0
+  # add each digit of the number
+  # ...
+  print("replace me")
+hints:
+  - 2**1000 has 302 digits. Never approximate it with a float, floats lose precision far below this size.
+  - Convert the integer to a string, then walk character by character and add int(ch) each step.
+  - sum(int(ch) for ch in str(2 ** 1000)) does the whole job in one line.
+---
+
+## Power Digit Sum
+
+The number 2 raised to the power 15 is 32768, and the sum of its digits is
+3 + 2 + 7 + 6 + 8 = 26.
+
+Your job is the same operation at a much larger scale.
+
+Compute 2 raised to the power 1000 (that is, 2^1000), then add up all of its
+decimal digits.
+
+Python integers are arbitrary precision, so `2 ** 1000` gives the exact value
+with no rounding. Do not use floating point or scientific notation, those would
+throw away the low digits you need.
+
+### What to submit
+
+Run your code, read the printed total, and submit that single number: the sum
+of the decimal digits of 2^1000.

@@ -1,0 +1,68 @@
+---
+title: Correlation and Alerting
+module: siem-and-log-analysis
+moduleTitle: SIEM and Log Analysis
+moduleOrder: 25
+moduleIcon: ScrollText
+order: 4
+summary: One failed login is nothing. Fifty, then a success, then a new admin account is an incident.
+estimatedMinutes: 21
+objectives:
+  - Explain how correlation stitches multiple events into a single high-fidelity alert
+  - Build a sequence rule that fires only when events happen in order and in time
+  - Set thresholds and time windows that catch the attack without burying the analyst
+tags:
+  - siem
+  - correlation
+  - alerting
+  - detection-engineering
+---
+
+A single Event ID 4625 is a typo. A single 4720 is HR onboarding someone. Neither is worth an analyst's morning. But 4625 fifty times from one IP, then a 4624 success from that same IP, then a 4720 creating a new account, then a 4728 dropping it into Domain Admins, all inside five minutes, is an attacker who just got in and set up shop. Correlation is the SIEM noticing that sequence and firing one alert instead of fifty-three unrelated rows.
+
+The goal is fidelity. A raw detection on 4625 pages you a thousand times a day and you learn to ignore it. A correlation that only fires when the whole chain lines up pages you rarely, and when it does, you move.
+
+## Threshold rules: too many, too fast
+
+The simplest correlation is a count over a window. "More than twenty failed logins from one source in five minutes" is a threshold rule, and it turns a stream of individual events into one alert per source.
+
+<CommandCard command='index=wineventlog EventCode=4625 | bucket _time span=5m | stats count as fails by _time, src_ip | where fails > 20' explain="Bucket events into five-minute windows, count failures per source per window, and alert when a single source crosses twenty. The window is what makes the count meaningful, twenty fails over a month is noise, twenty in five minutes is an attack." />
+
+Pick the window deliberately. Too wide and a slow spray slips under the threshold. Too narrow and you miss the low-and-slow attacker who paces themselves to one attempt every ten seconds. There is no universal number, you tune it against your own baseline.
+
+## Sequence rules: order matters
+
+The real power is correlating different event types in a specific order. Splunk's `transaction` command and Sentinel's sequence analytics let you say "A, then B, then C, by the same host, within N minutes." That ordering is what separates a real attack chain from three coincidences.
+
+<CommandBlock
+  commands={[
+    { cmd: "1. Event 4625 x20+ from src_ip", comment: "the brute force or spray attempt" },
+    { cmd: "2. Event 4624 from the same src_ip", comment: "one of them finally succeeded" },
+    { cmd: "3. Event 4720 on the target host", comment: "attacker creates a persistence account" },
+    { cmd: "4. Event 4728 into a privileged group", comment: "they escalate it, within 10 minutes of step 1" },
+  ]}
+/>
+
+Each step alone is common. Chained in that order, on the same actor, inside a tight window, the false-positive rate drops to near zero. That is a correlation worth waking someone up for.
+
+<Callout type="info" title="Correlation is where the SIEM earns its license fee">
+Anyone can grep a single log. Joining authentication, process creation, and network events from different sources into one timeline is the job you bought a SIEM to do. If your platform is only running single-event alerts, you are paying enterprise money for grep.
+</Callout>
+
+## Not every alert should page a human
+
+Rank alerts by severity and route them accordingly. A correlated privilege-escalation chain is a page-someone-now event. A single anomalous login is a queue-it-for-triage event. Sending both at the same volume and urgency is how you train analysts to ignore the console, which brings us to the next lesson.
+
+<Callout type="security" title="Handle alert data responsibly">
+Correlated alerts bundle usernames, source IPs, hostnames, and account changes into one record. Build and test correlation rules only against data from systems you are authorized to monitor, and keep alert output inside your approved tooling. The richer the alert, the more sensitive it is.
+</Callout>
+
+<Exercise
+  id="siem-correlation-window"
+  prompt="You build a rule: '4625 x20, then 4624, then 4720, same source, within 30 minutes.' It never fires during a real breach where the attacker created the account 45 minutes after logging in. What single parameter do you change, and what is the risk of overcorrecting?"
+  answer="Widen the time window from 30 minutes to something like 60 or 90 minutes so the account-creation step still falls inside it. The risk of going too wide is that unrelated benign events start landing in the same window and the correlation loses fidelity, raising false positives."
+>
+The sequence logic was right, the window was too tight to contain the real attacker's pace. Widen it, but every minute you add increases the chance of coincidental events chaining together, so tune it against your baseline rather than maximizing it.
+</Exercise>
+
+<Notes />

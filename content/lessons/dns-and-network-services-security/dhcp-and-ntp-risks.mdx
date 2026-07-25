@@ -1,0 +1,77 @@
+---
+title: DHCP and NTP Risks
+module: dns-and-network-services-security
+moduleTitle: DNS and Network Services Security
+moduleOrder: 51
+moduleIcon: Waypoints
+order: 4
+summary: The services that hand out addresses and set the clock decide who you trust.
+estimatedMinutes: 16
+objectives:
+  - Explain how a rogue DHCP server becomes a man in the middle
+  - Show why a wrong clock quietly breaks authentication and TLS
+  - Spot the signs of DHCP and NTP abuse on a network you defend
+tags:
+  - dhcp
+  - ntp
+  - mitm
+  - "time"
+---
+
+Two services run so quietly that most people forget they exist, and both hand out something every other system trusts without checking. DHCP tells a machine its address, its gateway, and which DNS server to ask. NTP tells it what time it is. Corrupt either one and you have not broken a single application directly, yet you have compromised all of them.
+
+## Rogue DHCP: owning the defaults
+
+When a laptop joins a network, it shouts a **DHCPDISCOVER** to the broadcast address asking for configuration. Whatever server answers first with a **DHCPOFFER** usually wins. There is no authentication in that exchange. The client believes the first plausible answer.
+
+Stand up your own DHCP server on the same segment and race the legitimate one, and you get to dictate the winning client's settings. The two fields that matter to an attacker are the **default gateway** and the **DNS server**. Set the gateway to your box and every packet the victim sends off-subnet routes through you. Set the DNS server to your box and you answer every name lookup they make, which folds the whole previous lesson's poisoning problem into a single handout.
+
+<CommandBlock
+  title="analyst@workstation: read the lease you were handed"
+  commands={[
+    { cmd: "ip route show default", comment: "which gateway is this host actually using" },
+    { cmd: "cat /etc/resolv.conf", comment: "which DNS server did DHCP hand us" },
+    { cmd: "nmcli device show | grep -i dns", comment: "confirm the resolver on a NetworkManager box" },
+  ]}
+/>
+
+If the gateway or DNS server on a client does not match what the network admin configured, that is the alarm. The fix on managed switches is **DHCP snooping**, which only trusts DHCP replies from a designated port and drops offers from anywhere else. Without it, any host on the LAN can play server.
+
+<Callout type="security" title="Rogue DHCP hits bystanders, so isolate it">
+A rogue DHCP server does not politely target one victim. It answers whoever races fastest, and on a busy segment that can be dozens of unrelated machines whose traffic suddenly routes through you. Practice this only on an isolated lab network you fully own, never on shared or corporate wireless, because the collateral sweeps in people who were never part of your test.
+</Callout>
+
+## Time is a security dependency
+
+Nobody thinks of the clock as an attack surface until it drifts. Then things break in confusing ways, because a surprising amount of security assumes the time is roughly correct.
+
+Kerberos rejects tickets whose timestamp is off by more than a few minutes, five by default, to stop replay. Push a domain-joined machine's clock far enough and its authentication simply stops working. TLS certificates have a validity window; move the clock past a cert's expiry and validation fails, or move it back before a revoked cert's revocation and you might accept something you should not. TOTP two-factor codes are derived from the current time, so a skewed clock rejects valid codes. MFA logs, forensic timelines, and log correlation all lean on synchronized time to line events up.
+
+NTP is what keeps clocks aligned, and classic NTP has no authentication either. A machine that trusts an attacker-controlled time source can be nudged. The subtle version is not slamming the clock to 1970, which is obvious, but easing it minutes at a time until Kerberos or a cert check quietly fails and someone blames a flaky server.
+
+<CommandCard command="chronyc tracking" title="analyst@workstation" explain="Shows the current time source, the offset from it, and how far the local clock has drifted. Large or moving offsets, or an unexpected reference source, are worth investigating." />
+
+The defense is boring and effective. Point every host at a small set of trusted internal NTP servers, block outbound NTP to arbitrary internet sources at the firewall, and alert on clients whose offset jumps. A network where every machine agrees on the time within a second is one where the time-based attacks have nowhere to stand.
+
+<Quiz
+  id="rogue-dhcp-fields"
+  question="Which two DHCP-supplied values give a rogue server the most control over a victim's traffic?"
+  answer={2}
+  options={[
+    "Lease time and subnet mask",
+    "Hostname and domain suffix",
+    "Default gateway and DNS server",
+    "Broadcast address and NTP server",
+  ]}
+  explanation="Setting the gateway to the attacker routes off-subnet traffic through them, and setting the DNS server lets them answer every lookup. Together they give a full man-in-the-middle position from one DHCP offer."
+/>
+
+<Exercise
+  id="ntp-kerberos-skew"
+  prompt="A domain-joined workstation suddenly cannot authenticate, and its clock is nine minutes ahead of the domain controller. In one sentence, why does the login fail?"
+  answer="Kerberos rejects tickets whose timestamp skews more than the allowed tolerance, five minutes by default, so a nine-minute drift makes every ticket look invalid."
+>
+The account and password are fine. Think about what Kerberos checks besides the credential.
+</Exercise>
+
+<Notes />

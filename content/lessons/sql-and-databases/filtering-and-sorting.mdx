@@ -1,0 +1,268 @@
+---
+title: Filtering and Sorting
+module: sql-and-databases
+moduleTitle: SQL and Databases
+moduleOrder: 4
+moduleIcon: Database
+order: 3
+summary: "A whole table is rarely the question. WHERE, ORDER BY, and LIMIT pull just the rows that matter, in the order you want them."
+estimatedMinutes: 15
+prerequisites: [querying-with-select]
+objectives:
+  - Filter rows with WHERE using the comparison operators =, <>, <, >, <=, and >=
+  - Combine conditions with AND and OR, and control precedence with parentheses
+  - Match rows using BETWEEN, IN, LIKE, and IS NULL while avoiding the = NULL trap
+  - Sort results with ORDER BY and cap them with LIMIT to write top-N queries
+tags:
+  - sql
+  - where
+---
+
+The last lesson, querying with select, ended on a query that returned columns from every row in a table. That works right up until the table holds fifty thousand rows and the real question is about six of them. Nobody walks up to a database and asks for every book it stores. They ask which books a particular author wrote, or what the three longest ones are, or which ones are missing a rating. The answer is almost never the whole table. It is the rows that match a condition, handed back in an order that makes them readable.
+
+SELECT chose the columns. This lesson chooses the rows, and then decides what order they arrive in. Three keywords do the whole job: WHERE narrows a result to rows that pass a test, ORDER BY sorts what survives, and LIMIT caps how many come back.
+
+Every query below runs against one small table called `books`. Here is all of it, so each result later has real data standing behind it:
+
+| id | title | author | year | pages | rating |
+|----|-------|--------|------|-------|--------|
+| 1 | The Dispossessed | Le Guin | 1974 | 341 | 5 |
+| 2 | A Wizard of Earthsea | Le Guin | 1968 | 205 | 4 |
+| 3 | Neuromancer | Gibson | 1984 | 271 | 5 |
+| 4 | Snow Crash | Stephenson | 1992 | 470 | 4 |
+| 5 | The Left Hand of Darkness | Le Guin | 1969 | 304 | NULL |
+| 6 | Dune | Herbert | 1965 | 412 | 5 |
+| 7 | Foundation | Asimov | 1951 | 244 | 3 |
+
+Seven rows is small enough to check every query by eye, which is the point. Once the behavior is obvious on seven rows, it is identical on seven million.
+
+## WHERE keeps the rows that match
+
+A WHERE clause is a test the database runs once per row. If the test comes back true, the row stays in the result. If it comes back false, the row is dropped. The keyword goes after the table name, and everything after it is a condition that evaluates to true or false.
+
+```sql
+SELECT title, year FROM books WHERE year > 1980;
+```
+
+The engine walks every row, checks whether `year > 1980`, and keeps only the ones where that holds:
+
+| title | year |
+|-------|------|
+| Neuromancer | 1984 |
+| Snow Crash | 1992 |
+
+Five books published in 1980 or earlier never make it into the result. They were read, tested, and rejected. That is the mental model to hold: WHERE does not reach into a magic index of matching rows, it evaluates a condition against each row and keeps the winners.
+
+The condition is built from comparison operators, and there are six worth knowing cold:
+
+- `=` equal to. `WHERE author = 'Le Guin'` matches the three Le Guin rows.
+- `<>` not equal to. `WHERE author <> 'Le Guin'` matches the other four. Some databases also accept `!=`, but `<>` is the standard spelling.
+- `<` less than, and `>` greater than. Strict, so the boundary value itself does not match.
+- `<=` and `>=` less than or equal, greater than or equal. These include the boundary.
+
+Text values go in single quotes, like `'Le Guin'`. Numbers do not. That single detail trips up more beginners than any operator, because `WHERE author = Le Guin` without quotes makes the database hunt for a column named `Le` and then a column named `Guin`, and the error message rarely says so plainly.
+
+The difference between `>` and `>=` is not a footnote. `WHERE pages > 341` drops the book with exactly 341 pages. `WHERE pages >= 341` keeps it. On a filter that decides who gets flagged, who gets paid, or who gets an alert, that one character is the entire behavior.
+
+On a seven-row table the engine checks every row, and that is fine. On a large table the WHERE clause is also what lets the engine skip most of the work: a column with an index lets it jump straight to matching rows instead of scanning all of them. The condition is the thing that makes a query fast or slow, which is a topic for a later lesson. The habit starts here, though. Ask for the rows that answer the question, rather than pulling the whole table and sifting it by hand afterward.
+
+<Quiz
+  id="filter-inclusive-comparison"
+  question="Against the books table, SELECT title FROM books WHERE pages >= 341 returns which titles?"
+  answer={1}
+  options={[
+    "Snow Crash and Dune only, because 341 is not greater than 341",
+    "Snow Crash, Dune, and The Dispossessed, because >= includes the row that equals 341",
+    "Every row, because every book has at least 341 pages",
+    "No rows, because pages is stored as text and cannot be compared",
+  ]}
+  explanation="The >= operator is greater-than-or-equal, so the row with exactly 341 pages (The Dispossessed) passes the test alongside the longer Snow Crash and Dune. A plain > would have dropped the 341-page row. The other options misread the operator or invent facts about the data."
+/>
+
+## Combining conditions: AND, OR, and the parentheses that decide the answer
+
+One condition is often not enough. Real questions stack them: books by Le Guin published after 1970, or books that are either short or highly rated. Two keywords join conditions. `AND` keeps a row only when both sides are true. `OR` keeps a row when at least one side is true.
+
+```sql
+SELECT title, year FROM books WHERE author = 'Le Guin' AND year > 1970;
+```
+
+Both halves must hold, so only one row survives:
+
+| title | year |
+|-------|------|
+| The Dispossessed | 1974 |
+
+The other two Le Guin books were published in 1968 and 1969, so they pass the author test but fail the year test, and `AND` needs both. Swap in `OR` and the result changes character completely, because now passing either test is enough to stay.
+
+The trap appears the moment a query mixes `AND` and `OR` in the same WHERE clause. SQL does not read left to right. It evaluates `AND` before `OR`, the same way arithmetic multiplies before it adds. Look at what that does here:
+
+```sql
+SELECT title, author, year FROM books
+WHERE author = 'Le Guin' OR author = 'Gibson' AND year > 1980;
+```
+
+Because `AND` binds tighter, the database reads this as `author = 'Le Guin' OR (author = 'Gibson' AND year > 1980)`. The Le Guin rows all pass the left side of the OR outright, and the only Gibson book after 1980 is Neuromancer. Four rows come back:
+
+| title | author | year |
+|-------|--------|------|
+| The Dispossessed | Le Guin | 1974 |
+| A Wizard of Earthsea | Le Guin | 1968 |
+| The Left Hand of Darkness | Le Guin | 1969 |
+| Neuromancer | Gibson | 1984 |
+
+That is almost certainly not the question someone meant to ask. The intent was probably "books by either author, but only if published after 1980." Parentheses force that grouping, because whatever sits inside them is evaluated first:
+
+```sql
+SELECT title, author, year FROM books
+WHERE (author = 'Le Guin' OR author = 'Gibson') AND year > 1980;
+```
+
+Now the OR resolves first, narrowing to the four Le Guin and Gibson books, and the year filter runs against that group. Every Le Guin title predates 1980, so exactly one row survives:
+
+| title | author | year |
+|-------|--------|------|
+| Neuromancer | Gibson | 1984 |
+
+Same six words, wildly different answers, and nothing warns you. The habit that saves hours: when a WHERE clause contains both `AND` and `OR`, add parentheses even when the default precedence happens to be right. The parentheses cost nothing and they make the intent unmistakable to the next person reading the query, who is often the same person a month later.
+
+<Quiz
+  id="filter-and-or-precedence"
+  question="SQL evaluates AND before OR. Given WHERE author = 'Le Guin' OR author = 'Gibson' AND year > 1980, which books match?"
+  answer={0}
+  options={[
+    "The three Le Guin books plus Neuromancer, because AND binds tighter and groups the Gibson-and-year test first",
+    "Only Neuromancer, because all three conditions must hold at once",
+    "No rows, because a single book cannot be by both Le Guin and Gibson",
+    "Every book in the table, because OR always matches something",
+  ]}
+  explanation="AND has higher precedence, so the engine reads the clause as author = 'Le Guin' OR (author = 'Gibson' AND year > 1980). The three Le Guin rows satisfy the left side of the OR, and Neuromancer is the one Gibson book after 1980, for four rows total. Wrapping the OR in parentheses would instead force just Neuromancer."
+/>
+
+## Operators that save typing: BETWEEN, IN, LIKE, and IS NULL
+
+A handful of operators express common filters more clearly than a pile of `AND` and `OR`. They are worth learning because clearer conditions have fewer bugs.
+
+`BETWEEN` matches a range, and it is inclusive on both ends. `WHERE year BETWEEN 1965 AND 1974` is the same as `year >= 1965 AND year <= 1974`, just shorter and harder to typo:
+
+```sql
+SELECT title, year FROM books WHERE year BETWEEN 1965 AND 1974;
+```
+
+| title | year |
+|-------|------|
+| The Dispossessed | 1974 |
+| A Wizard of Earthsea | 1968 |
+| The Left Hand of Darkness | 1969 |
+| Dune | 1965 |
+
+Both 1965 and 1974 land inside the range, which is the part people forget. `BETWEEN` is not exclusive.
+
+`IN` checks membership in a list. Writing `WHERE author = 'Gibson' OR author = 'Herbert'` gets tedious fast, and `IN` collapses it:
+
+```sql
+SELECT title, author FROM books WHERE author IN ('Gibson', 'Herbert');
+```
+
+| title | author |
+|-------|--------|
+| Neuromancer | Gibson |
+| Dune | Herbert |
+
+`LIKE` does pattern matching on text, and the `%` sign stands for any run of characters, including none. `WHERE title LIKE 'The %'` finds every title that starts with the word "The" and a space:
+
+```sql
+SELECT title FROM books WHERE title LIKE 'The %';
+```
+
+| title |
+|-------|
+| The Dispossessed |
+| The Left Hand of Darkness |
+
+Put `%` on both sides, as in `LIKE '%Hand%'`, to match the pattern anywhere inside the value. There is also `_`, which matches exactly one character, but `%` carries most of the weight in practice.
+
+One caveat on `LIKE` bites everyone once. In SQLite it is case-insensitive for plain ASCII letters, so `LIKE 'the %'` matches "The Dispossessed" just as well as the capitalized pattern did. Other databases treat `LIKE` as case-sensitive and offer a separate `ILIKE` for the insensitive version. When a pattern match returns more or fewer rows than expected, case handling is the first thing to check, not the pattern itself.
+
+`IS NULL` is the odd one, and it earns its own operator because NULL is not a value. NULL means "no value recorded," which is different from zero and different from an empty string. The book with a missing rating stores NULL there, and this is how to find it:
+
+```sql
+SELECT title, rating FROM books WHERE rating IS NULL;
+```
+
+| title | rating |
+|-------|--------|
+| The Left Hand of Darkness | NULL |
+
+The reason `IS NULL` exists, instead of just writing `rating = NULL`, is the single most common SQL surprise there is.
+
+<Callout type="warning" title="rating = NULL never matches anything">
+NULL means "unknown," and in SQL any comparison against an unknown is itself unknown, not true. So `WHERE rating = NULL` asks "is this unknown equal to unknown," the engine answers "unknown," and an unknown result is treated as false, so the row is dropped. The query runs without error and returns zero rows every time, which reads like a bug in the data when it is really a bug in the condition. Use `IS NULL` to find missing values and `IS NOT NULL` to find present ones. The `=` and `<>` operators simply do not work on NULL.
+</Callout>
+
+## ORDER BY sorts the result, and LIMIT caps it
+
+Filtering decides which rows come back. It says nothing about their order. Without an `ORDER BY`, a database is free to hand rows back in whatever order is fastest for it, which often looks like insertion order but is not guaranteed to stay that way. When order matters, say so.
+
+`ORDER BY` takes a column and sorts on it. Add `ASC` for ascending or `DESC` for descending. Ascending is the default, so `ORDER BY pages` and `ORDER BY pages ASC` are the same thing. To rank the longest books first, sort descending:
+
+```sql
+SELECT title, pages FROM books ORDER BY pages DESC;
+```
+
+| title | pages |
+|-------|-------|
+| Snow Crash | 470 |
+| Dune | 412 |
+| The Dispossessed | 341 |
+| The Left Hand of Darkness | 304 |
+| Neuromancer | 271 |
+| Foundation | 244 |
+| A Wizard of Earthsea | 205 |
+
+When two rows tie on the sort column, their order relative to each other is undefined unless a second column settles it. `ORDER BY` accepts a comma-separated list for exactly that: `ORDER BY rating DESC, pages DESC` sorts by rating first and, among books that share a rating, by page count. The columns apply left to right, so the first one dominates and each later one only breaks ties the earlier ones left open. Tie-breakers matter most when the sort feeds a `LIMIT`, because an unstable order can change which rows fall inside the cut.
+
+NULL has to sort somewhere too. SQLite places NULLs first on an ascending sort and last on a descending one, so the book with no rating lands at one end of the result. Other databases order NULLs differently, and some accept `ORDER BY rating DESC NULLS LAST` to state it outright. When a missing value shows up in a surprising position, this rule is usually the reason.
+
+`LIMIT n` caps the number of rows returned to at most `n`. On its own, `LIMIT 3` is close to useless, because it stops after three rows in whatever order the engine happened to produce, and those three are not special. Paired with `ORDER BY`, though, `LIMIT` becomes one of the most-used patterns in all of SQL: the top-N query. Sort by the thing that matters, then keep the first few.
+
+<CommandCard command="sqlite3 library.db" title="sqlite3" explain="Opens the SQLite command-line client against a database file named library.db, ready to accept the query below." />
+
+```sql
+SELECT title, pages FROM books ORDER BY pages DESC LIMIT 3;
+```
+
+<ExpectedOutput label="the three longest books">
+```
+title             pages
+----------------  -----
+Snow Crash        470
+Dune              412
+The Dispossessed  341
+```
+</ExpectedOutput>
+
+Order first, cut second. The database sorts all seven rows by page count descending, then `LIMIT 3` slices off everything past the third. Flip the sort to `ASC` and the same query returns the three shortest. That single shape, `ORDER BY something DESC LIMIT n`, answers a huge share of the questions anyone actually brings to a table: newest orders, biggest spenders, slowest requests, most recent errors.
+
+The full order of the clauses is fixed, and the database enforces it: `SELECT` columns, `FROM` table, `WHERE` condition, `ORDER BY` sort, `LIMIT` cap. Write them out of order and the parser rejects the query. Reading a query in that same order, top to bottom, is also how to reason about what it returns: pick columns, from a table, keep matching rows, sort them, keep the first few.
+
+<Quiz
+  id="filter-limit-needs-order"
+  question="To return the three longest books, why is SELECT title FROM books LIMIT 3 not enough on its own?"
+  answer={2}
+  options={[
+    "LIMIT 3 automatically sorts by length, so it already returns the longest",
+    "LIMIT 3 returns the three shortest books instead of the longest",
+    "LIMIT caps the row count but does not sort, so without ORDER BY pages DESC it returns three arbitrary rows, not the longest",
+    "LIMIT only works on numeric columns, so it fails on a text column like title",
+  ]}
+  explanation="LIMIT stops after n rows in whatever order the engine produced them, which is not guaranteed to be by page count. Only ORDER BY pages DESC before the LIMIT makes the three rows the longest three. The other options credit LIMIT with sorting behavior it does not have."
+/>
+
+<Exercise title="Build a top-N query from scratch">
+Against the books table, write one query that returns the title and rating of the three highest-rated books, best first, and excludes the book whose rating is missing. Start with a WHERE clause using IS NOT NULL to drop the missing-rating row, then add ORDER BY rating DESC, then cap it with LIMIT 3. Run it, then change DESC to ASC and confirm the order flips. If you get four or more rows back, check that your LIMIT is actually the last clause in the statement.
+</Exercise>
+
+WHERE, ORDER BY, and LIMIT give a single table its shape: the right rows, sorted, trimmed. The next lesson, relationships and joins, breaks the one-table ceiling. Real data is split across many tables on purpose, a books table here and an authors table there, and a join is how a query pulls from more than one at a time and stitches the pieces back into a single result. The filtering and sorting from this lesson still applies. It just runs over the combined rows a join produces.
+
+<Notes />

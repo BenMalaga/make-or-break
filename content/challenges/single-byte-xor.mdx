@@ -1,0 +1,42 @@
+---
+title: Single Byte
+summary: A flag was XORed with one secret byte. Brute force the key and read it back.
+track: break
+category: crypto
+difficulty: MEDIUM
+tags: [xor, brute-force, cipher]
+daily: true
+answer: "MOB{xor_one_byte_key}"
+answerType: flag
+starterLang: python
+starter: |
+  # The hex below is the flag XORed byte-by-byte with one secret key (1-255).
+  # Try all 256 keys and keep the one whose plaintext starts with "MOB{".
+  cipher = bytes.fromhex("171518212235280535343f0538232e3f05313f2327")
+
+  for key in range(256):
+      guess = bytes(b ^ key for b in cipher)
+      if guess.startswith(b"MOB{"):
+          print(guess.decode())
+          break
+hints:
+  - XOR is symmetric. If cipher = plain XOR key, then plain = cipher XOR key with the same key.
+  - There are only 256 possible single-byte keys. Try every one of them.
+  - The correct key produces text that starts with "MOB{" and ends with "}". Submit that flag exactly.
+---
+
+A single-byte XOR cipher takes each byte of the message and combines it with the
+same secret key byte using XOR. It looks scrambled, but it offers almost no
+security: the key is just one byte, so there are only 256 possibilities. You can
+try them all in a fraction of a second.
+
+Here is the ciphertext as a hex string:
+
+```
+171518212235280535343f0538232e3f05313f2327
+```
+
+Decode the hex into raw bytes, then for each candidate key from 0 to 255, XOR
+every byte with that key. The right key gives readable plaintext in the form
+`MOB{...}`. Recognize it by the `MOB{` prefix, then submit the flag exactly as
+it reads, braces included.

@@ -1,0 +1,146 @@
+[
+  {
+    "domain": 2,
+    "question": "An Azure Network Security Group has an inbound rule at priority 200 that denies TCP 3389 and another inbound rule at priority 150 that allows TCP 3389 from a specific trusted IP. How is traffic from that trusted IP on port 3389 handled?",
+    "options": ["Denied, because a deny rule always overrides an allow rule", "Allowed, because the rule at priority 150 is evaluated before the rule at priority 200", "Both rules are skipped and the DenyAllInBound default rule applies", "Allowed only after the priority 200 deny rule is deleted"],
+    "correct": [1],
+    "explanation": "NSG rules are processed in priority order from the lowest number to the highest, and the first matching rule decides the action. Priority 150 (allow) is evaluated before priority 200 (deny), so matching traffic is allowed and lower-priority rules are never reached. Lower priority numbers have higher precedence.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A team needs an NSG rule that permits outbound traffic to Azure Storage in the East US region without hardcoding and maintaining Microsoft's storage IP ranges. What should they specify as the destination?",
+    "options": ["A manually curated IP prefix list updated each month", "The Storage service tag (for example, Storage.EastUS)", "An application security group containing the storage account", "The VirtualNetwork service tag"],
+    "correct": [1],
+    "explanation": "Service tags represent groups of IP addresses for an Azure service that Microsoft keeps up to date automatically, so a rule can reference Storage or a regional variant like Storage.EastUS without managing addresses by hand. Application security groups group your own VMs, and VirtualNetwork represents the VNet address space. The Storage service tag keeps the rule current automatically.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "You must apply the same NSG rules to a dynamic set of web-tier VMs whose IP addresses change as a scale set grows and shrinks. Which feature lets you write NSG rules against the group instead of individual addresses?",
+    "options": ["Service tags", "Application security groups (ASGs)", "Private endpoints", "Route tables"],
+    "correct": [1],
+    "explanation": "Application security groups let you group VM network interfaces logically and reference that group as the source or destination in NSG rules, so membership rather than IP addresses drives the rule. Service tags cover Azure service ranges, not your own VMs, and route tables control routing rather than filtering. ASGs remove the need to edit rules as instances come and go.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Before Azure Firewall can be deployed into a virtual network, which dedicated subnet must already exist with an exact name?",
+    "options": ["GatewaySubnet", "AzureBastionSubnet", "AzureFirewallSubnet", "DefaultSubnet"],
+    "correct": [2],
+    "explanation": "Azure Firewall requires a dedicated subnet named exactly AzureFirewallSubnet, sized at least /26. GatewaySubnet is used by VPN and ExpressRoute gateways, and AzureBastionSubnet is used by Azure Bastion. The subnet name must match exactly or the deployment fails.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "In Azure Firewall, in what order are the rule collection types evaluated for a packet?",
+    "options": ["Application rules, then network rules, then DNAT rules", "DNAT rules, then network rules, then application rules", "Network rules, then DNAT rules, then application rules", "Rules are evaluated in the order they were created regardless of type"],
+    "correct": [1],
+    "explanation": "Azure Firewall processes DNAT rules first, then network rules, then application rules. If a network rule matches the traffic, application rules are not evaluated, so Layer 3 and Layer 4 rules take precedence over Layer 7 application rules. Knowing this order is essential to predict which rule wins.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An organization needs Azure Firewall to decrypt outbound TLS sessions and run signature-based intrusion detection and prevention (IDPS) on the traffic. Which Azure Firewall SKU is required?",
+    "options": ["Basic", "Standard", "Premium", "Standard with a WAF policy attached"],
+    "correct": [2],
+    "explanation": "TLS inspection, IDPS, URL filtering, and web category filtering are features of the Azure Firewall Premium SKU. The Basic and Standard SKUs provide network and application rule filtering plus threat intelligence but cannot decrypt TLS or run IDPS. A WAF policy applies to Application Gateway or Front Door, not to Azure Firewall.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "You want Azure Firewall to allow outbound HTTPS only to *.windowsupdate.com and block all other web destinations for a subnet. Which Azure Firewall rule type filters HTTP and HTTPS traffic by fully qualified domain name?",
+    "options": ["DNAT rule", "Network rule", "Application rule", "NSG rule"],
+    "correct": [2],
+    "explanation": "Application rules filter outbound HTTP, HTTPS, and MSSQL traffic by FQDN, including wildcard FQDNs and FQDN tags, so an application rule can allow *.windowsupdate.com. Network rules filter by IP address, port, and protocol, and DNAT rules translate inbound traffic. Application rules operate at Layer 7 for web traffic.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An Azure DDoS Network Protection plan has been created. To protect the public IP addresses of resources, at what level is that plan associated?",
+    "options": ["On each individual public IP resource", "At the virtual network level", "At the subscription's management group", "On the NSG associated with each subnet"],
+    "correct": [1],
+    "explanation": "A DDoS Network Protection plan is associated with a virtual network, and the protected public IP resources within that VNet then receive adaptive tuning, telemetry, and mitigation. By contrast, the newer DDoS IP Protection tier is enabled per public IP, and the always-on infrastructure tier is free. Network Protection is scoped to the VNet.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Azure DDoS Protection mitigates volumetric and protocol attacks at the network layers. To also protect a web application from Layer 7 attacks such as HTTP floods and SQL injection, what should be added?",
+    "options": ["A Web Application Firewall (WAF) policy on Application Gateway or Azure Front Door", "A larger AzureFirewallSubnet", "A second DDoS Network Protection plan", "A service endpoint for the web application"],
+    "correct": [0],
+    "explanation": "DDoS Protection defends against Layer 3 and Layer 4 volumetric and protocol attacks but does not inspect application-layer content. A WAF on Application Gateway or Azure Front Door adds Layer 7 protection against HTTP floods through rate limiting and against OWASP threats such as SQL injection. DDoS Protection and WAF are complementary and cover different layers.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Which statement correctly distinguishes an Azure private endpoint from a virtual network service endpoint for a PaaS service such as Azure Storage?",
+    "options": ["Both assign a public IP address to the storage account inside your VNet", "A private endpoint assigns a private IP from your VNet to the service through Azure Private Link, while a service endpoint keeps the service's public endpoint but routes VNet traffic over the Azure backbone", "A service endpoint assigns a private IP while a private endpoint uses the public internet", "They are the same feature under two different names"],
+    "correct": [1],
+    "explanation": "A private endpoint places a network interface with a private IP from your subnet that maps to the PaaS resource through Azure Private Link, so the service is reachable at a private address and public access can be disabled. A service endpoint does not give the service a private IP; it extends the VNet identity so traffic to the service's public endpoint stays on the Microsoft backbone and can be restricted to the subnet. They control access in different ways.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "After creating a private endpoint for an Azure SQL logical server, clients in the VNet still resolve the server name to its public IP address. What must be configured so the FQDN resolves to the private endpoint's private IP?",
+    "options": ["An NSG rule allowing inbound TCP 1433", "A Private DNS zone (privatelink.database.windows.net) linked to the VNet with an A record for the endpoint", "A service endpoint for Microsoft.Sql on the subnet", "A user-defined route pointing to the SQL public IP"],
+    "correct": [1],
+    "explanation": "Private endpoints depend on DNS to map the resource FQDN to the private IP, which is done with a Private DNS zone such as privatelink.database.windows.net linked to the VNet and containing the endpoint's A record. Without correct DNS the name continues to resolve publicly. NSGs, service endpoints, and routes do not perform this name resolution.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A company needs a Web Application Firewall for a globally load-balanced web application served from multiple regions. Which Azure service hosts a WAF suited to this global scenario?",
+    "options": ["Azure Firewall", "Azure Front Door", "Azure Bastion", "Network Security Group"],
+    "correct": [1],
+    "explanation": "Azure Front Door is a global Layer 7 entry point that supports an attached WAF policy, making it appropriate for a globally distributed application. Application Gateway also hosts a WAF but is regional. Azure Firewall, Bastion, and NSGs do not provide OWASP web application filtering.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An Azure WAF policy is set to Detection mode and is logging matches against the OWASP Core Rule Set, but malicious requests still reach the backend. What change makes the WAF actively block matching requests?",
+    "options": ["Delete the managed rule set", "Switch the WAF policy from Detection mode to Prevention mode", "Raise the anomaly score threshold to its maximum", "Disable all custom rules"],
+    "correct": [1],
+    "explanation": "In Detection mode a WAF only logs rule matches and lets traffic through, while Prevention mode is required for the WAF to block requests that match its rules. Switching to Prevention enforces the OWASP managed rules. Deleting the rule set or disabling custom rules would weaken protection rather than strengthen it.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "You must let administrators RDP and SSH to Azure VMs without assigning public IP addresses to those VMs or opening ports 3389 and 22 to the internet. Which service provides this connectivity over TLS from the Azure portal?",
+    "options": ["Azure Bastion", "Azure Front Door", "ExpressRoute", "Just-in-time VM access"],
+    "correct": [0],
+    "explanation": "Azure Bastion is a managed jump host that provides RDP and SSH connectivity to VMs over TLS directly in the portal or a native client, so VMs need no public IP and no inbound 3389 or 22 from the internet. Front Door and ExpressRoute serve other purposes, and just-in-time access still opens the ports temporarily. Bastion is deployed into a dedicated AzureBastionSubnet.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "Microsoft Defender for Cloud's just-in-time (JIT) VM access is used to reduce the exposure of management ports. How does JIT VM access work?",
+    "options": ["It permanently deletes the NSG rules that allow RDP and SSH", "It keeps inbound management ports closed with NSG rules and opens them only for an approved user, source, and time window on request", "It encrypts the VM operating system disk before any connection is allowed", "It replaces the VM's public IP address with a private endpoint"],
+    "correct": [1],
+    "explanation": "JIT VM access configures NSG rules, and optionally Azure Firewall rules, to deny inbound management traffic by default, then adds a temporary allow rule scoped to the requesting user, source IP, and a limited time window when access is approved. The ports close again automatically when the window expires. This shrinks the exposure of ports such as 3389 and 22.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "In a hub-and-spoke topology, all outbound internet traffic from the spoke subnets must be forced through the Azure Firewall in the hub. Which configuration achieves this?",
+    "options": ["Add an NSG rule that allows outbound internet traffic on the spoke subnets", "Apply a user-defined route for 0.0.0.0/0 with next hop type Virtual appliance set to the firewall's private IP, associated with the spoke subnets", "Enable a service endpoint on the spoke subnets", "Peer each spoke virtual network directly to the internet"],
+    "correct": [1],
+    "explanation": "A user-defined route with destination 0.0.0.0/0 and next hop type Virtual appliance pointing to the Azure Firewall private IP, associated with the spoke subnets, forces egress traffic through the hub firewall. NSGs filter traffic but do not redirect routing, and service endpoints affect PaaS access rather than general egress. Routing, not filtering, controls the traffic path.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "Which statements about the default rules in an Azure Network Security Group are correct? (Choose two.)",
+    "options": ["Inbound traffic from other resources in the same virtual network is allowed by default", "All inbound traffic from the internet is allowed by default", "Any inbound traffic not explicitly allowed is denied by the DenyAllInBound default rule", "Default rules can be permanently deleted from the NSG"],
+    "correct": [0, 2],
+    "explanation": "Default NSG rules allow inbound traffic within the virtual network through AllowVNetInBound and from the Azure load balancer, and a final DenyAllInBound rule blocks anything not explicitly permitted. Inbound internet traffic is denied by default, and default rules cannot be deleted, only overridden by higher-priority custom rules. Together these defaults create a default-deny posture from the internet.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "Which of the following are accurate benefits of using an Azure private endpoint to reach a PaaS resource such as a storage account? (Choose two.)",
+    "options": ["The PaaS resource becomes reachable over a private IP address inside the virtual network", "Traffic to the resource travels the Microsoft backbone instead of the public internet", "The private endpoint automatically encrypts the service's data at rest", "It removes any need for DNS configuration"],
+    "correct": [0, 1],
+    "explanation": "A private endpoint exposes the PaaS service through a private IP in your VNet, and connectivity flows over the Microsoft backbone rather than the public internet, which lets you disable the service's public access. It does not manage data-at-rest encryption, and it typically requires Private DNS configuration so the FQDN resolves to the private IP. Private reachability and backbone routing are the core benefits.",
+    "difficulty": "MEDIUM"
+  }
+]

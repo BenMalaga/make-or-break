@@ -1,0 +1,72 @@
+---
+title: Cloud Models and Shared Responsibility
+module: cloud-security-fundamentals
+moduleTitle: Cloud Security Fundamentals
+moduleOrder: 29
+moduleIcon: Cloud
+order: 1
+summary: The breach that starts with "we thought AWS handled that."
+estimatedMinutes: 18
+objectives:
+  - Tell IaaS, PaaS, and SaaS apart by what you have to patch
+  - Draw the line between provider duty and customer duty for a given service
+  - Predict where the exploitable gap sits before you touch a cloud target
+tags:
+  - cloud
+  - aws
+  - shared-responsibility
+  - iaas
+  - saas
+---
+
+Half the cloud breaches you read about trace back to one sentence in a meeting: "we thought the provider handled that." They did not. The provider secured the data center, the hypervisor, and the physical disks. The customer left an S3 bucket public and a database open to the internet. Both were doing their jobs. Nobody was doing the customer's job.
+
+That gap has a name. The shared responsibility model is the contract, usually a diagram, that says who patches what. AWS, Azure, and Google all publish one. They differ in the details, but the shape is the same: the provider secures the cloud, you secure what you put in it.
+
+Where the line falls depends entirely on the service model. That is the thing most people skip, and it is the thing that decides where you attack or defend.
+
+## The three models, by who patches the OS
+
+Forget the marketing definitions. The useful question is: when a kernel CVE drops, who reboots the box?
+
+With **IaaS** (EC2, Azure VMs, GCE) it is you. You rent a virtual machine and the provider hands you a running OS. Everything above the hypervisor is yours: the OS patches, the firewall rules, the SSH keys, the app, the data. The provider guarantees the metal and the network fabric underneath. This is the most control and the most rope to hang yourself with.
+
+With **PaaS** (App Engine, Elastic Beanstalk, Azure App Service, Lambda) the provider patches the OS and the runtime. You bring code and configuration. You still own your app's logic, its dependencies, its secrets, and its IAM permissions. A vulnerable npm package in your Lambda is your problem, not Amazon's.
+
+With **SaaS** (Microsoft 365, Salesforce, Google Workspace) you own almost nothing technical. You own the data you put in and, critically, the access configuration. The Capital One and countless M365 incidents were not the vendor's code breaking. They were customer-side settings: over-broad sharing, weak conditional access, an account with no MFA.
+
+<Callout type="info" title="The one constant across all three">
+No matter the model, you always own your data, your identities, and your access management. The provider will never fix a permission you set wrong. Read that twice, because it is the source of most real-world cloud compromise.
+</Callout>
+
+## Why an attacker cares about the model
+
+The model tells you where the soft spots are before you send a single packet. Against an IaaS target, unpatched OS services and exposed management ports are live because the customer owns patching. Against SaaS, there is no OS to root, so the game is identity: phished sessions, token theft, misconfigured sharing.
+
+Map it fast. See a raw VM with SSH on the internet? That is IaaS, and the customer's patch discipline is fair game. See a managed API with no host to reach? That is PaaS or SaaS, and you pivot to IAM and app logic.
+
+<Callout type="security" title="Authorized targets only">
+Enumerating a cloud tenant, even just reading its public config, is testing you must be contracted to do. Cloud accounts belong to a company and often carry data from thousands of users. Practice on your own free-tier account or a lab like flAWS.cloud or CloudGoat. Do not point these ideas at a tenant you were not hired to assess.
+</Callout>
+
+The trap for defenders is assuming a managed service is a secure service. Moving a database to RDS patches the engine for you. It does nothing about the security group you left wide open, the master password in a Git repo, or the snapshot you shared publicly. Managed means the provider handles their layer. Yours is still yours.
+
+<Quiz
+  id="csf-responsibility-line"
+  question="Your company runs its app on AWS Lambda (PaaS). A critical CVE is announced in the Node.js runtime. Who is responsible for patching it?"
+  answer={0}
+  options={[
+    "AWS, because they manage the runtime and OS in a PaaS model",
+    "You, because you own everything in the cloud",
+    "Nobody, PaaS has no runtime to patch",
+    "The end users of the application",
+  ]}
+  explanation="In PaaS, the provider patches the OS and the language runtime. Your responsibility starts at your code and its dependencies. A CVE in the Node.js runtime AWS provides is AWS's to fix; a CVE in a package you imported is yours."
+/>
+
+<Exercise
+  id="csf-map-a-service"
+  prompt="Pick one service you use (say, an S3 bucket, an EC2 instance, and a Salesforce org). For each, write two lists: what the provider secures and what you secure. If you cannot fill in the customer column, you have found your blind spot."
+/>
+
+<Notes />

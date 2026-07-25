@@ -1,0 +1,232 @@
+---
+title: GiST Indexes and Fast Spatial Queries
+module: gis-postgis
+moduleTitle: Spatial SQL with PostGIS
+moduleOrder: 5
+moduleIcon: Database
+order: 4
+summary: "A GiST index lets PostGIS discard geometries whose bounding boxes cannot possibly match before it ever tests the real shapes, turning a spatial join from a full scan into a handful of checks."
+estimatedMinutes: 14
+prerequisites: ["spatial-joins-in-sql"]
+objectives:
+  - Explain why a spatial join without an index compares every geometry to every other and why that scales badly on large tables
+  - Create a GiST index on a geometry column with CREATE INDEX ... USING GIST
+  - Describe the two-phase lookup a GiST index performs, a fast bounding-box filter followed by the exact geometry test
+  - Read an EXPLAIN plan to confirm a query is actually using a spatial index instead of scanning the whole table
+tags:
+  - gis
+  - postgis
+  - performance
+---
+
+The previous lesson wrote a spatial join, matching parks against flood zones with `ST_Intersects`
+in a plain `JOIN ... ON` clause, and it worked. It also quietly skipped over a question that
+matters the moment a table grows past a few thousand rows: how did the database decide which
+parks to check against which flood zones? The honest answer, unless something was done about it,
+is that it checked all of them.
+
+## What a full scan actually costs
+
+A spatial join without help has no way to know in advance that a park in Seattle and a flood zone
+in Miami have no chance of overlapping. The only way to be certain is to test every pair. For a
+`parks` table with 40,000 rows and a `flood_zones` table with 15 rows, that is 40,000 times 15,
+six hundred thousand calls to `ST_Intersects`, each one doing real geometric work to compare two
+shapes. Double the parks table and the cost doubles too. Add a second set of 15 zones for a
+different hazard and the cost doubles again. This kind of growth, where the work scales with the
+product of both table sizes, is exactly the situation an index exists to fix.
+
+This is not a PostGIS-specific problem. An ordinary SQL query like `WHERE last_name = 'Alvarez'`
+faces the same choice: read every row and check the name, or use a **B-tree index**, the ordinary
+index type most databases build on ordinary columns, to jump straight to the matching rows. A
+B-tree works by keeping values in sorted order, which is why it is so good at equality and range
+checks on numbers and text. But sorted order is a poor fit for shapes. There is no single sensible
+way to sort a set of polygons from smallest to largest coordinate, the way there is for a last
+name or an account balance. Geometry needs its own kind of index, one that organizes shapes by
+where they sit in space rather than by how they compare alphabetically or numerically.
+
+<Quiz
+  id="spatial-index-full-scan"
+  question="A parks table has 40,000 rows and a flood_zones table has 15 rows. Without any spatial index, what does the database have to do to find every park that intersects a flood zone?"
+  answer={1}
+  options={[
+    "It reads only the 15 flood zone rows and skips the parks table entirely.",
+    "It tests every one of the 40,000 park geometries against every one of the 15 flood zone geometries, up to 600,000 comparisons.",
+    "It automatically builds a temporary GiST index the first time the query runs.",
+    "It fails with an error, because ST_Intersects requires an index to run at all.",
+  ]}
+  explanation="Without an index the planner has no shortcut, so it falls back to checking every combination of rows from both tables, 40,000 times 15 in this case. PostgreSQL does not build an index on the fly for a single query, and ST_Intersects runs fine with no index at all, just slowly at scale. Skipping the parks table would miss most of the real matches."
+/>
+
+## The tree that holds bounding boxes, not shapes
+
+The index PostGIS reaches for is called a **GiST index**, short for Generalized Search Tree.
+"Generalized" is the operative word: unlike a B-tree, which only knows how to compare values with
+less-than and greater-than, a GiST index is a framework a data type can plug its own comparison
+rules into. PostGIS plugs geometry in by indexing something simpler than the actual shape: the
+**bounding box**, the smallest rectangle that fully contains a geometry, described by just two
+corner points. A jagged coastline polygon with ten thousand vertices has the same bounding box as
+a plain rectangle drawn around it. That simplification is the whole trick. Comparing two
+rectangles for overlap is cheap. Comparing two ten-thousand-point polygons for a true intersection
+is not.
+
+A GiST index arranges these bounding boxes into a tree, where each parent node's box is drawn
+around all the boxes beneath it. Searching the tree means starting at the top and only descending
+into branches whose box could possibly contain or overlap the area in question, skipping every
+branch whose box sits somewhere else entirely. This is the same idea as a table of contents that
+groups chapters by topic instead of listing every page number in order. A reader looking for
+"tides" flips straight to the ocean chapter and ignores the rest of the book, rather than reading
+every page to check if it mentions tides.
+
+<Callout type="info" title="A bounding box is an approximation, not the final answer">
+The GiST tree never claims a polygon actually intersects another polygon. It only claims their
+bounding boxes overlap, which is a necessary condition for a true intersection but not a
+sufficient one. Two L-shaped parcels can have overlapping bounding boxes while the actual shapes
+never touch. This is exactly why the index step is always followed by a second, exact check on
+the real geometry. The box narrows the search. It never decides it.
+</Callout>
+
+That two-step process is worth naming plainly, because it explains every performance number that
+follows. First comes the **index scan**: a fast walk down the tree that returns a short list of
+candidates whose bounding boxes overlap. Second comes the **exact test**: running the real
+`ST_Intersects`, `ST_Contains`, or whichever predicate the query asked for, only on that short
+list. The index does not replace the exact geometry test. It shrinks the number of rows that ever
+have to endure one.
+
+## Building the index
+
+Creating a GiST index on a geometry column is one line of SQL, and the syntax is the same
+`CREATE INDEX` statement used for any other index, just naming `GIST` as the method:
+
+```sql
+CREATE INDEX parks_geom_idx ON parks USING GIST (geom);
+CREATE INDEX flood_zones_geom_idx ON flood_zones USING GIST (geom);
+```
+
+Both tables in the join need an index, not just one. PostGIS can only skip the branches it has a
+tree for, so an index on `parks.geom` alone still leaves `flood_zones` to be scanned in full on
+the other side of the join, though with only 15 rows there that side barely matters. On a join
+between two large tables, indexing both sides is what keeps the total work small on each end.
+Building the index is not instant on an existing table full of rows. PostgreSQL walks every row
+once to construct the tree, so an index on a forty-thousand-row table takes a moment, but that
+cost is paid once at creation time, not on every query that follows.
+
+<Quiz
+  id="spatial-index-two-phase"
+  question="Once a GiST index exists on parks.geom, how does PostGIS actually use it to answer a query like 'find every park that intersects this flood zone'?"
+  answer={1}
+  options={[
+    "It scans the tree once, and the tree itself returns exact yes-or-no answers for ST_Intersects with no further checking needed.",
+    "It first uses the tree to discard parks whose bounding box cannot possibly overlap the flood zone's bounding box, then runs the exact ST_Intersects test only on the small set of parks that remain.",
+    "It ignores the index for polygon columns and only ever speeds up point columns.",
+    "It rebuilds the index from scratch every time the query runs, to guarantee a fresh answer.",
+  ]}
+  explanation="The tree only compares bounding boxes, a fast approximate filter, and PostGIS always follows that with the real ST_Intersects test on whatever candidates survive the filter. It works on polygons exactly as it works on points and lines, since every geometry type has a bounding box. Nothing about querying an existing index requires rebuilding it."
+/>
+
+## Not every spatial predicate gets the shortcut
+
+The functions built specifically to answer "does A relate to B" all know how to use a GiST index,
+because PostGIS wires them to the same underlying bounding-box overlap operator, written `&&`, that
+the index is built around. `ST_Intersects`, `ST_Contains`, `ST_Within`, and `ST_DWithin` all take
+this path: check `&&` first using the index, then confirm the exact predicate on what survives.
+
+A plain arithmetic comparison does not automatically get the same treatment, and this trips up
+almost everyone the first time they hit it. Consider a query meant to find parks within 500 meters
+of a point, written two different ways:
+
+```sql
+-- Uses the index: ST_DWithin is written specifically so its bounding-box
+-- check can be pushed down to the GiST index before the exact distance runs
+SELECT name FROM parks
+WHERE ST_DWithin(geom, 'SRID=4326;POINT(-74.0060 40.7128)'::geography, 500);
+
+-- Skips the index: ST_Distance computes a real number for every row first,
+-- and only then compares that number to 500
+SELECT name FROM parks
+WHERE ST_Distance(geom, 'SRID=4326;POINT(-74.0060 40.7128)'::geography) < 500;
+```
+
+Both queries can return the same rows. The first one, `ST_DWithin`, is written so the planner can
+translate "within 500 meters" into a bounding box expanded by 500 meters in every direction, hand
+that box to the GiST index, and only compute the real distance on whatever comes back. The second
+one asks PostgreSQL to compute an exact distance for every single row in the table before any
+comparison happens at all, because `< 500` is an ordinary numeric comparison on a value the
+database has no way to estimate without doing the full calculation first. The index sits there
+unused, since nothing about the query gives it a box to check.
+
+<Callout type="warning" title="A raw distance comparison is a common way to accidentally bypass the index">
+Writing `WHERE ST_Distance(geom, :point) < 500` looks perfectly reasonable and returns the correct
+answer, which is exactly why it survives code review. It also throws away the index, since the
+distance has to be computed for every row before the `< 500` check means anything. `ST_DWithin`
+exists specifically to avoid this trap. Reach for it any time a query filters on "close to" or
+"within some distance," and save ST_Distance for when the actual number is needed in the result.
+</Callout>
+
+## Confirming the index is actually being used
+
+None of this is worth trusting on faith. PostgreSQL has a command that shows exactly how it plans
+to run a query, called `EXPLAIN`. Placed in front of any query, it returns the plan instead of the
+results:
+
+```sql
+EXPLAIN SELECT p.name
+FROM parks p
+JOIN flood_zones f ON ST_Intersects(p.geom, f.geom);
+```
+
+Before any index exists on `parks.geom`, the plan looks like this, illustrative row counts and
+all:
+
+<ExpectedOutput label="query plan with no spatial index, illustrative costs">
+```
+Nested Loop  (cost=0.00..45812.00 rows=120 width=32)
+  Join Filter: st_intersects(p.geom, f.geom)
+  ->  Seq Scan on parks p  (cost=0.00..812.00 rows=42000 width=64)
+  ->  Seq Scan on flood_zones f  (cost=0.00..0.95 rows=15 width=2000)
+```
+</ExpectedOutput>
+
+`Seq Scan on parks p` is the tell. It means PostgreSQL is reading every row of `parks`, in order,
+with no shortcut, for every row of `flood_zones` it pairs it against. After running
+`CREATE INDEX parks_geom_idx ON parks USING GIST (geom)` and asking again, the same query produces
+a different plan:
+
+<ExpectedOutput label="query plan with the GiST index in place, illustrative costs">
+```
+Nested Loop  (cost=0.28..612.40 rows=120 width=32)
+  ->  Seq Scan on flood_zones f  (cost=0.00..0.95 rows=15 width=2000)
+  ->  Index Scan using parks_geom_idx on parks p  (cost=0.28..8.30 rows=3 width=64)
+        Index Cond: (geom && f.geom)
+        Filter: st_intersects(p.geom, f.geom)
+```
+</ExpectedOutput>
+
+`Index Scan using parks_geom_idx` replaces the sequential scan, and the two lines under it spell
+out the exact two-phase process described earlier in this lesson: `Index Cond: (geom && f.geom)`
+is the fast bounding-box check the tree performs, and `Filter: st_intersects(p.geom, f.geom)` is
+the exact test run only on whatever the box check lets through. The estimated cost dropped from
+around 45,812 to around 612, a difference that only grows more dramatic as the parks table gets
+bigger. `flood_zones` still gets a `Seq Scan`, and that is fine. With only 15 rows, reading all of
+them is already about as cheap as work gets, and an index on a table that small would add overhead
+without saving anything.
+
+<Quiz
+  id="spatial-index-read-explain"
+  question="Running EXPLAIN on a spatial join shows a line reading 'Seq Scan on parks p' where an indexed query would instead show 'Index Scan using parks_geom_idx'. What does the Seq Scan line indicate?"
+  answer={2}
+  options={[
+    "The query returned zero rows, since Seq Scan only appears when a table is empty.",
+    "The GiST index exists but PostgreSQL chose to ignore it for this particular query, which always signals a bug.",
+    "PostgreSQL is reading through the parks table row by row with no spatial index in play for that table, the situation the index is meant to replace.",
+    "Seq Scan means the query is running the exact ST_Intersects test without ever checking a bounding box first.",
+  ]}
+  explanation="A Seq Scan is PostgreSQL's plain, in-order read of every row in a table, exactly what a GiST index exists to avoid for spatial predicates. It says nothing about row count or query correctness. A missing or unused index is the direct explanation, not a general bug, and it is unrelated to whether a bounding-box check ran, since without an index there is no box to check against in the first place."
+/>
+
+The habit worth keeping from all of this is simple: any geometry column that shows up in a
+`WHERE` clause, a `JOIN ... ON`, or an `ST_DWithin` call should have a GiST index on it, created
+right after the table itself. It costs one line of SQL and a brief wait while it builds, against a
+query that might otherwise scan a growing table forever. Indexed tables like these are also what
+makes it practical to wrap a common spatial query into a view or a function that every analyst on
+a project can reuse, instead of everyone retyping the same join and hoping it stays fast as the
+data grows.

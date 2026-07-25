@@ -1,0 +1,84 @@
+---
+name: DVWA
+tagline: The Damn Vulnerable Web Application. A tunable playground for the web basics.
+description: A deliberately insecure PHP and MySQL application with adjustable security levels. It exists so you can practice SQL injection, XSS, command injection, and file upload attacks against a target that is safe to break.
+difficulty: EASY
+os: LINUX
+targetType: DOCKER
+tags:
+  - web
+  - sqli
+  - xss
+  - training
+points: 20
+docker:
+  image: vulnerables/web-dvwa
+  run: docker run --rm -p 8080:80 vulnerables/web-dvwa
+  port: 8080
+  httpPath: /
+flags:
+  - type: USER
+    label: SQL injection
+    value: MOB{low_sqli_dumps_the_hashes}
+    points: 10
+  - type: ROOT
+    label: Code execution
+    value: MOB{command_injection_is_a_shell}
+    points: 20
+hints:
+  - title: I loaded it but cannot log in
+    body: The default credentials are admin and password. After you log in, the very first thing to do is open the Setup and Reset DB page and click the create button. Nothing else works until the database exists.
+    cost: 0
+  - title: Set the difficulty
+    body: Open the DVWA Security page and set the level to Low while you learn. Higher levels add filters that you defeat later. Low lets the raw vulnerability show through.
+    cost: 5
+  - title: SQL injection module
+    body: Go to the SQL Injection page. It asks for a User ID. The input is concatenated straight into the query. Enter a single quote to break it, then use a UNION or an always-true condition to return every row.
+    cost: 5
+  - title: User proof token
+    body: An input of 1 followed by OR 1=1 comment characters returns every user in the table. Dump the users table and you will see the admin password hash. Once you have pulled more than one user out of a single ID field, submit MOB{low_sqli_dumps_the_hashes}
+    cost: 10
+  - title: Toward code execution
+    body: Open the Command Injection module. It pings a host you supply. The host string is passed to the shell without sanitization. Chain a second command after the address using a semicolon or an and-and.
+    cost: 10
+  - title: Root proof token
+    body: An input like 127.0.0.1; id runs your own command on the server and prints the web user. That is arbitrary command execution. Once the server runs a command you injected, submit MOB{command_injection_is_a_shell}
+    cost: 15
+tasks:
+  - title: Stand up the container and initialize the database
+    description: Log in with the defaults and create the DB from the Setup page
+  - title: Extract data through SQL injection
+    description: Dump the users table from the SQL Injection module
+  - title: Achieve command execution
+    description: Inject a shell command through the Command Injection module
+---
+
+## About this target
+
+DVWA is a small PHP and MySQL application whose entire purpose is to be broken
+on purpose. What makes it a great first web box is the security selector: you can
+dial each vulnerability from Low to Impossible and watch how filters change the
+attack. Start on Low, learn the raw bug, then climb.
+
+Your two objectives here: **pull data out of the database through SQL injection**
+(user), then **make the server run a command you supply** (root).
+
+<Callout type="security" title="Authorized target only">
+You are running this container on your own machine. That is the only reason it
+is legal to attack it. Never point these techniques at an application you do not
+own or have written permission to test.
+</Callout>
+
+<Callout type="info" title="How flags work on Phase A machines">
+Docker and bring-your-own-VM boxes use proof tokens revealed through the hints
+once you have genuinely completed the objective. Capture a flag by doing the
+work, then submitting the token. Phase B hosted machines will issue real
+per-instance flags planted on the target.
+</Callout>
+
+## Getting reachable
+
+Spin the container up and load `http://localhost:8080`. Log in with admin and
+password, then open the Setup page and create the database before anything else.
+Set the security level to Low, then work the objectives below. Use the hints if
+you stall; each one costs a few points, so try on your own first.

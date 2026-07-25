@@ -1,0 +1,119 @@
+---
+title: Securing Your Devices and Messages
+module: digital-self-defense
+moduleTitle: Digital Self-Defense
+moduleOrder: 6
+moduleIcon: EyeOff
+order: 6
+summary: The dull settings win. Updates, disk encryption, and a real lock screen stop more attacks than any clever trick.
+estimatedMinutes: 16
+objectives:
+  - Explain why patching known holes stops most real attacks
+  - Turn on full-disk encryption and a lock screen that actually protects a device
+  - Describe what end-to-end encryption hides and what metadata still leaks
+  - Review app permissions and back up without handing a copy to an attacker
+tags:
+  - device-security
+  - encryption
+  - privacy
+prerequisites: ["browsing-privately"]
+---
+
+Browsing privately shut one window into a person's life. The browser is a single surface, and it is the one most guides stop at. The device running that browser, and every app installed beside it, is the rest of the attack surface. A phone holds far more than any one browsing session: messages, photos, a year of location history, the second factor for every account. The unglamorous settings that protect it are the ones that stop the most attacks, and almost nobody bothers with them.
+
+Start with the single habit that beats every clever defense: install updates.
+
+## The attacker uses a hole that already has a fix
+
+The attacker rarely needs a secret flaw. Most real intrusions into ordinary devices use a known hole that the vendor already patched, sometimes months earlier. A researcher reports the bug, the vendor ships a fix, the details go public, and within days automated tools sweep the internet for devices that never applied it. This is called an n-day: a vulnerability with a patch already available. Contrast it with a zero-day, where no fix exists yet. Zero-days are rare, expensive, and mostly spent on high-value targets. N-days are free and everywhere, and they are what actually compromises a normal phone or laptop.
+
+The defense is boring on purpose. Automatic updates for the operating system and for every app, switched on, left alone. On iOS and Android the security patches ship separately from the flashy feature releases, and the patch is the part that matters. The harder problem is a device the manufacturer has stopped updating. Budget Android phones often stop getting security patches after two or three years, and once that clock runs out the phone collects known, unpatched holes forever. A device that no longer receives updates is not old, it is defenseless, and that is the signal to replace it.
+
+<Quiz
+  id="securing-your-devices-and-messages-nday"
+  question="Most successful intrusions into ordinary phones and laptops rely on which kind of flaw?"
+  answer={1}
+  options={[
+    "A zero-day, a secret flaw with no patch available yet",
+    "An n-day, a known flaw the vendor already patched but the device never installed",
+    "A weakness in the encryption math that anyone can exploit",
+    "A flaw that only the device manufacturer can ever see"
+  ]}
+  explanation="Zero-days are rare and costly and get aimed at specific targets. The everyday compromise is an n-day: a bug with a public patch, hitting devices that never applied it. Automatic updates close that gap, which is why they matter more than any single clever setting."
+/>
+
+## Encryption and the lock screen are one control
+
+An update keeps an attacker out of a running system. Full-disk encryption decides what a thief gets when the system is off. Full-disk encryption scrambles everything on the storage so that without the key the drive is meaningless noise. On a modern phone it is already on: iPhones have tied storage encryption to the passcode since iOS 8, and current Android devices encrypt by default. On a laptop it is a setting that ships off in some configurations. BitLocker on Windows and FileVault on macOS both turn the whole disk into ciphertext, and switching either on costs one trip to settings and a few minutes of background work.
+
+Here is the part people miss. Disk encryption only protects a device that is powered off or locked. The key that unscrambles the drive is derived from the lock screen secret, which means the passcode is not a minor convenience sitting in front of the encryption. The passcode is the encryption. A phone with full-disk encryption and no lock screen, or a four-digit PIN a thief can read over a shoulder, is a locked safe with the combination taped to the door.
+
+So the lock screen deserves real attention. A six-digit PIN is the floor. An alphanumeric passphrase is meaningfully better, because it defeats the automated PIN-guessing boxes that both thieves and police forces use. Face ID and fingerprint readers are a convenience layered on top of the passcode, not a replacement for it: the device falls back to the passcode after a reboot or a few failed scans, and that passcode is the thing guarding the key.
+
+<Callout type="security" title="Biometrics and the passcode are not equal in the eyes of the law">
+In several countries, courts have treated a fingerprint or a face as something a person can be compelled to provide, while a memorized passcode gets stronger protection. For most people this is a footnote. For anyone who might be searched at a border or by police, it is a concrete reason to rely on the passcode and, before a risky crossing, to power the device fully off so the encryption key leaves memory.
+</Callout>
+
+## End-to-end encryption, said plainly
+
+Encryption on the device protects data at rest. Messages need protection while they move, and that is what end-to-end encryption does. End-to-end encryption, usually written E2EE, means a message is scrambled on the sender's device and can only be unscrambled on the recipient's device. The keys that do the unscrambling live on those two devices and nowhere else. The company running the service relays ciphertext it cannot read, because it never held the key.
+
+Compare that to ordinary transport encryption, where the connection to the server is encrypted but the server itself decrypts the message, reads it, stores it, and re-encrypts it onward. With transport encryption the company can read everything. With E2EE it mathematically cannot, and neither can anyone who subpoenas or breaches the company's servers.
+
+The messenger to reach for is Signal. It is free, open source, run by a nonprofit, and its encryption, the Signal Protocol, is the same design that WhatsApp and others licensed. What differs is everything sitting around the encryption. Signal collects almost nothing: when its operators have been subpoenaed, the records they could produce came down to the account's creation date and the last time it connected. WhatsApp uses the same message encryption but is owned by Meta and feeds the surrounding data into that business. iMessage is end-to-end encrypted between Apple devices, but the instant a green bubble appears the conversation has dropped to SMS, which carries no encryption at all.
+
+Now the honest limit, because E2EE gets sold as a magic word and it is not one. E2EE protects the content of a message, not the fact that the message happened. The metadata still leaks: who talked to whom, at what time, how often, from which IP address, and roughly how large each message was. A service, or anyone watching the network, can draw a detailed map of a person's relationships and daily rhythm without reading a single word. Signal fights this harder than most, with a feature called sealed sender that hides the sender's identity from Signal itself, but the network can still see a device talking to Signal's servers. End-to-end encryption hides what was said. It does not hide that two people are talking.
+
+<Quiz
+  id="securing-your-devices-and-messages-metadata"
+  question="A conversation is protected by end-to-end encryption. What can the messaging service, or someone watching the network, still learn?"
+  answer={2}
+  options={[
+    "The full plaintext of every message that was sent",
+    "Nothing at all, because E2EE hides everything about the exchange",
+    "The metadata: who talked to whom, when, how often, and from where",
+    "The recipient's device passcode and encryption key"
+  ]}
+  explanation="E2EE scrambles the content so the service and any network observer cannot read it. It does not hide that the exchange occurred. Timing, frequency, participants, message sizes, and IP addresses stay visible, and that pattern alone maps a person's relationships and routine."
+/>
+
+## A flashlight app does not need location or contacts
+
+A flashlight app toggles one LED. It has no reason to read location, contacts, the microphone, or the photo library, and the app stores are full of simple utilities that ask for exactly those. The motive is rarely malice and almost always money: permissions feed data that gets packaged and sold on to the same data brokers this module keeps pointing at. An app that can read contacts and location can quietly rebuild a social graph and a daily route, then sell both.
+
+Modern phones hand this back to the owner. iOS and Android grant permissions one at a time, prompt at first use, and split location into never, while using the app, or always. Both systems also keep a log. The iOS App Privacy Report and the Android Privacy Dashboard list which apps touched the camera, microphone, or location, and when. The move is to read that list and ask one question of every entry: does this app need this to do its job. A weather app wanting coarse location is reasonable. A photo editor wanting the microphone is suspect. Revoking a permission almost never breaks the part of an app that people actually use, and a well-built app will ask again if it genuinely needs the access back.
+
+<Exercise title="Audit one app's permissions and one messenger">
+On your phone, open Settings and go to the app permissions list (on iOS, Settings then Privacy and Security; on Android, Settings then Security and privacy then Permission manager). Pick one simple utility you installed, a flashlight, a game, a QR scanner, a calculator. Look at what it can reach. If it holds location, contacts, or the microphone and does not need them to work, turn those off now. Then open your phone's privacy log (iOS App Privacy Report, or Android Privacy Dashboard) and read the last 24 hours: note any app that touched the microphone or camera when you were not using it. Finally, if you and the people you message most are not already on Signal, install it and send one test message, so at least your closest thread stops leaking its content to a company. None of this deletes an app or an account; every switch here is reversible.
+</Exercise>
+
+## Backups, lost devices, and one piece of folklore
+
+Everything so far protects a phone that is present and working. Two events break that: the device gets lost, or the data gets destroyed. Backups answer the second, and they carry their own trap. A backup is a second, full copy of everything, and a copy stored carelessly quietly undoes every protection on the original. An unencrypted backup on a spare drive in a drawer is the easiest theft in this lesson.
+
+Done safely, a backup is encrypted. Apple's iCloud Backup is encrypted, but Apple holds a key it can hand to law enforcement, unless Advanced Data Protection is switched on, which upgrades the backup to end-to-end encryption that even Apple cannot open. Android backups can be end-to-end encrypted with the device passcode. A local backup works too: a Finder or iTunes backup with the Encrypt option checked, or any external drive protected with FileVault, BitLocker, or the free, open-source VeraCrypt.
+
+<Callout type="warning" title="An unencrypted backup is a leak with a delay">
+The rule is short. If a backup is not encrypted, it is not a backup, it is a copy of an entire digital life sitting in cleartext, waiting for whoever finds the drive. Encrypt the backup, or do not make it.
+</Callout>
+
+The lost-device problem has its own tools, and they only help if they were switched on beforehand. Apple's Find My and Google's Find My Device can locate a missing phone on a map, lock it, show a message, and erase it remotely. A remote wipe needs the device to reach the network at least once, so it is never guaranteed. Full-disk encryption is the backstop for exactly that case: a thief holding an encrypted, locked phone that never phones home is holding a brick.
+
+<Quiz
+  id="securing-your-devices-and-messages-backups"
+  question="What is the one thing that makes a phone backup safe to keep?"
+  answer={1}
+  options={[
+    "Storing it on a spare external drive in a drawer at home",
+    "Encrypting it, so a stolen copy is useless without the key",
+    "Making the backup as often as the phone will allow",
+    "Keeping the backup on the same phone that it backs up"
+  ]}
+  explanation="A backup duplicates everything on the device, so an unencrypted one doubles the exposure. Encryption is what makes the copy safe: iCloud with Advanced Data Protection, an encrypted local backup, or a VeraCrypt drive all mean a stolen backup is noise without the key."
+/>
+
+That leaves one piece of folklore worth right-sizing: public USB charging. The fear, sometimes called juice jacking, is that a tampered charging port in an airport or hotel could pull data off a phone or push malware onto it over the USB cable. The threat is real in a lab. In the wild it is close to nonexistent, because modern phones default to charge-only when connected to an unknown port and prompt before trusting any computer. The proportionate response is not panic. Carry a small wall adapter and use an outlet, or use a charge-only cable that carries power but no data, and spend the saved worry on the updates and the lock screen, which is where real attacks live.
+
+The device is locked, the disk is encrypted, the messages run end to end, the permissions are trimmed, and the backups are safe. That is a hardened phone. What it is not yet is a system, a set of tools and habits chosen on purpose and used together. The next lesson, on building a privacy toolkit, gathers the pieces from this whole module into one kit and shows how they reinforce each other, so the defense becomes something maintained rather than a settings screen visited once and forgotten.
+
+<Notes />

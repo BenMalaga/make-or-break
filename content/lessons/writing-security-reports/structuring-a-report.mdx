@@ -1,0 +1,76 @@
+---
+title: Structuring a Report
+module: writing-security-reports
+moduleTitle: Writing Security Reports
+moduleOrder: 44
+moduleIcon: NotebookPen
+order: 2
+summary: A pentest report has the same skeleton every time, and following it is what makes a stranger able to act on your work.
+estimatedMinutes: 16
+objectives:
+  - Lay out the standard sections a pentest report always contains
+  - Match each section to the reader who needs it
+  - Order findings by severity and mark the document's confidentiality
+tags:
+  - reporting
+  - structure
+  - methodology
+  - scope
+---
+
+Hand two reports from two different firms to an experienced client and they will flip to the same pages in the same order without thinking. Executive summary first, scope and rules next, then findings sorted worst to best, appendices at the back. That predictability is a feature. When the structure is standard, a reader who has never seen your work knows exactly where to look, and you never have to explain your layout.
+
+A report is not one document for one audience. It is several documents stapled together, each written for a different person, and the section order reflects who reads how far.
+
+## The skeleton that does not change
+
+<CommandBlock
+  title="sections every pentest report carries, in order"
+  commands={[
+    { cmd: "Title page + metadata", comment: "client, tester, dates, version, classification" },
+    { cmd: "Executive summary", comment: "one page, business language, for leadership" },
+    { cmd: "Scope and rules of engagement", comment: "what was in bounds and what the authorization covered" },
+    { cmd: "Methodology", comment: "how you tested, which standard you followed" },
+    { cmd: "Findings", comment: "the core, each finding fully written, sorted by severity" },
+    { cmd: "Appendices", comment: "raw tool output, full request logs, tool versions" },
+  ]}
+/>
+
+The title page and metadata sound like filler until an incident happens and someone needs to know which version of which test found the thing. Put a version number and a date on every report, and stamp a classification like "Confidential" on every page footer.
+
+The scope section is where you write down exactly what you were allowed to touch: the IP ranges, the domains, the accounts, the test window, and any carve-outs like "no denial of service against production." This is not bureaucracy. It is the paper trail proving the whole engagement was authorized, and it protects both you and the client if anyone later asks why you were in their systems.
+
+Methodology tells the reader you were systematic, not lucky. Name the framework you worked from: the PTES stages, the OWASP Testing Guide, or the OWASP Web Security Testing Guide for web apps. A reader who sees a recognized methodology trusts that a clean result means you looked, not that you missed.
+
+## Findings go worst first, always
+
+Sort findings by severity, never by the order you found them. The Critical that lets an attacker read every customer record goes on top. The informational note about a missing security header goes near the bottom. A remediation team works top down and stops when they run out of sprint, so the ordering decides what actually gets fixed.
+
+<ExpectedOutput label="findings section, ordered by severity">
+1. [Critical] Unauthenticated RCE in the file-upload endpoint
+2. [High]     SQL injection in the invoice search parameter
+3. [Medium]   Session token does not expire on logout
+4. [Low]      Verbose error messages leak stack traces
+5. [Info]     TLS 1.0 still enabled on the marketing subdomain
+</ExpectedOutput>
+
+Appendices exist so the body stays readable. Nobody reading the Critical finding wants 400 lines of nmap output in the middle of it. Push the raw scans, the full HTTP transcripts, and the exact tool versions to the back, and reference them from the finding. The body tells the story, the appendix proves it.
+
+<Callout type="security" title="The scope section is your authorization on the record">
+The scope and rules-of-engagement section is not a formality, it is the written proof that everything you did was cleared in advance. Copy the authorized targets, the dates, and the signed-off constraints straight from the engagement letter. If you tested something, it must be listed here as in scope. Anything you touched that is not in this section is a problem for you, not a bonus finding, so keep your testing inside the lines this section draws.
+</Callout>
+
+<Quiz
+  id="report-section-order"
+  question="A CISO opens your report and has ten minutes before a board call. Which section is written specifically so they can act without reading anything else?"
+  answer={0}
+  options={[
+    "The executive summary",
+    "The methodology",
+    "The appendices with raw tool output",
+    "The reproduction steps in a Critical finding",
+  ]}
+  explanation="The executive summary is the one page written for leadership in business language. Methodology, reproduction steps, and raw output are for the technical team doing the fixing, not the person deciding budget in ten minutes."
+/>
+
+<Notes />

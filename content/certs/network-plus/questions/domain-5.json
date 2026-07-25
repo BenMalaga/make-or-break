@@ -1,0 +1,249 @@
+[
+  {
+    "domain": 5,
+    "question": "A technician has just identified the most probable cause of a network outage and applied a configuration change that restored connectivity. According to the CompTIA network troubleshooting methodology, what should the technician do IMMEDIATELY after verifying full system functionality?",
+    "options": [
+      "Establish a theory of probable cause",
+      "Document findings, actions, and outcomes",
+      "Escalate the issue to a senior engineer",
+      "Implement preventive measures and a rollback plan"
+    ],
+    "correct": [1],
+    "explanation": "The final step of the seven-step methodology is to document findings, actions, and outcomes after verifying full system functionality. Establishing a theory and implementing the solution happen earlier in the process, and escalation is not a defined final step.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "During troubleshooting, a technician confirms a theory of probable cause and determines the next steps to resolve the problem. Which step of the CompTIA methodology comes DIRECTLY before this one?",
+    "options": [
+      "Establish a plan of action to resolve the problem",
+      "Test the theory to determine the cause",
+      "Verify full system functionality",
+      "Identify the problem"
+    ],
+    "correct": [1],
+    "explanation": "In the seven-step model, after establishing a theory you test the theory to determine the cause. Once the theory is confirmed, you then establish a plan of action to resolve the problem. Verifying functionality and identifying the problem occur at other stages.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Users on one floor report that their VoIP calls have choppy audio and occasional dropouts, while file transfers on the same switch work fine. A technician measures consistent variation in packet arrival times on the voice VLAN. Which performance metric is MOST directly responsible for the symptoms?",
+    "options": [
+      "Jitter",
+      "Throughput",
+      "Bandwidth",
+      "Giants"
+    ],
+    "correct": [0],
+    "explanation": "Jitter is the variation in packet arrival times and is the primary cause of choppy or garbled VoIP audio. Bandwidth and throughput would affect large transfers, which are working fine, and giants are oversized frames rather than a timing metric.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A newly terminated Cat 6 cable passes a continuity test but a cable certifier reports crosstalk failures and excessive signal degradation on the pairs. Which termination mistake is the MOST likely cause?",
+    "options": [
+      "Using a straight-through pinout instead of a crossover",
+      "Untwisting the wire pairs too far back at the connector",
+      "Exceeding the 100 meter channel length limit",
+      "Mixing TIA/EIA-568A on both ends"
+    ],
+    "correct": [1],
+    "explanation": "Untwisting the pairs too far at the termination point removes the noise cancellation the twists provide, causing crosstalk. A continuity test would still pass because the conductors connect end to end. A consistent 568A-to-568A termination is valid, and length would show attenuation rather than crosstalk from termination.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A technician suspects a specific port on a copper patch panel is faulty. Which tool should be used to trace a single cable through a bundle to the correct patch panel port?",
+    "options": [
+      "Tone generator and probe",
+      "Optical time-domain reflectometer",
+      "Loopback plug",
+      "Spectrum analyzer"
+    ],
+    "correct": [0],
+    "explanation": "A tone generator injects a signal onto a wire, and the probe detects that tone so the technician can identify which cable in a bundle it is. An OTDR is for fiber, a loopback plug tests a single interface, and a spectrum analyzer is for RF/wireless.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "Multiple clients on a subnet suddenly receive IP addresses in the 169.254.x.x range and cannot reach network resources. What is the MOST likely root cause?",
+    "options": [
+      "The DNS server is returning stale records",
+      "The DHCP server is unreachable or has exhausted its scope",
+      "The default gateway has a duplicate MAC address",
+      "The clients are configured with an incorrect subnet mask"
+    ],
+    "correct": [1],
+    "explanation": "A 169.254.x.x address is APIPA, which a client self-assigns when it cannot obtain a lease from a DHCP server. A DNS problem would still allow an IP lease, and gateway or subnet-mask issues would not produce APIPA addresses.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A user can reach websites by IP address such as 93.184.216.34 but not by their domain names. Which command would BEST confirm that name resolution is the problem?",
+    "options": [
+      "ping 8.8.8.8",
+      "nslookup example.com",
+      "arp -a",
+      "netstat -r"
+    ],
+    "correct": [1],
+    "explanation": "nslookup queries a DNS server to resolve a hostname, directly confirming whether name resolution is working. Pinging an IP tests connectivity but not DNS, arp shows the MAC address table, and netstat -r shows the routing table.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "A remote office connects over a 100 Mbps link, but a large file transfer between it and headquarters only reaches about 12 Mbps despite low utilization. Round-trip latency is measured at 180 ms. Which factor is MOST likely limiting the transfer?",
+    "options": [
+      "Insufficient available bandwidth on the link",
+      "The bandwidth-delay product limiting the TCP window",
+      "Duplex mismatch on the WAN interface",
+      "DNS resolution delays during the transfer"
+    ],
+    "correct": [1],
+    "explanation": "High latency combined with a fixed TCP window size limits throughput because of the bandwidth-delay product, so a single flow cannot fill the pipe even when bandwidth is available. The link is not saturated, DNS is resolved once at the start, and a duplex mismatch would produce errors rather than a clean lower rate.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "A switch interface is logging a rising count of both CRC errors and late collisions, and users on that port report slow, intermittent connectivity. What is the MOST likely cause?",
+    "options": [
+      "A duplex mismatch between the switch and the connected device",
+      "An oversubscribed uplink to the core switch",
+      "An expired DHCP lease on the host",
+      "A missing default route on the switch"
+    ],
+    "correct": [0],
+    "explanation": "Late collisions together with CRC/FCS errors on a full-to-half or auto/forced mismatch are the classic signature of a duplex mismatch. Oversubscription causes drops and latency but not late collisions, and DHCP or routing issues would not generate physical-layer errors.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "A technician needs to verify the end-to-end path a packet takes to a remote host and identify at which hop latency spikes occur. Which utility is the MOST appropriate?",
+    "options": [
+      "traceroute",
+      "ipconfig",
+      "dig",
+      "tcpdump"
+    ],
+    "correct": [0],
+    "explanation": "traceroute (tracert on Windows) maps each Layer 3 hop and reports per-hop round-trip times, revealing where latency increases along the path. ipconfig shows local settings, dig performs DNS lookups, and tcpdump captures traffic but does not map the hop-by-hop path.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "Two hosts on the same subnet intermittently lose connectivity, and one host displays a Windows pop-up warning of an IP address conflict. Which command helps confirm which MAC addresses are associated with the disputed IP?",
+    "options": [
+      "arp -a",
+      "route print",
+      "nslookup",
+      "hostname"
+    ],
+    "correct": [0],
+    "explanation": "arp -a displays the IP-to-MAC address mappings, letting the technician see which physical addresses are claiming the conflicting IP. route print shows the routing table, nslookup resolves DNS names, and hostname only returns the local device name.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A fiber run between two buildings shows very high signal loss on a light meter after a recent construction project. Which tool would BEST locate the exact distance to a break or a high-loss splice on the fiber?",
+    "options": [
+      "Optical time-domain reflectometer (OTDR)",
+      "Tone generator and probe",
+      "Multimeter",
+      "Cable certifier for copper"
+    ],
+    "correct": [0],
+    "explanation": "An OTDR sends light pulses down the fiber and measures reflections to pinpoint the distance to breaks, bends, or high-loss splices. A tone generator and copper certifier are for copper, and a multimeter measures electrical values, not optical loss.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "Users report that a specific internal web application is unreachable, but they can reach other internal servers and the internet. A technician confirms DNS resolves the app to the correct IP and the server is powered on and responds to ping. What should the technician check NEXT?",
+    "options": [
+      "Whether the client subnet mask is misconfigured",
+      "Whether a firewall or ACL is blocking the application port",
+      "Whether the DHCP scope is exhausted",
+      "Whether the switch has a spanning-tree loop"
+    ],
+    "correct": [1],
+    "explanation": "Since the host resolves and responds to ICMP but the application is unreachable, the problem is most likely a firewall rule or ACL blocking the specific service port. A subnet mask or DHCP issue would break more than one application, and a spanning-tree loop would cause broad connectivity failures.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A WAN link shows periods where throughput briefly exceeds the contracted committed information rate, after which packets are dropped rather than queued. Which two mechanisms are MOST associated with this behavior? (Choose two.)",
+    "options": [
+      "Traffic shaping",
+      "Traffic policing",
+      "Bandwidth exhaustion causing dropped packets when the rate is exceeded",
+      "Split-horizon route filtering"
+    ],
+    "correct": [1, 2],
+    "explanation": "Traffic policing enforces a rate limit by dropping packets that exceed the configured rate, which matches the described drops when the CIR is exceeded. Traffic shaping buffers and delays instead of dropping, and split-horizon is a routing loop-prevention feature unrelated to rate limiting.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 5,
+    "question": "A user complains that their wired connection works but is extremely slow. The technician notices the NIC link light indicates the port negotiated 10 Mbps half-duplex on a gigabit switch. Which is the MOST likely physical cause?",
+    "options": [
+      "The switchport is administratively shut down",
+      "A damaged cable or bad pair is forcing a lower autonegotiated speed",
+      "The default gateway is misconfigured",
+      "The DNS server is slow to respond"
+    ],
+    "correct": [1],
+    "explanation": "A damaged cable or a broken wire pair can cause autonegotiation to fall back to a much lower speed and half-duplex, producing slow throughput. A shut port would have no link at all, and gateway or DNS problems are Layer 3 or higher and would not change the negotiated link speed.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "While troubleshooting, a technician forms an initial theory but wants to weigh whether to escalate before spending more time. Within the CompTIA methodology, when establishing a theory of probable cause, what approach is recommended?",
+    "options": [
+      "Always assume the most complex cause first",
+      "Question the obvious and consider multiple approaches, top-to-bottom or bottom-to-top of the OSI model",
+      "Immediately replace all hardware in the affected path",
+      "Skip theory formation and go straight to documentation"
+    ],
+    "correct": [1],
+    "explanation": "The methodology recommends questioning the obvious and considering multiple approaches, such as working top-to-bottom or bottom-to-top through the OSI layers, or divide-and-conquer. Assuming complexity first, replacing hardware blindly, or skipping to documentation all violate the structured process.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A monitoring system reports that a core switch uplink is at 95 percent utilization during business hours, and users experience slow application response. Interface counters show no errors, only high traffic volume. Which term BEST describes this condition?",
+    "options": [
+      "Runt frames",
+      "Congestion from an oversubscribed or saturated link",
+      "A broadcast storm",
+      "Asymmetrical routing"
+    ],
+    "correct": [1],
+    "explanation": "Sustained high utilization with no interface errors indicates congestion because the link is saturated or oversubscribed, degrading performance. Runts and broadcast storms would show error counters or abnormal broadcast traffic, and asymmetrical routing describes traffic taking different paths, not link saturation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 5,
+    "question": "A technician wants to confirm that a physical NIC and its cabling to the patch panel are functioning by looping transmit to receive at the wall jack. Which tool is designed for this test?",
+    "options": [
+      "Loopback plug",
+      "Punchdown tool",
+      "Wi-Fi analyzer",
+      "Cable stripper"
+    ],
+    "correct": [0],
+    "explanation": "A loopback plug (loopback adapter) connects a port's transmit pins back to its receive pins so the interface and near-end cabling can be tested. A punchdown tool and stripper are for termination, and a Wi-Fi analyzer is for wireless troubleshooting.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 5,
+    "question": "After patching a server, users report they can ping the server by IP but connections to its hostname fail intermittently, sometimes resolving to an old IP. Which is the MOST likely cause?",
+    "options": [
+      "A duplex mismatch on the server NIC",
+      "Stale or cached DNS records, or inconsistent records across DNS servers",
+      "An exhausted DHCP scope on the subnet",
+      "An incorrect default gateway on the clients"
+    ],
+    "correct": [1],
+    "explanation": "Intermittent resolution to an outdated IP points to stale DNS cache entries or records that differ between DNS servers that have not yet converged. A duplex mismatch causes errors not wrong addresses, and DHCP or gateway problems would not return an old hostname mapping.",
+    "difficulty": "HARD"
+  }
+]

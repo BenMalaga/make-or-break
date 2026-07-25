@@ -1,0 +1,224 @@
+---
+title: What a Test Is
+module: debugging-and-testing
+moduleTitle: Debugging and Testing
+moduleOrder: 5
+moduleIcon: Bug
+order: 3
+summary: "Fixing a bug by hand once is fine; a test proves it stays fixed, forever, without anyone watching."
+estimatedMinutes: 14
+prerequisites: ["print-debugging-and-the-debugger"]
+objectives:
+  - Describe what an automated test is and how it differs from eyeballing output
+  - Use assert to check a result against an expected value
+  - Structure a check as arrange, act, assert
+  - Explain how tests catch a regression the moment it happens
+tags:
+  - testing
+  - basics
+---
+
+The last lesson, print debugging and the debugger, ended on a fix. A value was wrong, a print or a
+breakpoint showed where, and a small change put it right. Job done. Except the fix rests on one
+fragile thing: a person ran the code, looked at the output, and decided it was correct this time.
+Next week someone changes a nearby line, and nobody reruns that exact check, and the bug slips back
+in unnoticed. Manual checking works right until the moment attention moves on.
+
+A test fixes that. A test is code that runs other code and checks the result against what was
+expected, automatically, so the computer does the looking instead of a tired human. Write the check
+once and it runs the same way every time, catching the day the answer changes. The output is not a
+number to squint at. It is a clean pass or a loud, specific fail.
+
+## assert: the atom of a test
+
+The smallest possible test in Python is one word: `assert`. The `assert` statement takes a condition
+and does nothing at all when it is true, and raises an error the moment it is false. That single
+behavior is the whole engine of testing.
+
+```python
+def add(a, b):
+    return a + b
+
+assert add(2, 3) == 5
+```
+
+Run that and nothing happens. No output, no message. Silence is the sound of a passing check: the
+condition `add(2, 3) == 5` was true, so `assert` stepped aside and let the program continue. A
+passing test is quiet on purpose, because a hundred passing tests should not bury the one that fails
+under a hundred lines of "ok." The whole design is built around that asymmetry. Correct is the
+expected, common case, so it says nothing and stays out of the way. Wrong is the rare, important
+case, so it interrupts and demands attention. A tool that shouted on every success would train people
+to ignore it within a day.
+
+Now break the function to see the other half.
+
+```python
+def add(a, b):
+    return a - b       # a bug: minus instead of plus
+
+assert add(2, 3) == 5
+```
+
+This time `assert` finds the condition false, because `add(2, 3)` returned `-1`, not `5`. It stops
+the program and raises an `AssertionError`.
+
+<ExpectedOutput label="running the broken version">
+```
+Traceback (most recent call last):
+  File "add.py", line 4, in <module>
+    assert add(2, 3) == 5
+AssertionError
+```
+</ExpectedOutput>
+
+The error is loud and it names the exact line. That is the trade a test makes: it stays out of the
+way when things are fine and shouts with a precise location when they are not, which is exactly
+backwards from how a program full of prints behaves.
+
+<Quiz
+  id="test-assert-silence"
+  question="A file runs several assert checks and prints nothing at all. What does that mean?"
+  answer={1}
+  options={[
+    "Python skipped the assert lines because they had no output.",
+    "Every assert condition was true, so each one passed silently; a failure would have raised an AssertionError and stopped the program.",
+    "The asserts failed quietly and the bugs were hidden.",
+    "assert only works when it is given a print statement.",
+  ]}
+  explanation="assert does nothing when its condition is true, so a passing test produces no output. Silence means every check passed. A false condition would not stay quiet; it raises AssertionError and halts, naming the line."
+/>
+
+## Arrange, act, assert
+
+A single `assert` is a test, but real tests follow a shape that keeps them readable, and it has three
+beats. Arrange: set up the inputs the code needs. Act: call the code being tested. Assert: compare
+what came back to the value that was expected. The names are worth knowing because once a test is
+read in those three beats, a broken one is easy to reason about: the setup, the call, or the
+expectation, one of the three is where the disagreement lives.
+
+Here is the same idea on a function that reverses a string, written in the three beats with the
+comments left in to make them obvious.
+
+```python
+def reverse(text):
+    return text[::-1]
+
+# arrange
+word = "python"
+# act
+result = reverse(word)
+# assert
+assert result == "nohtyp"
+```
+
+The comments come out in real code, but the rhythm stays. Set up a known input, run the thing,
+check the output against the answer that was worked out by hand ahead of time. That last part is the
+part beginners skip: a test is only as good as the expected value, and the expected value has to come
+from thinking, not from running the code and copying whatever it printed. Copying the output makes a
+test that passes no matter what the code does, which tests nothing.
+
+<Quiz
+  id="test-expected-value"
+  question="Why is it a mistake to write a test by running the code first and pasting whatever it prints as the expected value?"
+  answer={2}
+  options={[
+    "Because pasted values are always formatted wrong for assert.",
+    "Because the code runs slower the second time.",
+    "Because the expected value then just mirrors the current output, so the test passes no matter what the code does, including when it is wrong.",
+    "Because assert cannot compare strings that were copied.",
+  ]}
+  explanation="The expected value has to come from reasoning about what the answer should be, not from the code's current output. If it just mirrors what the code already prints, the test agrees with any behavior, correct or not, and catches nothing."
+/>
+
+## Why a test is worth the extra code
+
+Writing a test costs a few lines that are not the feature. The payoff is a regression, which is a
+change that breaks something that used to work. Regressions are the quiet killers of a codebase: a
+fix over here nudges an assumption over there, the code still runs, and nothing looks wrong until a
+user hits the broken path. A test that covered the broken path turns that silent breakage into an
+immediate, named failure the instant the change is made.
+
+That is the real value. A test is not mainly about proving code works today, when the author is
+staring right at it. It is about the day, weeks later, when someone who has never seen this function
+changes a line near it. The test runs, fails loudly, and points at the exact case that broke, long
+before it reaches anyone who depends on it. A codebase with tests is one where changes are safe to
+make, because breakage announces itself instead of hiding.
+
+There is a limit worth saying plainly. A test proves the cases it checks and nothing more. A function
+can pass every test written for it and still fail on a case nobody thought to check. Tests raise the
+floor, they do not guarantee correctness. Which cases to check turns out to be the hard part, and it
+is the subject of a later lesson.
+
+The economics are what make the extra lines worth it. A test is written once and runs thousands of
+times, every save, every change, for as long as the code lives. The cost is a handful of lines today;
+the return is a bug caught on the day it is introduced, months from now, by a person who has no
+memory of this function ever existing. Cheap to write, run for free forever, and loud exactly when it
+matters. Few things a programmer does pay back on that ratio.
+
+## A test changes how the code gets written
+
+The obvious use of a test is to catch a bug after the fact. The deeper effect is on the code that
+gets written in the first place, and it shows up in two ways worth naming.
+
+The first is fearless change. Code that has no tests is code that is scary to touch, because any edit
+might break something far away, and the only way to know is to click through the whole program by
+hand and hope. So the code rots: people work around it instead of improving it, because improving it
+is too risky. A function wrapped in tests flips that. Rearranging its insides, renaming things,
+making it faster, none of it is a gamble, because the tests still pin the behavior. Change the code,
+run the suite, and a green result is permission to keep going. This is why experienced programmers
+treat tests as the thing that makes a codebase workable over years rather than a chore bolted on at
+the end.
+
+The second is clearer thinking about what the code should even do. Writing a test forces a decision
+that writing code alone lets a person dodge: what, exactly, is the right answer for this input? It is
+easy to write a function that "handles" an empty list without ever deciding what handling it means.
+Writing the test `assert average([]) == ...` stops that, because the blank cannot be filled without
+choosing. Should it return zero? Raise an error? The test drags the question into the open before a
+user finds it the hard way. Some programmers push this all the way and write the test first, before
+the function exists, precisely because it forces the behavior to be defined before it is built. That
+practice has a name, test-driven development, and the mechanics matter less than the habit under it:
+decide what correct means, then make it so.
+
+None of this requires a framework or a ceremony. A single `assert` that says what a function should
+return, written while the intent is fresh, already buys the safety to change the code later and the
+clarity of having decided what right looks like. The rest is scale.
+
+<Quiz
+  id="test-enables-change"
+  question="Beyond catching bugs after the fact, what is a major reason experienced programmers write tests?"
+  answer={1}
+  options={[
+    "Tests make the code run faster in production.",
+    "Tests make code safe to change: an edit that breaks known behavior fails loudly, so refactoring and improving become low-risk instead of a gamble.",
+    "Tests replace the need to read error messages.",
+    "A file with tests is exempt from having bugs.",
+  ]}
+  explanation="Untested code is risky to touch, so it rots. Tests pin the behavior, so changing, renaming, or speeding up code becomes safe: break something known and the suite says so at once. That freedom to change is often worth more than the bugs a test catches directly."
+/>
+
+<Callout type="tip" title="Test the fix you just made">
+The best moment to write a test is right after fixing a bug, while the failing case is fresh. Take
+the input that broke the code, the one found with a print or a breakpoint, and write an assert that
+the fixed code returns the right answer for it. That single test locks the bug shut. It can come
+back only by making the test fail first, which is exactly the warning that was missing the first
+time.
+</Callout>
+
+<Exercise title="Write your first checks">
+Take a small function, either one you have written or a fresh one like a function that returns the
+larger of two numbers. Before running it, work out on paper what it should return for two or three
+inputs: two normal numbers, and the case where both are equal. Now write those as assert lines below
+the function, one per case, each comparing the call to the answer you worked out.
+
+Run the file. If it prints nothing, every check passed. Now change one character in the function to
+break it on purpose, run again, and read the AssertionError, note that it names the exact line of the
+check that caught the break. Put the function back. You have just written tests, by hand, with
+nothing but assert.
+</Exercise>
+
+Writing checks by hand with `assert` teaches the idea, and for a function or two it is enough. A real
+project has hundreds of them, and running a file of raw asserts stops at the first failure and hides
+the rest. The next lesson, writing tests with pytest, brings in the tool that runs a whole pile of
+tests, keeps going past the failures, and reports exactly which cases broke and what they expected.
+
+<Notes />

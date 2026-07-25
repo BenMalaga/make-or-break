@@ -1,0 +1,51 @@
+---
+title: Certs, Skills, and Degrees
+module: breaking-into-security
+moduleTitle: Breaking Into Security
+moduleOrder: 45
+moduleIcon: Compass
+order: 2
+summary: Skills get you hired, certs get you the interview, degrees clear the filter.
+estimatedMinutes: 15
+objectives:
+  - Sequence certs, skills, and a degree in the order that actually pays off
+  - Pick an entry cert that matches your target role instead of collecting all of them
+  - Avoid the CISSP trap and other beginner detours
+tags:
+  - careers
+  - certifications
+  - security-plus
+  - oscp
+  - skills
+---
+
+The certification question eats every beginner forum alive, and the honest answer annoys people who wanted a shortcut. Skills get you hired. Certs get you the interview. A degree gets you past the automated resume filter at big companies. In that order, and the first one carries the most weight.
+
+Start with the skills, because they show up in a technical interview within minutes and no cert can fake them. You need networking you can explain out loud (what happens on the wire when you load a page), real comfort in a Linux terminal, one scripting language good enough to automate the boring parts (Python or Bash), and the habit of reading logs and thinking like an analyst. None of those is a certificate. All of them are what an interviewer is actually probing for.
+
+## Which cert, and when
+
+Security+ from CompTIA is the HR-filter cert. It is broad and shallow, it clears the automated resume screen at a lot of shops, and it satisfies the US DoD 8570 baseline for government-adjacent work. Get it early. Do not expect it to teach you to hack.
+
+After that, go role-specific instead of collecting badges. For blue team, CySA+, Blue Team Level 1 (BTL1, refreshingly hands-on), or a GIAC cert like GCIH if an employer foots the bill, because GIAC is expensive. For red team, eJPT as a gentle start, then the PNPT or OSCP once you can genuinely pop boxes on your own. For GRC, you rarely need a cert to start; CISA or CRISC come later once you have experience to back them.
+
+<Callout type="warning" title="The CISSP is not a beginner cert">
+Everyone hears CISSP and assumes it is the finish line. It requires five years of relevant experience to actually hold, so as a first cert it is a trap. Pass the exam early and you become an "Associate of ISC2," which is fine, but it is a management-and-breadth cert, not proof you can do the technical work. Chasing it before you have a job is effort spent in the wrong place.
+</Callout>
+
+## Where the degree fits
+
+A degree helps you clear HR filters at large and regulated employers, and it is not required at most others. Both of those are true at the same time, so stop asking whether you "need" one in the abstract and ask whether your target employers do. Banks and defense contractors often gate on it. Startups and MSSPs frequently do not.
+
+If you want one cheaply, Western Governors University bundles industry certs into the coursework, so you graduate with a stack of them already earned. Plenty of strong practitioners have no degree at all. Pick based on the doors you are trying to open, not on prestige.
+
+<Callout type="security" title="Practice only where you are allowed to">
+While you study, it is tempting to test what you learned on a live site or your employer's network. Do not. Use TryHackMe, Hack The Box, the PortSwigger Web Security Academy, or a lab you built yourself. Running a scan you learned on Tuesday against a production system on Wednesday is how a promising resume turns into a police report. The learning is only legal on ground that gave you permission first.
+</Callout>
+
+<Exercise
+  id="certs-six-month-plan"
+  prompt="Pick one target role (SOC analyst, junior pentester, or GRC analyst). Write your next six months as three lines: the one cert you will earn, the two skills you will build, and the single platform you will practice on. If your plan lists four certs and no skills, redo it."
+/>
+
+<Notes />

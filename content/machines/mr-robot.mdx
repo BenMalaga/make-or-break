@@ -1,0 +1,94 @@
+---
+name: Mr Robot 1
+tagline: A themed VulnHub box with three hidden keys. Web recon to root.
+description: A downloadable VulnHub virtual machine themed after the show. It hides three keys across the box and rewards patient web enumeration, a credential brute force to a foothold, then a clean Linux privilege escalation to finish.
+difficulty: MEDIUM
+os: LINUX
+targetType: BYO_VM
+tags:
+  - web
+  - linux
+  - privesc
+points: 40
+byoVm:
+  name: "Mr-Robot: 1"
+  sourceUrl: https://www.vulnhub.com/entry/mr-robot-1,151/
+  importNotes: Download the image and import it into VirtualBox, VMware, or UTM. Put it on the same host-only or NAT lab network as your attacker box so the two can reach each other. Boot it, then find its IP from your attacker machine because the VM does not print its own address.
+flags:
+  - type: USER
+    label: Second key
+    value: MOB{robots_txt_was_the_start}
+    points: 20
+  - type: ROOT
+    label: Third key
+    value: MOB{suid_was_the_last_key}
+    points: 20
+hints:
+  - title: I booted it but where is it?
+    body: The VM does not announce its IP. Sweep your lab subnet for live hosts and compare against what you already know. netdiscover, arp-scan, or nmap host discovery all work.
+    cost: 0
+  - title: Map the web surface
+    body: Scan all ports first, then focus on the web server it is running. Read robots.txt before anything else. It points you at the first key and at a file worth downloading. Then fingerprint the site and find the content management system behind it.
+    cost: 5
+  - title: Foothold
+    body: The file named in robots.txt is a large wordlist. The CMS login gives away which usernames are valid, so enumerate a valid user, then brute force that account with the wordlist. A valid login opens a path to code execution and your first shell. The second key is not readable as your foothold account, so you will need to pivot to another user first.
+    cost: 10
+  - title: User proof token
+    body: Once you have a shell, crack the stored hash to become the second user, and read the second key from that user's home directory, submit MOB{robots_txt_was_the_start}
+    cost: 15
+  - title: Root
+    body: Run a standard privesc pass. Check sudo rights, the kernel version, and especially SUID binaries. One SUID binary here is an old tool with a well known interactive escape that drops you to a root shell.
+    cost: 10
+  - title: Root proof token
+    body: When you hold a root shell and can read the third key from the root home directory, submit MOB{suid_was_the_last_key}
+    cost: 15
+tasks:
+  - title: Discover the target IP on your lab network
+    description: The VM will not tell you its address
+  - title: Full TCP port and web enumeration
+    description: Start with robots.txt, then find the CMS
+  - title: Get an initial foothold (user)
+    description: Enumerate a valid user, brute force it, land a shell
+  - title: Escalate to root (root)
+    description: Pivot to the second user, then use a SUID binary for root
+---
+
+## About this target
+
+Mr Robot 1 is one of the most played VulnHub boxes because it teaches web
+enumeration without any exotic tricks. It runs a single public web app that
+leaks more than it should, and the whole box hides three keys. You find the
+first by reading a file everyone forgets to check, the second after you turn
+recon into a shell and pivot users, and the third when you escalate to root.
+
+Your two objectives here: **land a shell and read the second key** (user), then
+**escalate to root and read the third key** (root). The first key is a warm-up
+you will pass on the way.
+
+<Callout type="security" title="Authorized target only">
+This VM runs entirely on your own hypervisor, on an isolated lab network. That
+is what makes attacking it legal. Keep it off any network you do not control.
+</Callout>
+
+<Callout type="info" title="Verify the download">
+VulnHub mirrors change over time. Open the entry linked in the setup panel, grab
+the current download, and verify the checksum if one is published before you
+import.
+</Callout>
+
+<Callout type="info" title="How flags work on Phase A machines">
+Bring-your-own-VM boxes use proof tokens revealed through the hints once you have
+genuinely completed the objective. Capture a flag by doing the work, then
+submitting the token. Phase B hosted machines will issue real per-instance flags
+planted on the target.
+</Callout>
+
+## The loop
+
+1. Find the target on your network.
+2. Enumerate the web app, starting with robots.txt, and identify the CMS.
+3. Enumerate a valid user, brute force the login, and turn it into a shell (user).
+4. Pivot to the second user, then escalate to root through a SUID binary (root).
+
+Work it yourself first. The hints are here when you are genuinely stuck, and each
+one costs points, so earn them.

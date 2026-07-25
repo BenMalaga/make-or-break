@@ -1,0 +1,101 @@
+---
+title: Wordlists and Rules
+module: password-attacks
+moduleTitle: Password Attacks
+moduleOrder: 9
+moduleIcon: KeySquare
+order: 2
+summary: Turn a good wordlist into a great one with mutation rules and target intel.
+estimatedMinutes: 17
+objectives:
+  - Locate and choose the right wordlist for a job
+  - Build a target-specific custom list from public information
+  - Apply rule-based mutations to multiply your coverage
+tags:
+  - passwords
+  - wordlists
+  - rules
+---
+
+Cracking is a guessing game, and a wordlist is your list of guesses. The quality
+of the list decides whether you crack a hash in seconds or never. Raw brute force
+(every possible character combination) is hopeless past a few characters, so real
+attacks lean on human predictability instead.
+
+## rockyou and friends
+
+The most famous wordlist is `rockyou.txt`, roughly 14 million real passwords
+leaked from a 2009 breach. It ships with Kali and lives under
+`/usr/share/wordlists/`. Because it is made of passwords humans actually chose,
+it cracks a shocking number of weak hashes on its own.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "ls /usr/share/wordlists/", comment: "rockyou, dirb, seclists, and more" },
+    { cmd: "gunzip /usr/share/wordlists/rockyou.txt.gz", comment: "decompress it on first use" },
+    { cmd: "wc -l /usr/share/wordlists/rockyou.txt", comment: "count the candidates" },
+  ]}
+/>
+
+Beyond rockyou, the **SecLists** project bundles curated lists by category:
+common passwords, default credentials, and leaked corporate sets. Bigger is not
+always better. A focused list that matches your target beats a giant generic one.
+
+## Build a custom list from target intel
+
+Passwords reflect the people who make them. A company named Acme in Denver will
+have accounts using `Acme2024`, `Denver!`, and `Broncos1`. Tools like `cewl`
+scrape a target website and turn its words into a candidate list.
+
+<CommandCard
+  command="cewl -d 2 -m 5 -w custom.txt https://target.example"
+  explain="Spider the site two links deep, keep words of 5+ characters, and write them to custom.txt as raw cracking fodder."
+/>
+
+## Rules: one word becomes hundreds
+
+A raw word like `password` is rarely the actual password. People capitalize,
+append years, and swap letters for symbols. **Rule-based mutation** applies these
+transformations automatically, so one base word expands into many candidates:
+`password`, `Password`, `Password1`, `P@ssw0rd`, `password2024`.
+
+Hashcat ships rule files under `/usr/share/hashcat/rules/`. The `best64.rule` set
+is the standard starting point: 64 high-value mutations that catch most human
+habits without exploding your runtime.
+
+<Callout type="tip" title="Rules beat raw size">
+A 100,000-word list run through `best64.rule` tests 6.4 million candidates, and
+they are smarter candidates than 6.4 million random strings. Reach for rules
+before you reach for a bigger raw list.
+</Callout>
+
+<Callout type="security" title="Why the hunter cares">
+The fastest crack on an engagement almost always comes from a small custom list
+seeded with the target's own vocabulary (company name, products, local sports
+teams) run through a rule set. Generic rockyou is your fallback, not your opener.
+</Callout>
+
+<Quiz
+  id="rule-value"
+  question="Why apply a rule file like best64 instead of just using a larger wordlist?"
+  answer={1}
+  options={[
+    "Rules make the hashes decrypt faster",
+    "Rules generate human-realistic mutations of each base word on the fly",
+    "Rules remove the need for a GPU",
+    "Rules automatically identify the hash type",
+  ]}
+  explanation="Rules transform each word into realistic variants (capitalization, appended digits, leetspeak), covering the patterns humans actually use."
+/>
+
+<Exercise
+  id="cewl-use"
+  prompt="Which tool scrapes a target website to build a wordlist from its own vocabulary?"
+  answer="cewl"
+>
+cewl (Custom Word List generator) spiders a site and emits the words it finds,
+ready to feed into hashcat or john.
+</Exercise>
+
+<Notes />

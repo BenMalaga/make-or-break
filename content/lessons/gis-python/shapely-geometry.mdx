@@ -1,0 +1,239 @@
+---
+title: "Shapely: Building and Operating on Geometry"
+module: gis-python
+moduleTitle: GIS Programming with Python
+moduleOrder: 4
+moduleIcon: FileCode
+order: 2
+summary: "Shapely is the library that gives a GeoDataFrame's geometry column its shapes and its math: build a Point or Polygon by hand, then buffer, intersect, and measure it."
+estimatedMinutes: 15
+prerequisites: ["geopandas-intro"]
+objectives:
+  - Construct Point, LineString, and Polygon objects directly from coordinates
+  - Read a geometry's area, length, bounds, and centroid, and explain what units they come out in
+  - Build new geometry with .buffer(), .intersection(), .union(), and .difference()
+  - Test spatial relationships with .intersects(), .contains(), .within(), and .distance()
+tags:
+  - gis
+  - python
+  - shapely
+---
+
+The previous lesson loaded a GeoDataFrame and pointed at its geometry column without asking what was actually sitting inside those cells. The answer is Shapely objects. Every shape a GeoDataFrame draws, whether it is a single point or a jagged county boundary with two hundred vertices, is a Shapely geometry underneath, and GeoPandas is mostly a thin, very useful wrapper around that library plus a table. Learning Shapely directly is what turns "GeoPandas did something to my polygons" into "here is exactly what happened and why."
+
+Shapely comes from the Python scientific stack, not from any one GIS vendor, and it has no idea what a coordinate reference system is. It just does geometry: given some numbers, build a shape, and given two shapes, answer questions about how they relate. That narrowness is a feature. It is the same engine PostGIS and GEOS use under the hood in C, exposed as plain Python objects that print, compare, and combine the way any other Python value does.
+
+## Building shapes from coordinates
+
+The three geometry types worth knowing first are Point, LineString, and Polygon, and they import from `shapely.geometry`.
+
+A Point takes an x and a y value, in that order. For geographic data in WGS84, longitude comes first and latitude second, the same lon-then-lat order GeoJSON uses everywhere. It is a common early mistake to hand a point its latitude first out of habit, which silently plants it somewhere else on the globe entirely.
+
+```python
+from shapely.geometry import Point, LineString, Polygon
+
+city_hall = Point(-74.0060, 40.7128)
+print(city_hall)
+```
+
+<ExpectedOutput label="a single point printed as well known text">
+```
+POINT (-74.006 40.7128)
+```
+</ExpectedOutput>
+
+That printed line is called well known text, or WKT, a plain-text way of writing a geometry that most GIS tools can read and produce. A LineString is built the same way, but from a list of coordinate pairs instead of one:
+
+```python
+from shapely.geometry import LineString
+
+commute = LineString([(-74.0060, 40.7128), (-74.0090, 40.7200), (-73.9950, 40.7300)])
+print(commute)
+```
+
+<ExpectedOutput label="three points connected in order into one line">
+```
+LINESTRING (-74.006 40.7128, -74.009 40.72, -73.995 40.73)
+```
+</ExpectedOutput>
+
+Order matters here in a different way than it did for a single point. A LineString is not just a bag of three coordinates, it is those coordinates connected in the sequence given. Swap the second and third pairs and the line bends through a completely different path even though it touches the same three spots.
+
+A Polygon needs a closed ring: a list of points that trace the boundary and, conventionally, repeat the first point at the end to close the loop.
+
+```python
+from shapely.geometry import Polygon
+
+park = Polygon([(-74.010, 40.710), (-74.010, 40.715), (-74.000, 40.715), (-74.000, 40.710), (-74.010, 40.710)])
+print(park.area)
+```
+
+<ExpectedOutput label="the area of a simple rectangular polygon">
+```
+5.000000000000229e-05
+```
+</ExpectedOutput>
+
+That number is the whole reason the next section matters more than it looks like it should.
+
+A Polygon can also carry holes. The constructor's second argument, optional, is a list of interior rings, each one a closed loop cut out of the main shape. A lake with an island in the middle, or a parcel with a utility easement carved out of it, is built by passing the outer boundary as the first argument and the hole's boundary as one entry in that second list.
+
+```python
+from shapely.geometry import Polygon
+
+lake = Polygon(
+    [(0, 0), (0, 10), (10, 10), (10, 0), (0, 0)],
+    holes=[[(4, 4), (4, 6), (6, 6), (6, 4), (4, 4)]],
+)
+print(lake.area)
+```
+
+<ExpectedOutput label="a square lake with a square island cut out of the middle">
+```
+96.0
+```
+</ExpectedOutput>
+
+The outer square is 10 by 10, area 100. The island cut from its middle is 2 by 2, area 4. Shapely subtracts the hole automatically when computing area, landing on 96, so `.area` always reports the true covered surface rather than the outer boundary's raw footprint.
+
+<Quiz
+  id="shapely-lon-lat-order"
+  question="A developer writes Point(40.7128, -74.0060) meaning to place a point in New York City, using latitude first out of habit. What happens?"
+  answer={2}
+  options={[
+    "Shapely detects the values are out of range for longitude and raises an error immediately.",
+    "Nothing changes, because Shapely accepts either coordinate order interchangeably.",
+    "The point gets built successfully, but it lands at the swapped location, since Shapely takes the first argument as x (longitude) and the second as y (latitude) with no idea which is which.",
+    "Shapely automatically detects this is a WGS84 coordinate and reorders the values to lat, lon.",
+  ]}
+  explanation="Shapely has no concept of coordinate reference systems or which axis is which. Point(x, y) always means x first, y second, and for lon-lat data that means longitude first. Swapping the order builds a real, valid point, just not the one intended, and nothing raises an error because both numbers are perfectly legal floats."
+/>
+
+## Properties: reading a shape's basic facts
+
+Every geometry carries a handful of properties that describe it without changing it. `.area` gives a polygon's area, `.length` gives a line's length (and, confusingly, a polygon's perimeter), `.bounds` returns the bounding box as a four-number tuple, and `.centroid` returns a Point at the shape's geometric center of mass.
+
+```python
+from shapely.geometry import Polygon
+
+park = Polygon([(-74.010, 40.710), (-74.010, 40.715), (-74.000, 40.715), (-74.000, 40.710), (-74.010, 40.710)])
+print(park.bounds)
+print(park.centroid)
+```
+
+<ExpectedOutput label="the bounding box and the centroid of the same polygon">
+```
+(-74.01, 40.71, -74.0, 40.715)
+POINT (-74.005 40.7125)
+```
+</ExpectedOutput>
+
+`.bounds` reads as `(minx, miny, maxx, maxy)`, the smallest rectangle, aligned to the axes, that fully contains the shape. The centroid landed dead in the middle here because this particular polygon is a perfect rectangle, but for an irregular shape like a state outline, the centroid can sit somewhere unremarkable, or even outside the shape entirely, the way the centroid of a crescent falls in the empty space between its horns.
+
+<Callout type="info" title="Area and length are in whatever units the coordinates are in">
+That `park.area` value earlier, roughly 0.00005, is not square meters and it is not square feet. The polygon's coordinates are in WGS84 (EPSG:4326), which measures position in degrees of longitude and latitude, so Shapely's area calculation multiplies degrees by degrees and returns a number in square degrees, a unit nobody uses for anything practical. To get an area in square meters, an analyst reprojects the geometry into a metric coordinate system first, commonly a UTM zone (EPSG:326xx for the northern hemisphere, 327xx for the southern), and only then calls `.area`. This is one of the most common early GIS bugs: a suspiciously tiny or suspiciously huge area number is almost always unprojected data measured in degrees. GeoPandas exposes this as `gdf.to_crs(epsg=32618)` or similar before running the same `.area` call on the reprojected geometry.
+</Callout>
+
+The centroid is worth one more word of caution. It is a mathematical center of mass, computed from the whole shape's area, and nothing about the calculation checks whether that exact point lands inside the shape. A crescent-shaped park, or a state like Oklahoma with its narrow panhandle, can easily have a centroid sitting in open space between two lobes of the real boundary. When a point genuinely needs to fall inside the shape, such as placing a map label that must not sit off the polygon, `.representative_point()` is the safer choice: it is guaranteed to land somewhere within the shape, even if that point is not the exact geometric middle.
+
+## Operations: geometry that makes new geometry
+
+A second family of methods takes one or two geometries and returns a brand new geometry, rather than a plain number. These are the tools behind the buffer, clip, and merge steps that came up as concepts in the spatial analysis module. Now they are one line of code each.
+
+`.buffer(distance)` grows a shape outward by a given distance in every direction, turning a point into a disc or a line into a ribbon. The distance is in the same units as the coordinates, so the unit warning above applies here just as much.
+
+```python
+from shapely.geometry import Point
+
+fire_hydrant = Point(-74.006, 40.7128)
+coverage = fire_hydrant.buffer(0.001)
+print(round(coverage.area, 8))
+```
+
+<ExpectedOutput label="a point buffered into a small circular polygon">
+```
+3e-06
+```
+</ExpectedOutput>
+
+`fire_hydrant` was a Point, with no area at all. `coverage` is a Polygon, roughly circular, extending 0.001 degrees out from that point in every direction, and it has a real area because a buffer always produces a polygon regardless of what it started from.
+
+`.intersection(other)` returns the piece two geometries share, `.union(other)` returns everything covered by either one merged into a single shape, and `.difference(other)` returns what is left of the first shape after cutting away everywhere the second one covers.
+
+```python
+from shapely.geometry import Polygon
+
+zone_a = Polygon([(0, 0), (0, 4), (4, 4), (4, 0), (0, 0)])
+zone_b = Polygon([(2, 2), (2, 6), (6, 6), (6, 2), (2, 2)])
+
+overlap = zone_a.intersection(zone_b)
+combined = zone_a.union(zone_b)
+a_only = zone_a.difference(zone_b)
+
+print(overlap.area, combined.area, a_only.area)
+```
+
+<ExpectedOutput label="area of the shared square, the merged shape, and zone_a minus the overlap">
+```
+4.0 28.0 12.0
+```
+</ExpectedOutput>
+
+Two 4 by 4 squares (area 16 each) overlap in a 2 by 2 square in the middle, which is `overlap`, area 4. The union covers both squares without double counting that shared piece: 16 plus 16 minus the 4 counted twice comes to 28, which matches. And `a_only` is `zone_a` with the shared corner removed, leaving 12. These three operations are exactly what sit behind the everyday phrases "where do these two layers overlap," "combine these into one layer," and "clip this layer to that boundary."
+
+<Quiz
+  id="shapely-set-operations"
+  question="Two overlapping polygons, each with area 10, share a region of area 3. What is the area of their union?"
+  answer={1}
+  options={[
+    "20, because union just adds the two areas together.",
+    "17, because the shared region of area 3 would otherwise be counted twice.",
+    "3, because union keeps only the part the two shapes have in common.",
+    "13, because union subtracts the smaller shape from the larger one.",
+  ]}
+  explanation="Union merges both shapes into one, counting the overlapping region exactly once instead of twice. Adding 10 and 10 double counts the shared 3, so the true combined area is 10 + 10 - 3 = 17. Keeping only the shared part describes intersection, not union, and there is no subtraction of one shape from the other in a plain union."
+/>
+
+## Predicates: true or false questions about two shapes
+
+A third family answers yes-or-no questions instead of returning geometry. These are called predicates, and they show up constantly in filtering: keep only the parcels that intersect a flood zone, find the one district that contains a given address.
+
+`.intersects(other)` is true if the two shapes touch or overlap at all, even at a single point. `.contains(other)` is true if the other shape lies entirely inside this one, with none of it poking outside. `.within(other)` is the mirror image, true if this shape lies entirely inside the other one, so `a.within(b)` and `b.contains(a)` ask the same question from opposite ends. `.distance(other)` returns how far apart two shapes are, zero if they touch or overlap, and a positive number in coordinate units otherwise.
+
+```python
+from shapely.geometry import Point, Polygon
+
+city_hall = Point(-74.0060, 40.7128)
+park = Polygon([(-74.010, 40.710), (-74.010, 40.715), (-74.000, 40.715), (-74.000, 40.710), (-74.010, 40.710)])
+
+print(park.contains(city_hall))
+print(city_hall.within(park))
+print(city_hall.distance(park))
+```
+
+<ExpectedOutput label="the same containment fact checked from both directions, then a distance">
+```
+True
+True
+0.0
+```
+</ExpectedOutput>
+
+`park.contains(city_hall)` and `city_hall.within(park)` are two ways of stating the identical relationship, and both come back true because the point sits inside the rectangle's boundary. The distance is 0.0 for the same reason: a point already inside a polygon is zero distance from it, not some negative or undefined value. Distance only turns positive once a point steps outside the shape it is being measured against.
+
+<Quiz
+  id="shapely-predicates"
+  question="A parcel polygon and a flood zone polygon share a short overlapping edge but neither one fully contains the other. Which predicate correctly identifies that they overlap?"
+  answer={0}
+  options={[
+    ".intersects(), because it is true whenever two shapes touch or overlap at all, without requiring either to be fully inside the other.",
+    ".contains(), because it is true whenever any part of one shape overlaps any part of another.",
+    ".within(), because it checks whether two shapes share any boundary.",
+    ".distance(), because a distance of exactly zero always means one shape contains the other.",
+  ]}
+  explanation="Intersects is the general overlap test: any shared area or boundary makes it true, with no requirement that one shape sit fully inside the other. Contains and within specifically test full containment in one direction, which does not apply here. Distance can be zero for overlapping shapes, but a zero distance describes touching or overlapping in general, not containment specifically, so reading it as containment would be wrong."
+/>
+
+## The same operations, now with code driving them
+
+The spatial analysis module walked through buffering a hospital, intersecting a service area with a neighborhood boundary, and asking whether a home falls inside a flood zone, all as concepts done by clicking through a desktop GIS. Nothing about the underlying operation changed by writing it in Python instead. `.buffer()` is still growing a shape outward by a fixed distance. `.intersection()` is still finding the shared footprint of two shapes. `.contains()` is still asking whether one thing sits inside another. What changes is that the operation now runs against a variable that can hold one shape or ten million, wrapped in a loop, saved to a file, or chained into a pipeline that never touches a mouse. That is the entire value of learning Shapely: the same spatial vocabulary already built by hand now runs at whatever scale the data demands.

@@ -1,0 +1,318 @@
+---
+title: Inputs, Outputs, and Sensors
+module: electronics-foundations
+moduleTitle: Electronics Foundations
+moduleOrder: 4
+moduleIcon: CircuitBoard
+order: 5
+summary: "A board that only blinks is a timer; sensing a button, a knob, or the light in the room is what makes it react."
+estimatedMinutes: 17
+prerequisites: ["what-electricity-is", "components-and-schematics", "your-first-circuit", "microcontrollers-and-arduino"]
+objectives:
+  - Wire and read a pushbutton with digitalRead, and explain why an input pin needs a pull-up or pull-down resistor
+  - Read a varying voltage with analogRead and map the 0 to 1023 range back to what a sensor is doing
+  - Explain why a buzzer or motor needs more than a bare output pin, and what a transistor or driver adds
+  - Combine a sensor reading, a decision, and an action into one working Arduino sketch
+tags:
+  - electronics
+  - hardware
+---
+
+The blink sketch from the last lesson has a flaw nobody points out: the LED does
+the exact same thing forever. Leave the board in a drawer for a year, power it
+back up, and it blinks at the identical rate, because nothing outside the board
+can change its mind. A microcontroller that only sends signals out is a fancy
+timer.
+
+The interesting part starts when the board reads something first. A button. A
+knob. The brightness of the room. Then it decides what to do based on what it
+found, and acts. Read, decide, act. That loop is the whole personality of every
+gadget that reacts to the world, and this lesson builds it one piece at a time,
+using the same `setup` and `loop` structure the Arduino lesson set up.
+
+## Reading a pin as a switch
+
+The last lesson used `digitalWrite` to push a pin HIGH or LOW, sending 5 volts
+or 0 volts out to an LED. Reading works the other direction. `digitalRead` looks
+at a pin and reports the voltage it finds there, rounded to one of two answers:
+HIGH if the voltage is near 5 volts, LOW if it is near 0.
+
+Before a pin can be read it has to be told it is an input. In `setup`,
+`pinMode(2, INPUT)` sets pin 2, one of the numbered connection points along the
+board's edge, to listen instead of drive. After that, `digitalRead(2)` returns
+HIGH or LOW every time it is called.
+
+A pushbutton is the simplest thing to read. Inside it, two metal contacts sit
+apart until a press pushes them together. Wire one side of the button to 5 volts
+and the other side to pin 2, and pressing the button connects 5 volts straight
+to the pin, so `digitalRead` sees HIGH. Let go, and the contacts spring apart
+again.
+
+Here is the trap. When the button is released, pin 2 is connected to nothing at
+all.
+
+## The floating pin, and the resistor that fixes it
+
+An input pin connected to nothing does not read 0. It floats. A floating pin
+acts like a tiny antenna: it picks up electrical noise from the air, from nearby
+wires, from the board's own power, and its reading flickers between HIGH and LOW
+at random. A button wired with one loose end works maybe half the time and looks
+haunted the rest.
+
+The fix is a resistor that gives the pin a definite voltage to rest at whenever
+the button is doing nothing. There are two ways to place it.
+
+A pull-down resistor connects the pin to ground, 0 volts, through a resistor,
+usually 10 kilohms. With the button released, the pin sees 0 volts through that
+resistor and reads LOW, steadily. Press the button and 5 volts arrives from the
+other side. The direct path to 5 volts is far easier than the path through
+10 kilohms to ground, so the pin jumps to HIGH. Release it and the pin drains
+back to LOW. The resistor is deliberately large. When the button is pressed, the
+only current it wastes is 5 volts across 10 kilohms, which Ohm's law puts at
+5 / 10000, or 0.5 milliamps. Small enough to ignore, large enough to hold the
+pin still.
+
+A pull-up resistor is the mirror image. It ties the pin to 5 volts through the
+resistor, so the idle pin reads HIGH, and the button connects the pin to ground
+when pressed, pulling it LOW. The logic is inverted, pressed means LOW, which
+trips people up until they trace the wiring once.
+
+Arduino boards ship with pull-up resistors built into the chip, which saves a
+part and a hole on the breadboard. `pinMode(2, INPUT_PULLUP)` switches on an
+internal pull-up somewhere between 20 and 50 kilohms, so the pin idles HIGH and
+a button wired from the pin to ground reads LOW when pressed. Most real projects
+reach for `INPUT_PULLUP` for exactly this reason.
+
+```cpp
+const int BUTTON_PIN = 2;
+const int LED_PIN = 13;   // the Uno's built-in LED
+
+void setup() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);  // idle reads HIGH
+  pinMode(LED_PIN, OUTPUT);
+}
+
+void loop() {
+  if (digitalRead(BUTTON_PIN) == LOW) {   // pressed pulls the pin to ground
+    digitalWrite(LED_PIN, HIGH);
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
+}
+```
+
+Pin 13 earns a mention: on an Arduino Uno it is wired to a small LED soldered
+onto the board itself, so that sketch lights the built-in LED with no extra
+parts at all.
+
+<Quiz
+  id="eio-floating-pin"
+  question="A pushbutton connects an Arduino input pin to 5 volts when pressed, and nothing else is attached to that pin. When the button is released, what does digitalRead report?"
+  answer={2}
+  options={[
+    "Always LOW, because releasing the button drops the pin to 0 volts on its own.",
+    "Whatever it read last, held steady until the next press.",
+    "An unpredictable mix of HIGH and LOW, because the released pin connects to nothing and floats.",
+    "Always HIGH, because the pin remembers the last press it saw.",
+  ]}
+  explanation="With the button released, the pin is wired to nothing, so it floats and picks up stray noise, reading HIGH and LOW at random. A pull-down resistor to ground (or the internal pull-up) gives the idle pin a defined level so the reading is stable."
+/>
+
+## Reading a voltage, not just on or off
+
+A button has two states. A knob has a thousand. `digitalRead` cannot tell a
+quarter turn from a half turn, because it flattens everything down to HIGH or
+LOW. Reading a position, a temperature, or a brightness needs a pin that reports
+how much voltage it sees, not just whether there is a lot or a little.
+
+That is analog input, and it runs through a piece of the chip called the
+analog-to-digital converter, or ADC. The ADC measures the voltage on a pin and
+turns it into a number. On the Uno the ADC is 10-bit, meaning it sorts the
+voltage into 2 to the 10th power, 1024, evenly spaced steps. The reading comes
+back as a whole number from 0 to 1023. Zero volts reads 0. Five volts reads
+1023. Halfway, 2.5 volts, reads about 512. Each step covers 5 volts divided by
+1024, roughly 4.9 millivolts. The `analogRead(A0)` function does the measuring,
+and only the pins labeled A0 through A5 can do it.
+
+A potentiometer is the classic thing to read this way. It is a resistor with a
+slider: three pins, the two ends and a wiper that taps off somewhere in the
+middle. Wire the two ends across 5 volts and ground and the wiper becomes a
+voltage divider, a pair of resistances that splits the supply and hands the
+middle pin any voltage from 0 to 5 depending on how far the knob is turned. Feed
+the wiper into A0 and `analogRead` reports the knob's position as a number.
+
+```cpp
+int position = analogRead(A0);   // 0 turned one way, 1023 turned the other
+```
+
+A light sensor pulls the same trick with a different part. A photoresistor is a
+component whose resistance falls as light hits it. Put it in a voltage divider
+with an ordinary fixed resistor and the divider's middle voltage now tracks the
+light. Wire the photoresistor between 5 volts and the sensor pin, and a
+10 kilohm resistor from that pin to ground. Bright light drops the
+photoresistor's resistance and pushes the pin toward 5 volts, so `analogRead`
+climbs. Darkness raises its resistance and sends the number back down. The board
+cannot see, but it can read a value that rises and falls with the room.
+
+<Quiz
+  id="eio-analog-range"
+  question="On an Arduino Uno, a potentiometer's wiper sits at exactly the halfway point, feeding 2.5 volts into pin A0. Roughly what number does analogRead(A0) return?"
+  answer={1}
+  options={[
+    "About 128, because analogRead runs from 0 to 255.",
+    "About 512, because the 10-bit ADC maps 0 to 5 volts onto 0 to 1023.",
+    "Exactly 2, because it reports the voltage in whole volts.",
+    "About 2500, one unit for every millivolt.",
+  ]}
+  explanation="The Uno's ADC is 10-bit, so it returns 0 to 1023 across the 0 to 5 volt range. 2.5 volts is half of 5, so the reading lands near the middle of that range, about 512."
+/>
+
+## Outputs past the LED
+
+An LED is a gentle load. It asks for maybe 10 to 15 milliamps, and a pin hands
+that over without complaint. Not every output is so polite.
+
+A piezo buzzer makes sound, and a passive one needs a signal that swings on and
+off thousands of times a second to vibrate its element. `digitalWrite` is too
+slow to do that by hand, so Arduino provides `tone`. `tone(8, 1000)` drives pin
+8 with a 1000 hertz square wave, a 1000 hertz note, until `noTone(8)` stops it.
+A buzzer wired between pin 8 and ground plays whatever frequency `tone` is
+handed.
+
+```cpp
+tone(8, 1000);   // 1000 Hz on pin 8
+delay(200);
+noTone(8);       // silence
+```
+
+A motor is where a bare pin gives out. A small hobby DC motor pulls a few
+hundred milliamps when it spins freely, and far more the instant it starts or
+stalls. An Uno's output pin is rated to supply about 20 milliamps safely, and
+40 milliamps is the chip's absolute limit. Wire a motor straight from a pin to
+ground and the pin simply cannot deliver that much current. At best the motor
+barely twitches. At worst the pin burns out, or the voltage across the whole
+board sags far enough that the microcontroller resets mid-spin.
+
+The answer is to stop asking the pin to carry the power at all. A transistor is
+a switch controlled by a tiny current: a small signal on one leg lets a much
+larger current flow through the other two. The pin drives the transistor with
+its harmless 20 milliamps, and the transistor switches the motor's heavy current
+from a separate power supply. A motor driver is a chip with those transistors
+already inside, plus the protection they need, so one part can run a motor or
+two. One piece of that protection is worth naming: a motor is a coil, and a coil
+fights any sudden change in its current by throwing a sharp voltage spike the
+moment it switches off. A flyback diode placed across the motor gives that spike
+a safe path to burn off, instead of letting it punch back into the transistor.
+Direct-drive an LED. Never direct-drive a motor.
+
+<Quiz
+  id="eio-motor-current"
+  question="Why is wiring a small DC motor straight from an Arduino output pin to ground a bad idea?"
+  answer={2}
+  options={[
+    "The pin outputs the wrong voltage, and a motor needs more than 5 volts.",
+    "A motor needs an analog signal, and output pins are digital only.",
+    "The motor draws far more current than a pin can safely supply, so it can burn out the pin or reset the board.",
+    "Motors run only on alternating current, which an output pin cannot produce.",
+  ]}
+  explanation="A pin can source only about 20 milliamps safely, and a small motor pulls several times that, more still at startup or stall. The pin cannot deliver it, so a transistor or motor driver switches the motor's current from a separate supply while the pin just gives the command."
+/>
+
+## Read, decide, act: a nightlight
+
+Put the three moves together into one small machine. Read the light in the room,
+decide whether it counts as dark, and switch an LED on when it does. A
+nightlight, in about a dozen lines.
+
+```cpp
+const int SENSOR_PIN = A0;    // photoresistor divider feeds this pin
+const int LED_PIN = 9;        // LED to ground through a 220 ohm resistor
+const int DARK_LEVEL = 400;   // readings below this count as dark
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  Serial.begin(9600);         // open a text channel back to a computer
+}
+
+void loop() {
+  int light = analogRead(SENSOR_PIN);   // 0 (dark) to 1023 (bright)
+  Serial.println(light);                // print one reading per line
+
+  if (light < DARK_LEVEL) {
+    digitalWrite(LED_PIN, HIGH);        // dark room: LED on
+  } else {
+    digitalWrite(LED_PIN, LOW);         // enough light: LED off
+  }
+
+  delay(100);                           // ten checks a second
+}
+```
+
+Every idea in this lesson is in there. `analogRead` is the reading. The `if`
+comparison against `DARK_LEVEL` is the decision. `digitalWrite` is the action.
+`Serial.begin(9600)` opens a text channel to a connected computer and
+`Serial.println` sends one number per line, so the raw readings can be watched
+while the sensor is covered and uncovered. That serial view is how a threshold
+gets tuned: run it, read the numbers, pick a `DARK_LEVEL` that sits between the
+lit-room value and the covered value.
+
+<CommandCard
+  command="arduino-cli monitor -p /dev/ttyACM0 -c baudrate=9600"
+  title="terminal"
+  explain="Opens the serial monitor on the connected board so the printed light readings scroll by live. The port name /dev/ttyACM0 is one example and differs by machine and operating system."
+/>
+
+<ExpectedOutput label="serial monitor as a hand passes over the sensor">
+```
+611
+607
+602
+438
+299
+305
+472
+598
+```
+</ExpectedOutput>
+
+The readings sit in the 600s in a lit room. When a hand covers the
+photoresistor, the number dives into the 300s, below the 400 threshold, so the
+LED comes on. Lift the hand and the value climbs back over 400 and the LED goes
+dark again. Nothing in the sketch knows what a hand is. It only compares one
+number to another, ten times a second, and acts on the result.
+
+<Callout type="tip" title="Tune the threshold to the actual room">
+A DARK_LEVEL of 400 is a starting guess, not a law. A photoresistor's readings
+depend on the fixed resistor paired with it, the supply voltage, and how bright
+the room is to begin with. Watch the serial monitor in the real space, note the
+number with the sensor lit and the number with it covered, and set the threshold
+between them. Copying a value from a tutorial and skipping this step is the most
+common reason a sensor project half-works.
+</Callout>
+
+<Exercise title="Build the nightlight, or trace it">
+If an Arduino and a photoresistor are in reach, build the divider: photoresistor
+from 5V to A0, a 10 kilohm resistor from A0 to ground, and an LED with its 220
+ohm resistor from pin 9 to ground. Upload the nightlight sketch and open the
+serial monitor. Watch the number in a normal room, then cup your hand over the
+sensor and watch it fall. Set DARK_LEVEL a little above the covered reading and
+below the lit reading, upload again, and the LED should snap on the moment you
+shade the sensor.
+
+No hardware handy? Read the loop and answer one question. If the photoresistor
+and the fixed resistor swapped places in the divider, would covering the sensor
+make the number go up or down, and which way would the comparison have to change
+so the LED still turns on in the dark? Working that out on paper is the same
+skill as debugging it on the bench.
+</Exercise>
+
+Every circuit in this module has lived on a breadboard, with parts pushed into
+holes and jumper wires bridging them. That is how a design gets tried, not how it
+ships. A breadboard joint is loose, it wanders, and it falls apart the first time
+the board is bumped. Turning a working breadboard into a solid, repeatable object
+means drawing these same connections as copper traces on a printed circuit board,
+a PCB, and having it manufactured. That is where the hardware track goes next:
+PCB design, where the exact circuits from this module become a board that can be
+held.
+
+<Notes />

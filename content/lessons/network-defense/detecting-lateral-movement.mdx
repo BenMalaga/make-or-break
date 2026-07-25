@@ -1,0 +1,73 @@
+---
+title: Detecting Lateral Movement
+module: network-defense
+moduleTitle: Network Defense
+moduleOrder: 28
+moduleIcon: ShieldHalf
+order: 5
+summary: The breach is rarely the interesting part. Watching the attacker move from the first box to the domain controller is where you catch them.
+estimatedMinutes: 22
+objectives:
+  - Recognize the network and host signals that lateral movement produces
+  - Detect pass-the-hash, remote service creation, and internal recon
+  - Build detections around the traffic normal users never generate
+tags:
+  - lateral-movement
+  - detection
+  - blue-team
+  - dfir
+  - defense
+---
+
+An attacker almost never lands where they want to end up. They phish a helpdesk account, get a shell on some workstation with no useful access, and then the real work starts: moving sideways, host to host, hunting for credentials and reach until they get to the domain controller or the database that actually matters. That sideways journey is lateral movement, and it is your best chance to catch them, because it takes time and it generates traffic that normal users simply never produce.
+
+The core insight for detection is that workstations do not talk to each other. Your accountant's laptop has no reason to open an SMB session to the marketing intern's laptop, or to RDP into a server it has never touched. When it suddenly does, that is not normal, and normal is the baseline you hunt against. Attackers have to move through the network, and the shape of that movement is different from how humans and applications behave.
+
+## What movement looks like on the wire
+
+Watch for one host reaching many others on the ports used for remote administration. SMB on 445, RDP on 3389, WinRM on 5985 and 5986, WMI over RPC. A single workstation opening 445 to fifty other hosts in ten minutes is a sweep, and no employee does that by hand.
+
+<CommandBlock
+  commands={[
+    { cmd: "zeek -i eth0", comment: "capture connection logs for later analysis" },
+    { cmd: "cat conn.log | zeek-cut id.orig_h id.resp_h id.resp_p | sort | uniq -c | sort -rn", comment: "count who talks to whom on what port; fan-out jumps out" },
+    { cmd: "grep ':445' conn.log | zeek-cut id.orig_h id.resp_h | sort -u | wc -l", comment: "how many distinct SMB destinations from each source" },
+  ]}
+/>
+
+The pattern that gives it away is fan-out. One source, many destinations, same admin port, short time window. Legitimate admin tools do this too, which is why you allowlist your known management hosts and then treat everyone else doing it as an incident.
+
+## The techniques and their tells
+
+Pass-the-hash lets an attacker authenticate with a stolen NTLM hash instead of a password. On the network it shows up as NTLM authentication from a host or account that should be using Kerberos, and as the same account logging into many machines in quick succession. In Windows logs, watch Event ID 4624 with logon type 3 (network logon) landing on hosts that account never touches, especially with an NTLM authentication package.
+
+Remote service creation is a classic execution technique. Tools like PsExec create a service on the target to run their payload, which lights up Event ID 7045 (a new service was installed) and 4697. A new service named with random characters, installed on a host at an odd hour, from a source that is not your patch management system, is a strong signal.
+
+Internal recon comes before the movement. Before an attacker can pivot, they enumerate: who is a domain admin, which machines exist, where the shares are. That means LDAP queries against the domain controller, DNS lookups for internal hosts in bulk, and SMB enumeration. A workstation firing hundreds of LDAP queries about group membership is casing the place.
+
+<Callout type="security" title="Practice detection on your own data">
+Building and testing these detections means generating lateral movement in a lab and watching your sensors catch it. Do that on a range you control or an authorized red-team engagement. Running these techniques on a production network you do not have written authorization to test is a crime, even if your intent is to check the alerting.
+</Callout>
+
+## Build detections around impossible-for-users behavior
+
+Signatures for specific tools break the moment the attacker renames the binary or writes their own. So anchor detections on behavior that is hard to change and rare for real users. Workstation-to-workstation SMB. A service account, which should only run a service, logging in interactively. One account authenticating to twenty hosts in five minutes. A machine that has never used RDP suddenly making outbound 3389 connections across the subnet. None of those depend on the attacker using a named tool, and all of them are the movement itself.
+
+<CommandCard command='index=windows EventCode=4624 Logon_Type=3 | stats dc(ComputerName) as hosts by Account_Name | where hosts > 10' explain="A Splunk-style search that counts how many distinct hosts each account did a network logon to. An account hitting more than ten machines in the search window is either an admin tool you should allowlist or an attacker spraying credentials. Tune the threshold to your environment, then alert on the rest." />
+
+The trap is drowning in your own admin traffic. Your backup service, your vulnerability scanner, your patch deployment, and your monitoring agents all fan out to many hosts by design, and they will trip every detection above if you do not account for them. Inventory those systems first, allowlist them explicitly, and then anything left doing high fan-out is worth a human's attention. A detection that fires on legitimate ops noise gets muted, and a muted detection catches nobody.
+
+<Quiz
+  id="lat-fan-out"
+  question="You are hunting for lateral movement. Which pattern is the strongest single indicator, assuming you have already accounted for your admin tooling?"
+  answer={2}
+  options={[
+    "A server making outbound HTTPS connections to a CDN",
+    "A user logging into their own workstation each morning",
+    "One workstation opening SMB sessions to dozens of other workstations in a few minutes",
+    "A domain controller responding to LDAP queries",
+  ]}
+  explanation="Workstation-to-workstation SMB fan-out is behavior normal users never generate, and it is the shape of an attacker sweeping for reachable hosts and credentials. Outbound HTTPS to a CDN, a user logging into their own machine, and a DC answering LDAP are all routine. The tell is one source hitting many peers on an admin port in a short window, once you have allowlisted the backup and patch systems that legitimately do this."
+/>
+
+<Notes />

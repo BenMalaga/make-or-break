@@ -1,0 +1,75 @@
+---
+title: Tuning Out the Noise
+module: siem-and-log-analysis
+moduleTitle: SIEM and Log Analysis
+moduleOrder: 25
+moduleIcon: ScrollText
+order: 5
+summary: A SOC drowning in false positives misses the real alert sitting three rows down.
+estimatedMinutes: 20
+objectives:
+  - Diagnose why a detection is generating false positives instead of muting it blindly
+  - Tune a rule with allowlists, baselines, and threshold changes that keep true positives
+  - Measure alert quality so tuning is driven by data, not by whoever complains loudest
+tags:
+  - siem
+  - alert-tuning
+  - false-positives
+  - soc
+---
+
+An analyst who sees four hundred alerts a shift stops reading them. Not because they are lazy, because no human can triage four hundred anything and stay sharp. This is alert fatigue, and it is how real breaches sail through a fully staffed SOC: the true positive was there, sitting between two hundred false ones, and nobody had attention left to see it. Tuning is the work that keeps the console trustworthy.
+
+The trap is the lazy fix. When a rule is noisy, the tempting move is to disable it or crank the threshold so high it never fires. That does not reduce risk, it hides it. Real tuning keeps the detection alive and surgically removes the benign events that trip it.
+
+## Find out what is actually firing
+
+Before you touch a rule, count what triggers it. In Splunk, look at your own alert index and rank the offenders.
+
+<CommandCard command='index=notable | stats count by rule_name | sort -count' explain="List every detection by how often it fired. The top few rules are almost always where your noise lives, and they are where an hour of tuning buys the most quiet. Fix the loudest rule first, not the newest complaint." />
+
+Then pull the actual events one noisy rule matched and ask a blunt question: is this a real signal I am mishandling, or a benign pattern I should exclude? Usually it is a vulnerability scanner, a backup service account, or a monitoring bot doing exactly what it is supposed to.
+
+## Tune with precision, not a sledgehammer
+
+Once you know the source of the noise, remove it without blinding the detection. There are a few honest levers.
+
+<CommandBlock
+  commands={[
+    { cmd: "Allowlist the benign actor", comment: "exclude the Nessus scanner IP from the brute-force rule, nothing else" },
+    { cmd: "Baseline normal behavior", comment: "alert on deviation from each host's usual login volume, not a flat number" },
+    { cmd: "Tighten the logic", comment: "add a condition so the rule needs the whole attack chain, not one weak indicator" },
+    { cmd: "Adjust the window or threshold", comment: "raise the count only after you know the benign traffic's real ceiling" },
+  ]}
+/>
+
+Allowlisting one scanner IP is surgical. Raising the global threshold from twenty to five hundred is a sledgehammer that also silences the real spray. Prefer the scalpel every time, and write a comment in the rule saying why the exclusion exists so the next analyst does not undo it.
+
+<Callout type="warning" title="Every allowlist is an attacker's dream">
+The IP or account you exclude is now a blind spot. If an attacker compromises your vulnerability scanner or your backup service account, your own tuning waves them through. Review allowlists on a schedule, keep them narrow, and never exclude an entire subnet when one host will do.
+</Callout>
+
+## Measure so you can prove it worked
+
+Tuning without measurement is guessing. Track the true-positive rate and false-positive rate per rule over time. A detection where 95 out of 100 alerts are false is not a detection, it is a distraction, and the number tells you that plainly. After tuning, the ratio should climb, and if it does not you changed the wrong thing.
+
+Good SOCs treat detections like code: version them, document why each threshold is what it is, and review the noisy ones every sprint. A rule you wrote a year ago against last year's network is probably lying to you now.
+
+<Callout type="security" title="Tune only the systems you own">
+Alert tuning changes what your organization can and cannot see. Make these changes only on detections and data within your authorized scope, coordinate with your team before silencing anything, and document every exclusion. A quietly disabled rule is a gap someone will have to explain after the breach.
+</Callout>
+
+<Quiz
+  id="siem-tuning-lazy-fix"
+  question="A brute-force rule fires 300 times a day, almost all from your internal vulnerability scanner. What is the correct fix?"
+  answer={2}
+  options={[
+    "Disable the rule so the noise stops",
+    "Raise the threshold from 20 to 5000 failed logins",
+    "Allowlist the scanner's IP address and leave the rule otherwise intact",
+    "Ignore the alerts and move on",
+  ]}
+  explanation="Disabling or massively raising the threshold blinds you to a real spray. Allowlisting the one known-benign source removes the noise while the detection still fires on any other host, which is the whole point of surgical tuning."
+/>
+
+<Notes />

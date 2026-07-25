@@ -1,0 +1,305 @@
+---
+title: Branching and Merging
+module: git-and-version-control
+moduleTitle: Version Control with Git
+moduleOrder: 3
+moduleIcon: GitBranch
+order: 3
+summary: "A branch lets a risky idea grow without touching the version that already works, then merge folds it back in."
+estimatedMinutes: 15
+prerequisites: ["your-first-repository"]
+objectives:
+  - Explain what a branch is and why isolating a change protects working code
+  - Create a branch and move onto it with git switch -c
+  - Fold a finished branch back into main with git merge
+  - Recognize a merge conflict and resolve it by editing the file, then committing
+tags:
+  - git
+  - branching
+---
+
+A website works. The last lesson, your first repository, got it there: a plain
+folder turned into a repository, a first commit, then a second, each one a
+snapshot pointing back at the one before it. That history is a single straight
+line, one commit after another. Now a new idea shows up, a dark color scheme
+worth trying, and it might look great or it might look terrible. Editing the
+files directly means the site that already works is the same site being pulled
+apart. That is the exact problem a branch solves.
+
+The last lesson was careful about one word: commits form a line. Each commit
+knows its parent, so the history reads like beads on a single string. A branch
+is what happens when that string splits in two, so a person can walk down one
+path while the other stays untouched. Nothing about the working version has to
+break for a new idea to get built.
+
+## A branch is a second line of commits
+
+A branch is an independent line of commits that grows on its own, separate from
+the main line of history. Picture the straight chain from the last lesson. A
+branch starts at some commit on that chain and then heads off in its own
+direction, collecting new commits that belong only to it. The original line
+keeps sitting exactly where it was, unbothered.
+
+The main line has a name, and it is almost always the same one: main. When a
+repository is created, Git puts the first commits on a branch called main by
+default, and that branch is understood by everyone to hold the version that is
+supposed to work. Older repositories sometimes call it master instead, the same
+idea under a different name, but new projects land on main.
+
+Here is the property that makes the whole thing useful: commits made on a branch
+do not touch main. A person creates a branch called dark-mode, switches onto it,
+and makes five commits changing colors, tearing out a layout, breaking things,
+fixing them. Through all of that, main still points at the last commit it had
+before the branch started. The working, shippable version is frozen in place,
+safe, while the experiment runs somewhere else entirely.
+
+That isolation is worth the whole feature on its own. A risky idea can be tried
+without gambling the working code, because if the idea flops, the branch gets
+thrown away and main never knew it happened. A feature that takes several days
+can be built commit by commit on its own branch, while main stays ready to show
+anyone at a moment's notice. Two people can work on two branches at the same
+time without editing the same live files out from under each other. The single
+straight line was fine for one idea at a time. A branch is how a project holds
+more than one.
+
+<Quiz
+  id="branch-isolation"
+  question="A developer creates a branch called new-checkout, switches onto it, and makes four commits that half-rewrite the payment page and leave it broken. What state is the main branch in?"
+  answer={2}
+  options={[
+    "main now contains the four commits too, because every commit is shared across all branches.",
+    "main is broken, because the payment page is broken on the branch.",
+    "main is unchanged and still points at the last commit it had before the branch was made.",
+    "main is deleted until the branch is finished.",
+  ]}
+  explanation="Commits made on a branch belong only to that branch. main keeps pointing at the commit it was on before new-checkout started, so the broken, half-finished work is invisible to it. That isolation is the entire reason branches exist: the working version stays working while the experiment runs elsewhere."
+/>
+
+## Making a branch and moving onto it
+
+Two commands cover almost everything at this stage. The first just reports what
+branches exist. Running `git branch` lists every branch in the repository and
+marks the current one with an asterisk. In a fresh repository that has only ever
+had main, the output is a single line.
+
+<CommandCard
+  command="git branch"
+  title="terminal"
+  explain="Lists every branch in the repository. The asterisk marks the branch currently checked out."
+/>
+
+<ExpectedOutput label="listing branches in a fresh repo">
+```
+* main
+```
+</ExpectedOutput>
+
+The second command does the real work. Running `git switch -c dark-mode` creates
+a new branch named dark-mode and moves onto it in one step. The `-c` stands for
+create. Without it, `git switch` only jumps to a branch that already exists; with
+it, Git makes the branch first and then switches. The new branch starts life
+pointing at whatever commit was current when it was created, so it begins as an
+exact copy of that state and then goes its own way.
+
+<CommandCard
+  command="git switch -c dark-mode"
+  title="terminal"
+  explain="Creates a new branch named dark-mode and checks it out, so the next commits land on dark-mode instead of main."
+/>
+
+<ExpectedOutput label="creating and switching to a branch">
+```
+Switched to a new branch 'dark-mode'
+```
+</ExpectedOutput>
+
+Run `git branch` again after that and the picture has changed. Both branches
+exist, and the asterisk has moved to show which one is now active.
+
+<ExpectedOutput label="listing branches after switching">
+```
+  dark-mode
+* main
+```
+</ExpectedOutput>
+
+Wait, read that carefully. The asterisk sits on the branch that is checked out
+right now, which is the one collecting new commits. From this point, editing a
+file and running `git add` then `git commit` records the snapshot on dark-mode.
+main does not move. That is the mechanism behind the isolation from the last
+section: switching onto a branch redirects where commits land, and nothing else
+has to change.
+
+One note on history, because a lot of older material and a lot of working
+developers still use the earlier command. `git checkout -b dark-mode` does the
+exact same thing as `git switch -c dark-mode`: it creates the branch and moves
+onto it. `git switch` and `git restore` were added in 2019 to split the jobs
+that the older, overloaded `git checkout` used to do all at once. Both spellings
+work in any recent Git. `git switch -c` is the clearer one to reach for, and
+seeing `git checkout -b` in someone else's notes means the same action.
+
+<Quiz
+  id="switch-create-flag"
+  question="What is the difference between running git switch dark-mode and git switch -c dark-mode?"
+  answer={1}
+  options={[
+    "There is no difference; the -c is decorative and both create the branch.",
+    "git switch -c creates a new branch named dark-mode and moves onto it, while git switch alone only moves onto a branch that already exists.",
+    "git switch -c switches branches, while git switch alone creates one without switching.",
+    "git switch -c deletes dark-mode, while git switch alone creates it.",
+  ]}
+  explanation="The -c flag means create. git switch -c dark-mode makes the branch and then checks it out in one step. Plain git switch dark-mode only works if dark-mode already exists, and errors out otherwise. Neither command deletes anything, which rules out the last option."
+/>
+
+## Merging folds the work back in
+
+A branch that stays off on its own forever is not much use. The point of building
+in isolation is to bring the finished work back to main once it is good, and the
+command that does that is `git merge`. Merging takes all the commits from a
+branch and folds them into another branch, so the target branch ends up holding
+that work too.
+
+Direction matters here, and it trips people up. Merging happens while sitting on
+the branch that should receive the work, not the branch that did it. To bring
+dark-mode into main, a person first switches back to main with `git switch main`,
+and then runs `git merge dark-mode`. Read it as a sentence: standing on main,
+merge dark-mode into here. Getting on the wrong branch first is the classic early
+mistake, so the switch is worth doing deliberately.
+
+<CommandCard
+  command="git merge dark-mode"
+  title="terminal"
+  explain="Run while on main. Folds every commit from the dark-mode branch into main, so main now contains that work."
+/>
+
+<ExpectedOutput label="merging dark-mode into main">
+```
+Updating 7c3a9f1..b2e8d04
+Fast-forward
+ styles.css | 6 ++++++
+ 1 file changed, 6 insertions(+)
+```
+</ExpectedOutput>
+
+That output says the merge went cleanly. The word Fast-forward means main had not
+moved at all since dark-mode split off, so Git could simply slide main forward to
+catch up with the branch, no real combining required. When main has moved on its
+own in the meantime, Git instead builds a small extra commit that ties the two
+lines together, and the output reads `Merge made by the 'ort' strategy` instead.
+Either way the result is the same: main now contains the branch's work, and the
+files on main reflect it.
+
+Once a branch has been merged, it has done its job, and it is common to delete it
+to keep the branch list tidy. Running `git branch -d dark-mode` removes the label.
+The commits themselves are not lost, because they now live in main's history too;
+only the pointer named dark-mode goes away. Deleting a merged branch is cheap and
+safe, and leaving old merged branches lying around just makes `git branch` noisier
+than it needs to be.
+
+<Quiz
+  id="merge-direction"
+  question="A developer finished a feature on a branch called search-bar and wants that work in main. Which sequence brings it in correctly?"
+  answer={0}
+  options={[
+    "git switch main, then git merge search-bar",
+    "git switch search-bar, then git merge main",
+    "git merge main into search-bar while on search-bar",
+    "git branch -d search-bar, then git merge",
+  ]}
+  explanation="Merge is run from the branch that should receive the work. To get search-bar into main, switch to main first, then merge search-bar into it. The second and third options merge in the wrong direction, pulling main into the feature branch. The fourth deletes the branch before its commits are ever folded in, which would throw the work away."
+/>
+
+## When two edits collide
+
+Merges are not always quiet. Git combines branches automatically whenever the two
+sides changed different parts of a project, which is most of the time. It cannot
+combine them automatically when both branches changed the same lines of the same
+file in different ways, because then there is no correct answer for Git to pick.
+It will not guess. That situation is a merge conflict, and it is a normal part of
+working with branches, not a sign that anything is broken.
+
+A conflict shows up the moment a merge is attempted. Instead of a clean summary,
+Git reports that it stopped partway.
+
+<ExpectedOutput label="a merge that hits a conflict">
+```
+Auto-merging styles.css
+CONFLICT (content): Merge conflict in styles.css
+Automatic merge failed; fix conflicts and then commit the result.
+```
+</ExpectedOutput>
+
+The conflict lives inside the file. Opening styles.css after this shows that Git
+has kept both versions of the clashing lines and marked them with three symbols
+so a human can see the disagreement clearly. The section between `<<<<<<<` and
+`=======` is the version from the current branch, main. The section between
+`=======` and `>>>>>>>` is the version coming in from the branch being merged.
+
+```
+h1 {
+<<<<<<< HEAD
+  color: navy;
+=======
+  color: crimson;
+>>>>>>> dark-mode
+}
+```
+
+Reading those markers is the whole skill. `<<<<<<< HEAD` opens the block and
+labels the top half as HEAD, which is Git's name for the branch currently checked
+out. The `=======` line is the fence between the two versions. The `>>>>>>>
+dark-mode` line closes the block and names where the bottom half came from. Git is
+not asking which line is prettier. It is asking a person to decide what the final
+file should actually say, because the answer needs a human who knows what the code
+is for.
+
+Resolving a conflict means editing the file into the state it should end in, then
+committing. Nothing more magical than that. A person opens the file, deletes the
+three marker lines, and leaves behind whatever the correct final content is: maybe
+navy wins, maybe crimson wins, maybe the right answer is a third color that was in
+neither branch. Once the file reads exactly right and no markers remain, `git add`
+on that file tells Git the conflict is settled, and `git commit` records the merge.
+The commit finishes the merge that the conflict had paused.
+
+There is also an escape hatch, and it is worth knowing before the first real
+conflict rather than after. A merge that has stopped on a conflict can be called
+off entirely with `git merge --abort`, which throws away the half-done merge and
+puts the branch back exactly as it was before the merge started. Nothing is lost,
+because the abort only undoes the merge attempt, not any committed work on either
+branch. That safety net matters: a conflict is never a trap. It can always be
+backed out of and tried again once the plan is clearer, which takes most of the
+fear out of merging two branches that both changed a lot.
+
+<Callout type="warning" title="Leftover conflict markers are a real bug, not a note">
+The strings `<<<<<<<`, `=======`, and `>>>>>>>` are ordinary text that Git wrote
+into the file. Git does not remove them; a person does. Forgetting to delete even
+one of them leaves it sitting in the code, and it will break the program the next
+time it runs, because a line like `>>>>>>> dark-mode` is not valid CSS, or Python,
+or anything else. After resolving a conflict, it is worth searching the file for
+those angle brackets before committing. If they made it into a commit, the fix is
+simply another edit that removes them.
+</Callout>
+
+<Exercise title="Make a conflict on purpose and resolve it">
+In a repository you can experiment in, create a file called notes.txt with a
+single line: `favorite color: blue`. Commit it on main. Now run
+`git switch -c red-idea`, change that line to `favorite color: red`, and commit
+it on the branch. Switch back with `git switch main` and change the same line to
+`favorite color: green`, then commit that on main.
+
+Now run `git merge red-idea`. You will get a conflict, because both branches
+edited the same line. Open notes.txt and read the `<<<<<<<`, `=======`, and
+`>>>>>>>` markers Git left behind. Decide the final line yourself, delete all
+three marker lines and the version you do not want, save, then run `git add
+notes.txt` and `git commit`. Run `git log --oneline` afterward to see the merge
+sitting in the history. You have now caused and cleared the thing people are most
+nervous about, which is the fastest way to stop being nervous about it.
+</Exercise>
+
+A branch and a merge are the core of working alongside other people, but so far
+every branch has lived on a single computer. The next lesson, github and working
+with others, gets a repository off one machine and onto the internet, where
+branches can be pushed, pulled, and shared, and where two people's histories
+finally meet.
+
+<Notes />

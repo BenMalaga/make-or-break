@@ -1,0 +1,285 @@
+---
+title: Recursion and Memoization
+module: math-and-logic
+moduleTitle: Math and Logic
+moduleOrder: 5
+moduleIcon: Sigma
+order: 5
+summary: "A function that calls itself, and the cache that stops it from redoing the same work a million times."
+estimatedMinutes: 16
+objectives:
+  - Write a recursive function with a base case that stops it and a recursive case that shrinks the problem
+  - Trace why naive recursive Fibonacci recomputes the same subproblems and explodes in cost
+  - Cache results with memoization so each answer is computed once and read back forever after
+  - Speed a Collatz-length search from minutes to seconds by storing chain lengths as they are found
+tags:
+  - python
+  - recursion
+  - algorithms
+prerequisites: ["counting-and-combinatorics"]
+---
+
+The counting lesson wrote n! for the number of ways to line up n distinct items:
+5! is 120 orderings of five books on a shelf, and 0! is 1 because there is exactly
+one way to arrange nothing. That lesson used the value of a factorial. It never
+showed how a program produces one. The factorial has a shape that a particular
+kind of function fits perfectly, and once that shape is clear the same trick
+computes Fibonacci numbers, walks Collatz chains, and drives a large share of the
+coding challenges in this track.
+
+## A function that calls itself
+
+Look at what n! means one layer down. 5! is 5 times 4!. And 4! is 4 times 3!. Each
+factorial is defined in terms of a smaller factorial, and the shrinking stops at
+0!, which is 1. That definition points straight at code:
+
+```python
+def factorial(n):
+    if n == 0:                    # base case: stop here
+        return 1
+    return n * factorial(n - 1)   # recursive case: shrink the problem
+```
+
+Here `factorial` calls `factorial`. A function that calls itself is recursive, and
+every working recursive function has these two parts. The base case is the
+smallest input the function can answer outright, with no further calls: here,
+`factorial(0)` returns 1 immediately. The recursive case handles every larger
+input by doing a little work and handing the rest to a smaller call. So
+`factorial(5)` returns `5 * factorial(4)`, trusting that `factorial(4)` will come
+back with the right number.
+
+Follow `factorial(3)` all the way down. It returns `3 * factorial(2)`, which
+returns `2 * factorial(1)`, which returns `1 * factorial(0)`, which returns 1. Now
+the chain unwinds back up: 1 times 1 is 1, 2 times 1 is 2, 3 times 2 is 6. So
+`factorial(3)` is 6, and running the code confirms it. The base case is what makes
+this safe. Delete the `if n == 0` line and the function keeps calling smaller and
+smaller versions without end, sliding past zero into negative numbers that never
+stop, until the program crashes. A recursive function with no reachable base case
+is the recursion version of a loop with no exit.
+
+<Quiz
+  id="recursion-and-memoization-base-case"
+  question="A recursive factorial function has its 'if n == 0: return 1' line deleted, and then factorial(5) is called. What happens?"
+  answer={1}
+  options={[
+    "It returns 120 anyway, because Python supplies a default base case for recursion.",
+    "It calls itself with smaller and smaller n without end and eventually crashes, because nothing stops the recursion.",
+    "It returns 1, because n never manages to reach 0.",
+    "It refuses to run at all, because a function is not allowed to call itself.",
+  ]}
+  explanation="The base case is the only thing that halts a recursion. Remove it and factorial(5) calls factorial(4), factorial(3), and so on straight past zero into negative numbers, so the calls never bottom out and the program crashes when the call stack fills."
+/>
+
+## Two rules, one steep price
+
+Fibonacci numbers have the same self-referential shape and make the second classic
+example. The sequence starts 0, 1, and every number after that is the sum of the
+two before it: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55. Written as a definition, fib(0)
+is 0, fib(1) is 1, and fib(n) is fib(n-1) plus fib(n-2). Two base cases this time,
+and a recursive case that makes two calls instead of one:
+
+```python
+def fib(n):
+    if n < 2:
+        return n
+    return fib(n - 1) + fib(n - 2)
+```
+
+This is correct. `fib(10)` returns 55, matching the eleventh number in the
+sequence above. It is also a trap, and the two recursive calls are the whole
+problem. To compute `fib(5)`, the function needs `fib(4)` and `fib(3)`. But
+`fib(4)` needs `fib(3)` too, so `fib(3)` gets computed twice. Each of those needs
+`fib(2)`, recomputed again from scratch every single time. The same small answers
+are thrown away and rebuilt over and over, and the number of repeats grows
+explosively.
+
+A counter makes the damage visible:
+
+```python
+calls = 0
+def fib(n):
+    global calls
+    calls += 1
+    if n < 2:
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+fib(10)
+print(calls)   # 177
+```
+
+Computing `fib(10)` calls the function 177 times to produce a number that sits
+tenth in a short list. Push it a little further and the cost detonates: `fib(30)`
+makes 2,692,537 calls, and `fib(35)` makes 29,860,703. Every step of about five in
+n multiplies the total work by roughly eleven. The function is correct and
+completely impractical. On this pattern `fib(50)` would run far past any
+reasonable wait, computing a value the right method returns in an instant. The cost
+is not the recursion itself. The cost is discarding every answer the moment it is
+found and paying full price for it again.
+
+<Quiz
+  id="recursion-and-memoization-why-slow"
+  question="Why does the naive recursive fib(35) make almost 30 million calls to compute one number?"
+  answer={2}
+  options={[
+    "Because Python is a slow language for doing arithmetic.",
+    "Because adding two large Fibonacci numbers is an expensive operation.",
+    "Because the same subproblems, like fib(3), are recomputed from scratch again and again instead of being saved.",
+    "Because any recursive function always doubles its total work at every single step.",
+  ]}
+  explanation="The blow-up is repeated work, not slow arithmetic or a rule about recursion in general. fib(n) recomputes fib(n-2) along two separate branches, and those overlaps compound, so a small answer like fib(3) is rebuilt an enormous number of times."
+/>
+
+## Cache the answer once
+
+The fix is to remember. Memoization means storing the result of each call the first
+time it is computed, then reading that stored value on every later request for the
+same input. A dictionary makes a natural store, with the input as the key and the
+answer as the value:
+
+```python
+memo = {}
+def fib(n):
+    if n < 2:
+        return n
+    if n in memo:                    # solved before: read it back
+        return memo[n]
+    answer = fib(n - 1) + fib(n - 2)
+    memo[n] = answer                 # solve it once, then keep it
+    return answer
+```
+
+The shape barely changed. Before computing anything the function checks the cache,
+and after computing it writes the result down. Now `fib(30)` no longer makes
+millions of calls. Each value from `fib(2)` up to `fib(30)` is computed exactly
+once and read straight from `memo` after that, which comes to 29 fresh additions in
+total, down from the 2,692,537 calls the naive version paid. The total work now
+grows in step with n instead of exploding. `fib(100)` returns 354224848179261915075
+without a pause, a 21-digit number the plain recursive version could never reach in
+a lifetime of running.
+
+That check-then-store pattern is common enough that Python ships it as a
+decorator. Placing `@lru_cache` from the `functools` module above the original
+two-line `fib` gives it a cache without touching the body:
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def fib(n):
+    if n < 2:
+        return n
+    return fib(n - 1) + fib(n - 2)
+```
+
+Memoization is one half of a larger idea called dynamic programming: solve a big
+problem by solving smaller versions of it, and never solve the same small version
+twice. Memoization does this top down, starting from the goal and caching on the
+way down to the base cases. The same idea also runs bottom up, starting from the
+smallest answers and building forward. A bottom-up Fibonacci keeps only the last
+two numbers and walks up to n with a loop, no recursion and no dictionary at all:
+
+```python
+def fib(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+```
+
+Both versions compute the same value in the same modest amount of work. The
+recursive-plus-cache version reads closest to the mathematical definition and works
+for any problem shaped like overlapping subproblems, while the loop version uses the
+least memory and sidesteps the call stack entirely. Which one fits depends on the
+problem, and the next section shows one where caching is the obvious move.
+
+<Quiz
+  id="recursion-and-memoization-cache-hit"
+  question="With the memoized fib, memo already holds fib(2) through fib(29) when fib(30) is requested. What does the fib(30) call do to produce its answer?"
+  answer={1}
+  options={[
+    "It recomputes fib(29) and fib(28) from scratch, ignoring what is already in memo.",
+    "It reads fib(29) and fib(28) back from memo, adds them, stores fib(30), and does that one addition.",
+    "It returns None, because the key 30 is not in memo yet at the moment of the call.",
+    "It clears memo first and then restarts the whole sequence from fib(0).",
+  ]}
+  explanation="A memoized call computes a value only if it is missing. Since fib(29) and fib(28) are both cached, fib(30) reads them, performs a single addition, and writes fib(30) into memo. That is the whole reason the cached version does linear work instead of exponential work."
+/>
+
+## Collatz, fast
+
+The Collatz sequence takes any positive whole number and applies one rule until it
+reaches 1: if the number is even, halve it; if it is odd, triple it and add one.
+Starting at 13 the chain runs 13, 40, 20, 10, 5, 16, 8, 4, 2, 1, which is ten
+numbers long. A natural challenge asks for the starting number below one million
+whose chain is the longest. Computing every chain from scratch means walking
+millions of numbers through millions of steps, and it drags on for minutes.
+
+Memoization collapses that. Here is the key observation: the chain from 20 is just
+20 followed by the chain from 10. Once the length of 10's chain is known, the
+length of 20's chain is one more, with no walking required. Store each chain length
+the first time it is found, and every later chain that passes through a known
+number stops early and reads the answer:
+
+```python
+length = {1: 1}
+def chain_len(n):
+    if n in length:
+        return length[n]
+    nxt = n // 2 if n % 2 == 0 else 3 * n + 1
+    length[n] = 1 + chain_len(nxt)
+    return length[n]
+```
+
+The first sweep across a range fills the cache. After that, most numbers land on a
+value already stored and return almost at once, because no chain segment is ever
+walked twice across the whole run. The search that took minutes finishes in
+seconds. This exact problem, the longest Collatz chain below one million, is waiting
+in the Challenges tab as `longest-collatz`, and this cached `chain_len` is the shape
+of the winning solution.
+
+One limit deserves respect. Every recursive call sits on Python's call stack, and
+that stack is not bottomless. Python caps recursion depth at 1000 by default, and a
+run of nested calls deeper than that raises `RecursionError: maximum recursion
+depth exceeded`. A recursive `chain_len` on a number with a very long chain can hit
+that ceiling. There are two ways around it: raise the cap with
+`sys.setrecursionlimit`, or rewrite the walk as a loop that follows the sequence
+with `while` and fills the cache as it goes. The bottom-up habit from the last
+section pays off here, since a loop carries no depth limit at all.
+
+<Callout type="warning" title="Recursion has a floor it can hit">
+Every call a function makes to itself stacks on top of the previous one, and Python
+holds that stack to 1000 frames by default. A recursion that nests deeper than that
+raises RecursionError before it can finish. Raising sys.setrecursionlimit lifts the
+ceiling but risks a real crash if the stack grows past what the machine can hold.
+The safer fix for a deep walk is to trade the recursion for a loop, which has no
+depth limit and keeps memory flat.
+</Callout>
+
+<Exercise title="Memoize a Collatz search">
+Open the longest-collatz challenge in the Challenges tab and work in the Build
+editor. Start small: write chain_len(13) and confirm it returns 10, the length of
+the chain 13, 40, 20, 10, 5, 16, 8, 4, 2, 1.
+
+Now build the search. Keep a length dictionary seeded with {1: 1}. Loop a start
+value from 1 up to 999999, call chain_len on each, and track both the longest length
+you have seen and the starting number that produced it. Print that starting number
+once the loop finishes.
+
+Run it first without the cache, recomputing every chain from scratch, and notice how
+it crawls. Then add the dictionary lookup at the top of chain_len and run again. The
+same search should now finish in seconds. If a deep chain trips a RecursionError,
+rewrite chain_len as a while loop that follows the sequence and fills the dictionary
+step by step.
+</Exercise>
+
+The factorials and Fibonacci numbers here grew fast: fib(100) already runs to 21
+digits, and 100! reaches 158. Python printed both without complaint, but that ease
+is neither free nor universal. Most languages store a whole number in a fixed box of
+64 bits and silently wrap around once a value outgrows the box, quietly turning a
+factorial into garbage. Python switches to big integers that stretch as far as
+memory allows. The next lesson, bases-and-big-numbers, is about what a number
+actually is underneath: how the same value looks in binary and in hexadecimal, and
+what has to happen for arithmetic to stay correct when the numbers stop fitting.
+
+<Notes />

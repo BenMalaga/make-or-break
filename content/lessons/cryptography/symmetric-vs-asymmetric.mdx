@@ -1,0 +1,207 @@
+---
+title: Symmetric vs Asymmetric
+module: cryptography
+moduleTitle: Cryptography
+moduleOrder: 8
+moduleIcon: KeyRound
+order: 1
+summary: "Two ciphers for two jobs: one hides data fast, the other gets the shared key across an open wire."
+estimatedMinutes: 16
+objectives:
+  - Define plaintext, ciphertext, and key, and say why only the key stays secret
+  - Explain the key-distribution problem symmetric encryption cannot solve alone
+  - Describe how a public keypair fixes distribution but stays too slow for bulk data
+  - Trace the hybrid handshake that pairs asymmetric key agreement with symmetric AES
+tags:
+  - cryptography
+  - encryption
+  - keys
+---
+
+Two strangers want to trade secrets over a wire that anyone can tap. That is the
+whole problem cryptography was built to solve. A shopper sends a card number to a
+store. A reporter messages a source. In every case the message crosses routers,
+cables, and radios that other people own, and any one of them can copy every byte
+in transit. Secrecy has to survive an audience that reads the entire conversation.
+
+Encryption is the tool for that. It takes readable data, the plaintext, and
+scrambles it into ciphertext that looks like noise. A key, a secret value,
+controls the scrambling. Whoever holds the right key can reverse the process and
+recover the plaintext. Anyone without it sees garbage. The card number becomes an
+unreadable block on the wire, and only the intended store can turn it back into
+digits.
+
+One rule sits under all of this, and getting it wrong has sunk real systems. The
+secret is the key, never the algorithm. This is Kerckhoffs's principle, stated in
+the 1880s and proven right since: a cipher should stay secure even when everyone
+knows exactly how it works, as long as the key stays hidden. The math behind AES
+is published, taught in classes, and shipped in open source. Its security rests
+entirely on the key. A design that depends on keeping the algorithm itself secret
+is called security through obscurity, and it collapses the moment someone
+reverse-engineers the code, which someone always does.
+
+The reasoning is plain. A public algorithm gets attacked by thousands of
+researchers for years, the weak ones break in the open, and the survivors earn
+trust. A secret homegrown cipher gets reviewed by nobody until an attacker finds
+the flaw quietly and keeps it. Openness is a feature here, not a risk.
+
+## Symmetric encryption: one shared key
+
+The oldest shape of encryption uses a single key for both directions. The same
+secret both encrypts the plaintext and decrypts the ciphertext. This is symmetric
+encryption. Both parties hold identical copies of the key, they agree on the
+cipher, and traffic flows.
+
+AES, the Advanced Encryption Standard, is the symmetric cipher almost everything
+reaches for. It is fast, it runs in dedicated CPU instructions on modern chips,
+and at a 128-bit or 256-bit key it has no practical break. A phone can encrypt a
+video call with AES without the battery noticing. That speed is the reason
+symmetric crypto carries nearly all of the bulk data moving across the internet.
+
+Key length is what makes AES hard to guess by force. A 128-bit key has about
+three hundred and forty undecillion possible values, a 39-digit number, and an
+attacker with no shortcut has to try them. No amount of current hardware brings a
+brute-force sweep of that space into reach, so a well-chosen AES key does not fall
+to guessing. The weakness, when one exists, lives somewhere other than the key
+length.
+
+Then comes the catch that symmetric encryption cannot solve on its own. Both sides
+need the same key before they can talk, and they are strangers on an open wire.
+Handing the key over means sending it across the exact channel the eavesdropper is
+watching. Send the AES key in the clear and the attacker copies it, then decrypts
+everything that follows. This is the key-distribution problem, sometimes called
+key exchange. For most of history the only answer was to meet in person or trust a
+courier with the key. Two people who have never met, connecting for the first time
+over the public internet, have no courier. That gap is what the next idea fills.
+
+<Quiz
+  id="symmetric-vs-asymmetric-key-distribution"
+  question="Two strangers connect for the first time over the public internet and want to use AES. What obstacle can symmetric encryption alone not get past?"
+  answer={1}
+  options={[
+    "AES is too slow to encrypt their traffic in real time",
+    "Both sides need the same secret key, but sending it over the open wire hands it to any eavesdropper",
+    "AES keys expire after a single message and cannot be reused",
+    "AES can encrypt data but has no matching way to decrypt it",
+  ]}
+  explanation="Symmetric encryption needs both parties to already share one key. Delivering that key across the same channel an attacker is watching exposes it, which is the key-distribution problem."
+/>
+
+## Asymmetric encryption: a key that comes in a pair
+
+Public-key cryptography breaks the assumption that the encrypting key and the
+decrypting key have to be the same value. Instead each party generates a keypair:
+two mathematically linked keys where one undoes what the other does. One is the
+public key, published to the whole world. The other is the private key, kept
+secret and never shared. Data scrambled with the public key can be unscrambled
+only with the matching private key.
+
+Here is what that buys. A store publishes its public key openly. Anyone, including
+a first-time visitor, can encrypt a message with that public key, and only the
+store, holding the private key, can read it. The eavesdropper on the wire sees the
+public key and the ciphertext and still cannot decrypt, because the public key does
+not reverse its own work. The secret never had to cross the channel at all. That is
+the key-distribution problem solved.
+
+Two families of asymmetric algorithms carry most of this load. RSA rests on the
+difficulty of factoring the product of two very large prime numbers: multiplying
+the primes is easy, pulling the product back apart is not, and RSA keys run 2048 or
+4096 bits to keep that factoring out of reach. Elliptic-curve cryptography, ECC,
+rests on a different hard problem defined over points on a curve, and it reaches the
+same strength with far smaller keys. A 256-bit elliptic-curve key stands in for a
+3072-bit RSA key, so it computes quicker and stores lighter, which is why newer
+systems tend to pick it.
+
+The same keypair does two separate jobs, and mixing them up causes real confusion
+later. In the direction covered so far, others encrypt to the store with its
+public key so that only the private key can read the result. Run the pair the
+other way and it proves who sent a message: the store signs with its private key,
+and anyone can check that signature with the published public key, since only the
+holder of the private key could have produced it. Encryption keeps a message
+secret. Signing proves who wrote it. Both fall out of one pair of keys, and a
+later lesson leans on the signing direction hard.
+
+There is a cost, and it is the reason asymmetric crypto is not the whole answer.
+The math is slow. Encrypting a large file directly with RSA or ECC would crawl,
+often hundreds of times slower than AES on the same bytes. Public-key operations
+are fine for a handful of small messages and painful for a video stream.
+
+<Quiz
+  id="symmetric-vs-asymmetric-which-key-decrypts"
+  question="A store publishes its public key. A shopper encrypts a message with it. Which key reads that message, and why is publishing the public key still safe?"
+  answer={1}
+  options={[
+    "The public key decrypts it, so anyone who grabs the message can read it",
+    "The store's private key decrypts it, and the public key cannot reverse its own encryption",
+    "The shopper's private key decrypts it, since the shopper did the encrypting",
+    "Either key in the pair decrypts it, so which one is used does not matter",
+  ]}
+  explanation="Only the matching private key reverses public-key encryption. The public key can lock but not unlock, so publishing it exposes nothing, and the private key never crosses the wire."
+/>
+
+## The hybrid design that runs the real internet
+
+Neither cipher is enough alone. Symmetric is fast but cannot get its key across an
+open wire. Asymmetric gets a secret across the wire but is too slow for bulk data.
+The fix is to use each for the job it is good at, and that pairing is called hybrid
+encryption. It is the default design of TLS, the protocol behind every https
+address, and of secure messaging apps.
+
+A concrete connection runs like this. A browser opens a session with a shop's
+server.
+
+1. The server sends its certificate, which contains its public key. A later lesson
+   covers how the browser confirms that certificate is genuine and not an impostor's.
+2. The two sides run a public-key exchange. In the classic version the browser
+   generates a fresh random value, encrypts it with the server's public key, and
+   sends it over; only the server's private key can recover it. Both sides now hold
+   the same random secret, and nobody watching the wire has it.
+3. From that shared secret, both derive the same symmetric session key, a throwaway
+   AES key good for this one connection.
+4. The slow asymmetric step is finished. Every byte of real traffic after that, the
+   pages, the card number, the messages, rides on fast AES under the session key.
+
+Two phases, each playing to its strength. Asymmetric crypto solves distribution
+once, at the start of the connection. Symmetric crypto carries the load for the rest
+of the session. Modern TLS refines step two with an ephemeral exchange, ECDHE, so
+that even a later-stolen private key cannot decrypt recordings of past sessions, a
+property called forward secrecy. The two-phase shape stays the same: agree on a
+symmetric key using asymmetric math, then switch to symmetric for speed.
+
+<Callout type="security" title="Where attackers actually go">
+Because the bulk data rides on AES, and AES has no practical break, an attacker
+rarely bothers with the cipher itself. The soft targets are the key steps around
+it: a weak random number generator that makes the session key guessable, a private
+key left readable on a stolen backup, a forced downgrade to an old broken exchange.
+Strong ciphers with sloppy key handling fail constantly. The keys are the target,
+not the algorithm.
+</Callout>
+
+<Quiz
+  id="symmetric-vs-asymmetric-why-hybrid"
+  question="TLS runs a slow public-key exchange first, then encrypts the actual page data with AES. Why not use the public-key cipher for everything instead?"
+  answer={1}
+  options={[
+    "AES is more secure than RSA, so it has to be the one that carries the data",
+    "Public-key math is far slower than AES, so it is used only to agree on a symmetric key, then AES carries the bulk traffic",
+    "RSA and ECC cannot encrypt anything larger than a single short key",
+    "AES keys never need to be exchanged, so the public-key step is only decorative",
+  ]}
+  explanation="Asymmetric crypto solves getting a shared secret across an open channel but is hundreds of times slower than AES. Hybrid encryption uses it once for key agreement, then hands the data to fast symmetric AES."
+/>
+
+<Exercise title="Spot both ciphers in one real handshake">
+On a machine with openssl installed, run `openssl s_client -connect wikipedia.org:443 </dev/null 2>/dev/null | openssl x509 -noout -text` and find the `Public Key Algorithm` line in the certificate. It will read something like `rsaEncryption` or `id-ecPublicKey`. That is the asymmetric key the server proves it owns.
+
+Now run `openssl s_client -connect wikipedia.org:443 </dev/null 2>/dev/null | grep -i cipher` and read the negotiated cipher suite, a string like `TLS_AES_256_GCM_SHA384`. The `AES_256` in the middle is the symmetric cipher doing the real work once the handshake finishes.
+
+No openssl handy? In a desktop browser, click the padlock in the address bar, open the certificate details, and read the public key type. Seeing an RSA or elliptic-curve key sit next to an AES cipher on the same connection is the hybrid design laid out in front of you.
+</Exercise>
+
+A quiet assumption ran through that whole handshake: the browser trusted that the
+public key inside the certificate really belonged to the shop and not to an
+impostor wedged in the middle. Proving that a key or a message has not been swapped
+in flight is a different job from hiding it, and it starts with the one-way
+fingerprint that the next lesson, Hashing and Integrity, is built on.
+
+<Notes />

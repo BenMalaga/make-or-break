@@ -1,0 +1,140 @@
+---
+title: Command Injection
+module: web-application-attacks
+moduleTitle: Web Application Attacks
+moduleOrder: 15
+moduleIcon: Crosshair
+order: 3
+summary: Untrusted input reaches the operating system shell, and a second command rides in behind the first.
+estimatedMinutes: 17
+objectives:
+  - Recognize app features that hand user input to a system shell
+  - Explain how shell metacharacters chain a second command
+  - Detect blind command injection through timing and out-of-band signals
+  - Shut it down by calling programs directly with an argument array
+prerequisites:
+  - sql-injection
+tags:
+  - web
+  - command-injection
+  - rce
+  - shell
+---
+
+The single quote that snapped a SQL query in the last lesson has a nastier cousin. It is the same class of bug: untrusted input reaching an interpreter that treats it as code instead of data. There the interpreter was the database engine, and a broken query leaked the users table. Here the interpreter is the operating system shell, and a shell can do a great deal more than return rows.
+
+Picture a network-tools page with a box labeled "ping a host." A visitor types an address, the server runs ping, and the page prints the round-trip times. Behind that box a developer often wrote something close to `system("ping -c 1 " + host)`. The value from the box gets pasted into a command string, and that string is handed to a shell. If nothing strips the input, the shell will run whatever else is glued on after the address.
+
+OS command injection happens when an application builds a shell command out of untrusted input and lets the shell interpret it. The database gave up its tables under SQL injection. A shell gives up the whole host. That is remote code execution, the outcome most other web bugs are trying to reach.
+
+## How the input reaches a shell
+
+The vulnerability is rarely about the tool being run. ping, convert, ffmpeg, nslookup, and pdftk are all fine programs. The danger sits in the plumbing that calls them.
+
+Several language features run a command by handing a single string to a shell. C has `system()` and `popen()`. PHP has `system()`, `exec()`, `shell_exec()`, and backticks. Python has `os.system()` and `subprocess.run(..., shell=True)`. Node has `child_process.exec()`. Ruby has backticks and `%x{}`. Every one of these spawns `/bin/sh -c` and gives it the string to parse. The shell, not the target program, is the interpreter that comes under attack.
+
+That distinction is the crux of the whole bug. When an app passes a built string to a shell, the shell parses it first. It splits on spaces, expands variables, and honors its own metacharacters before ping ever sees a single argument. The attacker is not really fighting ping. The attacker is talking to the shell that launches ping.
+
+Features that wrap a command-line tool are the first place to look. File conversion, thumbnail resizing, PDF generation, DNS lookups, ping and traceroute utilities, log export, backup jobs. If a feature does something a Linux binary already does, a developer may have called that binary with the input attached.
+
+<Quiz
+  id="command-injection-dangerous-call"
+  question="Which way of running ping is exposed to command injection?"
+  answer={1}
+  options={[
+    "subprocess.run(['ping', '-c', '1', host]) with the shell disabled",
+    "os.system('ping -c 1 ' + host)",
+    "Running ping by hand from a login terminal",
+    "A ping that rejects any host longer than fifteen characters",
+  ]}
+  explanation="os.system builds one string and hands it to /bin/sh, which parses the attacker's metacharacters. The argument-array form never starts a shell, so there is nothing left to interpret the extra characters. A length limit is a weak filter, not a real fix."
+/>
+
+## The characters that chain a second command
+
+A shell reads a line as a small program. Certain characters end one command and begin another, or route the output of one into the next. Feed one of those characters followed by a command, and the shell runs both.
+
+The workhorses are short. A semicolon `;` runs the next command unconditionally. Two ampersands `&&` run the next command only if the first exited cleanly. Two pipes `||` run it only if the first failed. A single pipe `|` sends the first command's output into the second, which often fires even when the app throws the first result away. A lone ampersand `&` pushes the first command into the background. And command substitution, written `$(...)` or wrapped in backticks, runs the enclosed command first and pastes its output into the line before anything else executes.
+
+<CommandBlock
+  title="separators a shell honors inside one line"
+  commands={[
+    { cmd: "127.0.0.1; whoami", comment: "semicolon runs whoami after ping no matter what" },
+    { cmd: "127.0.0.1 && whoami", comment: "runs whoami only if ping exits cleanly" },
+    { cmd: "127.0.0.1 | whoami", comment: "pipe fires even when the first output is discarded" },
+    { cmd: "127.0.0.1 $(whoami)", comment: "substitutes the output of whoami before ping runs" },
+  ]}
+/>
+
+Walk through what the shell does with `127.0.0.1; whoami`. It reads the line left to right, hits the semicolon, and treats the input as two separate commands. The first is `ping -c 1 127.0.0.1`, which runs and returns as normal. The second is `whoami`, which the shell runs the instant the first one finishes. The developer only ever pictured a single command on that line. The shell sees two, because the semicolon told it to.
+
+whoami is the polite first probe. It prints one line, the account the web server runs as, commonly www-data or apache. Seeing that line confirms the shell ran the injected input and names the user the attacker has just inherited. On an authorized test, a benign probe like this comes before anything louder.
+
+The lab below runs entirely in the browser against a small virtual filesystem, so nothing leaves the page. It pastes whatever it receives into `ping -c 1 <input>` and runs any chained or substituted command for real. Try the separators above and watch a second command execute where only an address was expected.
+
+<CommandInjectionLab />
+
+<Quiz
+  id="command-injection-substitution"
+  question="An input box runs ping, but the app strips the semicolon. Which character still chains a second command by substituting its output before ping runs?"
+  answer={1}
+  options={[
+    "A double quote",
+    "A backtick",
+    "A forward slash",
+    "A percent sign",
+  ]}
+  explanation="Backticks and $(...) are command substitution. The shell runs the enclosed command first and pastes its output into the line, so a blocked semicolon does not stop the injection."
+/>
+
+## When the page shows nothing back
+
+Plenty of vulnerable features run the command and never print its output. A silent response is not a safe response. The command still executed; the result just went somewhere the visitor cannot see. This is blind command injection, and it is confirmed the same way blind SQL injection was, by making the server wait.
+
+The classic probe is a sleep. Appending a command that pauses the shell for a fixed number of seconds turns invisible execution into something measurable. If a request that injects a five-second sleep takes about five seconds longer than a clean request, and the delay tracks the number chosen, the shell ran the command. No printed output required.
+
+When even timing is muddy, an out-of-band signal settles it. The injected command asks the server to reach a host the tester controls, usually through a DNS lookup or an HTTP request. A tool like Burp Collaborator or interactsh registers the incoming lookup. The moment that callback lands, the tester knows the server executed the command and can reach the network, which also points at data-exfiltration paths that never touch the visible response.
+
+Confirmed command execution runs as the web server's account. That account can usually read the application's source, its configuration, and the database credentials sitting in an environment file. From there the attacker pivots. Read the secrets, reach internal services the firewall exposes only to the host, escalate through a local weakness, and move deeper into the network. One unsanitized ping box becomes a foothold inside the perimeter.
+
+Web servers are rarely alone on their host. The same machine often runs a cloud metadata endpoint, a message queue, or an admin panel bound to localhost and reachable only from the machine itself. A firewall that blocks the outside world does nothing against a process already running inside it. Code execution on the web account puts every one of those local services within reach, which is why this bug ranks near the top of almost any report it appears in.
+
+<Quiz
+  id="command-injection-blind-proof"
+  question="A tester injects a command but sees no output on the page. Which observation best proves the command ran anyway?"
+  answer={1}
+  options={[
+    "The page returns HTTP 200 instead of 500",
+    "A request that injects a sleep is reliably slower by the exact seconds chosen",
+    "The page HTML is a little shorter than before",
+    "The browser shows a TLS certificate warning",
+  ]}
+  explanation="Blind injection hides the output, so timing is the oracle. A delay that matches the injected sleep, and scales when the number changes, shows the shell executed the command with no printed result."
+/>
+
+## Closing the hole
+
+The fix is not a better blocklist. Filtering out `;` and `&` is a speed bump, because a shell offers many ways to write the same thing: newlines in place of separators, `${IFS}` in place of a space, backticks in place of `$(...)`, quotes that collapse away as in `w""hoami`. Chasing metacharacters one at a time is a losing game against the shell's own flexibility.
+
+The real fix removes the shell from the path. Instead of building a string and asking a shell to parse it, the app calls the target program directly and passes each argument as a separate list element. With no shell in between, there is nothing to interpret `;` or `$(...)`. The characters arrive at ping as a literal, meaningless hostname, and ping simply fails to resolve it.
+
+<CommandCard command='subprocess.run(["ping", "-c", "1", host], shell=False)' explain="The program and its arguments go in as a list, so no /bin/sh is spawned to parse them. A host value of 127.0.0.1; whoami reaches ping as one literal argument, which ping treats as an invalid hostname. No shell, no metacharacters, no injection." />
+
+The parallel to the last lesson is exact. SQL injection died the moment queries used parameters, because a prepared statement keeps the query and the data in separate lanes so the data can never turn into code. An argument array does the same job for the shell. The command lives in the program name, the untrusted value lives in its own list slot, and the two never mix. Same disease, same cure: stop concatenating input into a sentence that an interpreter is about to read.
+
+When a shell genuinely cannot be avoided, the input must clear a strict allowlist before it goes anywhere near a command. Not a list of bad characters to strip, but a list of exactly what is permitted. For a hostname, that means the specific pattern of letters, digits, dots, and hyphens, with everything else rejected outright. Two more habits shrink the blast radius. Run the web process as a low-privilege account that owns nothing it does not need, and keep secrets out of that account's reach so a foothold does not immediately surrender the database.
+
+<Callout type="security" title="Authorized targets only">
+Command injection is direct code execution on a live server, which makes it one of the most serious findings on any assessment. Every payload here belongs on a lab under the tester's control: a local DVWA container, OWASP Juice Shop, or a PortSwigger Web Security Academy lab. Running these techniques against a system without written authorization is a crime in most countries.
+</Callout>
+
+<Exercise
+  id="command-injection-blind-timing"
+  prompt="On a lab you control, prove blind command injection by timing instead of output."
+>
+Spin up DVWA on your own machine and open the Command Injection page at the low security level. In the ping box, submit a normal address like 127.0.0.1 and note how long the response takes. Then submit 127.0.0.1 followed by a chained sleep of five seconds and compare the two response times. When the injected request is reliably about five seconds slower, and the lag tracks the number you pick, you have proven the shell ran your input with nothing printed to the page. Switch DVWA to the high security level and send the same input to watch it get rejected, which shows the argument-array style fix in action. Only ever run this against DVWA, OWASP Juice Shop, or a PortSwigger Academy lab you own or are cleared to use.
+</Exercise>
+
+A ping box is only one way untrusted input reaches the server. The next lesson looks at a feature that hands the server a whole file, and at what breaks when the server trusts the name, the type, or the contents of an upload it should have questioned.
+
+<Notes />

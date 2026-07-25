@@ -1,0 +1,272 @@
+---
+title: Cookies, Sessions, and Auth
+module: web-and-http
+moduleTitle: Web and HTTP
+moduleOrder: 5
+moduleIcon: Globe
+order: 3
+summary: "HTTP forgets a user between requests. A cookie carries the session id that keeps them logged in, which is exactly the thing worth stealing."
+estimatedMinutes: 16
+prerequisites: ["http-fundamentals", "how-web-apps-work"]
+objectives:
+  - Explain why a stateless protocol needs cookies to keep a user logged in
+  - Trace the Set-Cookie and Cookie headers through a real login
+  - Read the HttpOnly, Secure, and SameSite flags and say what each one stops
+  - Explain why the session id, not the password, is the credential worth stealing
+tags:
+  - web
+  - auth
+  - sessions
+---
+
+The last lesson traced a click from the browser down through the server to the
+database and back, and it ended on one rule: the server must re-check every value
+the browser sends, because the browser is attacker-controlled. There is one value
+the server cannot recompute from the request in front of it. Who is making it.
+
+A logged-in user clicks around a site for ten minutes. The first request proved a
+password. The next forty proved nothing. Yet each of those later requests still
+tells the server "this is the same person who logged in," and finding, reading, or
+forging that something is how an attacker becomes another account without ever
+knowing the password.
+
+## HTTP keeps no memory
+
+<Term id="http">HTTP</Term> is stateless. Each request is the self-contained
+block of text from the first lesson in this module: a request line, some
+<Term id="header">header</Term>s, a blank line, sometimes a body. The
+<Term id="server">server</Term> answers it and forgets it. Request number two
+arrives with no built-in link to request number one. As far as the protocol is
+concerned, every request is a stranger at the door.
+
+That breaks the moment a site has accounts. A login has to survive across dozens
+of unrelated requests, and the protocol underneath deliberately remembers
+nothing between them. The fix is to make the <Term id="client">client</Term>
+carry a small piece of state and re-present it on every request. That piece of
+state is a <Term id="cookie">cookie</Term>: a short `name=value` pair the server
+hands the browser once, and the browser hands back on everything after.
+
+The cookie is what turns a pile of unrelated requests into a conversation. Strip
+it out and the server is talking to a brand new anonymous visitor every single
+time, no matter how many times the same person already logged in.
+
+## From login to a session
+
+The login sequence that sets a cookie up is four steps, and every one is plain,
+readable HTTP:
+
+1. The browser sends the password once: `POST /login` with the credentials in the
+   body.
+2. The server checks them, and if they hold, it answers `302 Found` with a
+   `Set-Cookie` header carrying a freshly minted id.
+3. The browser stores that cookie and attaches it to every later request as a
+   `Cookie` header.
+4. The server reads the id, looks it up in its own store, and knows which account
+   the request belongs to.
+
+The request that starts it carries the password in the body:
+
+```
+POST /login HTTP/1.1
+Host: target.htb
+Content-Type: application/x-www-form-urlencoded
+
+user=admin&pass=hunter2
+```
+
+The response hands back the cookie and redirects the browser onward:
+
+```
+HTTP/1.1 302 Found
+Location: /dashboard
+Set-Cookie: session=9f2c8a3b1d7e4055; Path=/; HttpOnly; Secure; SameSite=Lax
+```
+
+From that point on, the browser attaches the cookie to everything it sends to
+that host, with no further prompting:
+
+```
+GET /dashboard HTTP/1.1
+Host: target.htb
+Cookie: session=9f2c8a3b1d7e4055
+```
+
+The record the server keeps on its side, "this id is currently logged in as the
+admin account," is the <Term id="session">session</Term>. The id inside the
+cookie, `9f2c8a3b1d7e4055`, is the <Term id="session-id">session id</Term>, the
+key that points at that record. Notice where the password lives in all of this:
+step one, and nowhere else. After that the session id alone stands in for the
+account. It is the login for the rest of the visit.
+
+<Callout type="info" title="The password mints the session, then steps aside">
+Authentication happens once, at `POST /login`. Everything the user does
+afterward is authorized by the session id, not by the password. The server never
+sees the password again for that visit. That single hand-off is why the id, not
+the password, ends up being the thing attackers chase.
+</Callout>
+
+<Quiz
+  id="session-vs-password"
+  question="A user logs in, then loads /dashboard, /settings, and /orders over the next minute. Each of those three requests carries a Cookie: session=... header. What does the server use to know they belong to the logged-in account?"
+  answer={1}
+  options={[
+    "The password, which the browser re-sends on every request.",
+    "The session id in the cookie, which the server looks up to find the account.",
+    "The source IP address, which uniquely identifies the user.",
+    "The User-Agent header, which is tied to the account at login.",
+  ]}
+  explanation="The password appears only once, in the POST to /login. Every request after that proves identity with the session id in the Cookie header, which the server maps back to a logged-in account."
+/>
+
+## Reading Set-Cookie: the flags
+
+Everything after the id in that `Set-Cookie` line is an instruction to the
+browser about how to hold the cookie. Three of those flags decide how hard the
+session id is to steal, and their absence is a finding on its own.
+
+`HttpOnly` tells the browser to hide the cookie from JavaScript. Script running
+on the page cannot read it through `document.cookie`. Leave the flag off, and a
+single cross-site scripting bug, one line of injected script, reads the cookie
+and ships it to an attacker's server.
+
+`Secure` tells the browser to send the cookie only over
+<Term id="https">HTTPS</Term>, the <Term id="tls">TLS</Term>-encrypted form of
+the protocol. Leave it off, and the first time the user touches the site over
+plain HTTP the cookie crosses the wire in cleartext, where anyone watching the
+network path reads it straight off.
+
+`SameSite` controls whether the cookie rides along on requests that another site
+starts. `Strict` never sends it cross-site, `Lax` sends it only on top-level
+navigation like a clicked link, and `None` sends it on every cross-site request
+and is only allowed alongside `Secure`. A loose setting lets an attacker's page
+fire a request at the target with the victim's cookie attached, which is the
+engine behind a cross-site request forgery: the browser is tricked into acting
+with credentials it holds for a site the user never meant to touch.
+
+Read the flags together and the `Set-Cookie` line becomes a quick threat model.
+`HttpOnly; Secure; SameSite=Lax` on a session cookie is the sane baseline. Any
+one of the three missing points at a specific attack that just got easier.
+
+<Quiz
+  id="missing-secure"
+  question="A session cookie is set with HttpOnly and SameSite=Lax, but the Secure flag is missing. The site answers on both HTTP and HTTPS. Which attack does the missing flag most directly enable?"
+  answer={2}
+  options={[
+    "A cross-site request forgery, because SameSite is set to Lax.",
+    "An XSS payload reading the cookie through document.cookie.",
+    "A network sniffer capturing the cookie when a request goes over plain HTTP.",
+    "A SQL injection in the login form.",
+  ]}
+  explanation="HttpOnly is present, so script cannot read the cookie, and SameSite=Lax already curbs cross-site sends. The one gap is Secure: without it the browser will send the cookie over plain HTTP, where anyone on the network path can read it."
+/>
+
+## A session outlives the login
+
+A session id keeps working until the server decides it should not, and that
+window is where more auth bugs hide. The `Set-Cookie` line can pin an expiry with
+`Max-Age=3600`, which tells the browser to drop the cookie after an hour, or with
+an `Expires` date. Those are browser-side hints. What actually matters is the
+server-side record: even after the browser forgets the cookie, the session the id
+points to may still be valid on the server.
+
+That gap turns logout into a real test. Clicking "log out" should make the server
+throw away its record for that id, so the id becomes dead weight the instant it is
+presented again. Plenty of apps only clear the cookie in the browser and leave
+the server-side session live. A copy of that id, grabbed earlier, keeps working
+long after the user believed the session ended. A token that never expires on the
+server is a permanent key.
+
+The other lifecycle bug is the mirror image. In session fixation, an attacker
+plants a known session id in the victim's browser before login, the victim signs
+in, and the server upgrades that same id to an authenticated session the attacker
+already holds. The defense is a one-line rule the login handler either follows or
+does not: issue a brand new id the moment authentication succeeds, and abandon
+whatever id arrived with the request.
+
+## Why the session id is the whole target
+
+A session id is a bearer token. Whoever presents it is treated as the account, no
+questions asked. That is the entire reason to steal one: it skips the password,
+skips any second factor, and drops an attacker straight into an authenticated
+session. The password can be long and the two-factor prompt can be strict, and
+none of it matters once the id itself is in someone else's hands.
+
+Three routes take it. The first is theft through script: no `HttpOnly` plus a
+cross-site scripting bug means injected JavaScript reads `document.cookie` and
+exfiltrates the id. The second is capture on the wire: no `Secure` plus one
+plain-HTTP request means the id travels in cleartext for anyone in the path to
+grab. The third is guessing. If the server issues ids in order, `session=48210`
+for one user and `session=48211` for the next, an attacker walks the numbers and
+rides a live session. Turning a short, ordered id into a working login by trying
+values in sequence is <Term id="enumeration">enumeration</Term>, and the defense
+is a long random id with enough entropy that guessing is hopeless. A real one
+reads like `session=b7e8c1a90f4d2e6a5c3b8f1029d4e7a6`, 128 bits of randomness,
+not a counter.
+
+Watching all of this with `curl` makes it concrete. The `-c` flag writes received
+cookies to a jar file, and `-b` sends a saved jar back, so a session can be
+minted in one command and replayed in the next with no password in sight.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "curl -i -d 'user=admin&pass=hunter2' http://target.htb/login", comment: "log in and print the response headers; watch for Set-Cookie" },
+    { cmd: "curl -c jar.txt -d 'user=admin&pass=hunter2' http://target.htb/login", comment: "log in again, saving the cookie to jar.txt" },
+    { cmd: "curl -b jar.txt http://target.htb/dashboard", comment: "replay the saved session cookie: no password sent" },
+  ]}
+/>
+
+<ExpectedOutput label="The -i login response, session cookie and all">
+```
+HTTP/1.1 302 Found
+Location: /dashboard
+Set-Cookie: session=9f2c8a3b1d7e4055; Path=/; HttpOnly; Secure; SameSite=Lax
+Content-Type: text/html
+```
+</ExpectedOutput>
+
+The third command sends no credentials. It presents the saved id and the server
+serves the dashboard, because to the server a valid session id and a valid login
+are the same thing. That is the whole point, and the whole danger.
+
+<Callout type="security" title="The session id is a password the user can never see">
+A user picks a password, guards it, and can change it. The session id is issued
+without the user's knowledge, handed to the server on every request, and often
+sitting in cleartext somewhere along the way. Grabbing it beats cracking a login,
+which is why any missing cookie flag, any predictable id, and any request over
+plain HTTP is worth chasing before the password field ever comes up.
+</Callout>
+
+<Quiz
+  id="predictable-ids"
+  question="Logging in twice, an attacker sees the server hand out session=48210, then session=48211. What does that reveal about every other logged-in user?"
+  answer={1}
+  options={[
+    "Nothing, since each id is tied to one specific browser.",
+    "Their session ids are nearby numbers, so an attacker can guess valid ids and hijack live sessions.",
+    "The ids are encrypted, so the visible pattern means nothing.",
+    "Only the attacker's own two ids are predictable, not anyone else's.",
+  ]}
+  explanation="Sequential ids leak the whole space. If ids count upward, the ids of other active users sit right next to the attacker's, and walking the numbers lands on live sessions to ride. High-entropy random ids are what close this off."
+/>
+
+<Exercise
+  id="cookie-flags-read"
+  prompt="Against a site you own or a lab target, run curl -c jar.txt -d '...' <login-url>, then look at jar.txt and the -i response. Which of HttpOnly, Secure, and SameSite are present on the session cookie, and which are missing?"
+>
+The cookie jar writes one row per cookie with its flags in columns, and the `-i`
+output shows the raw `Set-Cookie` line. Read them together. A missing `HttpOnly`
+means a script could read the id, a missing `Secure` means it can cross plain
+HTTP, and a weak `SameSite` opens the door to cross-site requests. Mark this done
+once you can name which flags the target sets and name the one attack each
+missing flag would allow.
+</Exercise>
+
+Reading these headers with `curl` shows what the server sends and what the
+browser sends back, but it only observes. It does not stop a request in flight,
+rewrite the `Cookie` line, and forward the tampered version on. The next lesson,
+on intercepting proxies, drops a tool between the browser and the server so every
+request, cookies included, can be paused, read, and changed by hand before it
+lands.
+
+<Notes />

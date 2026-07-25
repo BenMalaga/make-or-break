@@ -1,0 +1,68 @@
+---
+title: The Pillars of Zero Trust
+module: zero-trust-architecture
+moduleTitle: Zero Trust Architecture
+moduleOrder: 49
+moduleIcon: ShieldQuestion
+order: 2
+summary: Five pillars carry a zero trust program. Skip one and the attacker walks through the gap you left.
+estimatedMinutes: 17
+objectives:
+  - Name the five pillars and the one control that anchors each
+  - Judge maturity per pillar instead of chasing a single product
+  - Explain why identity and data are the pillars people get wrong
+tags:
+  - zero-trust
+  - pillars
+  - cisa
+  - maturity-model
+---
+
+CISA's Zero Trust Maturity Model breaks the work into five pillars, and the reason to care is that it stops you from declaring victory too early. Buy an MFA product and you have touched one pillar. The attacker will find the four you skipped.
+
+The pillars are **identity, devices, networks, applications and workloads, and data**. Three functions cut across all five: visibility and analytics, automation and orchestration, and governance. Think of the five as the walls and the three as the wiring that runs through every wall. A program that is strong on identity and blind on data is not a zero trust program, it is a login page with good marketing.
+
+## Identity is the load-bearing pillar
+
+Everything downstream depends on knowing who is making the request. Weak identity poisons every other control, because a firewall rule scoped to a user is worthless if that user's credential is trivial to phish.
+
+The anchor control here is phishing-resistant MFA, meaning FIDO2 or WebAuthn hardware keys, not SMS codes and not push prompts you can fatigue a user into accepting. Pair it with killing legacy authentication protocols, the ones that predate modern MFA and let an attacker bypass it entirely. If you fix one thing first, fix identity.
+
+## Devices, networks, apps, data
+
+Each of the remaining pillars gets one control worth naming, because a pillar without a concrete enforcement point is a slogan.
+
+- **Devices**: policy decisions read live device posture. Is this laptop enrolled, patched, and running its endpoint agent? Intune, Jamf, and CrowdStrike feed that signal into the access decision, so a jailbroken or unmanaged device fails the check even with valid credentials.
+- **Networks**: the network stops being a trust boundary and becomes plumbing you segment hard. Encrypt internal traffic and default-deny east-west flows so a foothold on one host does not reach the next.
+- **Applications and workloads**: apps get an enforcement point in front of them and authenticate the workloads that call them, often with mutual TLS between services rather than an open internal API.
+- **Data**: classify it, encrypt it, and gate access to the data itself, not just the app that reads it. This is the pillar almost everyone skips, and it is the one that decides whether a breach is an incident or a headline.
+
+Data is last on the list and first to get ignored, which is backwards. The other four pillars exist to protect data. If a compromised app can still read an unencrypted, unclassified dump of your crown jewels, the front-door controls only slowed the attacker down.
+
+## Grade each pillar, do not average them
+
+Maturity is per pillar: traditional, initial, advanced, optimal. The trap is averaging. A program that is optimal on identity and traditional on data does not net out to "medium," because the attacker attacks the weakest pillar, not the mean. Grade each one honestly and spend your next dollar on the lowest wall.
+
+<Callout type="security" title="Test each pillar on authorized systems">
+Verifying a pillar means probing it: trying an unmanaged device against a conditional access policy, checking whether east-west traffic is really denied, confirming data stays encrypted at rest. Run those checks against your own lab or infrastructure you have written authorization to assess. Testing another organization's posture without scope is unauthorized access, whatever you call the intent.
+</Callout>
+
+<Exercise
+  id="zt-pillar-gaps"
+  prompt="Take an app you actually use at work or in your lab. For each of the five pillars, write one sentence: what control protects that pillar today, and what is the concrete gap. Then pick the single weakest pillar and name the first control you would add. Do not average the pillars; find the lowest wall."
+/>
+
+<Quiz
+  id="zt-weakest-pillar"
+  question="A company has hardware-key MFA on every account and mTLS between all services, but its database dumps are stored unencrypted and any app with DB creds can read every row. Where is the real exposure?"
+  answer={1}
+  options={[
+    "The identity pillar, because MFA can still be phished",
+    "The data pillar, which is unprotected, so a single compromised app reads everything despite the strong front-door controls",
+    "The network pillar, because mTLS is not enough",
+    "There is no exposure, since identity and workload controls are strong",
+  ]}
+  explanation="The other pillars exist to protect data. Strong identity and workload controls slow an attacker down, but if the data itself is unencrypted and access is not gated at the data layer, one compromised app with database credentials exfiltrates everything. Maturity is judged per pillar, and the weakest one sets your real risk."
+/>
+
+<Notes />

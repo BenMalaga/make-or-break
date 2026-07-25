@@ -1,0 +1,84 @@
+---
+title: HTTP Request Smuggling
+module: advanced-web-attacks
+moduleTitle: Advanced Web Attacks
+moduleOrder: 46
+moduleIcon: Flame
+order: 3
+summary: The front-end and back-end disagree about where one request ends, so you hide a second request inside the first.
+estimatedMinutes: 22
+objectives:
+  - Explain how CL and TE disagreements create a desync
+  - Distinguish CL.TE from TE.CL smuggles
+  - Use a timing probe to detect desync safely
+tags:
+  - web
+  - smuggling
+  - desync
+  - "http"
+---
+
+Two servers reading the same bytes and disagreeing on where the request ends is the entire attack. A front-end proxy forwards traffic to a back-end server over a reused connection. If they parse the request boundary differently, part of what you sent gets treated by the back-end as the start of the next request. That leftover piece is your smuggled request, and it attaches itself to whoever's connection comes through next, which is often another user.
+
+The disagreement lives in two headers that both claim to say how long the body is. `Content-Length` gives a byte count. `Transfer-Encoding: chunked` says the body arrives in size-prefixed chunks ending with a zero chunk. A request should never send both. When it does, the RFC says prefer `Transfer-Encoding`, but plenty of servers ignore that, and any mismatch between front and back is exploitable.
+
+## CL.TE and TE.CL
+
+Name the desync by which server trusts which header. In CL.TE, the front-end uses `Content-Length` and the back-end uses `Transfer-Encoding`. In TE.CL, it is reversed. That ordering decides how you craft the smuggle, so identify it before building a payload.
+
+Here is a CL.TE body. The front-end reads `Content-Length: 6` and forwards all six bytes plus the smuggled part it thinks is filler. The back-end reads chunked, sees the `0` terminator, ends the request there, and treats `G` as the beginning of the next request on that connection.
+
+<CommandBlock
+  title="a CL.TE smuggle body"
+  commands={[
+    { cmd: "Content-Length: 6", comment: "front-end trusts this, forwards 6 bytes of body" },
+    { cmd: "Transfer-Encoding: chunked", comment: "back-end trusts this instead" },
+    { cmd: "0", comment: "chunked terminator, back-end ends the request here" },
+    { cmd: "G", comment: "leftover byte, prepended to the next user's request" },
+  ]}
+/>
+
+TE.CL flips it. The front-end honors the chunked encoding and passes the whole thing, while the back-end stops after `Content-Length` bytes and leaves your trailing request queued. Getting a proxy to honor a header it should ignore usually means obfuscating the `Transfer-Encoding` line so only one of the two servers recognizes it.
+
+<CommandCard command="Transfer-Encoding:[tab]chunked" explain="A tab instead of a space, or a leading space, or Transfer-Encoding written twice, makes one server treat the header as valid and the other reject it. That parser split is what forces the CL/TE disagreement in the first place. Burp Suite's Repeater will not send these by hand cleanly, which is why the HTTP Request Smuggler extension exists." />
+
+## Detect it without breaking things
+
+Do not confirm a smuggle by poisoning real users. Use the timing technique instead: send a payload that, if the back-end desyncs, forces it to wait for bytes that never arrive. A normal server responds fast. A vulnerable one hangs for the timeout.
+
+<CommandBlock
+  title="the CL.TE timing probe"
+  commands={[
+    { cmd: "Transfer-Encoding: chunked", comment: "back-end waits for chunks" },
+    { cmd: "1", comment: "announce a 1-byte chunk" },
+    { cmd: "A", comment: "send it, but no zero-terminator follows" },
+    { cmd: "X", comment: "back-end blocks waiting for the next chunk size" },
+  ]}
+/>
+
+<ExpectedOutput label="what you watch for">
+Response time jumps from ~40ms to the full timeout (often 10s+)
+</ExpectedOutput>
+
+A big, repeatable delay that only appears with the malformed body is your signal. It is safe because you are stalling your own connection, not injecting into anyone else's. Burp's smuggler extension automates exactly this probe across CL.TE and TE.CL.
+
+<Callout type="security" title="This one hits other users, so scope it tight">
+A successful smuggle steals other people's requests, poisons shared caches, and bypasses front-end access controls. That means real user impact, so run it only in a lab or under written authorization, and prefer the timing probe over payloads that capture live traffic. PortSwigger's Web Security Academy has a full request smuggling track with safe, resettable targets.
+</Callout>
+
+Once confirmed, the payoffs are serious: prepend a request that captures the next user's headers including their session cookie, bypass a front-end that blocks `/admin` by smuggling the path past it, or poison the response queue so users get each other's pages. HTTP/2 downgrade smuggling extends all of this to modern stacks where a front-end speaks h2 and rewrites to h1 on the way back.
+
+<Quiz
+  id="smuggling-cl-te"
+  question="In a CL.TE desync, which server trusts which header?"
+  answer={0}
+  options={[
+    "Front-end uses Content-Length, back-end uses Transfer-Encoding",
+    "Both use Content-Length",
+    "Front-end uses Transfer-Encoding, back-end uses Content-Length",
+    "Neither header matters, it is about the URL path",
+  ]}
+  explanation="CL.TE names the parsing order: the front-end reads Content-Length and the back-end reads Transfer-Encoding. That mismatch lets the back-end end the request early on the chunked terminator and treat your leftover bytes as the next request. TE.CL is the reverse."
+/>
+
+<Notes />

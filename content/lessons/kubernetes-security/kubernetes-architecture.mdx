@@ -1,0 +1,70 @@
+---
+title: Kubernetes Architecture
+module: kubernetes-security
+moduleTitle: Kubernetes Security
+moduleOrder: 31
+moduleIcon: Ship
+order: 1
+summary: You cannot attack a cluster you cannot map, so start with the parts that hold the keys.
+estimatedMinutes: 20
+objectives:
+  - Name the control plane and node components and what each one guards
+  - Explain how a pod is really just a process on a Linux node
+  - Identify the highest-value targets in a running cluster
+tags:
+  - kubernetes
+  - k8s
+  - cloud
+  - infrastructure
+---
+
+The whole cluster runs off one database. Everything Kubernetes knows, every pod, secret, service account, and role, lives inside etcd as key-value pairs. Read etcd and you have read the cluster. That is why the control plane exists: to guard that database and turn what it holds into running containers.
+
+A Kubernetes cluster splits into two halves. The control plane makes decisions. The worker nodes run your actual containers. When you attack a cluster you are usually standing on a worker node inside a pod, trying to climb toward the control plane, because that is where the power sits.
+
+## The control plane
+
+Four components do the thinking, and they usually run on their own set of machines.
+
+The **API server** (`kube-apiserver`) is the front door. Every command, from `kubectl`, from a controller, from a compromised pod, goes through it. It listens on TCP 6443 by default. It authenticates the caller, checks authorization, then reads or writes etcd. If you can talk to the API server with a token that has rights, you can do anything that token allows.
+
+**etcd** is the database, listening on 2379. It stores secrets base64-encoded, not encrypted, unless someone turned on encryption-at-rest. Direct etcd access is game over. There is no RBAC layer in front of it, only network reachability and client certificates.
+
+The **scheduler** decides which node a new pod lands on. The **controller manager** runs the loops that keep reality matching etcd: if a deployment wants three replicas and one dies, the controller manager notices and asks for a replacement. Neither is a common direct target, but both hold credentials worth stealing.
+
+## The worker node
+
+Every node runs a **kubelet**. It is the agent that talks to the API server, pulls the pods assigned to this node, and tells the container runtime to start them. The kubelet listens on 10250, and a misconfigured one that allows anonymous access is one of the cleanest paths from network access to code execution inside every pod on the box.
+
+Below the kubelet sits the container runtime, usually containerd these days, which does the real work of `runc` spinning up namespaces and cgroups. A **kube-proxy** on each node programs iptables or IPVS rules so that service traffic reaches the right pods.
+
+<Callout type="info" title="A pod is not a VM">
+A pod is one or more containers sharing a network namespace and a couple of Linux cgroups. It is a process tree on the node, isolated by kernel features, not a separate machine. Every isolation boundary you will attack in this module is a Linux namespace, a capability, or a mount, not real hardware separation.
+</Callout>
+
+## Where the value is
+
+Map any cluster by what a component can reach, not by its name on an org chart.
+
+The service account token mounted into your pod at `/var/run/secrets/kubernetes.io/serviceaccount/token` is your starting credential. The kubelet on your node can run commands in neighboring pods. The API server is the hub that grants everything. Node access, if you can break out of a container, gives you every secret and token of every pod scheduled there.
+
+<CommandCard command="kubectl cluster-info" explain="From a foothold with a working kubeconfig, this prints the API server and core service endpoints. It is the fastest orientation once you can talk to the cluster at all." />
+
+<Callout type="security" title="Authorized targets only">
+Practice on clusters you own or are cleared to test: a local minikube or kind cluster, a lab like Kubernetes Goat, or an engagement with written scope. Poking a production cluster you were not hired to test is unauthorized access, and cloud audit logs record every API call you make.
+</Callout>
+
+<Quiz
+  id="k8s-arch-etcd"
+  question="You get raw read access to etcd on port 2379 with the right client cert. What have you effectively compromised?"
+  answer={2}
+  options={[
+    "Only the single pod you started from",
+    "The scheduler's placement decisions",
+    "The entire cluster state, including all secrets",
+    "Nothing, etcd encrypts everything by default",
+  ]}
+  explanation="etcd is the single source of truth for the whole cluster and stores secrets base64-encoded, not encrypted, unless encryption-at-rest was explicitly enabled. Reading etcd means reading every secret, token, and config in the cluster."
+/>
+
+<Notes />

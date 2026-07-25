@@ -1,0 +1,18 @@
+{
+  "slug": "cysa-plus",
+  "code": "CS0-003",
+  "name": "CompTIA CySA+",
+  "vendor": "CompTIA",
+  "description": "The blue-team analyst cert. Validates the skills to monitor, detect, and respond to threats using behavioral analytics, vulnerability management, and incident response.",
+  "passScore": 75,
+  "examMinutes": 165,
+  "questionCount": 85,
+  "icon": "Radar",
+  "order": 4,
+  "domains": [
+    { "number": 1, "name": "Security Operations", "weight": 33 },
+    { "number": 2, "name": "Vulnerability Management", "weight": 30 },
+    { "number": 3, "name": "Incident Response and Management", "weight": 20 },
+    { "number": 4, "name": "Reporting and Communication", "weight": 17 }
+  ]
+}

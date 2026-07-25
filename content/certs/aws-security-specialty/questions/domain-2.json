@@ -1,0 +1,114 @@
+[
+  {
+    "domain": 2,
+    "question": "A security engineer must be able to prove that CloudTrail log files delivered to an Amazon S3 bucket have not been modified or deleted after CloudTrail delivered them. Which CloudTrail capability provides this proof?",
+    "options": ["S3 Object Lock in governance mode", "SSE-KMS encryption of the log files", "Log file integrity validation using digest files", "CloudTrail Insights events"],
+    "correct": [2],
+    "explanation": "CloudTrail log file integrity validation writes an hourly digest file that contains SHA-256 hashes of the delivered log files and signs the digest with SHA-256 with RSA. You can later validate the digests to detect any modification or deletion. Encryption protects confidentiality rather than proving integrity, Object Lock is an S3 feature that prevents deletion but does not itself prove content integrity, and Insights detects unusual API activity.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "When you create a new AWS CloudTrail trail with default settings, which category of events does the trail record without any additional configuration and at no extra charge for the first copy?",
+    "options": ["S3 object-level data events", "Lambda invocation data events", "Management events", "VPC Flow Log records"],
+    "correct": [2],
+    "explanation": "By default a trail logs management events (control-plane operations such as CreateBucket or RunInstances), and the first copy of management events is delivered at no additional charge. Data events for S3 objects and Lambda invocations are not logged by default and incur extra cost. VPC Flow Logs are a separate VPC feature, not a CloudTrail event type.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "An auditor needs a durable, identity-attributed record of every GetObject and PutObject call against one sensitive S3 bucket, including the object keys and the IAM principal that made each call. A multi-region trail already logs management events. What must the engineer configure?",
+    "options": ["Enable CloudTrail Insights on the trail", "Add an S3 data event selector for that bucket on the trail", "Rely on S3 server access logging only", "Enable VPC Flow Logs for the bucket"],
+    "correct": [1],
+    "explanation": "Object-level operations such as GetObject and PutObject are CloudTrail data events, which are not captured by default; adding an S3 data event selector for the bucket records them with full IAM identity detail. Insights detects anomalies in call volume rather than per-object access. VPC Flow Logs capture network metadata, not S3 API calls. S3 server access logging is best-effort and lacks the reliable IAM attribution CloudTrail provides.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "During an investigation into possible data exfiltration from an EC2 instance, a team uses VPC Flow Logs to see which remote IPs and ports the instance talked to and whether traffic was accepted or rejected. What limitation of VPC Flow Logs must they account for?",
+    "options": ["Flow logs capture full packet payloads only for rejected traffic", "Flow logs do not capture the actual packet contents or payload", "Flow logs record only inbound traffic", "Flow logs are available only for the default VPC"],
+    "correct": [1],
+    "explanation": "VPC Flow Logs record connection metadata such as source and destination addresses, ports, protocol, byte and packet counts, and the accept or reject action, but they never include the packet payload. To inspect actual packet contents you would need VPC Traffic Mirroring. Flow logs cover both directions of traffic and work for any VPC, subnet, or ENI, not just the default VPC.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "The default VPC Flow Log record format does not include the VPC ID, subnet ID, or instance ID, and a security engineer needs those fields to correlate flows during investigations. How can these fields be included in the flow log records?",
+    "options": ["Enable CloudTrail data events for the VPC", "Switch the destination to Amazon S3, which adds them automatically", "Enable flow logs only at the transit gateway level", "Create the flow log with a custom format that adds fields such as vpc-id, subnet-id, and instance-id"],
+    "correct": [3],
+    "explanation": "VPC Flow Logs support a custom record format where you select from additional available fields, including vpc-id, subnet-id, instance-id, tcp-flags, pkt-srcaddr, and flow-direction. Changing the destination to S3 does not change which fields are captured. CloudTrail data events are unrelated to network flow fields, and transit gateway flow logs cover a different scope.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A company must continuously detect any S3 bucket that becomes publicly readable and keep a timeline of each bucket's compliance state over time. Which service and feature is purpose-built for this?",
+    "options": ["Amazon GuardDuty S3 protection", "AWS Config with the s3-bucket-public-read-prohibited managed rule", "CloudTrail Insights", "Amazon Inspector network reachability"],
+    "correct": [1],
+    "explanation": "AWS Config continuously evaluates resource configurations against rules and retains a configuration and compliance timeline; the managed rule s3-bucket-public-read-prohibited flags publicly readable buckets. GuardDuty detects threats from data sources but does not keep a configuration compliance history. Inspector assesses software vulnerabilities and EC2 network reachability, not S3 public-access state.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 2,
+    "question": "A governance team needs a single read-only view of resource configurations and AWS Config rule compliance across 40 accounts in AWS Organizations and multiple Regions. Which AWS Config capability delivers this centralized view?",
+    "options": ["A configuration aggregator", "A conformance pack deployed separately in each account", "Config advanced queries run individually in each account", "A delivery channel that writes snapshots to a central S3 bucket"],
+    "correct": [0],
+    "explanation": "A configuration aggregator collects AWS Config configuration and compliance data from many accounts and Regions into one aggregator account, and it can pull the account list automatically from AWS Organizations. Conformance packs deploy rules but do not centralize the view. A central S3 delivery channel stores raw snapshots but is not an aggregated, queryable compliance view.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A security analyst uses Amazon Athena to query several years of CloudTrail logs in S3. Queries are slow and expensive because Athena scans every object even when filtering by Region and date. Which approach most reduces the data scanned and the cost?",
+    "options": ["Move the logs to S3 Glacier Deep Archive before querying", "Partition the CloudTrail table, for example with partition projection, on Region and date", "Enable CloudTrail Insights on the trail", "Change every query to SELECT star with a LIMIT clause"],
+    "correct": [1],
+    "explanation": "Partitioning the Athena table by Region and date lets Athena prune S3 prefixes and scan only the matching objects, cutting scan volume and cost; partition projection avoids maintaining a partition catalog. Glacier Deep Archive objects are not directly queryable by Athena. Insights changes what CloudTrail records, not how Athena scans. A LIMIT still scans the full dataset before limiting the output rows.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "To satisfy a benchmark control, a team must be alerted whenever the AWS account root user signs in or makes an API call. CloudTrail already delivers events to a CloudWatch Logs log group. What is the correct way to raise the alert in near real time?",
+    "options": ["Enable S3 server access logging on the CloudTrail bucket", "Create an AWS Config rule that emails on root usage", "Create a CloudWatch Logs metric filter matching root usage plus a CloudWatch alarm with an SNS action", "Use Athena to query the logs hourly with a Lambda function"],
+    "correct": [2],
+    "explanation": "A CloudWatch Logs metric filter scans incoming log events for a pattern such as the root user identity and increments a metric; a CloudWatch alarm on that metric then triggers an SNS notification within moments. AWS Config evaluates configuration state, not sign-in events. Hourly Athena polling is slower and not the recommended real-time control, and server access logging does not track root API usage.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "A company wants to stream CloudWatch Logs events in near real time to a custom analytics pipeline. Which CloudWatch Logs feature delivers matching log events to destinations such as Amazon Kinesis Data Streams, Amazon Data Firehose, or AWS Lambda?",
+    "options": ["Subscription filters", "Metric filters", "Logs Insights queries", "Export tasks to Amazon S3"],
+    "correct": [0],
+    "explanation": "Subscription filters provide a real-time feed of log events matching a filter pattern to Kinesis Data Streams, Amazon Data Firehose, or Lambda. Metric filters only produce numeric CloudWatch metrics. Logs Insights is for interactive querying, and export tasks batch logs to S3 and are not real time.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An organization encrypts its central CloudTrail log files in S3 with an SSE-KMS customer managed key. A separate security account must be able to read and decrypt those logs. What must be granted so the security account can decrypt the log files?",
+    "options": ["Make the S3 bucket public", "Transfer ownership of the CloudTrail trail to the security account", "Grant IAM permissions in the security account only, with no key policy change", "Allow the security account principal kms:Decrypt in the KMS key policy or via a grant"],
+    "correct": [3],
+    "explanation": "For a customer managed KMS key, both the key policy and the caller's IAM permissions govern access, so the key policy (or a grant) must permit the security account principal to call kms:Decrypt. IAM permissions alone cannot override a key policy that does not grant the account. Making the bucket public is unsafe and unnecessary, and trail ownership does not control decryption rights.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 2,
+    "question": "A security engineer wants to automatically invoke a Lambda remediation the moment a specific management API call occurs, such as StopLogging on a trail, without polling. Which integration provides this near-real-time, event-driven response?",
+    "options": ["A daily Athena scheduled query", "An Amazon EventBridge rule matching the CloudTrail API event", "A CloudWatch Logs export task", "An AWS Config configuration snapshot"],
+    "correct": [1],
+    "explanation": "CloudTrail management events are delivered to Amazon EventBridge, so a rule can match a specific eventName such as StopLogging and invoke a Lambda target within moments. Athena scheduled queries and Config snapshots run periodically, and log export tasks are batch operations, so none of them react in an event-driven, near-real-time way.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "An engineer is configuring VPC Flow Logs to publish directly to Amazon CloudWatch Logs. Which two resources must exist for delivery to succeed? (Choose two.)",
+    "options": ["A Kinesis Data Firehose delivery stream", "A CloudWatch Logs log group to receive the records", "A NAT gateway in the VPC", "An IAM role that lets the VPC Flow Logs service publish to CloudWatch Logs", "An AWS Config configuration aggregator"],
+    "correct": [1, 3],
+    "explanation": "Publishing flow logs to CloudWatch Logs requires a destination log group and an IAM role whose trust policy lets the VPC Flow Logs service assume it and publish log events. A Firehose delivery stream is only needed when that is the destination, a NAT gateway is unrelated to logging, and a Config aggregator is a separate governance feature.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 2,
+    "question": "CloudTrail is configured to also send events to a CloudWatch Logs log group. A responder needs to interactively search those events with an ad hoc query language, aggregating counts of failed API calls by source IP over the last hour. Which tool is purpose-built for this?",
+    "options": ["CloudWatch Logs Insights", "Amazon Athena over the S3 bucket", "AWS Config advanced query", "Amazon Macie"],
+    "correct": [0],
+    "explanation": "CloudWatch Logs Insights offers an interactive query language with fields, filter, and stats commands to search and aggregate events already in a log group, which is ideal for counting failed calls by source IP. Athena queries logs in S3, which is a valid alternative but not for data already in CloudWatch Logs. Config queries resource configurations, and Macie discovers sensitive data in S3.",
+    "difficulty": "HARD"
+  }
+]

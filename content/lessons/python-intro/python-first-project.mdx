@@ -1,0 +1,182 @@
+---
+title: "Build a Small Program"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 10
+summary: "A number-guessing game pulls every piece from this module, variables, strings, numbers, conditionals, loops, lists, and a function, into one program that actually runs."
+estimatedMinutes: 16
+prerequisites: ["python-functions"]
+objectives:
+  - Combine variables, conditionals, a loop, a list, and a function into one working program
+  - Explain why a loop needs a condition that can actually change, and what happens when it cannot
+  - Use a function to isolate one decision so the rest of the program stays readable
+  - Track a running history of values in a list built up one append at a time
+tags:
+  - python
+  - project
+  - capstone
+---
+
+The previous lesson, functions, took code that answered one specific question and made it reusable: a block written once with `def`, callable by name from anywhere in the program. Every earlier lesson in this module added its own piece on top of that: a variable to hold a value, an f-string to show it, `int()` to convert a typed answer into something arithmetic can use, an `if` chain to make a program choose a branch, a loop to make it repeat. None of those lessons needed each other's pieces to make their point. This one does. A real program almost never uses exactly one of these ideas in isolation, and the only way to feel that is to build something where they all show up in the same twenty lines and depend on each other to work.
+
+## Picking a program shape that needs everything
+
+A number-guessing game is a good vehicle for this because every piece it needs maps onto something already covered. The program picks a number and keeps it secret. Someone guesses. The program has to compare that guess against the secret number, which is a conditional. It has to keep asking until the guess is right, which is a loop. It has to turn "too high" or "too low" into an actual message, which is a job worth handing to a function so that one small decision does not get tangled into the loop around it. And it is worth remembering every guess that got tried, which calls for a list.
+
+There is no need for real randomness here. A fixed target number, decided once and left alone, tests every one of those pieces just as well as a random one would, and it keeps the example easy to trace by hand. The target in this lesson is 17. Anyone reading the code sees it plainly; the point is not to hide it from the programmer, only from whoever is guessing.
+
+## The piece that decides what to say: a function
+
+The comparison at the center of this game is always the same three-way question: is the guess too low, too high, or exactly right. That question deserves its own function instead of living inline in the loop, because a loop that also has to figure out what message to print gets harder to read with every added case. A function named `give_hint` takes a guess and the target, and returns one of three short strings:
+
+```python
+def give_hint(guess, target):
+    if guess < target:
+        return "Too low"
+    elif guess > target:
+        return "Too high"
+    else:
+        return "Correct!"
+```
+
+Notice this function returns a string rather than printing one directly. That is a deliberate choice, not a style preference with no consequence. A function that returns a value hands that value back to whatever called it, which can then print it, store it, or test it, none of which is possible with a function that only prints. `give_hint(10, 17)` on its own does nothing visible; wrapping the call in `print(give_hint(10, 17))` is what actually shows `Too low` on the screen. Keeping the decision and the printing as two separate steps is what makes this function reusable in more than one place later, if the game ever needs to check a guess without immediately announcing it.
+
+<Quiz
+  id="project-function-returns-not-prints"
+  question="give_hint returns a string instead of calling print() itself. Why does that matter for how the rest of the program uses it?"
+  answer={1}
+  options={[
+    "It does not matter, return and print always produce the same visible result",
+    "Returning hands the string back to the caller, which can print it, store it, or test it, while a function that only printed could not be reused for anything but showing text immediately",
+    "A function is only allowed to use return if it takes two or more arguments",
+    "print() inside a function raises an error unless the function is called from the top level of the program",
+  ]}
+  explanation="return sends a value back to whatever called the function, leaving the caller free to print it, save it in a variable, or compare it. A function that only calls print() has no result to hand back, so calling give_hint(10, 17) by itself would do nothing visible at all, and nothing about argument count or where a function is called restricts using print inside one."
+/>
+
+## The piece that repeats: a loop with no fixed number of trips
+
+A `for` loop is the right tool when a program knows in advance how many times something needs to happen. This game does not know that. It has no idea whether the first guess will be right or the tenth, so it needs a loop that keeps going based on a condition rather than a count. A `while` loop does exactly that: it checks a condition before every pass and keeps running as long as that condition is true.
+
+The condition here is a plain boolean variable named `found`, starting `False` and switching to `True` only once the guess matches the target:
+
+```python
+found = False
+
+while not found:
+    guess = int(input("Guess the number: "))
+    if guess == 17:
+        found = True
+```
+
+`while not found` reads naturally: keep running while found has not happened yet. The loop reads a guess, checks it, and flips `found` to `True` the moment the guess is correct. On the very next check, `not found` is `False`, so the loop stops. This is the detail that makes a `while` loop trustworthy instead of dangerous: somewhere inside its body, something has to change the value the condition depends on. Leave that line out, and `found` stays `False` forever, the condition never flips, and the loop runs without end, asking for a guess it will never stop asking for. That single missing line is the most common way a beginner's program locks up.
+
+## The piece that remembers: a list built up one guess at a time
+
+A single variable can hold the current guess, but it cannot hold all of them at once, and a full record of what was tried is worth having once the game ends. A list started empty and grown with `.append()` is exactly the tool for that: a container built for holding a changing number of items in the order they arrived, which is precisely what a stream of guesses is.
+
+```python
+guess_history = []
+guess_history.append(10)
+guess_history.append(20)
+print(guess_history)
+```
+
+<ExpectedOutput label="two guesses appended, in the order they happened">
+```
+[10, 20]
+```
+</ExpectedOutput>
+
+`guess_history` starts as `[]`, an empty list, meaning zero items. Each call to `.append()` adds one more value onto the end without disturbing what was already there. Inside the guessing loop, appending the guess right after reading it means the list grows by exactly one entry per pass through the loop, so by the time the game ends, `guess_history` holds a complete, ordered account of every number tried, not just the winning one.
+
+## Putting the pieces into one program
+
+Every piece so far has been shown on its own. The full game wires them together: the function decides what to say, the loop keeps asking until the guess is right, the list remembers every attempt, and a running count of attempts, an ordinary integer variable, tracks how many tries it took.
+
+```python
+def give_hint(guess, target):
+    if guess < target:
+        return "Too low"
+    elif guess > target:
+        return "Too high"
+    else:
+        return "Correct!"
+
+
+target_number = 17
+attempts = 0
+guess_history = []
+found = False
+
+while not found:
+    guess = int(input("Guess the number: "))
+    attempts += 1
+    guess_history.append(guess)
+    hint = give_hint(guess, target_number)
+    print(hint)
+    if guess == target_number:
+        found = True
+
+print(f"It took {attempts} guesses.")
+print(f"Guesses tried: {guess_history}")
+```
+
+<ExpectedOutput label="guessing 10, then 20, then 15, then 17">
+```
+Guess the number: 10
+Too low
+Guess the number: 20
+Too high
+Guess the number: 15
+Too low
+Guess the number: 17
+Correct!
+It took 4 guesses.
+Guesses tried: [10, 20, 15, 17]
+```
+</ExpectedOutput>
+
+Tracing the very first pass through the loop makes the wiring concrete. `found` starts `False`, so `while not found` is `True` and the loop body runs. `input("Guess the number: ")` prints that prompt and waits; typing `10` and pressing enter hands back the string `"10"`, and `int()` turns it into the integer `10`, stored in `guess`. `attempts += 1` moves the counter from `0` to `1`. `guess_history.append(10)` makes the list `[10]`. `give_hint(10, 17)` runs the function's `if` chain: `10 < 17` is `True`, so it returns `"Too low"` without ever checking the other two branches, and that string lands in `hint` and gets printed. The last `if` in the loop body checks `10 == 17`, finds it `False`, and leaves `found` alone. Control loops back to the top, `while not found` is checked again, and because nothing changed that condition, the loop runs a second time. That is the entire mechanism, four guesses later, that produces the transcript above.
+
+Every line of that program is something this module already covered on its own. `target_number`, `attempts`, and `found` are variables holding an int, an int, and a bool. `int(input(...))` converts a typed guess into a number the way the input lesson showed. `attempts += 1` is ordinary arithmetic, updating a variable using its own current value. `give_hint` is the function from earlier, called once per pass and handed back a string. The `if guess == target_number` line is a plain comparison, no different from any other conditional in this module, and it is the one line responsible for eventually making `not found` false and ending the loop. `guess_history.append(guess)` is the list growing by one entry every time through. The two `print()` calls at the end, once the loop has finished, use f-strings to report the attempt count and the full list of guesses in one line each. None of it is new syntax. What is new is watching six familiar pieces lean on each other to produce one program that could not be written with any one of them missing.
+
+<Quiz
+  id="project-missing-found-update"
+  question="Suppose the line 'if guess == target_number: found = True' were deleted from the loop, but everything else stayed the same. What happens when the game runs?"
+  answer={0}
+  options={[
+    "The loop never ends, because found stays False forever and while not found keeps checking a condition that can no longer change",
+    "The program raises an error immediately, because a while loop requires that line to be valid Python",
+    "The loop still ends correctly, because Python notices the guess matches the target on its own",
+    "The loop runs exactly once no matter what is guessed, since attempts starts at 0",
+  ]}
+  explanation="A while loop only stops when its condition becomes false, and found only changes value on that deleted line. Removing it means nothing in the loop body ever sets found to True, so while not found stays true on every pass and the loop runs forever. The loop is still valid Python without that line, Python does not compare values on its own behalf, and nothing about attempts starting at 0 limits how many times the loop runs."
+/>
+
+<CommandCard command="python3 guess.py" title="terminal" explain="Runs the code saved in guess.py from top to bottom, pausing at each input() call and printing whatever the program prints." />
+
+<Exercise title="Run the guessing game and change how it plays">
+Save the full program above into a file named `guess.py` and run it with `python3 guess.py` in the Build tab. Guess a few numbers on purpose, some too low and some too high, and confirm the hints and the final summary match what actually happened.
+
+Then make three changes, one at a time, running the program again after each: change `target_number` to a different value; add a fourth branch inside `give_hint` that returns `"So close!"` when the guess is within 2 of the target, checked before the exact match; and print `guess_history` after every single guess instead of only at the end, so the growing list is visible mid-game rather than only at the finish.
+</Exercise>
+
+<Quiz
+  id="project-why-a-function-here"
+  question="The three-way too-low/too-high/correct comparison could have been written directly inside the while loop instead of pulled out into give_hint. What is the actual benefit of pulling it into a function?"
+  answer={3}
+  options={[
+    "It makes the program run faster, since functions execute before other code",
+    "It is required, Python does not allow if/elif/else chains inside a while loop",
+    "It changes what the comparison returns, from a string to a number",
+    "It keeps the loop's job, repeating, separate from the comparison's job, deciding what to say, so each part stays easier to read and the comparison can be reused or tested on its own"
+  ]}
+  explanation="Pulling the comparison into give_hint does not change speed or what gets returned, and Python has no restriction against conditionals inside a while loop, that combination is completely ordinary. The real gain is separation: the loop's only job becomes repeating until found is True, and the comparison's only job becomes turning a guess and a target into the right message, which makes both easier to follow and lets the comparison be called or tested by itself."
+/>
+
+The `found` flag plus a `while` loop is worth naming as its own pattern, separate from this specific game, because it shows up constantly once a program does more than run once and stop. A text menu that keeps showing options until someone picks "quit" uses the same shape: a boolean starting `False`, flipped to `True` only by the choice that should end things. A login prompt that keeps asking for a password until one matches uses it too. The guessing game is a small, safe place to meet that pattern for the first time, since a wrong guess only costs another line of output, but the shape underneath, loop while a condition holds, change the condition from inside the loop, stop when it flips, is the same shape a program reaches for any time it needs to keep going until something specific happens rather than a fixed number of times.
+
+This module built up from a single `print()` statement to a program that reads input, converts it, branches on it, loops on it, remembers it in a list, and hands off one piece of the decision to a function written once and called repeatedly. That is most of what a small real program looks like on the inside. The next module, Python Deep Dive, starts exactly where the list in this game left off: Lists and Collections goes past a single `.append()` and into indexing, slicing, and the other ways a list gets read and reshaped once it holds more than a handful of numbers.

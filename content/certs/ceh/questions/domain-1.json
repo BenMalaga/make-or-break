@@ -1,0 +1,178 @@
+[
+  {
+    "domain": 1,
+    "question": "During passive footprinting, an analyst gathers information about a target without directly interacting with the target's systems. Which activity is an example of passive footprinting?",
+    "options": ["Performing a full DNS zone transfer against the target's authoritative name server", "Reviewing the target's historical web pages on the Internet Archive Wayback Machine", "Running a TCP SYN scan against the target's public IP range", "Calling the target's help desk to reset a user password"],
+    "correct": [1],
+    "explanation": "Passive footprinting collects information from third-party or public sources without touching the target directly, and browsing archived pages queries archive.org rather than the target. Zone transfers, port scans, and pretext calls all interact with the target and are active techniques.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Which DNS resource record maps a hostname to an IPv4 address?",
+    "options": ["A", "AAAA", "MX", "PTR"],
+    "correct": [0],
+    "explanation": "The A (address) record maps a hostname to a 32-bit IPv4 address. AAAA maps to IPv6, MX identifies mail servers, and PTR provides reverse (IP to name) resolution.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An attacker wants to attempt a full DNS zone transfer to pull every record a name server holds for a domain. Which query type is used for a full zone transfer?",
+    "options": ["IXFR", "AXFR", "ANY", "SOA"],
+    "correct": [1],
+    "explanation": "AXFR requests a full copy of a zone from a name server. IXFR is an incremental transfer, ANY requests all record types for a single name, and SOA returns only the start of authority record.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which Google search operator restricts results to a single website or domain, such as returning only pages hosted on example.com?",
+    "options": ["intitle:", "filetype:", "site:", "inurl:"],
+    "correct": [2],
+    "explanation": "The site: operator limits results to the specified domain or host. intitle: matches page titles, filetype: matches file extensions, and inurl: matches strings in the URL.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A penetration tester queries a whois database for a target domain. Which information is a whois lookup most likely to return?",
+    "options": ["A list of open TCP ports on the web server", "Registrar, registration and expiry dates, and name servers", "The operating system version of the mail server", "The internal Active Directory domain structure"],
+    "correct": [1],
+    "explanation": "Whois returns domain registration details such as the registrar, creation and expiration dates, name servers, and (when not privacy-protected) registrant contacts. Open ports, OS versions, and internal AD layout require active scanning or other techniques.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Which OSINT tool gathers emails, subdomains, hostnames, and employee names for a domain from public sources such as search engines and PGP key servers?",
+    "options": ["theHarvester", "Nikto", "Hydra", "Ettercap"],
+    "correct": [0],
+    "explanation": "theHarvester aggregates emails, subdomains, hosts, and names from public sources and is a staple footprinting tool. Nikto is a web server scanner, Hydra is a password cracker, and Ettercap is a man-in-the-middle and sniffing tool.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which search engine indexes banners from Internet-connected devices and services, letting an analyst find exposed webcams, routers, and databases by service and geography?",
+    "options": ["Maltego", "Shodan", "Sublist3r", "Recon-ng"],
+    "correct": [1],
+    "explanation": "Shodan crawls and indexes service banners of Internet-facing devices, making it useful for discovering exposed systems. Maltego is a link-analysis platform, Sublist3r enumerates subdomains, and Recon-ng is a modular recon framework.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst runs nslookup interactively and needs to list the mail servers for a domain. Which command sets the correct query type?",
+    "options": ["set type=ns", "set type=mx", "set type=ptr", "set type=soa"],
+    "correct": [1],
+    "explanation": "Setting the query type to MX returns the mail exchanger records for the domain. NS returns name servers, PTR is for reverse lookups, and SOA returns the start of authority record.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which DNS record type contains administrative data for a zone, including the primary name server, the responsible party email, and the serial number used for zone transfers?",
+    "options": ["CNAME", "SOA", "TXT", "SRV"],
+    "correct": [1],
+    "explanation": "The SOA (Start of Authority) record holds zone administration data such as the primary name server, responsible-party mailbox, serial number, and the refresh, retry, and expire timers. CNAME defines aliases, TXT holds arbitrary text, and SRV advertises service locations.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "Which tool is a link-analysis and data-mining platform that visually maps relationships between people, domains, email addresses, and infrastructure using transforms?",
+    "options": ["Maltego", "Wireshark", "Metasploit", "Aircrack-ng"],
+    "correct": [0],
+    "explanation": "Maltego runs transforms against OSINT sources and graphs the relationships between entities such as domains, people, and IP addresses. Wireshark is a packet analyzer, Metasploit is an exploitation framework, and Aircrack-ng targets wireless keys.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst has an IP address and wants to find the hostname associated with it. Which DNS record type supports this reverse lookup?",
+    "options": ["A", "MX", "PTR", "NS"],
+    "correct": [2],
+    "explanation": "PTR records map an IP address back to a hostname and are used for reverse DNS lookups under the in-addr.arpa zone. A maps name to IPv4, MX lists mail servers, and NS lists a zone's name servers.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which Regional Internet Registry (RIR) is responsible for allocating IP addresses and running whois for North America?",
+    "options": ["RIPE NCC", "APNIC", "ARIN", "AFRINIC"],
+    "correct": [2],
+    "explanation": "ARIN (American Registry for Internet Numbers) serves North America. RIPE NCC covers Europe and the Middle East, APNIC covers Asia-Pacific, and AFRINIC covers Africa.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "Which DNS record type is used to create an alias that points one hostname to another canonical hostname?",
+    "options": ["CNAME", "A", "SOA", "TXT"],
+    "correct": [0],
+    "explanation": "A CNAME (canonical name) record aliases one name to another name, which then resolves to an address. An A record points directly to an IPv4 address, SOA holds zone metadata, and TXT stores arbitrary text such as SPF policies.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which service provides a site report showing a web server's hosting history, technologies in use, and network background, and is often used during footprinting?",
+    "options": ["Netcraft", "John the Ripper", "Responder", "Burp Suite"],
+    "correct": [0],
+    "explanation": "Netcraft site reports reveal hosting history, server technologies, and other background useful in footprinting. John the Ripper cracks passwords, Responder poisons name-resolution traffic, and Burp Suite is a web proxy for application testing.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which open-source tool is a modular, Python-based web reconnaissance framework whose module and workspace workflow resembles Metasploit?",
+    "options": ["Recon-ng", "Nessus", "Snort", "Hashcat"],
+    "correct": [0],
+    "explanation": "Recon-ng is a modular web reconnaissance framework with a Metasploit-like console, modules, and workspaces for organizing OSINT. Nessus is a vulnerability scanner, Snort is an IDS/IPS, and Hashcat is a password cracker.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which two techniques are examples of passive footprinting? (Choose two.)",
+    "options": ["Reviewing employees' public LinkedIn profiles for role and technology details", "Reading the target's cached pages from a search engine", "Performing a DNS zone transfer against the target's name server", "Social engineering a receptionist over the phone"],
+    "correct": [0, 1],
+    "explanation": "Reading public social-media profiles and cached search-engine pages collects information from third parties without touching the target, so both are passive. A zone transfer queries the target's own server, and social engineering directly interacts with a person, making both active.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst uses the Linux dig command to request the name servers for example.com. Which command is correct?",
+    "options": ["dig example.com NS", "dig example.com PTR", "dig -x example.com", "dig example.com MX"],
+    "correct": [0],
+    "explanation": "dig example.com NS queries the name server records for the domain. Adding PTR or -x is for reverse lookups, and MX returns mail servers rather than name servers.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Why might an attacker route footprinting traffic through anonymizers, proxy chains, or Tor during the reconnaissance phase?",
+    "options": ["To increase the bandwidth available for scanning", "To hide the source of the activity and evade attribution or logging", "To automatically exploit vulnerabilities on the target", "To encrypt the target's stored data"],
+    "correct": [1],
+    "explanation": "Anonymizers and proxy chains obscure the attacker's real source address so activity is harder to attribute or block. They do not add bandwidth, exploit systems, or encrypt the target's data.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which footprinting activity best fits under competitive intelligence gathering?",
+    "options": ["Cracking password hashes captured from the target network", "Collecting a company's product plans, partnerships, and financials from public filings and news", "Flooding the target's DNS server with queries", "Installing a keylogger on an employee workstation"],
+    "correct": [1],
+    "explanation": "Competitive intelligence is the legal gathering of business information such as products, partners, and financials from public sources. Cracking hashes, flooding servers, and planting keyloggers are intrusive attack actions, not intelligence gathering.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An analyst inspects an email's full Internet headers during email footprinting. Which piece of information can typically be recovered this way?",
+    "options": ["The plaintext password of the sender's mailbox", "The originating IP address and the mail servers the message traversed", "The recipient's browser cookies", "The sender's private encryption key"],
+    "correct": [1],
+    "explanation": "Full email headers expose the Received lines, which record the originating IP and the relay of mail servers a message passed through. Headers do not contain mailbox passwords, browser cookies, or private keys.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which tool enumerates subdomains of a target domain by leveraging public sources such as search engines and certificate data?",
+    "options": ["Sublist3r", "Cain and Abel", "netstat", "Kismet"],
+    "correct": [0],
+    "explanation": "Sublist3r discovers subdomains by querying search engines and other public sources, expanding the attack surface map. Cain and Abel is a Windows password and sniffing tool, netstat shows local connections, and Kismet is a wireless detector.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "In the standard footprinting methodology, which objective best summarizes the goal of the reconnaissance phase?",
+    "options": ["Gain persistent administrative access to the target's domain controller", "Build a profile of the target's systems, network, and people to plan later attack phases", "Erase log files to cover the intruder's tracks", "Deploy ransomware across the target's file shares"],
+    "correct": [1],
+    "explanation": "Footprinting and reconnaissance aim to collect as much information as possible about the target's technology, network, and personnel to reduce the attack surface and plan later phases. Gaining access, clearing logs, and deploying malware belong to later stages of the attack lifecycle.",
+    "difficulty": "MEDIUM"
+  }
+]

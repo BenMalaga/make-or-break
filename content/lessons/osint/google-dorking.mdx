@@ -1,0 +1,94 @@
+---
+title: Google Dorking
+module: osint
+moduleTitle: Open Source Intelligence
+moduleOrder: 21
+moduleIcon: Eye
+order: 4
+summary: The search bar is a scanner. The right operators find files nobody meant to publish.
+estimatedMinutes: 15
+objectives:
+  - Combine search operators to target one domain and file type
+  - Find exposed documents, directory listings, and login pages
+  - Understand why dorking is passive and where its limits are
+tags:
+  - osint
+  - google-dorking
+  - recon
+  - search-operators
+---
+
+Google already crawled the target's servers for you. It indexed the config backup someone left in a public folder, the internal spreadsheet linked from a forgotten page, the admin login that was never supposed to face the internet. Google dorking is just asking the index the right question so those things float to the top instead of drowning under the marketing site.
+
+The whole game is operators. Plain keyword search is noise. Operators turn the search bar into a filter you point at exactly one domain and exactly one kind of file.
+
+## The operators that matter
+
+A handful of these do most of the work. Learn them cold and you'll compose them without thinking.
+
+- `site:company.com` restricts results to one domain. This is the anchor for almost every dork.
+- `filetype:pdf` (or `xlsx`, `sql`, `env`, `log`, `bak`) limits results to one extension.
+- `intitle:"index of"` finds Apache and nginx directory listings, the open folders that expose every file in them.
+- `inurl:admin` matches a string in the URL, good for finding login and admin paths.
+- `intext:"password"` matches page body text.
+- A minus sign like `-www` excludes a term, handy for filtering out the main site to see what else exists.
+
+Chain them. That's where the power is.
+
+## Real dorks you'll actually run
+
+Hunt for spreadsheets and databases the target published by accident:
+
+<CommandBlock
+  commands={[
+    { cmd: 'site:company.com filetype:xlsx', comment: "Public Excel files, often internal rosters or budgets" },
+    { cmd: 'site:company.com filetype:pdf intext:"confidential"', comment: "Documents someone marked confidential and then posted anyway" },
+    { cmd: 'site:company.com ext:sql | ext:env | ext:log', comment: "Database dumps, environment files, and logs with secrets in them" },
+  ]}
+/>
+
+Find open directory listings, which expose whole folders:
+
+<CommandCard command={`intitle:"index of" site:company.com`} explain="Directory listings show every file in a folder with no access control. Backups, source, and configs often sit in these unlinked directories." />
+
+Surface login and admin portals to feed your infrastructure map:
+
+<CommandCard command={`site:company.com inurl:login | inurl:admin | inurl:portal`} explain="Finds authentication pages across the domain. Each one is a potential entry point and a target for credential attacks later." />
+
+Run these against the subdomains you pulled from certificate transparency, not just the apex domain. A dork like `site:*.company.com filetype:sql` casts across every subdomain Google knows about.
+
+## Why this is passive, and its blind spot
+
+You never touch the target's server. You query Google's cache of the target's server. Your IP shows up in Google's logs, not the target's, which is exactly why dorking is a first-pass move before you go active.
+
+The blind spot: Google only shows what it indexed. A file behind a login, blocked by robots.txt, or freshly deleted may not appear even though it exists or existed. And the index lags reality, so a page Google shows might already be 404. Confirm anything load-bearing by fetching it yourself, and remember that fetching it is the moment you go active.
+
+<Callout type="security" title="Finding is not the same as taking">
+A dork that surfaces an exposed database dump does not authorize you to download it.
+The document living in a public index is still the target's property. On an engagement,
+record the exposure and the URL as a finding; whether you retrieve the file is a scope
+question your rules of engagement answer, not the search result.
+</Callout>
+
+Google will also throttle you. Fire off fifty dorks in a minute and you'll hit a CAPTCHA and get temporarily blocked. Space them out, or use a search API if your engagement budget allows, but never automate through a CAPTCHA solver against Google's terms.
+
+<Exercise
+  id="osint-compose-dork"
+  prompt="Write a single Google dork that finds PDF and Excel files across every subdomain of acme.io that contain the word 'internal' in the body text. Then explain one reason the file might not appear even though it exists on their server."
+  answer="site:*.acme.io (filetype:pdf | filetype:xlsx) intext:\"internal\" . It might not appear if the file is behind authentication, disallowed in robots.txt so Google never crawled it, hosted on a subdomain Google has not indexed, or only recently published so the crawler has not reached it yet."
+/>
+
+<Quiz
+  id="osint-index-of"
+  question="What does the dork intitle:\"index of\" site:company.com find?"
+  answer={2}
+  options={[
+    "The company's site index page",
+    "Pages that mention indexing",
+    "Open directory listings that expose every file in a folder",
+    "The most-visited pages on the domain",
+  ]}
+  explanation="\"Index of\" is the default title of an Apache or nginx auto-generated directory listing. Those listings have no access control and expose every file in the folder, which frequently includes backups and configs nobody meant to publish."
+/>
+
+<Notes />

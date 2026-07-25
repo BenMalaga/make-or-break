@@ -1,0 +1,82 @@
+---
+title: Testing and Tuning Detections
+module: detection-engineering
+moduleTitle: Detection Engineering
+moduleOrder: 37
+moduleIcon: BellRing
+order: 4
+summary: A detection you never fired on purpose is a guess, not a control.
+estimatedMinutes: 21
+objectives:
+  - Prove a detection fires using an atomic test
+  - Measure technique coverage with the ATT&CK Navigator
+  - Kill false positives with baselining and scoped exclusions
+tags:
+  - detection-engineering
+  - atomic-red-team
+  - coverage
+  - tuning
+---
+
+You deployed a detection for credential dumping and marked the ticket done. Six months later, during a real incident, you discover it never fired because the log field it keyed on was empty the whole time. The rule looked correct. Nobody ever made the attack happen and watched the alert light up. An untested detection is a hope, and hope is not a security control.
+
+Testing a detection is simple in concept: run the attacker behavior in a controlled place and confirm the alert fires. The tool that makes this repeatable is Atomic Red Team.
+
+## Fire the technique, watch the alert
+
+Atomic Red Team is a library of small, precise tests mapped to MITRE ATT&CK techniques. Each atomic runs one specific behavior, so you can trigger exactly the thing your detection targets and nothing else. Its PowerShell runner, Invoke-Atomic, drives them.
+
+<CommandBlock
+  title="analyst@lab-endpoint (isolated test VM)"
+  commands={[
+    { cmd: "Invoke-AtomicTest T1003.001 -ShowDetails", comment: "see what the LSASS memory dump test actually does before you run it" },
+    { cmd: "Invoke-AtomicTest T1003.001 -GetPrereqs", comment: "stage any files the test needs" },
+    { cmd: "Invoke-AtomicTest T1003.001", comment: "execute it, then go check your SIEM for the alert" },
+    { cmd: "Invoke-AtomicTest T1003.001 -Cleanup", comment: "undo the changes the test made" },
+  ]}
+/>
+
+Run the test, then open your alert console. Fired? Good, the detection works end to end. Silent? Now you have a real bug to chase: wrong log source, a field that is not being collected, a typo in the condition, or the EDR simply not generating the event you assumed it did. Every one of those is better found on a test box than in an incident.
+
+<ExpectedOutput label="what a working detection looks like after the test">
+Alert: Credential Dumping via LSASS Access
+  technique: T1003.001
+  host: lab-endpoint
+  process: procdump64.exe -> lsass.exe
+  status: FIRED
+</ExpectedOutput>
+
+## Measure coverage honestly
+
+Testing one rule is good. Knowing which techniques you cover and which you are blind to is the point. The MITRE ATT&CK Navigator gives you a heat map of the matrix where you color each technique by whether you have a tested detection for it. Green where you fire, red where you are exposed.
+
+The honest version colors a technique green only after an atomic test proved the detection fires, not because someone believes a rule exists. Coverage you have not tested is coverage you do not have. A wall of green squares that were never validated is worse than a red map, because it tells leadership you are protected when you are not.
+
+## Kill false positives at the source
+
+A detection that survives testing still has to survive contact with real traffic. The way you tune is baselining: run the detection in a monitor-only mode over a week or two of normal activity, collect everything it would have fired on, and sort the benign from the real.
+
+The benign hits are your exclusion list. A backup service that reads files like ransomware, a config-management tool that spawns shells, an admin whose daily job trips the rule. Scope an exclusion to that exact source and leave the detection armed for everyone else.
+
+<Callout type="tip" title="Exclude the source, never the whole technique">
+When you tune, carve out the specific account, host, or hash that is benign. Do not widen the exclusion to the technique itself. "Ignore all PowerShell from this one signed patch agent" keeps your coverage. "Ignore all PowerShell" hands the attacker a documented blind spot.
+</Callout>
+
+<Callout type="security" title="Atomic tests are real attacks, run them in a range">
+Invoke-Atomic executes genuine offensive behavior: it dumps credentials, modifies the registry, drops tools. Run atomics only on isolated lab machines or a range built for it, never on production or a shared host without change control and written approval. And always run the cleanup step so you do not leave a test artifact that looks like a real compromise.
+</Callout>
+
+<Quiz
+  id="de-untested-coverage"
+  question="Your ATT&CK Navigator shows a technique green because a rule for it exists in the repo, but no one ever fired the technique to confirm it alerts. What is the honest status?"
+  answer={2}
+  options={[
+    "Fully covered, the rule exists",
+    "Covered, testing is optional for simple rules",
+    "Unverified, treat it as a gap until an atomic test proves it fires",
+    "Covered, since the SIEM accepted the rule syntax",
+  ]}
+  explanation="A rule that parses is not a rule that fires. Until an atomic test triggers the behavior and you watch the alert appear, the coverage is a claim, not a control. Color it green only after it fires in a test."
+/>
+
+<Notes />

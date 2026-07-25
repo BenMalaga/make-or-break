@@ -1,0 +1,199 @@
+---
+title: Reading and Writing Files
+module: python-deep-dive
+moduleTitle: Python Deep Dive
+moduleOrder: 2
+moduleIcon: FileCode
+order: 4
+summary: "A file is how a program's data survives after it ends: open, read, write, append, and the with block that always closes the file."
+estimatedMinutes: 15
+prerequisites: ["working-with-text"]
+objectives:
+  - Open a file with open(path, mode) and pick between "r", "w", and "a" for the job at hand
+  - Explain why "w" erases a file and how the with block closes it even when something fails partway
+  - "Read a file two ways: f.read() for the whole text and a for-line loop for files too big to hold in memory"
+  - Save a to-do list to a file and load it back on the next run, joining lists, strings, and files into one program
+tags:
+  - python
+  - files
+---
+
+Close a Python program and everything it held vanishes. The score, the list of names, the running total: gone the instant the last line finishes. The last lesson, working-with-text, treated a line of a file as a string, and showed how splitting and joining move between one string and a list of pieces. That skill is about to pay off, because the place those strings come from and go back to is a file. A file is how data outlives the program that made it.
+
+Think about a note-taking app. Type three tasks, quit, reopen it tomorrow, and the three tasks are still there. Nothing about the program stayed running overnight. The tasks survived because the program wrote them to a file on disk before it closed, and read them back when it started again. That round trip, write on the way out and read on the way in, is the whole idea of saving. Everything else is detail.
+
+## open, and the mode that decides everything
+
+A program reaches a file through the built-in `open` function. It takes two arguments: a path, which is the file's address on disk, and a mode, which is a short string that says what the program intends to do with the file. The path can be a bare name like `"todos.txt"`, which means a file sitting in the same folder the program runs from, or a longer address like `"data/todos.txt"` that points into a subfolder.
+
+The mode is one character, and getting it wrong is one of the first real ways to lose data. Three modes cover almost everything a beginner writes. The string `"r"` opens a file for reading, and reading only. The string `"w"` opens a file for writing. The string `"a"` opens a file for appending, which means writing onto the end of what is already there.
+
+The dangerous one is `"w"`. Opening a file in write mode does not add to the file. It empties the file first, right at the moment of opening, before a single character is written. This is called truncation, and it happens even if the program then crashes and writes nothing at all. A file that held a thousand lines becomes an empty file the instant `open(path, "w")` runs. That behavior is useful when the goal is to replace a file's contents completely, and it is a disaster when the goal was to add one line to something important.
+
+Append mode exists for exactly that second case. Opening with `"a"` keeps everything already in the file and positions the program to write onto the end. A log file that records events one line at a time uses append mode so today's events sit below yesterday's instead of erasing them.
+
+<Callout type="warning" title="Write mode erases before it writes">
+`open("notes.txt", "w")` empties `notes.txt` the moment it runs, not when the first write happens. If the plan is to add to a file rather than replace it, the mode is `"a"`, not `"w"`. Reaching for `"w"` out of habit on a file that already has content is a classic way to wipe out real work in a single line.
+</Callout>
+
+The call to `open` hands back a file object, sometimes called a file handle: a small object the program uses to actually do the reading or writing. That handle also holds a live connection to the file that the operating system is keeping open, and that connection is the reason for the next idea.
+
+<Quiz
+  id="files-w-truncates"
+  question="A file report.txt already holds 500 lines. A program runs open(&quot;report.txt&quot;, &quot;w&quot;), then crashes before writing anything. What is in report.txt afterward?"
+  answer={2}
+  options={[
+    "All 500 original lines, unchanged, because nothing was written.",
+    "The 500 lines plus a blank line at the end.",
+    "Nothing. The file is empty, because write mode truncates the file the moment it opens.",
+    "Python refuses to open the file because it is not empty.",
+  ]}
+  explanation="Write mode empties the file at the moment of opening, before any write and regardless of what happens next. The crash is irrelevant: the truncation already happened. Read mode (&quot;r&quot;) would not touch the contents, and append mode (&quot;a&quot;) would keep all 500 lines."
+/>
+
+## with open: the block that always closes the file
+
+A file handle is a resource the operating system loans out, and a loan has to be returned. Leaving a file open wastes that resource, and worse, writes to a file are often held in a buffer, a small waiting area in memory, and only pushed to disk when the file is properly closed. A program that opens a file, writes to it, and forgets to close it can leave the last chunk of data sitting in the buffer, never written. The file ends up short or empty even though the code looked correct.
+
+Python has a clean answer: the `with` statement. Opening a file inside a `with` block ties the file's lifetime to that block. When the block ends, for any reason at all, Python closes the file. The shape looks like this.
+
+```python
+with open("todos.txt", "w") as f:
+    f.write("buy milk\n")
+```
+
+The name `f` is the file handle, available only inside the indented block. The moment the block finishes, Python closes the file and flushes the buffer to disk. The phrase "for any reason" is the important part. If the code inside the block raises an error and stops early, Python still closes the file on the way out. The alternative, calling `open` and a matching `close` by hand, breaks the instant anything between them fails, because the `close` line never runs. The `with` form removes that whole class of mistake, which is why nearly all real Python file code is written this way.
+
+One detail worth stating plainly: the file is open only inside the block. Trying to read or write through `f` after the block has ended raises an error, because by then the file is closed. Everything a program does with a file happens between the `with` line and the end of its indented body.
+
+## Two ways to read
+
+Once a file is open in read mode, there are two common ways to pull its contents in, and the choice between them matters more than it first looks.
+
+The direct way is `f.read()`, which returns the entire file as one string, newline characters and all. For a small file this is the simplest thing possible. The result is a plain string, the same kind of value the last lesson worked with, so every splitting and joining trick applies to it.
+
+```python
+with open("todos.txt", "r") as f:
+    text = f.read()
+
+print(repr(text))
+```
+
+<ExpectedOutput label="reading the whole file">
+```
+'buy milk\ncall dentist\nfinish lesson\n'
+```
+</ExpectedOutput>
+
+The `repr` there prints the string with its `\n` newline characters visible, which makes the shape honest: one string, three lines joined by newlines, and a trailing newline at the very end. That trailing newline is normal for text files and worth remembering, because it is easy to forget it is there.
+
+The other way loops over the file directly, one line at a time.
+
+```python
+with open("todos.txt", "r") as f:
+    for line in f:
+        print(line.rstrip("\n"))
+```
+
+<ExpectedOutput label="reading line by line">
+```
+buy milk
+call dentist
+finish lesson
+```
+</ExpectedOutput>
+
+A for-loop over a file hands back one line per turn, including its trailing newline, which is why `rstrip("\n")` trims it before printing. The reason to prefer this form is size. `f.read()` pulls the whole file into memory at once, so a 40 GB log file needs 40 GB of memory, which no ordinary computer has. The loop reads and releases one line at a time, so it holds a single line in memory no matter how big the file is. For a short config file either way is fine. For anything that could grow without bound, the line-by-line loop is the one that keeps working.
+
+<Quiz
+  id="files-read-vs-loop"
+  question="A log file is 40 GB, far larger than the memory on the computer reading it. Which approach can process every line without running out of memory?"
+  answer={1}
+  options={[
+    "text = f.read(), because read() is always the fastest way to get the data.",
+    "Looping with for line in f, because it hands over one line at a time instead of loading the whole file at once.",
+    "Both work the same, because Python compresses the file in memory automatically.",
+    "Neither, because Python cannot open a file that is larger than memory.",
+  ]}
+  explanation="f.read() loads the entire file into memory as one string, so a 40 GB file needs 40 GB of memory. The for-line loop reads one line at a time and holds only that line, so file size stops mattering. Python does not compress files in memory, and it can open a file far larger than memory as long as the whole thing is not read at once."
+/>
+
+## Writing, and the newline it does not add
+
+Writing uses `f.write`, which takes a string and puts it in the file. The single most common surprise is that `write` adds nothing of its own. It does not add a newline, a space, or a separator. It writes exactly the characters handed to it, and nothing more.
+
+```python
+with open("nums.txt", "w") as f:
+    f.write("1")
+    f.write("2")
+    f.write("3")
+
+with open("nums.txt", "r") as f:
+    print(f.read())
+```
+
+<ExpectedOutput label="three writes, no newlines">
+```
+123
+```
+</ExpectedOutput>
+
+Three separate writes, one line of output. Each call dropped its characters right where the last one left off, so `1`, `2`, and `3` sit shoulder to shoulder. To get three lines, the newline has to be part of what gets written: `f.write("1\n")` and so on. This is different from `print`, which adds a newline after every call for free. `write` never does. That gap is the source of many mangled files where everything ran together on one line.
+
+Now the two halves come together. Here is a program that saves a list of tasks to a file, then loads them back into a list on the next run. This is the note-taking app from the opening, stripped to its bones, and it ties lists, strings, and files into one working thing.
+
+```python
+# save.py: write a list of tasks to disk
+todos = ["buy milk", "call dentist", "finish lesson"]
+
+with open("todos.txt", "w") as f:
+    for item in todos:
+        f.write(item + "\n")
+```
+
+Each task is a string. The loop writes each one followed by an explicit `"\n"`, so every task lands on its own line. A separate program, or the same one on a later run, reads the file back and rebuilds the list.
+
+```python
+# load.py: read the tasks back into a list
+with open("todos.txt", "r") as f:
+    todos = [line.rstrip("\n") for line in f]
+
+print(todos)
+print(f"loaded {len(todos)} tasks")
+```
+
+<CommandCard command="python3 load.py" title="terminal" explain="Runs load.py, which opens todos.txt, strips the newline off each line, and collects the tasks into a list." />
+
+<ExpectedOutput label="running load.py">
+```
+['buy milk', 'call dentist', 'finish lesson']
+loaded 3 tasks
+```
+</ExpectedOutput>
+
+The list built by `save.py` in one run comes back as a real Python list in the next, ready to loop over, count, or add to. One line of the file became one string; the whole file became a list of strings. That is the exact bridge the last lesson pointed at, made concrete. Add a task to the list, write it back with mode `"w"` to replace the file, or with mode `"a"` to tack it on, and the app remembers across every run.
+
+<Quiz
+  id="files-write-no-newline"
+  question="A program runs f.write(&quot;buy milk&quot;) then f.write(&quot;call dentist&quot;), with nothing else written. Reading the file back shows what?"
+  answer={2}
+  options={[
+    "Two lines: buy milk on the first, call dentist on the second.",
+    "buy milk call dentist, on one line with a space between them.",
+    "buy milkcall dentist, on one line with no space, because write adds nothing between calls.",
+    "An error, because f.write can only be called once per open file.",
+  ]}
+  explanation="write() puts exactly the characters it is given and adds nothing: no newline, no space. The second write starts where the first ended, so the two strings run together as buy milkcall dentist. Getting them on separate lines means writing the newline yourself, as item + &quot;\\n&quot;."
+/>
+
+<Exercise title="Build a to-do list that remembers">
+Write two short scripts in the same folder. In `save.py`, make a list of three tasks as strings, then open `todos.txt` in write mode inside a `with` block and write each task on its own line with `f.write(item + "\n")`. Run it, then open `todos.txt` in a text editor and confirm you see three lines.
+
+In `load.py`, open `todos.txt` in read mode and build a list with `[line.rstrip("\n") for line in f]`, then print the list and its length. Run it and confirm you get your three tasks back as a list.
+
+Now break it on purpose to feel the footgun. Change `save.py` to write each task without the `+ "\n"`, run it, then run `load.py` again. Watch the three tasks collapse into one line, and put the `"\n"` back to fix it. Feeling that failure once is worth more than reading about it ten times.
+</Exercise>
+
+Files are also where a program first meets the outside world going wrong. The file named in the code might not exist. The path might be spelled wrong, or point at a folder instead of a file, or sit somewhere the program is not allowed to read. Open a missing file for reading and Python does not shrug it off: it raises a `FileNotFoundError` and stops the program cold. The next lesson, errors-and-how-to-handle-them, is about catching failures like that one so a program can respond instead of crashing, and the missing-file error is the example it starts from.
+
+<Notes />

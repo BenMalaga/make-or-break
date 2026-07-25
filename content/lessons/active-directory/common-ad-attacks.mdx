@@ -1,0 +1,105 @@
+---
+title: Common AD Attacks
+module: active-directory
+moduleTitle: Active Directory
+moduleOrder: 10
+moduleIcon: Building2
+order: 4
+summary: The core moves that turn one credential into domain-wide control, and how to stop them.
+estimatedMinutes: 22
+objectives:
+  - Perform pass-the-hash and AS-REP roasting attacks
+  - Move laterally across a domain with harvested credentials
+  - Name the defenses that break each attack
+tags:
+  - active-directory
+  - lateral-movement
+  - defense
+---
+
+You have a foothold and a map. Now you convert access into control. Real AD
+compromise is rarely one exploit. It is a chain: grab a credential, use it to
+reach the next box, harvest a better credential, repeat until you hit Domain
+Admin. These are the moves that make up almost every chain.
+
+## Pass-the-Hash
+
+Windows can authenticate over NTLM using a password **hash** directly, no
+plaintext needed. So if you dump an NTLM hash from one machine, you can
+authenticate as that user elsewhere without ever cracking it.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "netexec smb 10.10.10.0/24 -u Administrator -H 3f2a...c91 --local-auth", comment: "spray one local admin hash across the subnet" },
+    { cmd: "impacket-psexec -hashes :3f2a...c91 Administrator@10.10.10.20", comment: "get a SYSTEM shell using the hash alone" },
+  ]}
+/>
+
+When a whole fleet shares one local administrator password, a single dumped hash
+opens every machine. That is why pass-the-hash spreads so fast.
+
+## AS-REP Roasting
+
+Some accounts have **Kerberos pre-authentication disabled**. For those, the KDC
+will hand you an AS-REP encrypted with the user's password hash before you have
+proven anything. Request it, then crack it offline, just like kerberoasting but
+without needing any credentials at all.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "impacket-GetNPUsers corp.local/ -usersfile users.txt -no-pass -dc-ip 10.10.10.5", comment: "find and roast accounts with no pre-auth" },
+    { cmd: "hashcat -m 18200 asrep.txt rockyou.txt", comment: "crack the AS-REP hashes offline" },
+  ]}
+/>
+
+## Lateral movement
+
+Every new box is a chance to harvest more credentials: cached hashes, tokens,
+tickets in memory. You loop: dump on this host, use what you find to reach the
+next, dump again. Tools like `netexec`, `psexec`, `wmiexec`, and `evil-winrm`
+each execute code on a remote host once you hold a working credential.
+
+<Callout type="security" title="The pattern to internalize">
+Foothold, then enumerate, then harvest a credential, then move, then harvest
+again. You are climbing the BloodHound graph one edge at a time. The goal is
+almost always the same node: an account that can dump the Domain Controller.
+</Callout>
+
+## Defenses that actually work
+
+You are also here to help the defender. Each attack has a concrete counter:
+
+- **Pass-the-hash**: unique local admin passwords per machine (Microsoft LAPS),
+  and keep privileged accounts off low-trust workstations.
+- **AS-REP roasting**: never disable Kerberos pre-authentication, and enforce
+  long passwords so any leaked hash is uncrackable in practice.
+- **Kerberoasting**: use Group Managed Service Accounts with long random
+  passwords, and monitor for bulk service-ticket requests.
+- **Lateral movement**: tiered administration so a helpdesk credential can never
+  reach a Domain Controller.
+
+<Quiz
+  id="pth-why"
+  question="Why does pass-the-hash work without cracking the password?"
+  answer={0}
+  options={[
+    "NTLM authentication accepts the hash itself as proof of identity",
+    "The hash is the plaintext password reversed",
+    "Windows stores passwords in cleartext by default",
+    "The Domain Controller disables all password checks",
+  ]}
+  explanation="NTLM lets the hash stand in for the password during authentication, so a dumped hash is enough to log in as that user elsewhere. No cracking required."
+/>
+
+<Exercise
+  id="pth-defense"
+  prompt="Name the single control that most directly stops one dumped local admin hash from opening every machine on the subnet."
+  answer="Unique per-machine local admin passwords, for example via Microsoft LAPS."
+>
+The attack relies on password reuse across the fleet. Break the reuse and the
+one hash only opens one box.
+</Exercise>
+
+<Notes />

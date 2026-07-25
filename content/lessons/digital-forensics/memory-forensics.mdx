@@ -1,0 +1,87 @@
+---
+title: Memory Forensics
+module: digital-forensics
+moduleTitle: Digital Forensics
+moduleOrder: 22
+moduleIcon: FileSearch
+order: 3
+summary: RAM holds what the disk never sees. Dump it, then hunt the rogue process inside.
+estimatedMinutes: 17
+objectives:
+  - Explain why RAM holds evidence that never touches disk
+  - Acquire and analyze a memory image with Volatility
+  - Spot a rogue or hidden process from a memory dump
+tags:
+  - forensics
+  - memory
+  - volatility
+---
+
+Modern malware tries hard to never touch the disk. It runs entirely in memory, injects into a legitimate process, and leaves your carefully imaged drive looking clean. If you skipped the RAM capture, you never saw it. That is why memory forensics is not optional on any live incident.
+
+## Why RAM is the crime scene
+
+Everything a running program does passes through memory. Decryption keys, plaintext passwords typed into a browser, the command a piece of malware just received from its server, network connections that are open right now, and processes that have unlinked themselves to hide. None of that is guaranteed to hit disk, and some of it never will.
+
+RAM is also volatile in the literal sense. Cut power and it is gone in seconds. So you acquire it first, on the live machine, using a tool that dumps physical memory to a file: `avml` on Linux, WinPmem or FTK Imager on Windows.
+
+<CommandCard command="sudo avml memory.raw" explain="Dump all physical RAM on a live Linux host to memory.raw. Run it early, before other collection steps, because every command you run changes memory state." />
+
+## Volatility reads the dump
+
+A raw memory image is just a flat blob of bytes with no structure you can browse. **Volatility** is the framework that parses it, walking kernel data structures to reconstruct the list of processes, open sockets, loaded modules, and command lines that were live at capture time.
+
+Volatility 3 auto-detects the OS from the dump, so you point it at the file and ask for what you want with a plugin name.
+
+<CommandBlock
+  title="analyst@workstation"
+  commands={[
+    { cmd: "vol -f memory.raw windows.pslist", comment: "list processes the OS itself knew about" },
+    { cmd: "vol -f memory.raw windows.pstree", comment: "same processes, shown as a parent-child tree" },
+    { cmd: "vol -f memory.raw windows.netscan", comment: "recover network connections from memory" },
+  ]}
+/>
+
+Start with `pstree`. Parent-child relationships expose things a flat list hides. A `cmd.exe` whose parent is a Word document (`winword.exe`) is a macro that spawned a shell, which is a textbook phishing payload. Processes are supposed to have sane lineage, and the ones that do not are your leads.
+
+## Finding the rogue process
+
+A hidden process is the classic hunt. Rootkits unlink themselves from the list the OS reports, so `pslist` (which walks that linked list) misses them. `psscan` ignores the list and carves process structures directly out of memory, so it finds the ones that tried to vanish. Diff the two and anything in `psscan` but not `pslist` is actively hiding.
+
+<CommandBlock
+  title="analyst@workstation"
+  commands={[
+    { cmd: "vol -f memory.raw windows.psscan", comment: "carve process objects directly, list-independent" },
+    { cmd: "vol -f memory.raw windows.malfind", comment: "flag memory regions that look like injected code" },
+    { cmd: "vol -f memory.raw windows.cmdline", comment: "show the full command line each process launched with" },
+  ]}
+/>
+
+`malfind` is the shortcut. It scans for memory pages that are executable, writable, and not backed by a file on disk, which is exactly what injected shellcode looks like. It hands you a shortlist of suspects and a hex dump of what is running in each, often with the `MZ` header of a PE file sitting in memory where no file should be.
+
+<Callout type="security" title="Acquire only what you are cleared to acquire">
+A memory dump captures live secrets in the clear: session tokens, passwords, private keys, whatever was in use. Acquire and analyze RAM only on systems you own or are authorized in writing to examine, and store the dump with the same custody controls as any other evidence.
+</Callout>
+
+<Quiz
+  id="pslist-vs-psscan"
+  question="A rootkit unlinked its process from the kernel's process list. Which Volatility approach still finds it?"
+  answer={2}
+  options={[
+    "pslist, which walks the linked list",
+    "cmdline, which reads launch arguments",
+    "psscan, which carves process structures directly from memory",
+    "netscan, which recovers network connections",
+  ]}
+  explanation="pslist trusts the linked list the malware already edited. psscan ignores that list and scans memory for process object signatures, so it surfaces processes that unlinked themselves to hide."
+/>
+
+<Exercise
+  id="pstree-lead"
+  prompt="In a pstree, you see cmd.exe with parent winword.exe. In one line, why is that suspicious?"
+  answer="A Word document spawning a shell means a malicious macro ran; documents should not launch command interpreters."
+>
+Legitimate documents do not open shells. A cmd.exe child of winword.exe is the signature of a macro-based phishing payload executing on open.
+</Exercise>
+
+<Notes />

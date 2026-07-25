@@ -1,0 +1,91 @@
+---
+title: Active Directory Fundamentals
+module: active-directory
+moduleTitle: Active Directory
+moduleOrder: 10
+moduleIcon: Building2
+order: 1
+summary: Learn why owning one AD domain often means owning the whole company.
+estimatedMinutes: 18
+objectives:
+  - Explain domains, forests, trees, and OUs in plain terms
+  - Describe how Group Policy pushes control across a network
+  - Understand why Domain Admin is the crown jewel of an engagement
+tags:
+  - active-directory
+  - windows
+  - fundamentals
+---
+
+Almost every mid-size and large company runs on **Active Directory** (AD).
+It is Microsoft's directory service: the central database of users, computers,
+groups, and the rules that bind them. When you compromise the right account in
+AD, you do not own one machine, you own thousands. That is why it is the single
+most valuable target in most enterprise engagements.
+
+## The building blocks
+
+AD is a hierarchy. Learn the four containers and how they nest:
+
+- A **domain** is the core unit: a namespace like `corp.local` holding users,
+  computers, and groups that share one security boundary and one policy set.
+- A **tree** is one or more domains sharing a contiguous namespace, such as
+  `corp.local` and `eu.corp.local`.
+- A **forest** is the top of the food chain: one or more trees that trust each
+  other. The forest is the real security boundary. Compromise it and every
+  domain inside is reachable.
+- An **Organizational Unit** (OU) is a folder inside a domain used to group
+  objects so admins can apply policy and delegate control.
+
+## Domain Controllers hold the keys
+
+A **Domain Controller** (DC) is a server running the AD database (`NTDS.dit`)
+and the Kerberos authentication service. Every login, every group check, every
+policy pull goes through a DC. Getting code execution or the `NTDS.dit` file off
+a DC is effectively game over for that domain.
+
+## Group Policy: control at scale
+
+**Group Policy Objects** (GPOs) are the reason AD scales. An admin writes one
+policy, links it to a domain or OU, and every machine below inherits it: password
+rules, firewall settings, scheduled tasks, mapped drives, even scripts that run
+at startup. To an attacker, a GPO you can edit is a way to push a payload to
+every machine it touches.
+
+<Callout type="security" title="Why AD is the crown jewel">
+A single Domain Admin account can log into any machine in the domain, read any
+share, and dump every password hash. Real attackers do not chase one laptop.
+They chase the path from a low-privilege foothold to Domain Admin, because that
+one account unlocks the entire estate.
+</Callout>
+
+## The mental model that matters
+
+Think of AD as a graph, not a list. Users belong to groups, groups grant rights
+over computers and other groups, and those relationships chain together. Your job
+on an engagement is to find a path of edges from where you land to where the
+power lives. The tooling in the next lessons exists to draw that graph for you.
+
+<Quiz
+  id="ad-boundary"
+  question="What is the true security boundary in Active Directory?"
+  answer={2}
+  options={[
+    "The Organizational Unit",
+    "The domain",
+    "The forest",
+    "The Group Policy Object",
+  ]}
+  explanation="A domain is a boundary for policy, but trusts between domains mean the forest is the real security boundary. Compromising the forest exposes every domain inside it."
+/>
+
+<Exercise
+  id="ad-gpo"
+  prompt="In one sentence, why is a GPO you can modify dangerous to the whole network?"
+  answer="Because a GPO is inherited by every computer it is linked to, so editing it can push code or settings to many machines at once."
+>
+Think about what "link once, apply everywhere" means when the thing being
+applied is a startup script you control.
+</Exercise>
+
+<Notes />

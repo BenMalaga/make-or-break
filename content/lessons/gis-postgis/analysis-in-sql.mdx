@@ -1,0 +1,164 @@
+---
+title: A Full Spatial Analysis in SQL
+module: gis-postgis
+moduleTitle: Spatial SQL with PostGIS
+moduleOrder: 5
+moduleIcon: Database
+order: 5
+summary: "One query buffers every park by 500 meters, joins that buffer to census blocks, and sums population to answer what share of a city lives within walking distance of one, all without leaving the database."
+estimatedMinutes: 15
+prerequisites: ["spatial-indexes"]
+objectives:
+  - Write a single query that combines a distance test, a spatial join, and an aggregate to answer a real population question
+  - Reproject geometry to a metric coordinate reference system before running a distance based query, and explain why
+  - Use a WITH clause to break a multi step spatial query into named, readable pieces
+  - Explain why ST_DWithin lets PostGIS use a spatial index while a plain distance calculation does not
+tags:
+  - gis
+  - postgis
+  - sql
+---
+
+The last lesson put a GIST index on a geometry column and watched a proximity search that used to crawl the whole table turn into a query that finishes in milliseconds. That index was not homework for its own sake. It is the piece that makes a real question answerable in one shot, the kind a parks department actually asks: what share of the city's population lives within a five minute walk, call it 500 meters, of a park.
+
+That question mixes two things that live in different halves of the same table. The 500 meter part is geometry: distance between shapes. The population part is an ordinary number sitting in a column. Answering it means touching both halves in one pass and coming out the other end with a single percentage, not a pile of intermediate exports. This lesson writes that query.
+
+## Breaking one question into four moves
+
+Before any SQL gets typed, the question splits into steps that map cleanly onto tools already covered.
+
+First, find every census block within 500 meters of at least one park. That is a proximity test, the same kind of predicate the spatial joins lesson used for polygons, just measured as a distance instead of an overlap. A block is represented here by its centroid, the single point at the geometric middle of its polygon, rather than the whole block shape. Testing the centroid against a distance is far cheaper than testing the full outline, and for a question about "roughly how many people," a block whose center sits within range is a reasonable stand in for the block itself. It is an approximation, not a perfect answer. A block that straddles the 500 meter line will get counted whole or not at all, never split, and that is a trade an analyst accepts for a query that runs in a fraction of a second on a whole city.
+
+Second, pull the population attribute for each block that passed the first test. That part is a plain column read, no different from any ordinary table.
+
+Third, add up population for the blocks that passed and separately add up population for every block in the city, matched or not.
+
+Fourth, divide the first sum by the second and multiply by 100. That last step is arithmetic a spreadsheet could do fine. The first three steps are the ones that need a spatial database, because none of them can happen without knowing where things sit relative to each other.
+
+<Quiz
+  id="postgis-analysis-centroid-approximation"
+  question="The query represents each census block by its centroid point rather than testing the block's full polygon shape against the 500 meter distance. What is the real cost of that choice?"
+  answer={2}
+  options={[
+    "There is no cost, a centroid and a polygon always give the identical answer for a distance test.",
+    "The query will fail, because ST_DWithin cannot accept a point as one of its two arguments.",
+    "A block is counted whole or not at all based on where its center happens to fall, so a block that only partly overlaps the 500 meter range can be miscounted in either direction.",
+    "Using a centroid makes the query slower, since PostGIS must compute it fresh for every single row.",
+  ]}
+  explanation="A centroid collapses an entire block down to one point, so the distance test can only see whether that single point is near a park, not whether any part of the block's actual area is. That is a real approximation with a real edge case: a large block whose center sits just past 500 meters could have plenty of area well inside the range and still be excluded, or the reverse. ST_DWithin works on points just fine and centroids are cheap to compute, so the other two options are false."
+/>
+
+## Distance only means something in the right units
+
+Both the parks table and the census blocks table, in a typical setup, store their geometry in EPSG:4326, the coordinate reference system built on longitude and latitude in degrees. That is a fine system for storing and exchanging data, but it is the wrong one for asking "is this within 500 of that," because 500 degrees is not a distance anyone means. A degree of longitude covers roughly 111 kilometers at the equator and less than that further from it, so a raw numeric threshold in a degree based system has no fixed real world size at all.
+
+The fix is the same move a coordinate reference systems lesson would have covered earlier in the track: reproject into a metric coordinate reference system before measuring anything. A UTM zone is the standard choice for local work like this, because it measures in meters and stays accurate across a city sized area. A city in New Jersey sits in UTM zone 18 north, EPSG code 32618. ST_Transform converts a geometry from one system to another, so wrapping both the park geometry and the block centroids in ST_Transform(geom, 32618) puts every coordinate into meters before a single distance test runs.
+
+<Callout type="info" title="Reproject before measuring, not after">
+It is tempting to run ST_DWithin straight on the stored EPSG:4326 columns and pass 500 as the threshold, since the syntax accepts it without complaint. PostGIS will happily compute an answer. That answer is wrong, because 500 in a degree based system is a wildly different distance than 500 meters, off by many orders of magnitude depending on latitude. Any query that measures a real world distance needs its geometries in a metric system first. Storing data in EPSG:4326 is normal and correct. Measuring in it is not.
+</Callout>
+
+<Quiz
+  id="postgis-analysis-metric-crs"
+  question="A city's parks table and census block table are both stored in EPSG:4326. Before running ST_DWithin with a 500 threshold to find blocks near a park, why does the query need ST_Transform first?"
+  answer={1}
+  options={[
+    "ST_DWithin only accepts polygons, and EPSG:4326 stores points, so the geometry type must change first.",
+    "EPSG:4326 measures distance in degrees, not meters, so a value of 500 in that system does not mean 500 meters.",
+    "PostGIS cannot join two tables that share the same coordinate reference system.",
+    "ST_Transform is required before any spatial index can be built, regardless of what unit the query needs.",
+  ]}
+  explanation="EPSG:4326 stores coordinates as degrees of longitude and latitude, and a degree covers a different real distance depending on latitude, so a raw threshold of 500 in that system is not 500 meters. Reprojecting to a metric CRS such as a UTM zone makes the 500 inside ST_DWithin mean 500 actual meters. The geometry type, joining same CRS tables, and building an index are unrelated to this particular requirement."
+/>
+
+## ST_DWithin, not a distance filter
+
+There are two ways to write "is this point within 500 meters of that polygon" in SQL, and only one of them is the right one. The wrong looking way is `WHERE ST_Distance(a, b) < 500`, which reads naturally in English and returns the correct rows. The right way is `WHERE ST_DWithin(a, b, 500)`, which returns the identical rows but runs very differently underneath.
+
+ST_Distance computes an exact number for every single pair of geometries handed to it, with no shortcuts, because the function has no idea the result is about to get compared to a threshold. Only after that exact number comes back does the WHERE clause get to check whether it is under 500. On a table with a few hundred rows that is fine. On a table with a few hundred thousand blocks and a citywide set of parks, that means computing an exact distance for every single pair before throwing almost all of them away.
+
+ST_DWithin is written for exactly this situation. It tells PostGIS up front that the question is a distance threshold, which lets the query planner reach for the GIST index from the last lesson and rule out most pairs using a cheap bounding box comparison first. Only the pairs whose bounding boxes are close enough get the expensive exact distance math run on them at all. Same answer, same rows, a fraction of the work.
+
+<Quiz
+  id="postgis-analysis-dwithin-vs-distance"
+  question="A query filters rows with WHERE ST_Distance(a, b) < 500 instead of WHERE ST_DWithin(a, b, 500). Both return the identical set of matching rows. Why is the ST_DWithin version still the better choice on a large table?"
+  answer={2}
+  options={[
+    "ST_Distance can only compare two points, while ST_DWithin also works on polygons and lines.",
+    "ST_DWithin rounds the distance to the nearest meter, which is more accurate for city scale analysis.",
+    "ST_DWithin can use a spatial index to rule out far apart pairs by bounding box first, while a plain ST_Distance filter forces PostGIS to compute the exact distance for every row before it can filter anything.",
+    "ST_DWithin does not require the geometries to share a coordinate reference system.",
+  ]}
+  explanation="ST_DWithin is recognized by the query planner as a distance threshold test, so PostGIS can lean on a GIST index to eliminate most pairs with a cheap bounding box check before running exact distance math on what remains. Wrapping ST_Distance in a plain comparison hides that intent, so every pair gets the full calculation regardless of how far apart it is. Neither function rounds anything, both work on any geometry type, and both still need matching coordinate reference systems to mean anything."
+/>
+
+## Reading the whole query as named steps
+
+A query with a reprojection, a proximity join, and two separate sums stacked into one nested subquery gets hard to read fast. A WITH clause, also called a common table expression or CTE, fixes that by giving each stage of the work a name that the rest of the query can refer to later, the same way a variable in a script holds one step's result for the next step to use. Each piece can be read and checked on its own before seeing how they combine.
+
+The first CTE reprojects the parks. The second reprojects the block centroids and pulls their population in the same step. The third joins those two using ST_DWithin and keeps just the block IDs and populations that matched, with DISTINCT to guard against a block landing near more than one park and getting counted twice. The final SELECT does the arithmetic: sum the matched population, sum every block's population with a separate subquery, and divide.
+
+```sql
+WITH park_geoms AS (
+  SELECT
+    id AS park_id,
+    ST_Transform(geom, 32618) AS geom_m
+  FROM parks
+),
+block_centroids AS (
+  SELECT
+    block_id,
+    population,
+    ST_Transform(ST_Centroid(geom), 32618) AS centroid_m
+  FROM census_blocks
+),
+blocks_near_park AS (
+  SELECT DISTINCT
+    b.block_id,
+    b.population
+  FROM block_centroids b
+  JOIN park_geoms p
+    ON ST_DWithin(b.centroid_m, p.geom_m, 500)
+)
+SELECT
+  SUM(bn.population) AS population_near_park,
+  (SELECT SUM(population) FROM census_blocks) AS population_total,
+  ROUND(
+    100.0 * SUM(bn.population) / (SELECT SUM(population) FROM census_blocks),
+    1
+  ) AS percent_near_park
+FROM blocks_near_park bn;
+```
+
+<ExpectedOutput label="population near a park versus the whole city, as a single row">
+```
+ population_near_park | population_total | percent_near_park
+-----------------------+-------------------+--------------------
+                 41230 |            108460 |               38.0
+```
+</ExpectedOutput>
+
+Thirty eight percent, in this made up city, live within a five minute walk of a park. That number is the whole point of the exercise, but the shape of the query matters just as much. Nothing here left the database. No file got exported to a script, reprojected there, joined there, and read back in. Every geometry operation, the transform, the centroid, the distance test, ran inside PostgreSQL, next to the data it was measuring, and the final row is a plain number ready to drop into a report.
+
+The DISTINCT inside blocks_near_park is not decoration. A join produces one output row for every matching pair, so a block that sits within 500 meters of three separate parks would otherwise show up three times, once per park, and its population would get summed three times over. DISTINCT on block_id collapses those duplicate rows back down to one before the final sum ever runs, which is what keeps a well served, park dense neighborhood from quietly inflating the whole city's percentage.
+
+<Quiz
+  id="postgis-analysis-distinct-blocks"
+  question="The query counts population in blocks near at least one park by selecting DISTINCT block_id after joining block centroids to park geometries with ST_DWithin. What would happen if DISTINCT were removed and a block centroid sat within 500 meters of three different parks?"
+  answer={1}
+  options={[
+    "The query would fail with an error, because a block cannot join to more than one park.",
+    "That block's population would be counted three times, once for each matching park, inflating the final population near park total.",
+    "PostGIS would automatically drop the extra matches, since ST_DWithin only returns one match per row.",
+    "Nothing changes, because SUM ignores duplicate rows automatically.",
+  ]}
+  explanation="A join produces one output row per matching pair, so a block near three parks produces three joined rows carrying the same population value, and summing those rows triples that block's contribution. DISTINCT on block_id collapses those three rows back to one before the sum runs. PostGIS does not error on multiple matches or silently deduplicate them, and SUM adds every row it receives, duplicates included."
+/>
+
+## The index is still doing the heavy lifting
+
+None of this runs fast by accident. Without a GIST index on the geometry columns feeding ST_DWithin, PostGIS has no way to narrow down which parks are anywhere near which blocks short of comparing every block against every park, a cost that grows with the product of both table sizes. Running `EXPLAIN ANALYZE` in front of the query shows whether that index is actually getting used, by name, in the plan; a query that mentions an index scan on the geometry column is leaning on the work from the last lesson, and one that falls back to a sequential scan over the whole table is not, no matter how correct the SQL looks.
+
+One detail worth flagging for a query run often rather than once: ST_Transform recomputes its result for every single row on every single execution, since the reprojected geometry does not exist anywhere until the query asks for it. For a one off report that overhead barely registers. For a dashboard that reruns this same shape of question daily, storing the transformed geometry in its own column with its own GIST index, refreshed whenever the source data changes, saves that repeated conversion cost entirely.
+
+Buffer or measure distance, join on that relationship, aggregate an attribute across the result. That three move pattern, not the specific 500 meters or the specific word park, is the part worth keeping. Swap parks for a flood zone polygon and the same query answers how many homes sit inside it. Swap the 500 meter walk for a ten minute drive time polygon and it answers how many customers a new store location could reach. The geometry changes. The shape of the query, buffer, join, aggregate, barely does. Most of applied GIS is this pattern wearing a different table name.

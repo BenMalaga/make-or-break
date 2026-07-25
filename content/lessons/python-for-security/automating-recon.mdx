@@ -1,0 +1,362 @@
+---
+title: Automating Recon
+module: python-for-security
+moduleTitle: Python for Security
+moduleOrder: 13
+moduleIcon: FileCode
+order: 5
+summary: "Turn last lesson's port scanner into a real tool: a command-line interface, a target list, JSON output, error handling, and rate limiting."
+estimatedMinutes: 16
+prerequisites:
+  - python-for-hackers
+  - http-with-python
+  - sockets-and-networking
+  - build-a-port-scanner
+objectives:
+  - "Turn a script into a command-line tool with argparse: positional arguments, options, and a generated help screen"
+  - Read a list of targets from a file instead of hardcoding a single host
+  - Write results as JSON or CSV so the next tool can read them without a human in the loop
+  - Catch per-host errors so one dead target does not end the whole run
+  - Rate-limit a scan and scope it to authorized hosts so the tool behaves
+tags:
+  - python
+  - recon
+  - automation
+  - cli
+  - argparse
+---
+
+The port scanner from build-a-port-scanner works. Hand it a host and it reports
+which ports answer. But it is a toy in three specific ways. The target is a
+string typed near the top of the file. The results scroll past in the terminal
+and then vanish. And scanning a second host means editing the source and running
+it again. A real recon tool fixes all three: it takes the target as an argument,
+reads a whole list of hosts from a file, and leaves behind a results file the
+next tool can open. This lesson is the gap between a script and a tool, and it is
+mostly plumbing that Python's standard library already wrote.
+
+## A script is not a tool yet
+
+When a program is launched from a shell, the shell hands it a list of words: the
+program's own name, then everything typed after it. Python exposes that list as
+`sys.argv`. Reading it by hand is fine for one argument and turns into a swamp by
+the third, because the script then has to check how many words arrived, remember
+which position means what, convert the text into numbers, and print its own error
+message when someone gets it wrong.
+
+`argparse` is the standard library module that does all of that. It is given a
+description of the arguments a program accepts, and in return it reads `sys.argv`,
+validates it, converts the values, and generates a help screen for free. Nothing
+gets installed; `import argparse` is enough.
+
+Arguments come in two shapes, and the difference is worth naming. A positional
+argument is identified by where it sits in the command and is required by default:
+`recon targets.txt` passes `targets.txt` as the first positional value. An option
+starts with a dash, is identified by name rather than position, and is usually
+optional: `-p 1-1024` or `--ports 1-1024`. A flag is an option that takes no
+value and is just present or absent, like `--verbose`.
+
+Here is the scanner given a real interface. The `scan()` function is the port
+scanner from the previous lesson: given a host and a port range, it returns the
+list of open ports.
+
+```python
+import argparse
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog="recon",
+        description="Scan hosts for open TCP ports.",
+    )
+    parser.add_argument("targets", help="file with one host per line")
+    parser.add_argument("-p", "--ports", default="1-1024",
+                        help="port range to scan (default: 1-1024)")
+    parser.add_argument("-o", "--output",
+                        help="write results to this JSON file")
+    parser.add_argument("--delay", type=float, default=0.0,
+                        help="seconds to wait between hosts (default: 0)")
+    return parser
+
+args = build_parser().parse_args()
+```
+
+Each `add_argument` call teaches the parser one thing. `default` sets the value
+used when the option is absent. `type=float` tells the parser to convert the text
+`"0.5"` into the number `0.5` before the script ever sees it, so no manual
+conversion is needed later. `help` is the one-line description that shows up on
+the help screen. The call to `parse_args()` reads `sys.argv`, applies every rule,
+and returns an object whose attributes hold the parsed values: `args.targets`,
+`args.ports`, `args.delay`. If a required argument is missing or an unknown option
+appears, `parse_args()` prints a usage message and exits before the rest of the
+script runs.
+
+The help screen is generated, not written. Passing `-h` or `--help` triggers it.
+
+<CommandCard
+  command="python recon.py --help"
+  title="linux"
+  explain="argparse builds this screen from the add_argument calls. There is no separate help text to keep in sync."
+/>
+
+<ExpectedOutput label="the help screen argparse generates (Python 3.11)">
+```
+usage: recon [-h] [-p PORTS] [-o OUTPUT] [--delay DELAY] targets
+
+Scan hosts for open TCP ports.
+
+positional arguments:
+  targets               file with one host per line
+
+options:
+  -h, --help            show this help message and exit
+  -p PORTS, --ports PORTS
+                        port range to scan (default: 1-1024)
+  -o OUTPUT, --output OUTPUT
+                        write results to this JSON file
+  --delay DELAY         seconds to wait between hosts (default: 0)
+```
+</ExpectedOutput>
+
+Every line came from the parser definition. The `usage:` line shows optional
+arguments in square brackets and the required `targets` bare, which is exactly the
+convention every other command-line tool uses. One version wrinkle to expect: on
+Python 3.9 and earlier the header reads `optional arguments:` instead of
+`options:`. Same meaning, older label.
+
+<Quiz
+  id="argparse-missing-positional"
+  question="recon.py is run as `python recon.py` with no arguments, and targets was declared as a positional argument. What happens?"
+  answer={1}
+  options={[
+    "The script runs with args.targets set to an empty string.",
+    "argparse prints a usage error to stderr and exits with a non-zero status, before the scan code runs.",
+    "The script crashes with an unhandled exception partway through the scan.",
+    "argparse waits at a prompt for the missing value to be typed in.",
+  ]}
+  explanation="A positional argument is required unless it is given a default. When one is missing, parse_args() prints the usage line to stderr, exits with status 2, and the body of the script never executes. That guard is the whole reason to let argparse handle input instead of reading sys.argv by hand."
+/>
+
+## Targets belong in a file, not the source
+
+A recon run is rarely one host. The target list belongs in a plain text file, one
+host per line, so the same tool serves a single machine or a thousand without
+anyone touching the code. Reading that file is a few lines.
+
+```python
+def read_targets(path):
+    with open(path) as f:
+        return [
+            line.strip()
+            for line in f
+            if line.strip() and not line.startswith("#")
+        ]
+```
+
+`open(path)` returns a file object. Iterating over it yields one line at a time,
+each still carrying its trailing newline character, so `strip()` removes the
+newline and any stray spaces. The condition keeps a line only if something is left
+after stripping and it does not start with `#`, which drops blank lines and lets
+the file carry comments. The `with` block closes the file automatically when the
+list is built.
+
+Now the scan touches the network, and the network fails in ordinary ways: a host
+is powered off, a name does not resolve, a connection is refused. Left unguarded,
+the first of those failures raises an exception that ends the entire program, and
+every host listed after it goes unscanned. Wrapping the per-host work in a
+`try`/`except` turns a fatal error into a recorded one, and the loop keeps going.
+
+```python
+import sys
+
+results = []
+for host in read_targets(args.targets):
+    try:
+        open_ports = scan(host, args.ports)
+        results.append({"host": host, "open_ports": open_ports})
+    except OSError as err:
+        print(f"{host}: {err}", file=sys.stderr)
+        results.append({"host": host, "error": str(err)})
+```
+
+The exception to catch is `OSError`. Every socket failure raises it or one of its
+subclasses: `socket.gaierror` when a hostname does not resolve, `ConnectionRefusedError`
+when a port slams the door, `TimeoutError` when nothing answers in time. Catching
+the parent `OSError` catches all of them in one line, so a bad host is logged and
+the run moves on. The `file=sys.stderr` argument sends the error text to the
+standard error stream instead of standard output, which keeps the error noise out
+of any results that get redirected to a file.
+
+<Quiz
+  id="recon-per-host-error"
+  question="A hostname in the target file is misspelled and does not resolve. The scan loop wraps each host in try/except OSError. What happens?"
+  answer={2}
+  options={[
+    "The whole run stops at that host and every host after it is skipped.",
+    "Python keeps retrying the name lookup until it eventually succeeds.",
+    "socket raises gaierror, which is an OSError, so the except block records the error for that host and the loop continues.",
+    "The misspelled host is scanned anyway using its raw text as an address.",
+  ]}
+  explanation="socket.gaierror is a subclass of OSError, so the except clause catches it. The failure is recorded against that one host and the loop advances to the next target. That is the entire point of catching per host instead of letting one dead name end the run."
+/>
+
+## Output a machine can read next
+
+Printed text is for a human reading right now. A recon tool's output almost always
+feeds another step: a service scanner, a report, a second pass. That means the
+output should be structured, not a wall of prose to be re-parsed later. Two
+formats cover nearly everything, and both live in the standard library.
+
+JSON keeps the shape. `json.dump` writes a Python object, the list of dictionaries
+built above, to a file as JSON text. `indent=2` makes it readable instead of one
+long line.
+
+```python
+import json
+
+if args.output:
+    with open(args.output, "w") as f:
+        json.dump(results, f, indent=2)
+```
+
+Any tool that speaks JSON, including a later run of this same script, reads it
+straight back with `json.load` and gets the identical structure: the list, the
+dictionaries, the port numbers as real integers. Nothing is re-parsed from text.
+
+<ExpectedOutput label="results.json after a two-host run, one good and one that failed to resolve">
+```json
+[
+  {
+    "host": "192.168.1.10",
+    "open_ports": [
+      22,
+      80,
+      443
+    ]
+  },
+  {
+    "host": "192.168.1.11",
+    "error": "[Errno -2] Name or service not known"
+  }
+]
+```
+</ExpectedOutput>
+
+That `[Errno -2] Name or service not known` is the real text of a DNS failure on
+Linux; macOS prints a different wording for the same problem. It landed in the
+file instead of the terminal because the earlier `except` block stored it, which
+is why a good scan and a dead host sit side by side in the same record.
+
+CSV is the other workhorse. When the result flattens into a table, a comma
+separated file opens in any spreadsheet and pipes into other command-line tools.
+The `csv` module handles the quoting and escaping that make hand-built CSV a
+recurring bug.
+
+```python
+import csv
+
+with open("results.csv", "w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow(["host", "port"])
+    for row in results:
+        for port in row.get("open_ports", []):
+            writer.writerow([row["host"], port])
+```
+
+One detail that bites everyone once: the `newline=""` on the `open` call is
+required. Without it, `csv.writer` and the file object both add line endings on
+some platforms, and the output gets a blank row between every real one. The
+`row.get("open_ports", [])` returns an empty list for any host that errored, so
+those hosts simply contribute no rows.
+
+<Callout type="tip" title="Write results as the scan runs, not only at the end">
+A full-port sweep of a hundred hosts can take a long time, and a laptop that
+sleeps or a dropped connection ends it early. A tool that only writes its file
+after the last host loses everything on an interrupt. Appending each host's result
+to the output file as it finishes, or writing the JSON at the end of every host
+rather than the end of the run, means a scan that dies at host 80 still leaves 79
+hosts of usable data behind.
+</Callout>
+
+## Rate limiting, and not being the loud one
+
+The scanner can open connections as fast as a host will answer. Against a real
+target that is a problem for two separate reasons. A burst of connections to many
+ports in a second looks exactly like an attack to any intrusion detection system,
+so it trips alarms and gets the source address blocked. And a flood of half-open
+connections can exhaust the resources of a small or fragile host, which crosses
+the line from testing a service into knocking it over.
+
+A deliberate pause fixes both. `time.sleep(seconds)` stops the interpreter for
+that many seconds and does nothing else. Wiring it to the `--delay` option that
+argparse already parsed lets the pace be tuned from the command line without
+editing code.
+
+```python
+import time
+
+for host in read_targets(args.targets):
+    scan_and_record(host)
+    time.sleep(args.delay)
+```
+
+A tenth of a second between hosts is invisible to a human waiting and enormous to a
+firewall counting connections per second. The right value depends on the target,
+which is the honest answer: slow and quiet by default, faster only when the target
+owner has said the load is fine.
+
+Rate limiting is one piece of a larger habit, which is being a scanner that a
+defender can live with. Scan only hosts that are owned or covered by written
+authorization, and confirm the target file matches that scope before every run.
+Where the protocol allows identifying the source, such as a `User-Agent` string on
+web recon, use one that names the tester, so a defender who notices the traffic can
+send an email instead of paging an incident response team at 2 a.m. And keep a
+record of what was scanned and when, because accountable activity is the whole
+difference between authorized testing and an intrusion.
+
+<Callout type="security" title="Automation scales the blast radius, so scope it hard">
+A tool that reads a file of hosts is trivially easy to point at the wrong network.
+One typo in the target file and the scan hits something nobody authorized, and the
+tool will happily race through all of it. The rule that keeps this legal is boring:
+scan only hosts owned by the tester or covered by explicit written permission, and
+read the target file back before running the loop, every single time.
+</Callout>
+
+<Quiz
+  id="recon-rate-limit-why"
+  question="Why insert time.sleep(delay) between hosts rather than scanning them all as fast as the network allows?"
+  answer={1}
+  options={[
+    "sleep is required for json.dump to finish flushing to disk.",
+    "A burst of connections trips intrusion detection, can exhaust a fragile target, and gets the source address blocked; a delay spreads the load under those thresholds.",
+    "Python cannot open more than one socket per second without it.",
+    "The pause makes the port results more accurate.",
+  ]}
+  explanation="Rate limiting is about the target and the network in between, not about correctness. Fast bursts look like an attack, can overwhelm a small host, and get an address blocked. A short sleep keeps the scan below the rate that trips defenses, and costs a human nothing."
+/>
+
+<Exercise title="Give the scanner a real interface">
+Start a file called `recon.py` and write the `build_parser()` function from this
+lesson exactly as shown, ending with `args = build_parser().parse_args()` and a
+`print(args)` on the next line so you can see what got parsed.
+
+Run `python recon.py --help` and read the screen argparse generated for you.
+Notice that you never wrote it.
+
+Now run `python recon.py` with no arguments. You should get a usage error and a
+non-zero exit, because `targets` is required. Then run
+`python recon.py hosts.txt --delay 0.5` and look at the printed `args`: confirm
+`delay` came through as the number `0.5`, not the string `"0.5"`, because
+`type=float` converted it before your code ran.
+
+Add read_targets(), point it at a small file of hosts you own, and print the list
+it returns. That list is what the scan loop will walk.
+</Exercise>
+
+Everything in this module now points at the same place: a working tool that takes
+a target list, scans it, survives dead hosts, and writes structured output a
+defender or a next tool can read. The last step is the one this lesson kept
+gating with warnings. Point it at real targets, the ones under written scope, and
+run recon the way an engagement actually runs it: quietly, on a schedule, with the
+results in a file instead of in somebody's head.
+
+<Notes />

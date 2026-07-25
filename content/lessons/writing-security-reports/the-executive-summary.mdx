@@ -1,0 +1,67 @@
+---
+title: The Executive Summary
+module: writing-security-reports
+moduleTitle: Writing Security Reports
+moduleOrder: 44
+moduleIcon: NotebookPen
+order: 5
+summary: One page, no payloads, no CVE numbers. Written for the person who signs the check and will never read past it.
+estimatedMinutes: 16
+objectives:
+  - Write an executive summary in business language a non-technical leader can act on
+  - Lead with the worst true finding and the overall security posture
+  - Translate a technical finding into consequence-focused prose without jargon
+tags:
+  - reporting
+  - executive-summary
+  - communication
+  - business-risk
+---
+
+The CISO reads one page of your report. Maybe the board reads one paragraph of that page. They will never open the finding with the UNION payload in it, and they should not have to. The executive summary is the whole report for the people who decide whether it gets funded, and if it fails them, the technical work behind it never turns into a fix.
+
+That page has a different job from everything else in the report. The findings section persuades an engineer to change code. The summary persuades a leader to spend money and attention. Different reader, different language, and the mistake almost everyone makes is writing the summary in the same voice as the findings.
+
+## Strip every piece of jargon
+
+No CVE numbers. No payloads. No "UNION-based SQL injection in the search parameter." A business reader does not know what that is and will not learn it in the ten minutes they have. Say what it means to the organization instead.
+
+<CommandCard command="Technical: 'Unauthenticated SQLi in /search enables UNION extraction of the users table'  ->  Executive: 'An attacker on the internet, with no login, could download every customer record including passwords'" explain="Same finding. The executive version names who (anyone on the internet), the barrier (none, no login needed), and the loss (all customer records). No jargon, and a non-technical leader can now weigh it." />
+
+## Lead with the worst true thing
+
+Put the single most serious real risk in the first two sentences. Leaders read top down and stop early, so burying the crown-jewels finding under a paragraph of scope and methodology means they may never reach it. Open with the punch, then give the shape of everything else.
+
+A good summary has a predictable arc. What you did, in one sentence. What you found, as a count and a plain-language headline. The top risks, named by business consequence. The overall posture, your honest one-line verdict on how they are doing. And what to prioritize, so they leave the page knowing the next move.
+
+<ExpectedOutput label="opening of an executive summary that works">
+Over five days we tested the customer portal and its supporting
+infrastructure against the agreed scope. We found two issues that
+would let an external attacker, with no account, read the full
+customer database, including names, emails, and stored passwords.
+This is the most serious risk in this report and should be
+addressed before anything else. Overall the application's defenses
+against common web attacks are below what we would expect for a
+system holding this volume of personal data.
+</ExpectedOutput>
+
+Notice there is not a single technical term in that paragraph, and yet a reader knows exactly how worried to be and what to do first.
+
+## Tell the attack story, not the finding list
+
+The findings section is a list. The summary is a narrative. If an attacker could chain three medium findings into a full compromise, the summary is where you say so, because that chained path is the real risk and no individual finding shows it. "Individually these are moderate, but together they form a path from an anonymous visitor to full administrative control" is the kind of sentence that gets a room to act, and it lives only in the summary.
+
+<Callout type="security" title="The summary still describes an authorized test">
+Keep the summary honest in both directions. State plainly what you were scoped to test and what you were not, so a leader does not read "we assessed the portal" as "everything we own is safe." Do not overstate the posture to flatter the client, and do not inflate it to alarm them into more work. This page drives budget and board-level decisions, so an exaggeration here does more damage than anywhere else in the document. Report the real posture of the systems you were authorized to test, and name the limits of that scope.
+</Callout>
+
+<Exercise
+  id="exec-translate-finding"
+  prompt="A finding reads: 'Stored XSS in the ticket comment field executes JavaScript in an administrator's session, enabling session-cookie theft and full admin takeover.' Rewrite it as one sentence for the executive summary, with no jargon."
+  answer="A flaw in the support system lets an attacker take over an administrator's account simply by submitting a support ticket, giving them full control of the application."
+  placeholder="one plain-language sentence"
+>
+Drop the terms (XSS, JavaScript, session cookie) and keep the consequence: an attacker takes over an admin account, and does it through something as ordinary as filing a support ticket. That gives a leader the who, the how-easy, and the loss without a single technical word.
+</Exercise>
+
+<Notes />

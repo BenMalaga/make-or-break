@@ -1,0 +1,291 @@
+---
+title: Intercepting Proxies
+module: web-and-http
+moduleTitle: Web and HTTP
+moduleOrder: 5
+moduleIcon: Globe
+order: 4
+summary: "Freeze a live request, rewrite any byte, and replay it until the server does something it should not."
+estimatedMinutes: 17
+prerequisites:
+  - http-fundamentals
+  - how-web-apps-work
+  - cookies-sessions-auth
+objectives:
+  - Explain what a proxy is and what an intercepting proxy adds on top
+  - Route a browser through Burp or ZAP, including the TLS certificate step
+  - Intercept, modify, and forward a single live HTTP request
+  - Use the history and a Repeater tool to replay and tamper one request at a time
+  - Say why reading the raw request is the core web-testing skill
+tags:
+  - web
+  - burp
+  - proxy
+---
+
+The last lesson ended with a tidy instruction: change `role=user` to
+`role=admin` in the token, or swap `session=1001` for `session=1002`, and the
+server hands back an account that belongs to someone else. Clean on paper. The
+trouble is
+mechanical. The browser builds that request, attaches the cookie, and fires it
+the instant someone clicks. It never pauses to ask what to send, and it offers
+no box to edit `role` before the bytes leave the machine. To rewrite a request,
+a tester has to stand in the path of the traffic and hold it still. An
+intercepting proxy is the tool that does exactly that.
+
+## A program that sits in the middle
+
+A proxy is a program that relays traffic between two other machines. The
+<Term id="client">client</Term> talks to the proxy, the proxy talks to the
+<Term id="server">server</Term>, and the answer comes back along the same path.
+A plain proxy just forwards. An intercepting proxy adds a pause button: every
+<Term id="http">HTTP</Term> request stops inside the tool, where a tester can
+read it, change any byte, and only then release it toward the server.
+
+Two tools own this space. Burp Suite is the commercial standard, and its
+Community edition is free. OWASP ZAP is the fully open-source alternative. They
+differ in polish, not in idea. Both listen on a local
+<Term id="port">port</Term>, both catch the traffic a browser sends, and both
+let a tester rewrite a request in flight and replay it as many times as the work
+takes.
+
+Calling this the single most important web tool is not a slogan. The browser is
+built to hide the request. It renders a page, runs JavaScript, greys out the
+button a tester wants to press, and shows a friendly result. The raw request
+underneath, the actual bytes on the wire, is where every web attack lives. A
+proxy is the window onto those bytes.
+
+## The raw request is the truth
+
+Here is what the browser sends when someone opens their account page, caught
+inside the proxy:
+
+```
+GET /account HTTP/1.1
+Host: shop.example
+Cookie: session=9f2c8a1b4d
+User-Agent: Mozilla/5.0
+Accept: text/html
+```
+
+Nothing here is new after the earlier lessons. It is the request anatomy from
+the HTTP lesson: a method (`GET`), a path (`/account`), the `Host`
+<Term id="header">header</Term>, and the <Term id="cookie">cookie</Term> that
+carries the <Term id="session">session</Term>. What is new is that the tester
+can see it and touch it before it goes anywhere.
+
+The rendered page never shows this. A logged-in account page displays a name and
+an order list, all of it built from the response. The request that produced it,
+including the exact <Term id="session-id">session id</Term> and every header the
+browser added quietly, appears only when something intercepts it. Reading the
+raw request is the core web-testing skill because every later technique, changing
+an id, forging a cookie, injecting a payload, begins by seeing the precise bytes
+and deciding which one to bend.
+
+<Quiz
+  id="proxy-vs-devtools"
+  question="A browser's built-in developer tools also list every request and response. Why does a tester still route traffic through an intercepting proxy?"
+  answer={1}
+  options={[
+    "Developer tools cannot display HTTPS traffic at all.",
+    "The proxy can hold a request before it reaches the server and rewrite it, which developer tools cannot do.",
+    "Developer tools only work on pages served from localhost.",
+    "The proxy makes the page render faster.",
+  ]}
+  explanation="Developer tools show traffic after the fact; they cannot pause a request in flight and edit it before it sends. That intercept-and-modify step is exactly what an intercepting proxy adds, and it is the difference between watching traffic and testing it."
+/>
+
+## Intercept and change it in flight
+
+With interception turned on, the proxy holds each request instead of forwarding
+it. Someone clicks "Buy" and the request stops dead in the tool:
+
+```
+POST /api/cart HTTP/1.1
+Host: shop.example
+Content-Type: application/json
+Cookie: session=9f2c8a1b4d
+Content-Length: 29
+
+{"item":"884","price":"1999"}
+```
+
+The body carries a price the browser copied straight off the product page.
+Nothing has reached the server yet. The tester edits `"price":"1999"` down to
+`"price":"1"`, adjusts the `Content-Length` header to match the shorter body,
+and forwards it. If the server charges what the request says instead of looking
+the price up from its own database, the order clears at one cent. If it re-checks
+the price server-side, the tamper does nothing, and that is a useful answer too.
+
+Two controls decide a held request's fate. Forward sends it on, edited or not.
+Drop discards it so it never reaches the server, which matters when a request
+would do something the tester does not actually want, like completing a real
+purchase. Interception is a mode, so a tester flips it on to catch one specific
+action and off again to browse without every image and script freezing the tool.
+
+## The history is the map
+
+Intercepting every request is tedious, so most work runs with interception off.
+The proxy still records everything. Its HTTP history is a running log of every
+request the browser made and every response that came back, laid out in a table
+with method, path, status code, and length.
+
+The rhythm is browse first, hunt second. A tester clicks through the app like an
+ordinary user, filling the history, then scrolls it for requests that carry
+something worth changing: a numeric id, a price, a token, a username. A
+`GET /api/orders/1001` sitting in the log is a lead. So is any `POST` that
+submits a form or a JSON body. The history turns a stretch of aimless clicking
+into a searchable inventory of the app's real endpoints, including the API calls
+the page fired in the background that no visible link ever pointed at.
+
+A live page also drags in noise. One page load can fire dozens of requests to
+analytics services, font hosts, and content delivery networks that have nothing
+to do with the target. Both tools fix this the same way: define a scope, meaning
+the set of hosts under test, and filter the history down to it. Burp calls the
+setting Target scope; ZAP calls the equivalent a context. With scope set to
+`shop.example` alone, the history stops showing third-party chatter and starts
+reading like a clean list of the app's own traffic.
+
+Where a tester looks inside each request matters as much as which request. User
+input rides in a handful of predictable places: the query string after a `?` in
+the path, the parameters in a `POST` body, the cookie value, and sometimes a
+custom header the app trusts, like `X-User-Id`. Every one of those is a value the
+browser sent and the server has to re-check. Those are the bytes worth bending.
+
+## Repeater: one request, many tries
+
+Editing a request in the intercept window is a one-shot. Forward it and it is
+gone. Testing wants the opposite: the same request sent again and again with one
+change each time. That is what a Repeater tool is for. Burp names its version
+Repeater; ZAP calls the same feature Requester. The behavior is identical.
+
+A tester right-clicks an interesting request in the history and sends it to
+Repeater, which opens the full raw request in an editor beside an empty response
+pane. Send it, and the response appears. Change one field, send again, watch the
+response move. No browser, no clicking back through the app to reach the
+endpoint, no session to rebuild. One request, isolated on a workbench.
+
+The discipline is one variable at a time. Take the order request straight from
+the history:
+
+```
+GET /api/orders/1001 HTTP/1.1
+Host: shop.example
+Cookie: session=9f2c8a1b4d
+```
+
+Sent as-is, the response is the tester's own order:
+
+<ExpectedOutput label="Repeater response, id 1001 (sample target shop.example)">
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{"order":1001,"user":"guest","total":"41.00"}
+```
+</ExpectedOutput>
+
+Now change `1001` to `1002` in the Repeater editor and send again:
+
+<ExpectedOutput label="Repeater response, id changed to 1002">
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{"order":1002,"user":"alice","total":"210.00"}
+```
+</ExpectedOutput>
+
+Same session cookie, a different id, and the server handed over another
+customer's data. That `200 OK` on someone else's record is a finding: broken
+access control, the exact class the next lesson ranks first. Had the server
+answered `403 Forbidden` or `404 Not Found`, the check would have held. The
+value of Repeater is that the two requests differ by a single character, so the
+different response can only be that character's doing.
+
+The raw request is just text, which means it is portable. The same bytes
+Repeater sends can go out from a command line, which is why the earlier `curl`
+work still applies once the interesting request is found.
+
+<CommandCard
+  command="curl -v -H 'Cookie: session=9f2c8a1b4d' http://shop.example/api/orders/1002"
+  title="linux"
+  explain="The same raw request Repeater sends, reproduced on the command line. The -v flag prints the request and the response line by line. A proxy is a friendlier front end for exactly this, with a history and a click-to-resend workbench attached."
+/>
+
+<Quiz
+  id="repeater-idor"
+  question="In Repeater, a request to /api/orders/1001 returns 200 OK with the tester's own order. The id is changed to 1002 and the response is 200 OK with a different customer's order. What has the second response revealed?"
+  answer={2}
+  options={[
+    "The server rejected the tampered request.",
+    "Repeater failed to deliver the second request.",
+    "The server returned data belonging to another user, which is a broken access control finding.",
+    "Order 1002 does not exist on the server.",
+  ]}
+  explanation="A 200 OK carrying another user's order means the server served a record the current session should not reach. That is broken access control (an IDOR). A 403 or 404 on the second request would have meant the access check held."
+/>
+
+## Reading HTTPS means trusting the proxy's certificate
+
+Most real targets speak <Term id="https">HTTPS</Term>, and HTTPS wraps the
+request in <Term id="tls">TLS</Term> encryption so nothing in the middle can
+read it. An intercepting proxy is in the middle, which is the whole problem it
+has to solve. It solves it by presenting its own certificate to the browser for
+each site and decrypting the traffic itself. That is a deliberate
+machine-in-the-middle, and the browser rejects it unless it has been told to
+trust the proxy's certificate first.
+
+So the setup has two steps. First, point the browser's proxy setting at the
+tool's address, which is `127.0.0.1:8080` by default for both Burp and ZAP, so
+traffic flows through it. Second, install the proxy's certificate authority into
+the browser's trusted store. Skip the second step and every HTTPS site throws a
+certificate warning while the proxy sees only encrypted bytes it cannot open.
+This is the most common reason a fresh proxy setup shows nothing useful in its
+history.
+
+<Callout type="warning" title="A proxy belongs only on an authorized target">
+An intercepting proxy captures and rewrites live traffic. It belongs only on
+machines and applications covered by explicit written permission, such as a lab
+target or an engagement with a signed scope. Aiming it at a third-party site is
+noisy and, in most places, a crime.
+</Callout>
+
+<Quiz
+  id="https-ca-cert"
+  question="A tester routes the browser through the proxy but never installs the proxy's CA certificate. What happens to HTTPS requests?"
+  answer={1}
+  options={[
+    "They appear in plaintext in the history anyway.",
+    "The browser shows a certificate warning and the proxy cannot read the decrypted traffic.",
+    "The proxy silently downgrades them to plain HTTP.",
+    "Nothing changes, because the certificate only matters for HTTP.",
+  ]}
+  explanation="To read TLS traffic the proxy presents its own certificate and decrypts. Without its CA in the browser's trust store, the browser distrusts that certificate and warns, and the proxy is left staring at encrypted bytes. Installing the CA is what makes HTTPS readable."
+/>
+
+<Exercise title="Read one real request end to end">
+Open the developer tools in any browser (F12 in most of them), switch to the
+Network tab, and reload a page on a site where you already have an account.
+Click one request in the list and read its full request headers: the method, the
+path, the Host, and the Cookie line if there is one.
+
+You are looking at the same raw request an intercepting proxy would freeze, just
+without the pause button. Find the one field you could change to ask for
+something that is not yours: an id, a username, a price. That field is where a
+proxy session would begin.
+
+Notice that the developer tools only let you watch. They will not hold the
+request or let you edit it before it sends. That gap is the whole reason the
+proxy exists.
+</Exercise>
+
+Now a tester can see any request, freeze it, rewrite any byte, and replay it
+until the server does something it should not. That is the instrument. What it
+does not hand over is a target list: which fields reward the effort, which
+requests are worth bending, which responses signal a real
+<Term id="vulnerability">vulnerability</Term> instead of a dead end. The next
+lesson, the OWASP Top 10, is that map, the ranked catalog of the ten flaws worth
+hunting and the first probe to try for each.
+
+<Notes />

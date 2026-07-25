@@ -1,0 +1,106 @@
+---
+title: HTTP vs HTTPS vs VPN
+module: traffic-analysis
+moduleTitle: Traffic Analysis
+moduleOrder: 4
+moduleIcon: Activity
+order: 4
+summary: What an eavesdropper actually sees when you browse over HTTP, HTTPS, and a VPN.
+estimatedMinutes: 18
+objectives:
+  - Explain what an on-path observer can read at each layer
+  - Describe what TLS encrypts and what it leaves exposed
+  - Reason about the visibility a VPN adds and removes
+tags:
+  - traffic-analysis
+  - tls
+  - vpn
+---
+
+You just pulled a password out of a cleartext stream. Now flip the perspective.
+As the attacker on the wire, what can you actually read depending on how the
+victim protects their traffic? The answer changes at each layer, and knowing
+exactly what stays visible tells you where an attack is still possible.
+
+## Plain HTTP: everything is readable
+
+Over HTTP, there is no encryption at all. An on-path observer, someone sniffing
+the same network segment, sees the whole request and response in the clear:
+
+- The destination IP and port (that is always visible, at every level).
+- The full URL, including path and query string.
+- Every header, including cookies and basic-auth credentials.
+- The entire body, including form fields and API keys.
+
+This is the FTP and HTTP-form situation from the last lesson. Sniff the segment,
+follow the stream, read the secrets. Plain HTTP gives the attacker everything.
+
+## HTTPS: the payload goes dark
+
+HTTPS is HTTP wrapped in **TLS**. TLS encrypts everything above the transport
+layer, so the observer's view collapses to almost nothing useful:
+
+- **Hidden:** the URL path, all headers, cookies, the request and response
+  bodies. The password in a POST form is now ciphertext.
+- **Still visible:** the destination IP and port, the rough size and timing of
+  the traffic, and historically the server name via the TLS SNI field during
+  the handshake.
+
+<Diagram type="osi" />
+
+That last point matters. TLS protects the **content**, not the **fact** that a
+connection happened. An observer still learns which server you are talking to by
+IP, and often by hostname, even though they cannot read a byte of the exchange.
+
+<Callout type="warning" title="HTTPS is not invisibility">
+A common mistake is assuming HTTPS hides where you went. It hides what you sent
+and received. The destination IP is on every packet by necessity, because
+routers need it to deliver the traffic. Metadata leaks even when payload does
+not.
+</Callout>
+
+## VPN: move the visible endpoint
+
+A VPN wraps all of your traffic in another encrypted tunnel to a VPN server, and
+only there does it exit onto the normal internet. That shifts what a local
+observer can see:
+
+- Your local eavesdropper, the coffee-shop network or a sniffing colleague, now
+  sees only encrypted packets going to one IP: the VPN server. They lose the
+  per-site destinations that even HTTPS left exposed.
+- The visibility does not vanish, it **moves**. The VPN provider, and any
+  observer past the VPN exit, sees your real destinations again. If those sites
+  are plain HTTP, that observer reads the payload too.
+
+So a VPN changes **who** can see your traffic, not whether it can be seen at all.
+You have traded trust in the local network for trust in the VPN operator.
+
+<Callout type="security" title="Attacker's takeaway">
+Layer by layer, your job is to know what leaked. Plain HTTP hands you payloads.
+HTTPS still hands you destination IPs, timing, and often the hostname, which is
+plenty for traffic analysis and target mapping. A VPN concentrates all of that
+into one tunnel endpoint, so your attack surface shifts from the wire to the
+endpoints and to whoever runs the exit.
+</Callout>
+
+<Quiz
+  id="https-visible"
+  question="A victim browses a site over HTTPS while you sniff their network segment. What can you still reliably read?"
+  answer={2}
+  options={[
+    "The password they typed into the login form",
+    "The full URL path and query string",
+    "The destination IP address and port",
+    "The response body of every page",
+  ]}
+  explanation="TLS encrypts the payload: URL path, headers, and bodies are hidden. The destination IP and port ride on every packet in the clear because routers need them to deliver the traffic."
+/>
+
+<Exercise
+  id="vpn-visibility"
+  prompt="In one sentence, what does a VPN change about who can observe your traffic?"
+>
+This is a self-check. A strong answer notes that a VPN hides your destinations from a local observer but moves that visibility to the VPN provider and any observer past the tunnel exit, rather than removing it entirely.
+</Exercise>
+
+<Notes />

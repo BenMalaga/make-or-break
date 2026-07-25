@@ -1,0 +1,275 @@
+---
+title: Your First Circuit
+module: electronics-foundations
+moduleTitle: Electronics Foundations
+moduleOrder: 4
+moduleIcon: CircuitBoard
+order: 3
+summary: "A schematic on paper becomes a lit LED on a real breadboard: what a breadboard connects, how to size the one resistor that matters, and how to check the result with a meter."
+estimatedMinutes: 16
+prerequisites: ["what-electricity-is", "components-and-schematics"]
+objectives:
+  - Read a breadboard's hidden connections and place parts on the strips that actually join
+  - Tell series from parallel by whether the parts share a current or share a voltage
+  - Size a current-limiting resistor for an LED with Ohm's law and real component values
+  - Predict what a missing, undersized, or oversized resistor does to an LED
+  - Check a finished circuit with a multimeter using voltage and continuity
+tags:
+  - electronics
+  - hardware
+---
+
+components-and-schematics ended on paper: a battery, a resistor, an LED, and a
+loop drawn between them with a few lines and symbols. A schematic is a promise.
+It says this circuit would work if someone built it. This lesson builds it, on a
+real board, with real parts, and gets a red LED to actually light up. No solder,
+no finished product, nothing fragile. It takes a breadboard, one resistor, one
+LED, and a 5V supply, plus current going the right way in the right amount.
+
+That last part is the whole game. An LED that gets too much current dies in a
+flash. An LED that gets too little looks dead when it is fine. One resistor,
+chosen on purpose, is the difference, and choosing it is a piece of Ohm's law
+arithmetic that takes about thirty seconds once the setup is clear.
+
+## The board that holds a circuit together
+
+A breadboard is a plastic block full of small holes that grip a component's
+legs, wired together underneath in a fixed pattern, so a circuit gets built and
+rebuilt by pushing parts in and pulling them back out. No soldering, no
+commitment. It is the fastest way to try a circuit before anything is permanent.
+
+The holes are not independent, and that is the one thing worth learning cold.
+Underneath the plastic, metal clips join the holes into groups. Two legs pushed
+into the same group are connected to each other whether that was the intent or
+not. A group of connected holes is a node: a single electrical spot where every
+hole in the group is the same point in the circuit.
+
+The main field of the board is split down the middle by a channel into two
+banks. Each bank is organized into short strips of five holes. The five holes in
+one strip are one node. A leg in any of the five touches a leg in the other
+four, and touches nothing outside that strip. Strips do not connect across the
+center channel, and neighboring strips do not connect to each other. That
+channel is there so a chip can straddle it with its two rows of pins landing in
+separate strips, which matters later, not now.
+
+Running along the two long edges are the power rails: single strips that run the
+whole length of the board, usually marked with a red line for plus and a blue
+line for minus. Put the supply's positive lead on the red rail and its negative
+lead on the blue rail, and power is available anywhere along the board by
+jumping a short wire from a rail to a strip.
+
+<Callout type="tip" title="The rail that seems dead halfway down">
+On many full-size breadboards each power rail is broken in the middle into two
+separate halves with a gap between them. Power fed to one end reaches only that
+half. If the top of a rail is live and the bottom reads nothing, that is the
+split, not a fault. A short jumper wire bridging the two halves fixes it.
+</Callout>
+
+<Quiz
+  id="elec-breadboard-node"
+  question="A resistor's two legs are pushed into two different holes in the same strip of five on a breadboard. What has the board done to that resistor?"
+  answer={1}
+  options={[
+    "Placed it in series with the nearest power rail automatically.",
+    "Connected its two legs to each other, which shorts it out and makes it do nothing.",
+    "Isolated each leg on its own separate node, which is what a working circuit wants.",
+    "Nothing, because breadboard holes carry no connection until the board is powered.",
+  ]}
+  explanation="All five holes in one strip are a single node. Both legs land on the same node, so current skips straight through the connection instead of through the resistor. The resistor has to bridge two different strips to do its job."
+/>
+
+## One path or many
+
+Two words describe how parts sit relative to each other, and the LED circuit
+depends on getting one of them right.
+
+Parts in series sit in a single line, end to end, with one path for the current.
+The same current flows through every part in turn, because there is nowhere else
+for it to go. If 20 milliamps leaves the resistor, 20 milliamps enters the LED.
+The voltage, on the other hand, splits across the parts in the line.
+
+Parts in parallel sit side by side, both ends tied to the same two nodes. They
+share the same voltage, and the current splits among them. A wide road that
+forks into lanes: same start, same end, traffic divided.
+
+For a single LED, the resistor and the LED go in series. That is the arrangement
+that protects the LED, because the one current flowing through the resistor is
+the exact same current flowing through the LED, and the resistor is the part
+that sets how big it is. Control the current in the resistor and the LED's
+current is controlled by the same stroke.
+
+Parallel has a trap worth flagging now. Two LEDs wired in parallel on a single
+shared resistor do not split the current evenly. The one with the slightly lower
+turn-on voltage hogs most of it and burns brighter and hotter, while the other
+sits dim. Each LED gets its own resistor. There are no shortcuts around that,
+and the reason is the same current-hungry behavior that makes the resistor
+necessary in the first place.
+
+## Sizing the resistor
+
+An LED is not a plain resistor, and that is why it needs a keeper. A plain
+resistor lets current rise smoothly as voltage rises. An LED barely conducts at
+all until its voltage reaches a turn-on point, and then its current climbs
+almost straight up for the tiniest further rise in voltage. Wired straight
+across a 5V supply, an LED pulls whatever current the supply can deliver, which
+is far more than it survives. The resistor is the brake. It turns "whatever the
+supply can give" into a number picked on purpose.
+
+The turn-on point has a name: the forward voltage, meaning the voltage an LED
+drops across itself once it is conducting. A red LED sits around 2 volts.
+Orange, yellow, and most reds land near 1.8 to 2.2 volts. Green, blue, and white
+sit higher, near 3 to 3.4 volts. These are real ballparks, not exact figures,
+and a specific part's datasheet gives its own number.
+
+The math uses Ohm's law from what-electricity-is, in the form R equals V divided
+by I. The trick is knowing which voltage and which current to feed it. Work it
+in two steps.
+
+First, find the voltage across the resistor. The supply is 5 volts. The LED
+takes its forward voltage, about 2 volts, and the resistor gets whatever is
+left. So the resistor's voltage is 5 minus 2, which is 3 volts.
+
+Second, decide the current and solve. A red LED runs happily around 20
+milliamps, which is 0.02 amps. Ohm's law gives R equals 3 volts divided by 0.02
+amps, which is 150 ohms.
+
+A 150 ohm resistor in series with that red LED sets the current to 20
+milliamps. That is the whole calculation. Change the LED color and the forward
+voltage changes: a blue LED at 3.2 volts on the same 5V supply leaves 1.8 volts
+for the resistor, so R equals 1.8 divided by 0.02, which is 90 ohms, rounded up
+to the nearest common 100 ohms.
+
+<Callout type="tip" title="When the exact value is not in the drawer">
+150 ohms is a standard value, but if the drawer only has bigger ones, round up,
+never down. A 220 ohm resistor gives 3 divided by 220, about 13.6 milliamps:
+dimmer, cooler, and completely safe. Rounding down pushes the current past the
+target. A 220 or 330 ohm resistor is the common "just make it light" default for
+a 5V LED, and the lost brightness rarely matters.
+</Callout>
+
+<Quiz
+  id="elec-ohms-resistor"
+  question="The lesson sized 150 ohms for a red LED at 20 milliamps. For a dimmer look, the same red LED (about 2V) should run at 10 milliamps from the same 5V supply. What resistor does the math call for?"
+  answer={2}
+  options={[
+    "75 ohms",
+    "150 ohms, since the current does not change the resistor",
+    "300 ohms",
+    "3000 ohms",
+  ]}
+  explanation="The resistor's voltage is still 5 minus 2, which is 3 volts. Ohm's law gives R equals 3 divided by 0.01 amps, which is 300 ohms. Half the current needs double the resistance, not half of it."
+/>
+
+## Building the loop
+
+An LED cares which way current runs through it. It has two legs that are not
+interchangeable. The longer leg is the anode, the plus side. The shorter leg,
+next to the flat spot ground into the rim, is the cathode, the minus side.
+Current flows from anode to cathode and only that direction lights it. Wired
+backwards, the LED simply stays dark. At 5 volts it takes no harm from being
+reversed, it just does nothing, which is its own kind of confusing the first
+time it happens.
+
+The loop on the board runs like this. The supply's positive lead goes to the red
+rail. A jumper wire carries plus from the rail to a strip. The resistor bridges
+that strip to a second strip, its two legs in two different strips so it is not
+shorted. The LED's anode goes into that second strip, sharing the node with the
+resistor's far leg. The LED's cathode goes into a third, fresh strip. A jumper
+carries that strip to the blue rail, and the supply's negative lead is on the
+blue rail. Close the loop and the LED lights.
+
+The resistor can sit on either side of the LED. In a series line the current is
+the same everywhere, so whether the resistor comes before the LED or after it,
+the LED still sees 20 milliamps. Put it wherever the layout is tidiest.
+
+## When the resistor is missing or wrong
+
+Skip the resistor and the LED goes straight across 5 volts. Current shoots far
+past 20 milliamps, limited only by the supply and the LED's own tiny internal
+resistance. Best case, the LED flares and dies in a visible flash. Worse case,
+it survives dim and degraded and fails hours later. The resistor is not a
+suggestion.
+
+A resistor that is too small does a milder version of the same thing. A 47 ohm
+resistor gives 3 divided by 47, about 64 milliamps, roughly three times the
+rating. The LED runs bright, hot, and short-lived.
+
+A resistor that is too large is harmless and frustrating. A 10,000 ohm resistor
+gives 3 divided by 10,000, about 0.3 milliamps. The LED is technically on and
+looks stone dead in daylight. Plenty of "why won't it light" circuits are
+working exactly as built, just far too faintly to see.
+
+<Callout type="warning" title="A backwards LED and a dead LED look identical">
+Both sit dark. Before assuming an LED is fried, pull it and flip it. If it lights
+reversed, it was only in backwards. This one swap saves a lot of parts from the
+bin, and it costs nothing to try.
+</Callout>
+
+## Checking it with a multimeter
+
+A multimeter is a handheld meter that measures electrical quantities, selected
+with a dial. Two of its modes settle almost every question about a small
+circuit: voltage and continuity.
+
+Voltage gets measured across a part, with the circuit powered. The dial goes to
+DC volts, and one probe touches each end of the part. Across the resistor the
+meter should read about 3 volts. Across the LED it should read about 2 volts. The
+two add up to the 5 volt supply, because the voltage in a series line divides
+among the parts and has to total the source. That sum is the fastest sanity
+check there is.
+
+The readings also name the fault when something is wrong. If the resistor reads
+close to 5 volts and the LED reads near 0, the whole supply is dropping across
+the resistor and none across the LED, which means the LED is backwards or dead.
+If the resistor reads near 0 volts, no current is flowing at all, so the loop is
+broken somewhere and the meter has just pointed at which half to inspect.
+
+Continuity checks connections with the power off. The dial goes to the
+continuity setting, usually marked with a small speaker or sound-wave symbol. The
+meter pushes a tiny current between the probes and beeps when they are joined by
+near-zero resistance. Touch the two ends of a wire and a beep means the wire
+actually connects. Touch two points that should be one node and a beep confirms
+it. Silence where a beep was expected means the connection is not there, a leg
+is not seated, or a jumper reaches the wrong strip. Continuity also catches a
+short: the plus rail and the minus rail beeping against each other is a dead
+giveaway that something is bridging them that should not be.
+
+<Quiz
+  id="elec-voltage-adds"
+  question="A working circuit has a 150 ohm resistor in series with a red LED on a 5V supply. A multimeter in DC volts mode reads 3.0V across the resistor. What should it read across the LED?"
+  answer={1}
+  options={[
+    "0V, because the resistor does all the work",
+    "2V, because the two drops have to add up to the 5V supply",
+    "5V, because the full supply appears across every part",
+    "3V, the same as the resistor",
+  ]}
+  explanation="In a series line the voltages divide and total the source. The resistor takes 3 volts, so the LED takes the remaining 2 volts, which matches a red LED's forward voltage. Reading 5V across the resistor and 0V across the LED would instead mean the LED is backwards or dead."
+/>
+
+<Exercise title="Trace the loop before you power it">
+If a breadboard, a red LED, a 150 to 330 ohm resistor, and a 5V supply are
+within reach, build the loop from this lesson. Feed plus to the red rail and
+minus to the blue rail. Jumper plus to a strip, bridge the resistor to a second
+strip, put the LED's long leg in that second strip and its short leg in a third,
+and jumper the third strip back to the blue rail.
+
+Before connecting power, walk the path with a finger and say each node out loud:
+rail, strip, resistor, strip, LED, strip, rail. Confirm the resistor's two legs
+sit in two different strips and the LED's long leg points toward plus. Then power
+it. If it stays dark, do not rebuild everything. Flip the LED first, then set a
+multimeter to DC volts and read across the resistor and across the LED. The two
+numbers, and whether they add to 5, tell you where to look.
+</Exercise>
+
+So far a battery has done all the deciding, and its only decision is on. It
+cannot blink the LED, cannot fade it up, cannot switch it off the instant a
+sensor trips. Swapping the battery for a small computer changes that. A
+microcontroller like an Arduino carries a row of pins, metal connection points
+along its edge, and it can drive one pin high, meaning it puts a controlled
+voltage on that pin, or low, meaning 0 volts, all from code. Wire the LED's
+resistor to a pin instead of the plus rail and a program decides when current
+flows. The next lesson, microcontrollers-and-arduino, puts that small computer
+in charge of the exact circuit built here.
+
+<Notes />

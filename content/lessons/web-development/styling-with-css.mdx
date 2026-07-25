@@ -1,0 +1,369 @@
+---
+title: "CSS: The Style"
+module: web-development
+moduleTitle: Web Development
+moduleOrder: 2
+moduleIcon: LayoutTemplate
+order: 3
+summary: "The style layer, rule by rule: selectors, colors, the box model, and flexbox turn a plain HTML page into one that looks built on purpose."
+estimatedMinutes: 17
+prerequisites: ["how-the-web-works", "html-structure"]
+objectives:
+  - Read a CSS rule and name its selector, its property, and its value
+  - Target elements with element, class, and id selectors and know when each one fits
+  - "Size and space a box using the four layers of the box model: content, padding, border, and margin"
+  - Lay elements out in a row with flexbox and keep the page usable on a phone
+tags:
+  - web
+  - html
+---
+
+The page from the last lesson works. The heading, the two paragraphs, the div
+wrapped around them: the browser reads that HTML and draws every element in
+order. It also looks like nothing. Black text, a serif font, everything jammed
+against the top left corner of a white screen. That is not broken. That is a
+page with no style applied, showing the browser's built-in defaults.
+
+how-the-web-works named three layers for a web page: HTML for structure, CSS for
+style, JavaScript for behavior. This lesson is the middle one. CSS, short for
+Cascading Style Sheets, is the language that decides how the HTML looks: the
+colors, the spacing, the fonts, and where each box sits. The HTML stays exactly
+as html-structure left it. CSS reaches in and dresses it.
+
+Here is that page again, trimmed to the part inside the document body:
+
+```html
+<div class="card">
+  <h1>Ada Lovelace</h1>
+  <p class="tagline">Writes programs, drinks tea.</p>
+  <p>The first person to publish an algorithm built for a machine.</p>
+</div>
+```
+
+Two paragraphs, one heading, all wrapped in a div that carries the class card.
+One of the paragraphs carries the class tagline. Those classes, set back in the
+HTML, are about to earn their keep.
+
+## A rule is a selector plus declarations
+
+CSS is a list of rules, and every rule has the same shape. Pick some elements,
+then list what should change about them. Here is one rule:
+
+```css
+h1 {
+  color: navy;
+}
+```
+
+Read it in two parts. h1, the part before the curly braces, is the selector: it
+chooses which elements the rule applies to. This one picks every h1 on the page.
+Inside the braces is a declaration. color is the property, the thing being
+changed, and navy is the value, what to change it to. A colon separates the
+property from its value, and a semicolon ends the declaration.
+
+A rule can hold as many declarations as needed, one per line, each ending in a
+semicolon:
+
+```css
+h1 {
+  color: navy;
+  font-size: 2rem;
+}
+```
+
+The selector still picks the h1 elements. Now the rule sets two things about
+them. That is the whole grammar of CSS. Everything past this point is learning
+which properties exist and which selectors reach the elements to be changed.
+
+The rules have to get to the page somehow. The common way is a separate file, a
+stylesheet, usually named styles.css, linked from the page's head. The head is
+the part of the HTML that holds settings the visitor never sees directly, and it
+sits above the document body. A link element there points at the stylesheet:
+
+```html
+<head>
+  <link rel="stylesheet" href="styles.css">
+</head>
+```
+
+The browser reads that line, fetches styles.css, and applies every rule inside
+it to the matching elements. From here on, assume the CSS shown lives in that
+file.
+
+<Quiz
+  id="css-rule-anatomy"
+  question="A CSS rule starts with the word h1, then lists color: navy inside a pair of curly braces. What is the h1 part called?"
+  answer={1}
+  options={[
+    "The value",
+    "The selector",
+    "The declaration",
+    "The property",
+  ]}
+  explanation="The selector is the part before the braces that picks which elements the rule applies to. Here it is h1, so the rule targets every h1 heading. Everything inside the braces is the declaration: color is the property and navy is the value."
+/>
+
+## Element, class, and id selectors
+
+A rule is only as useful as the elements its selector can reach, and three
+selectors are worth knowing on day one.
+
+An element selector names a kind of tag. p reaches every paragraph, h1 every
+top-level heading, div every div. It is the widest brush. Style p and all three
+paragraphs on the page change together, which is sometimes exactly right and
+sometimes far too much.
+
+A class selector reaches elements by the class set on them in the HTML. It is a
+dot followed by the class name. html-structure put a class on the div and
+another on one paragraph, and this is what they were for:
+
+```css
+.card {
+  background-color: white;
+}
+
+.tagline {
+  font-style: italic;
+}
+```
+
+.card matches the one div whose class is card. .tagline matches the one
+paragraph whose class is tagline, and leaves the other paragraph untouched. A
+class can sit on many elements at once, so a class selector is the tool for
+styling a group that spans different tags.
+
+An id selector reaches a single element by its id, written as a hash mark
+followed by the id. An id is meant to be unique: one element per id, per page.
+
+```css
+#main-heading {
+  color: navy;
+}
+```
+
+matched by:
+
+```html
+<h1 id="main-heading">Ada Lovelace</h1>
+```
+
+Ids are exact and rare. Most day-to-day styling uses classes, because a class is
+reusable and an id is a promise that there is only ever one.
+
+<Callout type="info" title="When two rules disagree, the specific one wins">
+Set the same property on the same element from two rules and the more specific
+selector wins, not the one written last. An id selector beats a class selector,
+and a class selector beats an element selector. So a color set by #main-heading
+overrides a color set by h1 on the same heading, whatever order they sit in the
+file. Fighting this by piling on ids is a trap. Reach for classes and keep the
+rules simple.
+</Callout>
+
+<Quiz
+  id="css-class-selector"
+  question="A page has three paragraphs. One of them has class equal to tagline. Which selector styles only that one paragraph and leaves the other two alone?"
+  answer={1}
+  options={[
+    "p, because it is the paragraph selector",
+    ".tagline, the class selector with a dot in front",
+    "tagline, written with no dot",
+    "#tagline, the id selector",
+  ]}
+  explanation="A class selector is a dot followed by the class name, so .tagline matches every element whose class attribute is tagline. Plain p would hit all three paragraphs. tagline with no dot looks for an element named tagline, which does not exist. The hash mark is for ids, and this paragraph has a class, not an id."
+/>
+
+## Colors and units
+
+Two kinds of value show up in almost every rule: a color and a length. Both have
+a few notations, and mixing them up is a common early stumble.
+
+Colors come three ways. A named color is the plainest: navy, tomato, white,
+dimgray. There are about 140 names, handy for a quick draft. A hex color is a
+hash mark followed by six hex digits, two each for red, green, and blue, running
+from 00 for none to ff for full. #ffffff is white, #000000 is black, and
+#1e3a8a is a deep blue. When the three pairs each repeat a digit, a
+three-character shorthand works: #fff is the same white as #ffffff. An rgb color
+spells the same thing in decimal, so rgb(30, 58, 138) is that same deep blue.
+Hex is the notation most stylesheets settle on.
+
+Lengths are how CSS measures size and space, and the unit matters. px, a pixel,
+is an absolute dot on the screen: 2px is a thin line and always the same size.
+rem is relative to the page's base font size, which is 16px unless changed, so
+1rem is 16px, 1.5rem is 24px, and 2rem is 32px. A percent is relative to the
+parent element, so width: 50% is half of whatever contains the box. For font
+sizes, rem is the safer habit, because it scales when a reader bumps up their
+browser's default text size. A border or a hairline is fine in px.
+
+## The box model
+
+Every element the browser draws is a rectangular box, even a single word of
+text, and every box has four layers wrapped around each other. Getting spacing
+right is almost entirely a matter of knowing which layer to reach for.
+
+From the inside out: the content is the text or image itself. The padding is
+space added inside the box, between the content and the box's edge, and it
+carries the background color with it. The border is a line drawn around the
+padding. The margin is space outside the border, holding other boxes at a
+distance. Padding pushes the edge away from the content. Margin pushes other
+elements away from the edge.
+
+Applied to the card:
+
+```css
+.card {
+  background-color: #ffffff;
+  padding: 24px;
+  border: 2px solid #d1d5db;
+  margin: 40px;
+}
+```
+
+padding: 24px puts 24px of room on all four sides between the text and the
+border. border: 2px solid #d1d5db is shorthand for three values at once: a 2px
+width, a solid line style, and a light gray color. margin: 40px holds the card
+40px away from everything around it, the edge of the page included. The white
+background fills the content and the padding out to the border.
+
+padding and margin can take four values to set each side on its own, clockwise
+from the top, so padding: 16px 24px 16px 24px reads as top, right, bottom, left.
+Two values are a common shorthand: padding: 16px 24px means 16px top and bottom,
+24px left and right.
+
+<Callout type="warning" title="width does not mean the width you think">
+By default, width sets the size of the content alone, not the whole box. A card
+with width: 300px and padding: 24px actually renders 348px wide, because 24px of
+padding on each side is added on top of the 300. This surprises nearly everyone
+once. The fix is one line, box-sizing: border-box, which makes width include the
+padding and the border, so 300px means 300px on the page. Many stylesheets set
+it on every element for exactly this reason.
+</Callout>
+
+<Quiz
+  id="css-box-model-width"
+  question="A card has width set to 300px and padding set to 20px, with the browser's default box sizing. How wide does the card actually render on the page?"
+  answer={1}
+  options={[
+    "300px, because width sets the full width of the box",
+    "340px, because the default width covers only the content and 20px of padding on each side adds 40px",
+    "320px, because padding is counted only once",
+    "260px, because padding is taken out of the width",
+  ]}
+  explanation="With the default content-box sizing, width sets the content area alone. The padding sits outside that, 20px on the left and 20px on the right, so the rendered box is 300 plus 40, which is 340px. Setting box-sizing to border-box makes width include the padding, which is why many stylesheets set it everywhere."
+/>
+
+## Styling the text
+
+Text carries most of a page, and a handful of properties cover most of what
+makes it readable:
+
+```css
+body {
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: #111827;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.tagline {
+  color: #6b7280;
+  text-align: center;
+}
+```
+
+font-family names the typeface, and it takes a list read left to right: the
+browser uses the first one available and falls back to the next, so system-ui,
+sans-serif means the operating system's own font, or any sans-serif font if that
+is missing. Setting these on body lets every element inherit them, so the whole
+page shares one font without the rule repeating. font-size sets the text size,
+here 2rem for a large heading. font-weight sets thickness, where 400 is normal
+and 700 is bold. line-height: 1.5 sets the space between lines to one and a half
+times the font size, which is the single easiest change that makes a block of
+text easier to read. text-align: center centers the tagline inside its box.
+
+## Layout with flexbox
+
+A single card stacks fine on its own, because a div is a block element and block
+elements stack top to bottom by default. Putting three cards side by side is a
+different job, and the tool for it is flexbox.
+
+Wrap the cards in a container:
+
+```html
+<div class="row">
+  <div class="card">...</div>
+  <div class="card">...</div>
+  <div class="card">...</div>
+</div>
+```
+
+Then turn that container into a flex container:
+
+```css
+.row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+```
+
+display: flex changes how the container lays out its direct children: instead of
+stacking them, it lines them up in a row. gap: 16px puts 16px of space between
+them without touching the outer edges. justify-content: center controls where
+the group sits along the row, so center pulls the cards to the middle, and
+space-between would push them to the ends with the leftover space spread evenly
+between. A companion property, align-items, handles the other direction, so
+align-items: center lines the cards up along their tops and bottoms. Two
+properties on one container replace what used to take a real fight.
+
+## Making it fit any screen
+
+A page gets read on a 375px phone and a 1440px monitor and everything between,
+and a row of three fixed-width cards that looks right on the monitor spills off
+the side of the phone. Responsive design is the habit of building one page that
+adjusts to the screen it lands on.
+
+Two moves cover the basics. First, prefer flexible sizes: max-width: 300px lets
+a card grow up to 300px but shrink below that when space is tight, where a hard
+width: 300px cannot. Second, a media query applies a block of rules only when a
+condition about the screen is true:
+
+```css
+@media (max-width: 600px) {
+  .row {
+    flex-direction: column;
+  }
+}
+```
+
+That block runs only when the viewport is 600px wide or narrower. Inside it,
+flex-direction: column flips the flex row back into a stack, so three cards that
+sit in a row on a wide screen stack vertically on a phone. The rest of the
+stylesheet stays as it is. The media query only adds an override for small
+screens.
+
+<Exercise title="Style the card">
+Take the card page from the previous lesson and give it a stylesheet. Add a rule
+for .card that sets padding to 24px, a 2px solid border in any color you like,
+and a max-width of 320px. Add box-sizing: border-box to the same rule and watch
+the width behave.
+
+Then style the text: set the body font-family to system-ui, sans-serif, make the
+h1 bold with font-weight 700, and center the .tagline with text-align: center.
+
+Last, copy the card so there are two of them, wrap both in a div with class row,
+and give .row the three lines display: flex, gap: 16px, and justify-content:
+center. Open the page in a browser and shrink the window until the layout feels
+cramped. That cramped point is exactly where a media query would earn its place.
+</Exercise>
+
+The page now looks like something built on purpose: spaced, colored, laid out.
+It still does nothing. Click a card and nothing happens, because CSS controls how
+a page looks, never how it responds. Behavior is the third layer, and
+making-it-interactive brings in JavaScript, the language that makes a page react
+to a click, a keypress, or a filled-in form.
+
+<Notes />

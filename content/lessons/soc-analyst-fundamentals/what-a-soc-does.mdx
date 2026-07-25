@@ -1,0 +1,64 @@
+---
+title: What a SOC Actually Does
+module: soc-analyst-fundamentals
+moduleTitle: SOC Analyst Fundamentals
+moduleOrder: 24
+moduleIcon: Headset
+order: 1
+summary: The team that notices the 3am PowerShell reaching out to a sketchy IP and decides whether to wake someone up.
+estimatedMinutes: 15
+objectives:
+  - Describe what a SOC monitors and why it runs around the clock
+  - Explain the Tier 1, 2, and 3 split and what each tier is responsible for
+  - Name the core tools an analyst lives in every shift
+tags:
+  - soc
+  - blue-team
+  - defense
+  - operations
+---
+
+It's 3am and a Windows box in the finance department just spawned `powershell.exe` with a base64 command line that reached out to an IP in a country the company does no business with. Somebody has to see that, decide whether it matters, and either kill the process or wake up an incident responder. That somebody is the SOC.
+
+A Security Operations Center is the team plus the tooling that watches an organization's systems for signs of attack and does something about it. It runs 24/7 because attackers do not keep business hours, and a breach that sits undetected for three weeks costs a lot more than one caught in the first hour. The SOC is the detection-and-response muscle of the whole security program.
+
+The work is not glamorous most of the time. You watch a queue of alerts, you decide which ones are real, you investigate the real ones, and you write down what you found. Do that well and the bad night never becomes a bad quarter.
+
+## The three tiers
+
+Most SOCs split the work into tiers so the easy volume does not bury the hard problems.
+
+Tier 1 is triage. You take alerts off the top of the queue, decide true positive versus false positive fast, close the noise, and escalate anything that looks real. This is where you start, and it is where the alert volume lives.
+
+Tier 2 is investigation. When Tier 1 escalates, a Tier 2 analyst pulls the full picture: process trees, network connections, related alerts across other hosts, whether the account has done this before. They scope the thing and decide if it is an incident.
+
+Tier 3 is the deep end: threat hunting, malware analysis, detection engineering, and hands-on incident response. These are the people who go looking for what the alerts missed and who write new detections so the same attack triggers automatically next time.
+
+Not every SOC uses those exact labels. Small teams collapse all three into two or three humans. The funnel is the same everywhere though: high volume and shallow at the top, low volume and deep at the bottom.
+
+## What you actually stare at
+
+Your day lives in a handful of tools, and you want their query languages in muscle memory.
+
+The SIEM is the center of gravity: Splunk, Microsoft Sentinel, or Elastic. It ingests logs from everywhere and it is where alerts fire and where you pivot to investigate. The EDR is your host-level eyes: CrowdStrike Falcon or Microsoft Defender for Endpoint, showing process trees and letting you isolate a machine with one click. A ticketing or case system like TheHive or ServiceNow holds your work so nothing gets dropped between shifts. Threat intel feeds tell you whether that IP or hash has burned anyone else already.
+
+<Callout type="security" title="Stay inside your authorization">
+A SOC analyst can read a lot: emails, endpoint activity, browsing history, files. That access exists to defend the org, not to browse. Only pull data on systems and users your role covers, only for a real investigation, and log why you looked. Snooping outside scope gets people fired and can break wiretap and privacy law.
+</Callout>
+
+Two numbers grade the whole operation. Mean time to detect (MTTD) is how long from the attacker's first action to your team noticing. Mean time to respond (MTTR) is how long from noticing to containing it. Every process a SOC builds, from tuning noisy alerts to writing playbooks, exists to drive those two numbers down.
+
+<Quiz
+  id="soc-tier-responsibility"
+  question="An alert has been confirmed as a real intrusion and now needs someone to hunt for other compromised hosts and write a new detection so it fires automatically next time. Which tier owns that?"
+  answer={2}
+  options={[
+    "Tier 1, because they take alerts off the queue first",
+    "Tier 2, because they investigate escalations",
+    "Tier 3, because it involves hunting and detection engineering",
+    "No tier, that work belongs to the IT help desk",
+  ]}
+  explanation="Tier 1 triages, Tier 2 investigates escalations, and Tier 3 does the deep work: threat hunting, malware analysis, and writing new detections so known attacks trigger automatically."
+/>
+
+<Notes />

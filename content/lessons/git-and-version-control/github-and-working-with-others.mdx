@@ -1,0 +1,338 @@
+---
+title: GitHub and Working With Others
+module: git-and-version-control
+moduleTitle: Version Control with Git
+moduleOrder: 3
+moduleIcon: GitBranch
+order: 4
+summary: "A repo on one computer is a safety net for one person; a remote is where a whole team builds together without losing work."
+estimatedMinutes: 15
+prerequisites: ["branching-and-merging"]
+objectives:
+  - Describe what a remote is and why a service like GitHub hosts one
+  - Connect a local repository to a remote with git clone or git remote add origin
+  - Share and receive commits with the pull, work, commit, push loop
+  - Recover from a rejected push and explain what a pull request adds
+tags:
+  - git
+  - github
+---
+
+The last lesson ended with a project carrying a few branches: a feature half built
+on one, a bug fix finished and merged into main, the whole tidy history of who
+did what and when. Every branch of it lived in exactly one place, a single folder
+on a single computer. Drop that computer in a lake and the branches go down with
+it. A repository nobody else can reach is a real safety net, but only for the one
+person sitting in front of it. It is not yet a place where two people can build
+the same thing at once, and it does not survive the hardware it happens to sit on.
+
+The fix is to put a copy of the repository somewhere other than that one computer,
+somewhere both the original author and everyone else can reach it. That somewhere
+has a name, and so does the everyday rhythm of keeping the two copies in step.
+
+## A remote is the repository, somewhere else
+
+A remote is a copy of a repository hosted somewhere other than the local computer,
+one that a local repo can sync with. It holds the same commits, the same branches,
+the same full history that the branching lesson built. The difference is only
+where it lives: on a server reachable over the network instead of on one hard
+drive. Two copies of the same project, one local and one remote, each a complete
+repository in its own right.
+
+Because Git is distributed, meaning every copy carries the entire history rather
+than borrowing it from a central point, the remote is not a special master that
+the local copy answers to. It is a peer. The local repo can make commits with no
+network at all, and the remote sits there holding whatever was last shared with
+it. Syncing is the act of getting the two peers to agree again: sending the
+commits one has that the other lacks, in whichever direction they are missing.
+
+The most common place to host a remote is GitHub, a web service that stores Git
+repositories and adds a website around each one for browsing history, discussing
+changes, and managing who can push. GitHub is not Git and it is not the only
+option. GitLab and Bitbucket do the same job, and a company can even run its own
+server. Git is the tool that keeps the history; GitHub is one popular building
+that history can be kept in. People blur the two constantly, and keeping them
+apart early saves confusion later, because everything in this lesson works the
+same no matter which host stores the remote.
+
+What a remote buys is worth stating plainly. It is a shared meeting point, so two
+people can hand commits back and forth without emailing zipped folders around. It
+is an off-machine backup, because the full history now exists in at least two
+places, and a dead laptop costs a person a bad afternoon instead of a project. And
+it is the front door for review, the place a change can be shown to someone before
+it becomes part of the official version. None of that changes what a commit is. It
+just gives the commits somewhere to go.
+
+<Quiz
+  id="gh-what-is-remote"
+  question="A developer has a Git repository on their laptop and pushes a copy to GitHub. What is the most accurate description of the relationship between the two?"
+  answer={2}
+  options={[
+    "The GitHub copy is the only real repository; the laptop just holds a temporary preview of the files.",
+    "The laptop copy is the real repository; GitHub stores only the latest file, not the history.",
+    "Both are full repositories holding the same history, one local and one hosted, that are kept in sync by sharing commits.",
+    "GitHub converts the project into a website and discards the commit history to save space.",
+  ]}
+  explanation="Because Git is distributed, each copy carries the complete history. The GitHub remote and the local repo are peers holding the same commits; syncing sends the commits one has that the other is missing. Neither one is a stripped-down preview of the other."
+/>
+
+## Getting a remote: clone or add origin
+
+There are two ways a local repository and a remote come to know each other, and
+which one applies depends on which existed first.
+
+When the remote already exists, for example a project already on GitHub that
+someone wants to work on, the move is to clone it. Cloning copies an existing
+remote repository down to the local computer, history and all, in one command:
+`git clone` followed by the repository's URL. It creates a new folder, fills it
+with the project's current files, brings down every commit and branch behind them,
+and quietly records where it came from so future syncing knows the address. A
+clone is a complete repository from the first second, not a borrowed snapshot.
+
+<CommandCard
+  command="git clone https://github.com/BenMalaga/toolbox.git"
+  title="terminal"
+  explain="Copies the whole toolbox repository from GitHub into a new local folder, including its full commit history, and remembers the URL for later syncing."
+/>
+
+<ExpectedOutput label="cloning a repository">
+```
+Cloning into 'toolbox'...
+remote: Enumerating objects: 128, done.
+remote: Counting objects: 100% (128/128), done.
+remote: Compressing objects: 100% (74/74), done.
+remote: Total 128 (delta 41), reused 120 (delta 33), pack-reused 0
+Receiving objects: 100% (128/128), 21.44 KiB | 4.29 MiB/s, done.
+Resolving deltas: 100% (41/41), done.
+```
+</ExpectedOutput>
+
+The other case runs the opposite way. A repository already exists locally, built
+from scratch with the commits from earlier lessons, and now needs a remote to push
+to. Here the local repo has to be pointed at an address, which is what
+`git remote add origin` does: it registers a remote and gives it a short name so
+commands do not have to spell out the full URL every time. That name, origin, is
+pure convention. Git attaches no magic to the word. It is simply the near-universal
+label for the main remote a repository syncs with, the way most people call their
+primary remote, and following the convention means every guide and every teammate
+is talking about the same thing.
+
+<CommandCard
+  command="git remote add origin https://github.com/BenMalaga/toolbox.git"
+  title="terminal"
+  explain="Tells the local repository that a remote named origin lives at this URL, so later commands can refer to it by the short name instead of the full address."
+/>
+
+That command prints nothing when it works, which trips people up the first time.
+Silence is success here. To confirm the connection took, `git remote -v` lists
+the remotes a repository knows about along with their URLs, and seeing origin in
+that list is the proof the wiring is done.
+
+<ExpectedOutput label="checking the connected remotes">
+```
+origin	https://github.com/BenMalaga/toolbox.git (fetch)
+origin	https://github.com/BenMalaga/toolbox.git (push)
+```
+</ExpectedOutput>
+
+Both paths end in the same place: a local repository that knows about a remote it
+can sync with. Clone gets there by starting from the remote; add-origin gets there
+by starting from the local copy. After that first connection, the daily work looks
+identical regardless of which road led in.
+
+## The everyday loop: pull, work, commit, push
+
+With a remote connected, two commands carry almost all the traffic. Push uploads
+local commits to the remote, and pull downloads commits others have pushed and
+merges them into the local copy. One sends, one receives. Learn the rhythm they
+form and the rest of collaborative Git is mostly detail.
+
+Push is the send half. After making one or more commits locally, `git push` copies
+those commits up to the remote so they become part of the shared history everyone
+can see. Until a push happens, new commits exist only on the one computer that made
+them, invisible to teammates and unprotected by the off-machine backup. Pushing is
+the moment private work becomes shared work.
+
+<CommandCard
+  command="git push"
+  title="terminal"
+  explain="Uploads the commits made locally to the remote so they join the shared history that everyone else can pull."
+/>
+
+<ExpectedOutput label="pushing local commits to the remote">
+```
+Enumerating objects: 5, done.
+Counting objects: 100% (5/5), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 312 bytes | 312.00 KiB/s, done.
+Total 3 (delta 2), reused 0 (delta 0), pack-reused 0
+To https://github.com/BenMalaga/toolbox.git
+   9f8e7d6..3c2b1a0  main -> main
+```
+</ExpectedOutput>
+
+That last line is the receipt worth reading. It says the branch main moved from the
+commit starting `9f8e7d6` to the one starting `3c2b1a0` on the remote, which is Git
+confirming the shared history now includes the new work. Pull is the receive half,
+and it does two jobs in one step: it fetches the commits on the remote that the
+local copy lacks, then merges them into the current branch so the local files catch
+up to what others have done. On a project where someone else has pushed since the
+last sync, pull is how their work arrives.
+
+<CommandCard
+  command="git pull"
+  title="terminal"
+  explain="Downloads any commits on the remote that the local copy is missing and merges them into the current branch, updating the local files."
+/>
+
+<ExpectedOutput label="pulling in a teammate's commits">
+```
+remote: Enumerating objects: 5, done.
+remote: Counting objects: 100% (5/5), done.
+remote: Total 3 (delta 1), reused 0 (delta 0), pack-reused 0
+Unpacking objects: 100% (3/3), 289 bytes | 289.00 KiB/s, done.
+From https://github.com/BenMalaga/toolbox
+   3c2b1a0..7a6b5c4  main       -> origin/main
+Updating 3c2b1a0..7a6b5c4
+Fast-forward
+ README.md | 4 ++++
+ 1 file changed, 4 insertions(+)
+```
+</ExpectedOutput>
+
+Put the two together and the daily loop falls out: pull, work, commit, push. Start
+a session by pulling, so the local copy begins from everyone's latest work rather
+than a stale picture. Do the work and commit it in meaningful chunks, exactly as
+the earlier lessons taught. Then push, sending those commits back to the shared
+history. Pull at the start catches a person up; push at the end sends them off. A
+team that keeps to that order steps on each other's toes far less than one that
+does not, because everyone is building on the same recent state instead of drifting
+apart in private.
+
+<Quiz
+  id="gh-push-pull-loop"
+  question="A developer sits down to add a feature to a shared project they cloned last week. Which order of steps keeps them building on their teammates' latest work?"
+  answer={1}
+  options={[
+    "Work and commit first, then pull, and never push at all.",
+    "Pull to catch up on others' commits, then work, then commit, then push to share the result.",
+    "Push first to reserve the branch, then pull, then work without committing.",
+    "Clone the repository again each morning, since pull and push are only for the original author.",
+  ]}
+  explanation="Pulling first updates the local copy with commits others pushed since last time, so the new work starts from the current shared state. Committing records the work locally, and pushing sends it back. Skipping the pull risks building on a stale picture; skipping the push leaves the work invisible to everyone else; re-cloning daily throws away local branches for no reason."
+/>
+
+## When push gets rejected
+
+The loop has one rough edge that every beginner hits, and it is better met on
+purpose than by surprise. Two people pull the same starting state. Each does some
+work and commits it locally. The first pushes and it sails up fine. The second
+pushes and Git refuses, because the remote now holds a commit the second person
+never saw.
+
+<ExpectedOutput label="a push that Git rejects">
+```
+To https://github.com/BenMalaga/toolbox.git
+ ! [rejected]        main -> main (fetch first)
+error: failed to push some refs to 'https://github.com/BenMalaga/toolbox.git'
+hint: Updates were rejected because the remote contains work that you do
+hint: not have locally. This is usually caused by another repository pushing
+hint: to the same ref. You may want to first integrate the remote changes
+hint: (e.g., 'git pull ...') before pushing again.
+```
+</ExpectedOutput>
+
+Read that message and it is not scolding anyone. It is protecting the first
+person's commit. If Git let the second push through, it would have to either bury
+the first person's work or guess how the two sets of changes fit together, and Git
+refuses to guess about history. The phrase that matters is the last hint: integrate
+the remote changes before pushing again. In plain terms, pull first.
+
+Pulling downloads the commit the second person was missing and merges it with their
+own local work, producing a history that contains both. After that merge, a second
+push succeeds, because now the local copy is ahead of the remote in a clean line
+rather than in conflict with it. The whole fix is two commands: pull, then push
+again. If the two people happened to edit the very same lines of the very same
+file, the pull surfaces a merge conflict, the situation the branching lesson
+already covered, and resolving it works exactly the same way here. The rejected
+push is not a bug and not a lost cause. It is Git holding the door until the two
+histories are reconciled.
+
+<Callout type="warning" title="A rejected push almost never means force-push">
+When a push is rejected, a tempting fix found in old forum threads is
+`git push --force`, which tells Git to overwrite the remote with the local history
+no matter what. On a shared branch that is how a teammate's commits vanish for
+good: force-push replaces the remote's version with yours, and the work only they
+had is simply gone. The safe answer to a rejection is nearly always to pull, let
+the histories merge, and push again. Reach for force only on a branch you alone
+use and fully understand, never as a reflex to make a red message disappear.
+</Callout>
+
+## The pull request: a change someone reads first
+
+Pushing straight to the main branch works, but on any team that cares about quality
+it is not how important changes land. The step in between is the pull request, and
+it is where GitHub earns its keep on top of plain Git.
+
+A pull request, usually shortened to PR, is a proposal to merge one branch into
+another, opened on a host like GitHub so that someone can read the changes before
+they become part of main. The name reads oddly at first: the branch's author is not
+pulling anything, they are asking the project to pull their branch in. The request
+is the point. Instead of a commit quietly appearing on main, the change sits in the
+open as a proposal, showing exactly which lines were added and removed, with room
+for teammates to comment, ask questions, and approve or push back.
+
+The workflow that grows around it fits the branching lesson like a glove. A person
+makes a branch for their feature, commits the work on it, and pushes that branch to
+the remote. On GitHub they open a pull request from their branch into main. A
+teammate reads the diff, leaves comments, maybe asks for a fix, the author pushes
+another commit or two to the same branch, and once everyone is satisfied the PR is
+merged, folding the branch into main for everyone. Only then does the change count
+as official. The branch was the private workspace; the pull request is the public
+review; the merge is the moment it joins the shared trunk.
+
+That review step is the quiet reason large projects stay coherent with dozens of
+hands in them. Someone other than the author reads every change before it lands, so
+mistakes get caught while they are still cheap, newcomers learn the codebase by
+having their work discussed, and the history of main stays a record of reviewed,
+agreed-upon work rather than a pile of unexamined pushes. A pull request costs a
+little friction and buys a lot of trust, which is a trade most serious teams take
+every single time.
+
+<Quiz
+  id="gh-pull-request"
+  question="Why do many teams route changes through a pull request instead of pushing straight to the main branch?"
+  answer={3}
+  options={[
+    "A pull request compresses the commits so the repository takes up less space on GitHub.",
+    "Pushing to main is technically impossible once a remote exists, so a pull request is the only option.",
+    "A pull request runs the program automatically and guarantees the code has no bugs.",
+    "A pull request puts the change in front of someone to review before it merges into main, catching problems and keeping the shared history to reviewed work.",
+  ]}
+  explanation="A pull request is a proposal to merge a branch, opened so a person can read the diff, comment, and approve before it lands. That review is the point: it catches mistakes early and keeps main a record of agreed-upon work. Pushing to main is still technically allowed, a PR does not shrink storage, and it reviews code rather than proving it bug-free."
+/>
+
+<Exercise title="Clone a repo, then run the loop">
+Pick any public repository on GitHub that interests you and copy its clone URL from
+the green Code button. In a terminal, the plain text window where typed commands go,
+run `git clone <that-url>` and watch it pull the whole project and its history into
+a new folder. Move into that folder and run `git log --oneline` to see that you now
+hold every commit, not just the latest files.
+
+Now practice the receive half safely. Run `git pull` inside that freshly cloned
+folder. Because you just cloned it, you are already current, so Git should print
+`Already up to date.` That boring line is the loop working: pull found nothing
+missing because your copy already matches the remote. You have now run the two
+commands that carry almost all collaboration, on a real repository, with nothing at
+risk.
+</Exercise>
+
+A remote makes a repository shareable and survivable, and the pull, work, commit,
+push loop keeps two copies in step while a pull request holds the door for review.
+All of that is about moving history forward together. The next lesson, undoing
+mistakes, turns Git around to face backward: how to recover a good state after a
+bad commit, including how to walk back a change that has already been pushed to a
+remote where other people can see it.
+
+<Notes />

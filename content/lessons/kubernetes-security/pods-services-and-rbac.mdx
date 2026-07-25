@@ -1,0 +1,98 @@
+---
+title: Pods, Services, and RBAC
+module: kubernetes-security
+moduleTitle: Kubernetes Security
+moduleOrder: 31
+moduleIcon: Ship
+order: 2
+summary: Every pod carries a token, and RBAC decides how far that token gets you.
+estimatedMinutes: 22
+objectives:
+  - Read the service account token mounted into a pod
+  - Explain how RBAC binds subjects to verbs on resources
+  - Enumerate your own permissions before you burn a payload
+tags:
+  - kubernetes
+  - rbac
+  - authorization
+  - privilege-escalation
+---
+
+The first thing to check after you land in a pod is what credential you are already holding. Kubernetes mounts a service account token into almost every pod by default, at `/var/run/secrets/kubernetes.io/serviceaccount/`. That directory has three files: `token`, `ca.crt`, and `namespace`. The token is a JWT the pod uses to authenticate to the API server. You did not steal it. It was handed to you the moment the pod started.
+
+Whether that token is worth anything depends entirely on RBAC.
+
+## What RBAC actually says
+
+Role-based access control in Kubernetes is four object types and one simple sentence: this subject can perform these verbs on these resources. Nothing more clever than that.
+
+A **Role** or **ClusterRole** is a list of permissions. Verbs like `get`, `list`, `watch`, `create`, `delete`, on resources like `pods`, `secrets`, `deployments`. A Role is namespaced. A ClusterRole applies cluster-wide.
+
+A **RoleBinding** or **ClusterRoleBinding** attaches that permission list to a subject: a user, a group, or a service account. No binding means no access, even if the Role exists. The binding is the wire that connects the token to the power.
+
+So the question is never "what can this pod do" in the abstract. It is "which service account is this pod running as, and what bindings point at that account."
+
+## Read your own token
+
+Pull the token and decode the middle segment of the JWT to see who you are.
+
+<CommandBlock
+  title="identify the service account you are running as"
+  commands={[
+    { cmd: "cat /var/run/secrets/kubernetes.io/serviceaccount/token", comment: "the raw JWT mounted into the pod" },
+    { cmd: "cat /var/run/secrets/kubernetes.io/serviceaccount/namespace", comment: "the namespace this pod lives in" },
+    { cmd: "TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token); echo $TOKEN | cut -d. -f2 | base64 -d 2>/dev/null", comment: "decode the JWT claims to read the account name" },
+  ]}
+/>
+
+The `sub` claim looks like `system:serviceaccount:prod:build-runner`. That tells you the namespace is `prod` and the account is `build-runner`. Now you know whose permissions to enumerate.
+
+## Ask the API what you can do
+
+Do not guess at your rights by trying random verbs and watching for 403s. Kubernetes gives you a built-in way to ask. `kubectl auth can-i` queries the authorizer directly.
+
+<CommandBlock
+  title="enumerate your permissions cleanly"
+  commands={[
+    { cmd: "kubectl auth can-i --list", comment: "every verb and resource this token is allowed, in one call" },
+    { cmd: "kubectl auth can-i create pods", comment: "targeted yes/no, useful when kubectl is scripted" },
+    { cmd: "kubectl auth can-i get secrets --namespace prod", comment: "check a specific resource in a specific namespace" },
+  ]}
+/>
+
+<Callout type="tip" title="No kubectl in the pod? Use curl">
+Stripped containers rarely ship kubectl. You can hit the API server directly. Set the server from the `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT` env vars, pass the token as a bearer header, and trust the mounted ca.crt: `curl --cacert ca.crt -H "Authorization: Bearer $TOKEN" https://$KUBERNETES_SERVICE_HOST/api/v1/namespaces/$NS/secrets`. Same authorization, no client binary needed.
+</Callout>
+
+## Services are the map, not the lock
+
+A Service is just a stable name and virtual IP that load-balances to a set of pods. It does not authenticate anyone. When you list services you are reading a directory of everything reachable inside the cluster network: databases, internal APIs, admin panels that assume nobody hostile is on the pod network.
+
+<CommandCard command="kubectl get services --all-namespaces" explain="If your token can list services cluster-wide, this is a free internal network map. Flat pod networking means most of what you see here is directly reachable from your pod." />
+
+The pattern that keeps working: enumerate first, act second. A token that can `list secrets` in one namespace is a straight line to credentials. A token that can `create pods` is a straight line to node access, which is the next lesson.
+
+<Callout type="security" title="Authorized targets only">
+Enumerating RBAC and reading tokens is still touching a live authorization system. Do it only inside clusters you own or have written scope to test. Every `can-i` and every secret read is logged by the API server audit backend.
+</Callout>
+
+<Quiz
+  id="k8s-rbac-binding"
+  question="A ClusterRole named secret-reader grants get and list on secrets, but your token gets 403 when you read one. What is the most likely reason?"
+  answer={1}
+  options={[
+    "The ClusterRole is expired",
+    "No RoleBinding or ClusterRoleBinding attaches that ClusterRole to your service account",
+    "Secrets can never be read over the API",
+    "You need to restart the pod first",
+  ]}
+  explanation="A Role or ClusterRole is only a list of permissions. Without a binding connecting it to your subject, it grants nothing. The permission existing somewhere in the cluster does not mean it applies to you."
+/>
+
+<Exercise
+  id="k8s-rbac-enumerate"
+  prompt="You have shell in a pod with kubectl available. Write the single command that lists every action your current service account token is permitted to take, so you can plan an escalation path without triggering a wall of 403 errors."
+  answer="kubectl auth can-i --list"
+/>
+
+<Notes />

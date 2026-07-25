@@ -1,0 +1,259 @@
+[
+  {
+    "domain": 6,
+    "question": "A cloud SaaS provider offers to share an independent auditor's report that both describes the design of its security controls and tests their operating effectiveness over a twelve-month period, mapped to the Trust Services Criteria. Which report is this?",
+    "options": [
+      "SOC 1 Type I",
+      "SOC 2 Type II",
+      "SOC 2 Type I",
+      "SOC 3"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "SOC 2 reports address the Trust Services Criteria of security, availability, processing integrity, confidentiality, and privacy. A Type II report evaluates operating effectiveness across a period of time, while a Type I report only assesses control design at a single point in time. SOC 1 addresses controls relevant to financial reporting, not the Trust Services Criteria.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "What most clearly distinguishes a penetration test from a vulnerability assessment?",
+    "options": [
+      "A vulnerability assessment actively exploits weaknesses while a penetration test only lists them",
+      "A penetration test attempts to actively exploit identified weaknesses to demonstrate real impact, while a vulnerability assessment identifies and reports weaknesses without exploiting them",
+      "The two activities are identical and the terms are interchangeable",
+      "A penetration test can only be performed by an automated scanner with no human involvement"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "A vulnerability assessment enumerates and prioritizes weaknesses, often with automated scanning, but stops short of exploitation. A penetration test goes further by actively exploiting weaknesses to prove real-world impact and chain findings together. Penetration tests are more intrusive and require explicit authorization.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "A development team wants to analyze an application's source code and binaries for insecure coding patterns without executing the program. Which testing technique fits this goal?",
+    "options": [
+      "Dynamic application security testing (DAST), which runs the application and observes behavior",
+      "Static application security testing (SAST), which inspects code or binaries at rest",
+      "Synthetic transaction monitoring",
+      "Interface testing"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Static application security testing (SAST) examines source code, byte code, or binaries without running them, making it a white-box technique that can find insecure patterns early in development. Dynamic testing (DAST) instead exercises the running application from the outside. SAST can catch flaws before code is ever deployed.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A tester uses a tool that constructs inputs from scratch based on a formal grammar or specification of the expected input format, rather than randomly altering samples of known-good input. Which fuzzing approach is this?",
+    "options": [
+      "Mutation (dumb) fuzzing",
+      "Generational (intelligent) fuzzing",
+      "Regression fuzzing",
+      "Static fuzzing"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Generational fuzzing, also called intelligent fuzzing, builds test cases from a model or grammar of the input format, producing malformed but structurally aware inputs. Mutation fuzzing instead modifies existing valid samples. Generational fuzzing typically reaches deeper code paths at the cost of more setup effort.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 6,
+    "question": "To proactively verify that a web application meets its availability and functional expectations, an operations team scripts interactions that mimic real user activity and runs them against production on a schedule. What is this technique called?",
+    "options": [
+      "Real user monitoring",
+      "Synthetic transactions",
+      "Misuse case testing",
+      "Static analysis"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Synthetic transactions are scripted, simulated user interactions run against an application to measure availability, performance, and functionality on a schedule. They differ from real user monitoring, which passively observes actual user traffic. Synthetic transactions can surface a problem before real customers encounter it.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A penetration testing firm is given full network diagrams, application source code, and valid credentials before the engagement begins. Which testing perspective best describes this arrangement?",
+    "options": [
+      "Black box, or zero-knowledge testing",
+      "White box, or full-knowledge testing",
+      "Gray box, or partial-knowledge testing",
+      "Blind testing where only the target is aware"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "White-box (full-knowledge) testing gives the tester complete internal information such as diagrams, source code, and credentials, which allows deeper and faster coverage. Black-box testing provides no prior knowledge, and gray-box testing provides partial knowledge. The trade-off is realism versus thoroughness.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A vulnerability scanner reports a host as clean, but that host actually has an exploitable missing patch. How is this result classified, and why is it the more dangerous error for a scanner to make?",
+    "options": [
+      "False positive, because it wastes analyst time chasing a nonexistent issue",
+      "False negative, because a real vulnerability goes undetected and therefore unremediated",
+      "True positive, because the scanner detected a genuine condition",
+      "True negative, because the host was correctly cleared"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "A false negative is a real condition that the test failed to detect. In vulnerability scanning this is especially dangerous because an exploitable weakness is left in place with no alert to prompt remediation. False positives waste effort, but a false negative leaves genuine exposure unaddressed.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "An organization needs an assessment of its controls that carries the highest degree of independence to satisfy external regulators and business partners. Which type of audit best provides that assurance?",
+    "options": [
+      "An internal audit performed by the organization's own security team",
+      "A first-party self-assessment completed by the control owners",
+      "A third-party, independent external audit",
+      "An informal peer review by a partner department"
+    ],
+    "correct": [
+      2
+    ],
+    "explanation": "A third-party audit is conducted by an independent external organization with no stake in the outcome, which gives it the greatest credibility with regulators, customers, and partners. Internal and first-party assessments are useful for continuous improvement but lack that independence. Independence is what allows the results to be relied upon externally.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "A service organization wants a report on the effectiveness of its Trust Services controls that it can freely publish on its public website as a general-use trust seal, with no restricted distribution. Which report is appropriate?",
+    "options": [
+      "SOC 1 Type II",
+      "SOC 2 Type II",
+      "SOC 3",
+      "A full penetration test report"
+    ],
+    "correct": [
+      2
+    ],
+    "explanation": "A SOC 3 report is a general-use report that gives a summary attestation about Trust Services controls and can be distributed publicly without an NDA. SOC 2 reports contain detailed control descriptions and test results and are restricted-use. SOC 1 addresses controls relevant to financial reporting rather than the Trust Services Criteria.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 6,
+    "question": "During requirements and testing, developers deliberately model how an attacker might abuse a feature, such as replaying a checkout request, so they can build and verify defenses against that abuse. What is this practice called?",
+    "options": [
+      "Use case testing",
+      "Misuse case testing",
+      "Positive testing",
+      "Unit testing"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Misuse case testing models the actions of a hostile actor abusing a feature, the inverse of a normal use case, so that countermeasures can be designed and validated. It shifts security thinking earlier into design and test. Positive testing and standard use cases confirm intended behavior rather than adversarial behavior.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "A QA lead wants a metric describing how much of the application's code or requirements is actually exercised by the current test suite. Which activity produces that metric?",
+    "options": [
+      "Regression testing",
+      "Test coverage analysis",
+      "Fuzzing",
+      "Interface testing"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Test coverage analysis measures the proportion of code, branches, conditions, or requirements that the test suite actually exercises. It highlights untested paths where defects can hide. Common coverage types include statement, branch, condition, and requirements coverage.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "As part of collecting security process data for a management review, which of the following are appropriate operational metrics to gather? (Choose two.)",
+    "options": [
+      "Account management activity, such as the timely deprovisioning of terminated users",
+      "The CPU clock speed of each workstation on the network",
+      "Backup verification and successful restore-testing results",
+      "The brand of coffee machine installed in the break room"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "explanation": "Security process data for management review includes account management, backup verification, key performance and risk indicators, training and awareness, and disaster recovery metrics. Deprovisioning timeliness and verified restores are meaningful indicators of control health. Hardware clock speed and facilities trivia are not security process metrics.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "After patching a defect in a shipping module, a team reruns a broad set of previously passing tests to confirm the fix did not break existing functionality elsewhere. What kind of testing is this?",
+    "options": [
+      "Unit testing",
+      "Regression testing",
+      "Acceptance testing",
+      "Penetration testing"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Regression testing reruns existing tests after a change to confirm that previously working functionality still behaves correctly. Its goal is to catch unintended side effects introduced by a fix or new feature. Unit testing targets individual components, and acceptance testing validates against business requirements.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "An organization adopts a formal, structured code review with defined roles such as moderator, reader, and author, and defined phases of planning, overview, preparation, inspection, rework, and follow-up. Which technique is this?",
+    "options": [
+      "Fagan inspection",
+      "Fuzz testing",
+      "Automated static analysis scanning",
+      "Pair programming"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A Fagan inspection is a highly formal, structured peer review with defined roles and six phases used to detect defects in code or other artifacts early. It is far more rigorous than an informal walkthrough. Its discipline is what makes it effective at surfacing defects that ad hoc review would miss.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "When correlating security events across many systems during a log review, why is synchronized time across all sources, for example via NTP, critical?",
+    "options": [
+      "It reduces the amount of disk space each log consumes",
+      "It ensures event timestamps from different sources can be accurately sequenced and correlated",
+      "It encrypts the log data while it is in transit to the collector",
+      "It prevents privilege escalation on the logging host"
+    ],
+    "correct": [
+      1
+    ],
+    "explanation": "Accurate event correlation across systems depends on consistent timestamps, which requires synchronized clocks such as those provided by NTP. Without time synchronization, reconstructing the true order of events during an investigation becomes unreliable. Time sync does not itself encrypt logs or prevent privilege escalation.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 6,
+    "question": "A team tests the exchange of data between two independently developed modules, verifying that the API contract, error handling, and data formats behave correctly at their boundary. Which type of testing is this?",
+    "options": [
+      "Interface testing",
+      "Fuzz testing",
+      "Misuse case testing",
+      "Regression testing"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Interface testing evaluates the interactions between components, systems, or users, including APIs, hardware interfaces, and user interfaces, confirming that data crossing a boundary is handled correctly. It is especially important when independently developed parts are integrated. It focuses on the contract between components rather than the internals of either one.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 6,
+    "question": "Which of the following are true regarding the governance of an authorized penetration test engagement? (Choose two.)",
+    "options": [
+      "Rules of engagement covering scope, timing, and permitted techniques should be agreed in writing before testing begins",
+      "A signed authorization, sometimes called a get-out-of-jail-free letter, documents client consent and protects the tester legally",
+      "The tester should exploit any out-of-scope or third-party system discovered in order to maximize coverage",
+      "Findings must be kept confidential from management and retained only by the testing firm"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explanation": "A written rules-of-engagement document and a signed authorization define the scope, timing, and permitted methods and give the tester legal cover for otherwise unlawful actions. Testers must stay strictly within authorized scope and never attack out-of-scope or third-party systems. Results are reported to management with remediation guidance, not withheld.",
+    "difficulty": "HARD"
+  }
+]

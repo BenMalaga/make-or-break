@@ -1,0 +1,273 @@
+---
+title: What Electricity Is
+module: electronics-foundations
+moduleTitle: Electronics Foundations
+moduleOrder: 4
+moduleIcon: CircuitBoard
+order: 1
+summary: "Connect a battery to a wire and charge starts moving: voltage, current, resistance, and the one equation that links all three."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - Define charge, voltage, current, and resistance in plain language and name the unit of each
+  - Explain why current only flows in a complete loop and what breaks it
+  - Apply Ohm's law, V = I times R, to solve for voltage, current, or resistance with real numbers
+  - Calculate the power a simple circuit delivers and explain why a short circuit is dangerous
+tags:
+  - electronics
+  - hardware
+---
+
+A single AA battery can sit in a drawer for a year and do nothing. It holds 1.5
+volts the whole time, ready, and spends none of it. Lay a short piece of copper
+wire across it so one end touches the flat terminal and the other touches the
+bump, and within seconds the wire turns warm, then hot, and the battery starts
+draining fast. Nothing was added to the battery. It had everything it needed the
+entire time it sat in the drawer. The only thing that changed is that the wire
+gave the charge a path to move through.
+
+That warm wire is the whole subject of this lesson. Electricity is not a
+substance that pours out of a battery the way water pours from a bottle. It is
+what happens when electric charge gets a complete path to move along, and the
+four words that describe that movement, voltage, current, resistance, and power,
+are the vocabulary every circuit in every later lesson is built from.
+
+## Charge that moves
+
+Everything electrical starts with charge. Charge is a basic property of matter,
+the same kind of built-in property as mass. Some particles carry it. The one
+that matters for wires is the electron, a tiny particle that sits in every atom
+and carries a small negative charge. A copper wire is packed with electrons that
+are loosely held and free to drift from atom to atom. Left alone they jostle in
+place and go nowhere in particular.
+
+Give those free electrons a reason to move in one direction and the aimless
+jostling becomes a flow. That flow is current. Current is the movement of
+electric charge through a material, and it is measured in amperes, almost always
+shortened to amps. One amp is a precise amount: one coulomb of charge passing a
+point every second, where one coulomb is about 6.24 times 10^18 electrons. So a
+wire carrying one amp has roughly six billion billion electrons crossing any
+given point in it each second.
+
+Current is a rate, not a quantity sitting still. It only means something while
+charge is actually moving. A battery on its own carries no current, the way a
+river with a dam across it carries no flow. The current is the flowing itself.
+
+One detail trips up almost everyone, so it is worth stating plainly and then
+setting aside. The electrons in a wire drift from the negative terminal of a
+battery toward the positive one. But by a convention fixed long before anyone
+knew electrons existed, current is drawn and described as flowing the other way,
+from positive to negative. That backwards convention is baked into every
+schematic and every equation in this course. The math comes out identical either
+way, so the standard move is to follow the convention, treat current as flowing
+from plus to minus, and not lose sleep over the electrons drifting the opposite
+direction underneath.
+
+## Voltage is the push
+
+Free electrons will not move in any organized way without something driving them.
+That driver is voltage. Voltage is the difference in electrical pressure between
+two points, the push that sets charge moving from one place to another. Its unit
+is the volt. A battery labeled 1.5 volts maintains a 1.5 volt difference between
+its two terminals, and that difference is exactly the push that shoves current
+around any path connected across it.
+
+The precise meaning of a volt is energy per unit of charge: one volt is one joule
+of energy handed to every coulomb of charge that moves. A higher voltage pushes
+harder on each unit of charge. This is why a 9 volt battery drives more current
+through the same wire than a 1.5 volt battery does. It leans on the charge with
+six times the pressure.
+
+Voltage is always a difference between two points, never an amount sitting at one
+point on its own. A single terminal does not have a voltage in isolation, the way
+one end of a table does not have a height difference. It only makes sense to talk
+about the voltage between the two terminals, or between one point and some agreed
+reference. This matters more than it sounds, and forgetting it is behind a lot of
+confused early measurements.
+
+A pipe carrying water is the analogy people reach for, and it holds up well
+enough to be worth using. Voltage is the water pressure, the force pushing the
+water along. Current is the flow rate, how much water actually moves past a point
+each second. Higher pressure pushes more water through the same pipe, exactly as
+higher voltage pushes more current through the same wire.
+
+<Quiz
+  id="elec-current-is-rate"
+  question="A wire carries a current of 2 amps. What does that number describe?"
+  answer={1}
+  options={[
+    "The amount of push the battery applies to each unit of charge.",
+    "The amount of charge flowing past a point in the wire each second.",
+    "The total amount of charge stored inside the battery.",
+    "How strongly the wire opposes the flow of charge.",
+  ]}
+  explanation="Current is a rate of flow, measured in amps, where one amp is one coulomb of charge passing a point per second. The push is voltage, the stored amount is a property of the battery, and the opposition is resistance. Those are three separate quantities."
+/>
+
+## Resistance is the opposition
+
+Nothing lets charge through for free. Every material pushes back against current
+to some degree, and that opposition is resistance. Resistance is measured in
+ohms, written with the Greek letter omega. A material with high resistance lets
+only a trickle of current through for a given push. A material with low
+resistance lets a flood through for the same push. Copper has very low
+resistance, which is exactly why wire is made of it. Air has enormous resistance,
+which is why charge does not normally leap out of a socket into the room.
+
+In the water picture, resistance is how narrow the pipe is. A wide pipe barely
+fights the flow. A pinched, narrow pipe lets only a thin stream through even
+under high pressure. Squeeze the pipe and the flow drops without touching the
+pressure at all. Raise the resistance in a circuit and the current drops without
+touching the voltage.
+
+One ohm has an exact definition that ties all three quantities together: one ohm
+is the resistance that allows exactly one amp of current to flow when pushed by
+one volt. That single sentence is the seed of the most useful equation in
+electronics, and it arrives a few paragraphs from here.
+
+<Callout type="info" title="Where the water picture breaks">
+The pipe analogy is a ladder, useful for climbing up and then worth kicking away.
+Two places it lies. Water leaks out of a broken pipe and is gone, but charge is
+never used up: it flows around a closed loop and returns to the battery. And in a
+simple loop the current is the same at every point, not faster in one spot and
+slower in another. Electrons are not consumed by the things they pass through.
+They give up energy along the way and keep going.
+</Callout>
+
+## A circuit has to be a loop
+
+Charge will not flow unless it has a complete path back to where it started. A
+circuit is that complete path: an unbroken loop from one terminal of the source,
+through whatever the current passes on the way, and back to the other terminal.
+Break the loop anywhere and the current stops everywhere, instantly and
+completely.
+
+This is why the AA battery in the drawer does nothing. Its two terminals are not
+connected, so there is no loop, so there is no current. The moment the copper
+wire bridges both terminals the loop closes and current flows around it: out of
+one terminal, through the wire, and back into the other. Lift one end of the wire
+and the loop opens and the current dies at once. There is no such thing as
+current pouring out of a battery and off into empty air. Charge flows in a ring
+or it does not flow at all.
+
+<Quiz
+  id="elec-open-loop"
+  question="A wire is connected to only one terminal of a battery, and its far end is left hanging in the air. Does a steady current flow through the wire?"
+  answer={2}
+  options={[
+    "Yes. Charge streams out of the battery and off the open end of the wire.",
+    "Yes, but the current runs backward because the wire is upside down.",
+    "No. Current needs a complete loop back to the source, and an open end breaks the loop.",
+    "No, because a single wire always has too much resistance to carry current.",
+  ]}
+  explanation="A circuit must be a closed loop. With one end of the wire unconnected there is no path back to the battery, so no steady current flows. Charge cannot simply spill off the end of a wire into the air."
+/>
+
+## Ohm's law ties them together
+
+Voltage, current, and resistance are not three unrelated facts. They are locked
+together by one equation, the single most used relationship in all of
+electronics. It is Ohm's law:
+
+```text
+V = I times R
+```
+
+Voltage equals current times resistance. V is voltage in volts, I is current in
+amps (the letter I, for intensity, is the traditional symbol), and R is
+resistance in ohms. Knowing any two of the three fixes the third, because the
+equation rearranges into whichever form the problem needs:
+
+```text
+I = V / R     current, when voltage and resistance are known
+R = V / I     resistance, when voltage and current are known
+```
+
+Worked example. A 5 volt source is connected across a total resistance of 100
+ohms. The current is I = V / R = 5 / 100 = 0.05 amps, which is 50 milliamps. A
+milliamp is one thousandth of an amp, and small circuits are usually measured in
+milliamps rather than whole amps. Raise the resistance to 1000 ohms and the
+current falls to 5 / 1000 = 0.005 amps, or 5 milliamps. The push never changed.
+The tighter opposition simply let less through, exactly as a pinched pipe would.
+
+Run it the other way. Suppose a meter reads 0.02 amps flowing while a 9 volt
+battery drives the loop. The resistance in the path must be R = V / I = 9 / 0.02
+= 450 ohms. Ohm's law pins down an unknown without ever measuring it directly,
+which is most of what troubleshooting a circuit actually comes down to.
+
+<Quiz
+  id="elec-ohms-law-solve"
+  question="A 5 volt source pushes current through a total resistance of 250 ohms. Using Ohm's law, how much current flows?"
+  answer={2}
+  options={[
+    "1250 amps",
+    "50 amps",
+    "0.02 amps, which is 20 milliamps",
+    "0.2 amps",
+  ]}
+  explanation="Current is I = V / R = 5 / 250 = 0.02 amps, or 20 milliamps. Multiplying the two numbers instead of dividing gives 1250, a common slip. Dividing the wrong way, 250 / 5, gives 50. The units are the check: volts divided by ohms give amps."
+/>
+
+## Power is the rate of work
+
+Current moving through resistance does work. It delivers energy, and that energy
+shows up as heat, light, motion, or sound depending on what the current is
+passing through. The rate at which a circuit delivers energy is power, measured
+in watts. One watt is one joule of energy per second.
+
+Power has its own short equation that follows directly from the two quantities
+already in hand:
+
+```text
+P = V times I
+```
+
+Power equals voltage times current. A 5 volt source pushing 0.05 amps delivers P
+= 5 times 0.05 = 0.25 watts. That quarter of a watt is a small, tame amount of
+heat. The warm wire from the opening is the same idea run to an extreme.
+
+A copper wire has very low resistance, perhaps 0.1 ohm for a short piece. Lay it
+straight across a 1.5 volt battery and Ohm's law predicts the current: I = V / R
+= 1.5 / 0.1 = 15 amps, if nothing else held it back. In practice the battery's
+own internal resistance drags that number down, but a large current still forces
+its way through, and the power dumped into a few centimeters of metal, P = V
+times I, turns straight into heat. That is why the wire gets hot fast and the
+battery drains in minutes.
+
+<Callout type="danger" title="Never short a battery on purpose">
+Connecting a battery's two terminals with only a wire, no resistance of any real
+size in between, is a short circuit. Ohm's law is unforgiving here: near-zero
+resistance means very high current, and high current in a thin wire means fast,
+concentrated heat. A small AA gets uncomfortably hot. A lithium battery, the kind
+in a phone or a power tool, can deliver enough current through a dead short to
+melt the wire, burn skin, or start a fire. Every real circuit puts something with
+meaningful resistance in the path on purpose. That deliberate opposition is the
+reason the next lesson exists.
+</Callout>
+
+<Exercise title="Find the loop in something you own">
+Pick up any battery-powered thing within reach that has a removable battery: a
+remote, a flashlight, a small toy. Before turning it on, trace the path with your
+eyes or a finger. Find the two battery terminals, then follow the metal contacts
+away from each one. They have to meet again somewhere, because current only flows
+in a complete loop.
+
+Now open the loop yourself. Slide the battery out a few millimeters so one
+terminal loses contact, or flip the switch to off, and notice that the device
+dies instantly and completely, not gradually. You just broke the loop. Push the
+battery back and the loop closes and it wakes up.
+
+Then reason through the numbers printed on the battery. A single AA reads 1.5
+volts. If the device draws, say, 0.03 amps while running, Ohm's law says the
+total resistance of everything in that loop is 1.5 / 0.03 = 50 ohms. You cannot
+see that resistance, but the two numbers on the outside tell you it is there.
+</Exercise>
+
+A battery and a wire, on their own, can only make heat. Everything else a circuit
+does, limiting current on purpose, lighting a lamp, reading a sensor, comes from
+parts placed deliberately in the loop, each one chosen for the resistance or the
+behavior it adds. The next lesson, components and schematics, introduces those
+parts, the resistor first among them, along with the shorthand drawings that let
+a whole circuit fit on a single page without a photograph of a single wire.
+
+<Notes />

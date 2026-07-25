@@ -1,0 +1,272 @@
+---
+title: Networking from the CLI
+module: linux-for-security
+moduleTitle: Linux for Security
+moduleOrder: 2
+moduleIcon: Terminal
+order: 4
+summary: No desktop, no browser, no settings window. Just a shell and the tools that read the network, resolve names, and talk to services.
+estimatedMinutes: 16
+prerequisites:
+  - filesystem-and-permissions
+  - processes-and-services
+  - text-processing
+objectives:
+  - Read a host's interfaces, addresses, and routes with ip and the legacy ifconfig
+  - Test reachability with ping and turn names into addresses with dig
+  - Talk to a live service using curl, wget, and netcat
+  - List every socket a host exposes with ss
+tags:
+  - linux
+  - networking
+  - cli
+---
+
+The previous lesson, "text-processing", turned pages of tool output into a
+single answer with grep, cut, and awk. Every one of those tools assumes
+something already produced the text. On a Linux host with no desktop, no
+browser, and no network settings window, the commands in this lesson are what
+produce it. They report where the host sits, test what it can reach, turn names
+into addresses, and hold a conversation with a live service, all as plain text a
+pipe can chew on.
+
+A note before any of them run. Probing a host, reading a service banner, or
+pulling a file onto a machine is fair game on hardware owned by the person doing
+it, or on a system with written authorization to test it. Aimed anywhere else,
+the same commands are a crime. Everything below assumes a lab or an authorized
+target.
+
+## Where the host sits: ip and ifconfig
+
+Every machine reaches the network through a network interface: a single
+connection point, usually one per network card or radio, each carrying its own
+address. A typical Linux host has at least two. One is real hardware, an
+Ethernet port or a Wi-Fi radio. The other is the loopback interface, a
+software-only interface named `lo` that a host uses to talk to itself at the
+address `127.0.0.1`, without a single bit ever touching the wire.
+
+The `ip` command reports all of it. `ip addr` lists every interface and the
+addresses bound to it.
+
+<CommandCard command="ip addr" title="linux" explain="Lists every network interface on the host and the addresses bound to each one." />
+
+<ExpectedOutput label="ip addr on a host with one wired interface, trimmed">
+```
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536
+    inet 127.0.0.1/8 scope host lo
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500
+    inet 10.10.14.5/24 brd 10.10.14.255 scope global eth0
+```
+</ExpectedOutput>
+
+Two interfaces. `lo` carries the loopback address every host has. `eth0` holds
+`10.10.14.5`, the address this host presents to the rest of its network, and the
+`/24` marks how far the local network stretches, from `10.10.14.0` to
+`10.10.14.255`. That one line tells a tester which network the host landed on and
+roughly how many neighbors might sit on it. The addresses here come from one
+specific machine and will differ on any other.
+
+`ip route` prints where packets go once they leave the host.
+
+<CommandCard command="ip route" title="linux" explain="Prints the routing table. The 'default' line names the gateway, meaning where any packet not bound for the local network gets handed off." />
+
+The `default` line names the gateway, the router that every packet without a
+closer destination gets handed to. Networking Foundations covered why that line
+is the exit door from the local network. Here it is a fact the shell reads in one
+command.
+
+The older `ifconfig` shows much of the same interface information and still turns
+up in scripts and on older systems, but most current Linux distributions ship
+`ip` and leave `ifconfig` out of the base install. A shell that answers
+`ifconfig: command not found` is not broken. `ip addr` is the replacement.
+
+<Quiz
+  id="cli-net-loopback"
+  question="ip addr on a host lists two addresses: 127.0.0.1 on lo and 10.10.14.5 on eth0. Another machine on the same network wants to reach this host. Which address does it use?"
+  answer={1}
+  options={[
+    "127.0.0.1, because that is the host's own address",
+    "10.10.14.5, because 127.0.0.1 only works from the host itself",
+    "Either address works from anywhere on the network",
+    "Neither; a separate public address is always required",
+  ]}
+  explanation="127.0.0.1 is the loopback address. Traffic sent to it never leaves the host, so no other machine can reach a host that way. 10.10.14.5 is the address eth0 presents to the network, and it is the one a neighbor uses."
+/>
+
+## Reaching a host, and naming it: ping and dig
+
+`ping` answers one question: is a host reachable right now. It sends a small ICMP
+echo request, a control-message packet that asks a host to answer back, and it
+times the reply.
+
+<CommandCard command="ping -c 4 10.10.14.1" title="linux" explain="-c 4 sends four probes then stops. Without it, ping runs until interrupted." />
+
+<ExpectedOutput label="ping to a live gateway">
+```
+PING 10.10.14.1 (10.10.14.1) 56(84) bytes of data.
+64 bytes from 10.10.14.1: icmp_seq=1 ttl=64 time=0.42 ms
+64 bytes from 10.10.14.1: icmp_seq=2 ttl=64 time=0.39 ms
+--- 10.10.14.1 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss
+```
+</ExpectedOutput>
+
+A reply means the host is up and a path exists in both directions. Silence
+proves nothing. Plenty of hosts and firewalls drop ICMP on purpose, so a machine
+can be running every service it owns and still never answer a ping. "No reply"
+means "no reply", nothing stronger. That distinction saves hours of chasing a
+host that was alive the whole time.
+
+`ping` needs an address, and most targets are named, not numbered. Turning a name
+like `example.com` into an address is name resolution, and DNS is the system that
+performs it, as Networking Foundations set out. `dig` runs a single lookup and
+prints the answer.
+
+<CommandCard command="dig +short example.com" title="linux" explain="+short trims the reply to just the address. Plain dig prints the full record with timing and the server that answered." />
+
+<ExpectedOutput label="dig +short, the address returned is illustrative and changes over time">
+```
+93.184.216.34
+```
+</ExpectedOutput>
+
+Without `+short`, `dig` prints a full `ANSWER SECTION` that names the record
+type, `A` for an IPv4 address, and the time-to-live, the number of seconds a
+resolver may cache the answer before it has to ask again. `dig` also reports which
+server answered, which matters on an internal network, where a private DNS server
+often knows hostnames no public resolver has ever heard of.
+
+<Quiz
+  id="cli-net-ping-silence"
+  question="A host answers no pings at all, yet a web server on it is serving pages normally. How is that possible?"
+  answer={1}
+  options={[
+    "ping and web traffic use different addresses",
+    "The host is set to drop ICMP, so it never replies to ping even though its services still answer",
+    "ping only works between hosts in the same building",
+    "A running web server always blocks ping",
+  ]}
+  explanation="ping relies on ICMP echo replies, which many hosts and firewalls drop by choice. Dropping ICMP has no effect on TCP services like a web server, so a host can be silent to ping and fully alive at the same time."
+/>
+
+## Talking to a service: curl, wget, and netcat
+
+Reaching an address is not the same as getting a service to answer, a split
+Networking Foundations flagged as one of the three things that trip people up.
+Three tools close that gap.
+
+`curl` sends a request to a service and prints the response. Against a web
+server, `curl -I` asks for the headers alone, the metadata a server sends ahead
+of the page body.
+
+<CommandCard command="curl -I http://10.10.14.23" title="linux" explain="-I requests headers only. Headers reveal the server software, redirects, and cookies without pulling down the page." />
+
+<ExpectedOutput label="curl -I against a web server, versions shown are an example">
+```
+HTTP/1.1 200 OK
+Server: nginx/1.18.0 (Ubuntu)
+Content-Type: text/html
+```
+</ExpectedOutput>
+
+That `Server` line is a gift to anyone mapping a target: it names the web server
+software and, here, the operating system underneath it. `curl -s` fetches the
+body instead and stays quiet about progress, which is exactly what makes it pipe
+cleanly into grep or awk.
+
+`wget` does the neighboring job. It downloads a file to disk instead of printing
+it. A command like `wget http://10.10.14.5:8000/script.sh` pulls a file from a
+server, commonly one the tester is running, onto the current host. curl prints,
+wget saves. That is the whole difference worth carrying early.
+
+`netcat`, run as `nc`, is the blunt instrument. It opens a raw TCP connection and
+moves bytes in both directions with no idea what protocol is on the far end.
+Pointed at a port, it reads whatever the service announces on connect: its
+banner, a line of text many services send that names the software and version.
+
+<CommandCard command="nc -nv 10.10.14.23 22" title="linux" explain="-n skips DNS lookups, -v prints connection status. Connecting to a port to read its reply is called banner grabbing." />
+
+<ExpectedOutput label="nc against an SSH port, the banner is an example">
+```
+(UNKNOWN) [10.10.14.23] 22 (ssh) open
+SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6
+```
+</ExpectedOutput>
+
+One connection, and the service handed over its exact build. That string is
+enough to look up known weaknesses in that specific version. The same tool, run
+with `-l`, waits for an incoming connection instead of making one, which is how
+it catches a connection a target sends back. The listening side belongs to a
+later lesson.
+
+## What the host exposes: ss
+
+curl and nc reach outward. `ss` looks inward. It lists the sockets on the local
+host. A socket is one end of a network connection, an address and a port bound
+together, either an active connection or a port sitting open and waiting. `ss`
+replaced the older `netstat` on modern systems and reads the same kernel tables
+faster.
+
+<CommandCard command="ss -tulpn" title="linux" explain="-t TCP, -u UDP, -l listening only, -p owning process, -n numeric (skip name lookups). The one command that shows every service a host exposes." />
+
+<ExpectedOutput label="ss -tulpn, trimmed to the listening TCP sockets">
+```
+Netid State  Local Address:Port  Process
+tcp   LISTEN 0.0.0.0:22          users:(("sshd",pid=812))
+tcp   LISTEN 127.0.0.1:3306      users:(("mysqld",pid=1121))
+```
+</ExpectedOutput>
+
+The `Local Address` column is the whole story. `0.0.0.0:22` means the SSH daemon
+listens on every interface, so anything that can route to the host is free to try
+a connection. `127.0.0.1:3306` means the MySQL database listens only on the
+loopback address, reachable from the host itself and nowhere else. Lesson 2,
+"processes-and-services", named the process behind each open port. `ss` ties that
+process to the exact address and port it holds open.
+
+<Callout type="security" title="A service on 127.0.0.1 is not out of reach">
+A database bound to `127.0.0.1` rejects the whole network, which is why its
+owners so often leave it with a weak password or none: they assumed no outsider
+could get to it. A tester who already holds a shell on the host is not an
+outsider. From that shell the loopback address is local, the database answers,
+and a service someone believed was private becomes the next step. Binding to
+localhost is a real control, but only against machines that are not already on
+the host.
+</Callout>
+
+<Quiz
+  id="cli-net-localhost-bind"
+  question="ss -tulpn shows a service listening on 127.0.0.1:5432. A tester with a shell on that same host tries to connect to it. What happens?"
+  answer={1}
+  options={[
+    "The connection is refused, because 127.0.0.1 blocks all access",
+    "The service answers, because from a shell on the host the loopback address is local",
+    "The connection works only from another machine on the network",
+    "127.0.0.1 always means the service is turned off",
+  ]}
+  explanation="Binding to 127.0.0.1 keeps a service off the network, but a process running on the host itself reaches the loopback address normally. A shell on the box turns a localhost-only service into a reachable target, which is why locally bound services are a common next step after a foothold."
+/>
+
+<Exercise title="Read a host from the inside out">
+On any Linux or macOS host, run `ip addr` (on macOS, `ifconfig`). Find the
+interface that is not `lo`, and write down its address and the `/` number after
+it. That is the host's place on its own network.
+
+Now run `ss -tulpn` (on macOS, `netstat -an -p tcp`, which drops the process
+column). Read the local address on each listening line and sort the services into
+two piles: the ones on `0.0.0.0` or `::`, reachable from the network, and the
+ones on `127.0.0.1`, reachable only from this host.
+
+Last, pick one address that answered and probe it. Run `curl -I http://<address>`
+if it speaks HTTP, or `nc -nv <address> <port>` to read whatever banner it
+offers. Whatever comes back is the raw material the last lesson taught how to cut
+down to a single finding.
+</Exercise>
+
+Every command here prints text, and printing text was the point. The next
+lesson, "bash-recon-script", stops running these one at a time and wires them
+together: a variable to hold an address, a loop to walk a list of ports, a
+conditional to act on what came back, so one command runs the whole sweep and the
+text tools from lesson 3 trim the result down to what matters.
+
+<Notes />

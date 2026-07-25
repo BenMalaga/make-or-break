@@ -1,0 +1,236 @@
+[
+  {
+    "domain": 1,
+    "question": "A network technician is troubleshooting an application that is failing to establish encrypted sessions. Packet captures show the TCP three-way handshake completing normally, but the TLS negotiation never begins. At which layer of the OSI model does the TLS handshake primarily operate, and therefore where should the technician focus?",
+    "options": [
+      "Layer 2, the Data Link layer",
+      "Layer 3, the Network layer",
+      "Layer 4, the Transport layer",
+      "Layer 6, the Presentation layer"
+    ],
+    "correct": [3],
+    "explanation": "Encryption and the negotiation of encryption/session formats are functions associated with the Presentation layer (Layer 6). The Transport layer (Layer 4) handles the TCP handshake that is already succeeding, and Layers 2 and 3 handle framing and routing, none of which involve TLS cipher negotiation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A user reports that they can reach internal file shares by IP address but not by hostname. Web browsing to external sites also fails when using names but works when the IP is typed directly. Which protocol and port is most likely involved in the failure?",
+    "options": [
+      "DHCP over UDP 67/68",
+      "DNS over UDP 53",
+      "SNMP over UDP 161",
+      "LDAP over TCP 389"
+    ],
+    "correct": [1],
+    "explanation": "Name-to-IP resolution failing while direct IP access works is the classic signature of a DNS problem, and DNS uses UDP port 53 for standard queries. DHCP assigns addresses, SNMP monitors devices, and LDAP handles directory lookups, none of which resolve hostnames for general browsing.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An administrator is assigned the network 192.168.10.0/24 and must create at least 6 usable subnets while maximizing hosts per subnet. Which subnet mask should be applied?",
+    "options": [
+      "255.255.255.128 (/25)",
+      "255.255.255.192 (/26)",
+      "255.255.255.224 (/27)",
+      "255.255.255.240 (/28)"
+    ],
+    "correct": [2],
+    "explanation": "Borrowing 3 host bits yields 2^3 = 8 subnets, which satisfies the requirement for at least 6, and leaves 5 host bits for 30 usable hosts each. That corresponds to a /27, or 255.255.255.224. A /26 gives only 4 subnets (too few), while /28 gives 16 subnets but fewer hosts than necessary to maximize the host count.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "A company wants a cloud model where they consume fully managed email and CRM software over the internet without maintaining any underlying operating systems or middleware. Which cloud service model does this describe?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Desktop as a Service (DaaS)"
+    ],
+    "correct": [2],
+    "explanation": "SaaS delivers complete, ready-to-use applications where the provider manages everything down to the application layer. IaaS provides raw compute/storage the customer must configure, PaaS provides a development platform for building apps, and DaaS delivers virtual desktops, none of which match consuming a finished CRM/email application.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Which of the following IP address ranges is defined by RFC 1918 as private address space that must be translated before it can route across the public internet?",
+    "options": [
+      "169.254.0.0/16",
+      "172.16.0.0/12",
+      "224.0.0.0/4",
+      "127.0.0.0/8"
+    ],
+    "correct": [1],
+    "explanation": "172.16.0.0/12 (172.16.0.0 through 172.31.255.255) is one of the three RFC 1918 private ranges, alongside 10.0.0.0/8 and 192.168.0.0/16. 169.254.0.0/16 is APIPA/link-local, 224.0.0.0/4 is multicast, and 127.0.0.0/8 is loopback.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A network engineer needs to configure a device to synchronize its system clock with an authoritative time source so that log timestamps and Kerberos authentication remain accurate. Which protocol and port should be permitted through the firewall?",
+    "options": [
+      "NTP over UDP 123",
+      "SNMP over UDP 162",
+      "Syslog over UDP 514",
+      "TACACS+ over TCP 49"
+    ],
+    "correct": [0],
+    "explanation": "Network Time Protocol (NTP) synchronizes clocks and uses UDP port 123. SNMP traps use 162, syslog uses 514 for log forwarding, and TACACS+ on 49 handles AAA, none of which provide time synchronization.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Two hosts on the same subnet need to communicate. Host A knows Host B's IPv4 address but not its MAC address. Which protocol resolves the IP address to a MAC address, and at what layer does this frame delivery ultimately occur?",
+    "options": [
+      "ARP, resolving to Layer 2 addressing",
+      "DNS, resolving to Layer 3 addressing",
+      "ICMP, resolving to Layer 4 addressing",
+      "RARP, resolving to Layer 7 addressing"
+    ],
+    "correct": [0],
+    "explanation": "The Address Resolution Protocol (ARP) maps a known IPv4 address to its corresponding MAC address so frames can be delivered at Layer 2. DNS resolves names to IPs, ICMP is used for diagnostics like ping, and RARP does the reverse (MAC to IP) and is largely obsolete.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A small office uses a single switch where every device receives a broadcast but a break in any one cable segment does not take down the rest of the network. Devices connect independently back to the central switch. Which physical topology best describes this deployment?",
+    "options": [
+      "Bus topology",
+      "Ring topology",
+      "Star topology",
+      "Full mesh topology"
+    ],
+    "correct": [2],
+    "explanation": "A star topology connects each device by its own cable to a central device such as a switch, so a single cable failure isolates only that one node. A bus shares one backbone (one break can disrupt all), a ring passes traffic node to node, and a full mesh interconnects every node to every other node.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An administrator captures traffic and sees a datagram sent to 255.255.255.255 with a source of 0.0.0.0 on UDP ports 67 and 68 shortly after a workstation boots. Which process is the workstation performing? (Choose two.)",
+    "options": [
+      "The client is broadcasting a DHCP Discover to locate a DHCP server",
+      "The client is requesting an IP address lease via DHCP",
+      "The client is performing a DNS zone transfer",
+      "The client is sending an SNMP GetRequest to a manager"
+    ],
+    "correct": [0, 1],
+    "explanation": "A freshly booted client with no address (source 0.0.0.0) broadcasting to 255.255.255.255 on UDP 67/68 is the DHCP DORA process, beginning with a Discover to find a server and continuing toward obtaining a lease. DNS zone transfers use TCP 53 between servers, and SNMP uses UDP 161/162 for management polling, neither of which fits this boot-time broadcast.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A technician needs remote command-line administration of a Linux server over an encrypted channel. Which protocol and default port should be used, and which insecure protocol should be avoided?",
+    "options": [
+      "Use SSH on TCP 22; avoid Telnet on TCP 23",
+      "Use Telnet on TCP 23; avoid SSH on TCP 22",
+      "Use RDP on TCP 3389; avoid SSH on TCP 22",
+      "Use SFTP on TCP 21; avoid HTTPS on TCP 443"
+    ],
+    "correct": [0],
+    "explanation": "SSH provides encrypted remote CLI access on TCP port 22, while Telnet (TCP 23) transmits credentials and commands in cleartext and should be avoided. RDP is a graphical remote-desktop protocol, and SFTP does not run on port 21 (FTP control), so the other pairings are incorrect.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Given the host address 10.45.200.130 with a subnet mask of 255.255.255.192 (/26), what is the network address of the subnet this host belongs to?",
+    "options": [
+      "10.45.200.0",
+      "10.45.200.64",
+      "10.45.200.128",
+      "10.45.200.192"
+    ],
+    "correct": [2],
+    "explanation": "A /26 mask has a block size of 64 in the last octet, producing subnet boundaries at .0, .64, .128, and .192. The host .130 falls in the .128 to .191 range, so its network address is 10.45.200.128. The other options are adjacent subnet boundaries that do not contain .130.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "An organization is deploying a service that must be reachable by clients using IPv6. The administrator needs to identify a globally routable unicast IPv6 address. Which of the following qualifies?",
+    "options": [
+      "fe80::1a2b:3c4d:5e6f:7a8b",
+      "2001:0db8:4006:812::200e",
+      "::1",
+      "ff02::1"
+    ],
+    "correct": [1],
+    "explanation": "Global unicast addresses currently fall under the 2000::/3 range, and 2001:db8::/32 is a global unicast prefix (reserved for documentation but structurally global unicast). fe80::/10 is link-local, ::1 is loopback, and ff00::/8 (ff02::1) is multicast, none of which are globally routable unicast.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A branch office connects to headquarters across a service provider network. The office is concerned only with the labels used to forward its traffic quickly across the provider core without the provider inspecting every IP header at each hop. Which technology does this describe?",
+    "options": [
+      "MPLS",
+      "SD-WAN",
+      "VLAN trunking with 802.1Q",
+      "GRE tunneling"
+    ],
+    "correct": [0],
+    "explanation": "Multiprotocol Label Switching (MPLS) forwards packets based on short path labels rather than performing a full IP lookup at every hop, which is exactly the described behavior across a provider core. SD-WAN abstracts and manages multiple transports, 802.1Q tags VLANs within a LAN, and GRE encapsulates traffic but does not use provider label switching.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A technician must permit secure web traffic and directory lookups over an encrypted channel through a firewall. Which two port and protocol pairings are correct? (Choose two.)",
+    "options": [
+      "HTTPS uses TCP port 443",
+      "LDAPS uses TCP port 636",
+      "HTTPS uses TCP port 8080",
+      "LDAPS uses TCP port 389"
+    ],
+    "correct": [0, 1],
+    "explanation": "HTTPS (HTTP over TLS) uses TCP 443, and LDAPS (LDAP over TLS/SSL) uses TCP 636. TCP 8080 is a common alternate HTTP proxy port, not standard HTTPS, and TCP 389 is unencrypted LDAP, not LDAPS.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A workstation that normally receives its configuration from a DHCP server shows an address of 169.254.14.7 with a mask of 255.255.0.0 and cannot reach any other subnet. What does this indicate?",
+    "options": [
+      "The workstation received a valid public IP and is functioning normally",
+      "The workstation self-assigned an APIPA address because no DHCP server responded",
+      "The workstation is using a loopback address for local testing",
+      "The workstation was manually configured with an RFC 1918 private address"
+    ],
+    "correct": [1],
+    "explanation": "The 169.254.0.0/16 range is Automatic Private IP Addressing (APIPA), which a host assigns to itself when it cannot reach a DHCP server. APIPA only allows communication within the same link, so the host cannot route off its subnet. It is neither public, loopback (127.0.0.0/8), nor a manually set RFC 1918 address.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A network designer is comparing TCP and UDP for a real-time voice-over-IP application where low latency matters more than guaranteed delivery of every packet. Which transport protocol characteristic makes UDP the better fit?",
+    "options": [
+      "UDP is connection-oriented and retransmits lost segments, ensuring completeness",
+      "UDP is connectionless with no handshake or retransmission overhead, reducing latency",
+      "UDP performs windowing and flow control to pace the sender",
+      "UDP guarantees in-order delivery using sequence and acknowledgment numbers"
+    ],
+    "correct": [1],
+    "explanation": "UDP is connectionless and does not perform handshakes, retransmission, sequencing, or flow control, so it adds minimal overhead and latency, which suits real-time VoIP where a slightly dropped packet is preferable to delay. The other options describe TCP behaviors, which add reliability at the cost of latency.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An enterprise segments its internal traffic so that Sales, Engineering, and Finance each operate in separate broadcast domains on the same physical switching infrastructure. Which technology accomplishes this, and at what OSI layer does the switch tag the frames?",
+    "options": [
+      "VLANs, with 802.1Q tagging performed at Layer 2",
+      "Subnetting alone, performed at Layer 3 by the switch",
+      "NAT, performed at Layer 4 by the switch",
+      "Port forwarding, performed at Layer 7 by the switch"
+    ],
+    "correct": [0],
+    "explanation": "VLANs separate a single physical switch into multiple broadcast domains, and switches use the IEEE 802.1Q standard to tag Ethernet frames at Layer 2. Subnetting is a Layer 3 IP concept, NAT translates addresses at Layer 3/4, and port forwarding is a Layer 4 firewall function, none of which create Layer 2 broadcast-domain separation via frame tagging.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A company needs a WAN design connecting five branch offices where each site can reach any other site directly without traversing a central hub, providing maximum redundancy. Which topology does this describe, and what is its main drawback?",
+    "options": [
+      "Hub-and-spoke topology, with the drawback of a single point of failure at the hub",
+      "Full mesh topology, with the drawback of high cost and connection count as sites grow",
+      "Bus topology, with the drawback of a shared collision domain",
+      "Point-to-point topology, with the drawback of supporting only two endpoints"
+    ],
+    "correct": [1],
+    "explanation": "A full mesh connects every site directly to every other site, maximizing redundancy but requiring n(n-1)/2 links, so cost and complexity climb quickly as sites are added. Hub-and-spoke routes all traffic through a central site (a single point of failure), a bus shares one medium, and point-to-point links only two endpoints.",
+    "difficulty": "MEDIUM"
+  }
+]

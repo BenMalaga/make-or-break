@@ -1,0 +1,69 @@
+---
+title: Common Mobile Vulnerabilities
+module: mobile-security
+moduleTitle: Mobile Application Security
+moduleOrder: 39
+moduleIcon: Smartphone
+order: 4
+summary: The same handful of storage, crypto, and network mistakes show up in almost every app.
+estimatedMinutes: 22
+objectives:
+  - Recognize insecure storage patterns and where secrets leak
+  - Spot weak crypto and cleartext traffic in real apps
+  - Map findings to the MASVS categories that structure a mobile test
+tags:
+  - mobile
+  - masvs
+  - storage
+  - crypto
+---
+
+Most mobile findings are not exotic. Pull apart ten apps and you will see the same short list of mistakes, because the platform makes the wrong thing easy and the right thing take extra work. Learn this list and you can walk into an unfamiliar app and know where to look first.
+
+**Insecure data storage** is the reliable winner. Auth tokens in Android `shared_prefs`, session data in iOS `NSUserDefaults`, an unencrypted SQLite database full of PII, an API key sitting in `strings.xml` or hardcoded in a decompiled class. The device sandbox protects this data right up until the phone is rooted, jailbroken, or backed up, and then it is all plaintext. Any secret that must survive on the device belongs in the Keychain or Android Keystore, not a preferences file.
+
+<CommandCard command="strings -n 8 classes.dex | grep -iE 'api[_-]?key|secret|password|token|Bearer'" explain="A brute but effective first pass. Hardcoded credentials in the compiled code fall out of a strings grep constantly, especially in third-party SDK config left in by copy-paste." />
+
+**Weak cryptography** is the next tier, and it is usually self-inflicted. AES in ECB mode leaks structure because identical plaintext blocks produce identical ciphertext. A hardcoded key or a static IV means the encryption is decorative, because the secret you needed to protect the data is sitting right there in the binary. MD5 or unsalted SHA-1 for password hashing is broken. Homegrown "encryption" that is really XOR against a fixed string is the classic. When you decompile, grep for `Cipher.getInstance` and read what mode and key it uses.
+
+**Cleartext traffic** covers two failures. The obvious one is plaintext HTTP, which Android now blocks by default via `network_security_config` and iOS blocks via ATS, so its presence means someone added an exception. The subtler one is HTTPS with validation disabled: a custom `TrustManager` that accepts every certificate, or `NSAllowsArbitraryLoads` flipped on. That app talks TLS but will happily trust your intercepting proxy's certificate, which is a man-in-the-middle waiting to happen. Absent or trivially bypassable certificate pinning lives in this bucket too.
+
+The rest of the usual suspects:
+
+- **Sensitive data in logs.** Tokens and full request bodies dumped to logcat, readable by any app with the right permission on older Android or by anyone with `adb`.
+- **Backups left on.** `android:allowBackup="true"` lets `adb backup` walk out with the app's private files.
+- **Insecure IPC.** Exported Android components and iOS URL schemes that accept attacker input without validation.
+- **Client-side trust.** Auth, entitlement, or "premium enabled" decisions made in the app instead of the server.
+
+## The MASVS view
+
+The OWASP Mobile Application Security Verification Standard is how you turn that scattered list into a structured test. Instead of "check for bugs," MASVS gives you named control groups, and every finding above lands in one of them.
+
+- **MASVS-STORAGE** what the app keeps on the device and how it protects it.
+- **MASVS-CRYPTO** key management and correct use of cryptographic primitives.
+- **MASVS-NETWORK** transport security and certificate validation.
+- **MASVS-AUTH** authentication and authorization, enforced server-side.
+- **MASVS-PLATFORM** safe use of IPC, WebViews, and platform APIs.
+- **MASVS-CODE** dependency hygiene and handling of platform data.
+- **MASVS-RESILIENCE** anti-tampering and obfuscation, which are hardening, not primary controls.
+
+The paired MASTG (Mobile Application Security Testing Guide) gives you the concrete test cases under each group, and it is the reference to keep open during an assessment. One thing to keep straight: MASVS-RESILIENCE last on purpose. Root detection and obfuscation slow an attacker down, but they never substitute for actually protecting the data. An app that pins its cert and detects root but stores the token in plaintext failed the test that mattered.
+
+<Callout type="security" title="Confirm findings only on cleared apps">
+Verifying these issues means reading another party's stored data and intercepting their traffic, which is authorized only on your own builds or an app named in your scope. Reproduce them on deliberately vulnerable apps like DIVA, InsecureBankv2, iGoat, or the OWASP MAS test apps before you touch anything you were hired to assess.
+</Callout>
+
+<Quiz
+  id="mobile-vuln-tls-bypass"
+  question="An app uses HTTPS but a custom TrustManager returns without throwing on any certificate. What is the practical impact?"
+  answer={0}
+  options={[
+    "Any attacker who can intercept traffic can read and modify it, because the app trusts any certificate including a proxy's",
+    "Nothing, because the connection is still encrypted",
+    "The app will refuse to connect to the real server",
+    "Only the server can decrypt the traffic",
+  ]}
+  explanation="TLS encryption is meaningless if the client accepts any certificate. A TrustManager that never rejects lets a man-in-the-middle present their own cert, decrypt, read, and tamper with everything, which is why disabled validation is a critical MASVS-NETWORK finding."
+/>
+
+<Notes />

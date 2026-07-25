@@ -1,0 +1,64 @@
+---
+title: The Supply Chain Attack Surface
+module: supply-chain-security
+moduleTitle: Software Supply Chain Security
+moduleOrder: 52
+moduleIcon: Truck
+order: 1
+summary: One compromised build server shipped a signed backdoor to 18,000 organizations. That is the reach attackers buy.
+estimatedMinutes: 18
+objectives:
+  - Map the stages where a software supply chain gets attacked
+  - Explain why compromising a build beats compromising a single app
+  - Spot the trust assumptions that turn a pipeline into a target
+tags:
+  - supply-chain
+  - build-security
+  - solarwinds
+  - threat-model
+---
+
+Attackers stopped picking locks one door at a time. SolarWinds is the reason. Someone got into the Orion build pipeline, slipped malicious code in after the developers wrote clean source but before the compiler ran, and let SolarWinds sign and ship it. The backdoor went out as a legitimate, code-signed update to roughly 18,000 customers, including US federal agencies. Nobody typed a bad password. The victims installed the malware themselves because it came from a vendor they trusted.
+
+That is the whole thesis of supply chain attacks. You do not attack the target. You attack something the target already trusts and lets run with high privileges.
+
+Think about the math. Break into one company and you compromise one company. Break into a build server that produces software used by thousands, and every one of them pulls your payload down and executes it inside their perimeter. The build is a multiplier. Defenders spend years hardening the running app while the thing that assembles the app sits on an old Jenkins box with a shared admin password.
+
+## Where the chain actually breaks
+
+The supply chain is not one thing. It is a sequence, and each handoff is a place to inject.
+
+- Source: commit access, a malicious pull request, a compromised maintainer account, a poisoned branch.
+- Dependencies: a package you pull from npm or PyPI that is itself backdoored or typosquatted.
+- Build: the CI runner, the compiler, the build scripts, anything that touches code between commit and artifact.
+- Artifacts and registries: the container image, the tarball, the place you store and serve them.
+- Distribution: the update channel that pushes the finished thing to users.
+
+SolarWinds hit the build stage. The xz-utils backdoor in early 2024 (CVE-2024-3094) hit the source and release stage, where a maintainer spent two years earning trust before planting a backdoor in the release tarballs that never appeared in the public git tree. Different stage, same idea. Get upstream of where the victim is looking.
+
+## Why the build is the sweetest target
+
+Source gets reviewed. People read pull requests, at least sometimes. The build almost never gets that scrutiny. Whatever the build produces is what gets signed, and the signature is what downstream trusts. Corrupt the build and you inherit the vendor's entire reputation for free.
+
+The build also runs with credentials that the app never sees. Signing keys, cloud deploy tokens, registry push rights. A foothold there is not just code execution, it is code execution wearing the vendor's identity.
+
+<Callout type="security" title="Study the pipeline you are allowed to touch">
+Everything here is defensive understanding first. Practice on infrastructure you own or are explicitly authorized to assess: your own GitHub org with a throwaway repo, a local Jenkins or Gitea instance, a lab pipeline you spun up for this. Poking at another organization's build system without written scope is unauthorized access, and CI systems log heavily. Map your own attack surface before you are ever asked to defend someone else's.
+</Callout>
+
+The defensive move is to stop treating the pipeline as plumbing. It is production. It holds secrets, it has network access, and its output is trusted blindly by everyone downstream. Everything in this module comes back to that one shift: guard the thing that builds and ships your code as hard as you guard the code itself.
+
+<Quiz
+  id="scas-why-build"
+  question="Why is compromising a vendor's build pipeline more valuable to an attacker than compromising one customer's running app?"
+  answer={2}
+  options={[
+    "Build servers always run older, unpatched software",
+    "The app has more input validation than the build",
+    "Build output is trusted and distributed to every downstream user, so one compromise multiplies",
+    "Signing keys are stored in the running app",
+  ]}
+  explanation="The build is a multiplier. Its signed output flows to every downstream consumer who trusts the vendor, so a single build compromise reaches thousands of environments, as SolarWinds showed."
+/>
+
+<Notes />

@@ -1,0 +1,377 @@
+---
+title: Variables and Data
+module: programming-foundations
+moduleTitle: Programming Foundations
+moduleOrder: 1
+moduleIcon: Code
+order: 2
+summary: "Named boxes that hold values, the four kinds of data that go in them, and why a program can remember anything at all."
+estimatedMinutes: 15
+prerequisites: ["what-code-is"]
+objectives:
+  - Store a value under a name using assignment and read it back with print
+  - "Tell apart the four core data types: whole numbers, decimals, text, and true/false"
+  - Predict why adding two numbers and joining two pieces of text look identical but behave differently
+  - Apply Python's naming rules and pick names that say what the value is
+  - Change what a name holds by reassigning it, including from its own old value
+---
+
+A program that cannot remember anything is close to useless. The last lesson
+ended with a script that printed a line of text and stopped. Printing is output,
+and output alone is a dead end: the program says one thing and forgets it the
+instant the line runs. Every program that does something interesting, a game
+that tracks a score, a form that adds up a total, a chat bot that remembers a
+name, has to hold onto values while it runs. Holding onto a value is what a
+variable is for.
+
+Start with a fact from the last lesson: the print function writes text to the
+screen. Here is a program that prints a number.
+
+```python
+print(0)
+```
+
+<ExpectedOutput label="terminal">
+```
+0
+```
+</ExpectedOutput>
+
+That number is gone the moment it prints. Nothing in the program can refer to it
+again. To keep it, the program has to give it a name.
+
+## A name that holds a value
+
+A variable is a name that holds a value. Picture a box with a label on the
+front. The label is the name, the thing inside is the value, and the program can
+open the box by its label anytime to see what is there. In Python, putting a
+value in a box looks like this.
+
+```python
+score = 0
+print(score)
+```
+
+<ExpectedOutput label="terminal">
+```
+0
+```
+</ExpectedOutput>
+
+The line `score = 0` is an assignment, the act of storing a value under a name.
+Python reads it right to left, which is the single most important thing to get
+straight early. It works out the value on the right first, the number `0`, then
+attaches the name on the left, `score`, to that value. After that line runs,
+`score` is a label pointing at `0`. The second line hands `score` to the print
+function, print looks inside the box, finds `0`, and writes it out.
+
+The equals sign is doing something worth pausing on. In arithmetic class, `=`
+means "these two sides are equal." In Python it does not mean that. It means
+"take the value on the right and store it under the name on the left." It is an
+instruction, not a statement of fact. That difference will matter a lot in a few
+paragraphs.
+
+A program can hold as many values as it needs, each under its own name.
+
+```python
+player = "Robin"
+score = 0
+print(player)
+print(score)
+```
+
+<ExpectedOutput label="terminal">
+```
+Robin
+0
+```
+</ExpectedOutput>
+
+Now the program remembers two things at once: who is playing and how they are
+doing. That value `"Robin"` in quotes is a piece of text, and the quotes are not
+decoration. They are how Python tells text apart from everything else, which is
+the next idea.
+
+<Quiz
+  id="vars-assignment-direction"
+  question="A program runs the line total = 42. What did that line actually do?"
+  answer={1}
+  options={[
+    "It checked whether total is equal to 42 and reported true or false.",
+    "It worked out the value 42, then attached the name total to it.",
+    "It attached the name total to 42, then checked the value on the right.",
+    "It printed 42 to the screen.",
+  ]}
+  explanation="Assignment runs right to left and stores, it does not compare. Python evaluates the right side first, here the number 42, then binds the name on the left to it. Nothing prints, because there is no print call."
+/>
+
+## Four kinds of value
+
+Every value in a program has a type, which is the kind of thing it is. Python
+cares about the type because it decides what the value can do. A number can be
+multiplied. A piece of text cannot. Four types cover almost everything a
+beginner writes.
+
+A whole number, with no decimal point, is called an integer. Python's short name
+for it is `int`. Counts of things are integers: lives left, items in a cart, the
+current score.
+
+A number with a decimal point is a floating point number, `float` for short. The
+name comes from the way the decimal point can float to different positions.
+Prices, measurements, and averages are floats: `4.99`, `-0.5`, `98.6`.
+
+A piece of text is a string, `str` for short. The word describes what it is: a
+string of characters, one after another, threaded together in order. A string is
+written inside quotes, either single or double, and can hold letters, digits,
+spaces, and symbols: `"Robin"`, `"hello world"`, `"421 Oak St"`. The quotes mark
+where the text starts and stops.
+
+A true-or-false value is a boolean, `bool` for short, named after George Boole,
+the mathematician who worked out the logic behind it. A boolean has exactly two
+possible values, written `True` and `False`, each with a capital letter and no
+quotes. Booleans answer yes-or-no questions: is the game over, is the user logged
+in, did the payment clear.
+
+Python can report the type of any value with the type function.
+
+```python
+lives = 3
+price = 4.99
+name = "Robin"
+game_over = False
+print(type(lives))
+print(type(price))
+print(type(name))
+print(type(game_over))
+```
+
+<ExpectedOutput label="terminal">
+```
+<class 'int'>
+<class 'float'>
+<class 'str'>
+<class 'bool'>
+```
+</ExpectedOutput>
+
+The word `class` there is Python's internal name for a type, and it can be
+ignored for now. What matters is the four types showing up correctly: `int`,
+`float`, `str`, `bool`.
+
+The quotes around a string are load-bearing, and skipping them changes the
+meaning entirely. The value `3` and the value `"3"` look the same on screen but
+are not the same thing at all. One is a number, the other is text that happens to
+be a digit.
+
+```python
+number = 3
+text = "3"
+print(number)
+print(text)
+```
+
+<ExpectedOutput label="terminal">
+```
+3
+3
+```
+</ExpectedOutput>
+
+Identical output, two different types. The difference stays hidden until the
+program tries to do something with them, and then it shows up hard. Watch what
+the plus sign does to each.
+
+```python
+print(3 + 3)
+print("3" + "3")
+```
+
+<ExpectedOutput label="terminal">
+```
+6
+33
+```
+</ExpectedOutput>
+
+The first line adds two numbers and gets `6`. The second line joins two strings
+end to end and gets `"33"`. The plus sign means "add" for numbers and "stick
+together" for strings, and Python decides which one it meant by looking at the
+types. Joining strings this way has a name, concatenation, and it comes up
+constantly when a program builds a message out of pieces. This is the reason
+types are not a bookkeeping detail. A quantity typed as text will not do math,
+and a number will not slot cleanly into a sentence, until something converts it.
+
+<Callout type="warning" title="Quotes decide the type">
+The number `100` and the string `"100"` are different values that print the same
+way. A common first bug is reading a value from a keypad or a web form, which
+always arrives as text, and trying to add it to a number. Python refuses,
+because it will not guess whether the plus sign meant math or concatenation.
+</Callout>
+
+<Quiz
+  id="vars-string-vs-number"
+  question={`A program runs print("10" + "5"). What appears on the screen?`}
+  answer={2}
+  options={[
+    "15, because Python adds the two numbers.",
+    "An error, because strings cannot be combined.",
+    "105, because joining two strings places them end to end.",
+    "10 5, with a space, because the plus sign inserts one.",
+  ]}
+  explanation={`Both values are strings, marked by their quotes. The plus sign concatenates strings, so "10" and "5" become "105". No addition happens and no space is added.`}
+/>
+
+## Naming the box well
+
+Python has real rules about what a name may be, and breaking them stops the
+program from running. A name has to start with a letter or an underscore, never a
+digit. After the first character it can contain letters, digits, and
+underscores, but no spaces and no punctuation. So `score`, `player_2`, and
+`_total` are all legal, while `2fast` and `player score` are not.
+
+Names are case sensitive, meaning capitalization counts. `score`, `Score`, and
+`SCORE` are three different names pointing at three different boxes. Mixing them
+up by accident is a classic way to end up reading an empty box the program never
+filled.
+
+A handful of words are reserved by Python for its own use, words like `if`,
+`for`, `True`, and `class`. Those cannot be used as names, because the language
+already has a job for them. A later lesson introduces them one at a time, so
+there is nothing to memorize now beyond the idea that a few words are off limits.
+
+Beyond the hard rules, there is a strong convention Python programmers follow:
+write names in lowercase with underscores between words, a style called
+snake_case for the way the words sit low and connected. `player_score`,
+`is_logged_in`, and `total_price` all follow it.
+
+The rules say what is allowed. Judgment says what is good, and a good name
+describes the value it holds. Compare two versions of the same program.
+
+```python
+x = 19.99
+y = 3
+z = x * y
+print(z)
+```
+
+That runs and prints `59.97`, but the names say nothing. Six months later, or
+even six minutes later, `x`, `y`, and `z` are a puzzle. Here is the same math
+with names that explain themselves.
+
+```python
+item_price = 19.99
+quantity = 3
+total = item_price * quantity
+print(total)
+```
+
+<ExpectedOutput label="terminal">
+```
+59.97
+```
+</ExpectedOutput>
+
+Same output, but now the program reads like a sentence: the total is the item
+price times the quantity. The computer does not care which version it runs. The
+next person to read the code does, and that person is usually the author, later,
+having forgotten everything. Naming is written for humans.
+
+<Quiz
+  id="vars-naming-rules"
+  question="Which of these is a legal Python variable name that also follows the usual style?"
+  answer={3}
+  options={[
+    "2nd_place, because it clearly describes the value",
+    "final score, with a space between the words",
+    "FinalScore, matching how the value is spoken",
+    "final_score, lowercase with an underscore",
+  ]}
+  explanation="A name cannot start with a digit, so 2nd_place is illegal. Spaces are never allowed, so final score fails. FinalScore is legal but ignores the snake_case convention. final_score obeys both the rules and the style."
+/>
+
+## Changing what a name holds
+
+A variable is not locked to its first value. Assigning to a name that already
+exists replaces what it holds, and the old value is simply dropped. This is what
+lets a program track something that changes over time.
+
+```python
+score = 0
+print(score)
+score = 10
+print(score)
+score = score + 5
+print(score)
+```
+
+<ExpectedOutput label="terminal">
+```
+0
+10
+15
+```
+</ExpectedOutput>
+
+The first two reassignments are plain: `score` starts at `0`, then gets set to
+`10`, and the `0` is gone. The third line is the one that trips people up, and
+it is exactly why the equals sign is not a math statement. The line
+`score = score + 5` would be nonsense as an equation, since no number equals
+itself plus five. As an instruction it is clear. Python works out the right side
+first using the current value: `score` is `10`, so `score + 5` is `15`. Then it
+stores `15` back under the name `score`. Right side first, then store. Always.
+
+That pattern, take a value and put a changed version back under the same name, is
+the engine behind almost every counter, total, and health bar in software.
+Subtraction works the same way.
+
+```python
+health = 100
+health = health - 25
+print(health)
+```
+
+<ExpectedOutput label="terminal">
+```
+75
+```
+</ExpectedOutput>
+
+Reassignment can also change the type of what a name holds, because Python
+attaches a name to whatever value it is given without demanding the new value
+match the old one. A name that held a number can be pointed at a string on the
+next line, and Python allows it without complaint. That flexibility is convenient
+and occasionally dangerous: a name that quietly switches from a number to text
+partway through a program is a real source of confusing bugs, and it is worth
+keeping one name pointed at one kind of thing unless there is a reason not to.
+
+<Callout type="info" title="The name is not the value">
+A variable is a label attached to a value, not the value itself. Reassigning
+moves the label to a different value. Nothing about the old value changes, the
+program just stops pointing at it. Holding that picture, a label that can be
+moved, prevents most of the confusion beginners hit with assignment.
+</Callout>
+
+<Exercise title="Build a tiny scoreboard">
+Write a script that creates a variable called `player` holding your name as a
+string, a variable called `points` holding the number 0, and prints both on
+their own lines. Run it and confirm you see the name and a zero.
+
+Then add three more lines: set `points` to `points + 10`, set it again to
+`points + 25`, and print `points` a final time. Predict the number before you
+run it, then check. If your prediction was 35, you have the right side first,
+then store rule down cold.
+
+For a harder round, add a boolean called `is_winner` and set it based on nothing
+yet, just `True` or `False`, then print its type with `print(type(is_winner))`
+and confirm Python reports `bool`.
+</Exercise>
+
+Variables give a program a memory: named boxes, four kinds of value, and the
+ability to change what a name holds as the program runs. What they cannot do yet
+is act differently depending on what is in the box. A score of 0 and a score of
+1000 print fine, but the program treats them the same. The next lesson,
+logic-and-decisions, is where a program starts to compare values and choose what
+to do, and the boolean type introduced here is the hinge the whole thing turns
+on.
+
+<Notes />

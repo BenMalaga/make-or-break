@@ -1,0 +1,295 @@
+---
+title: "PostGIS: Geometry in the Database"
+module: gis-postgis
+moduleTitle: Spatial SQL with PostGIS
+moduleOrder: 5
+moduleIcon: Database
+order: 1
+summary: "A PostGIS table stores geometry as a column type, not a file on disk, so many analysts can query and edit the same features at once."
+estimatedMinutes: 14
+prerequisites: ["automating-a-gis-workflow"]
+objectives:
+  - Explain why a shared database beats a folder of files once a project has more than one analyst or more than a few hundred thousand features
+  - Install the PostGIS extension on a PostgreSQL database and confirm it loaded
+  - Choose between the geometry type and the geography type based on whether the data spans a small area or the whole globe
+  - Load a file into a PostGIS table with ogr2ogr and read the result back with a query
+tags:
+  - gis
+  - postgis
+  - sql
+---
+
+The previous lesson chained a script together: read a GeoPackage, run a spatial join, write the
+result back out to another file. That works well for one analyst running one job. It starts to
+strain the moment a second analyst needs the same data at the same time, or the file grows past a
+few million rows, or two people edit the same layer in the same afternoon.
+
+## Files work until more than one person needs them
+
+A GeoPackage is a single file on disk, and a shapefile is worse, a bundle of three or more files
+that all have to stay together and in sync. Either way, the storage is a file, and a file has one
+writer at a time. Open the same GeoPackage in QGIS on two laptops and edit the same feature, and
+the second save either fails, silently overwrites the first, or corrupts the file, depending on
+the tool and the timing. Shapefiles are worse still. QGIS locks a shapefile with a `.lock` file
+while it is open for editing, and a second analyst who tries to edit it gets told the layer is busy.
+Nobody is deliberately careless here. The file format was never built for two writers.
+
+Scale is the second wall. A shapefile caps out at 2 gigabytes and 255-character text fields, limits
+nobody notices until a parcel layer for an entire state hits them. A GeoPackage does not have that
+hard cap, but a file with ten million rows in it is still slow to query unless the reading software
+builds its own index every time it opens the file. There is no way to ask ten other programs to
+share that index. Each one rebuilds it.
+
+A database solves both problems by design. PostgreSQL, an open source relational database, already
+handles concurrent connections, meaning many client programs talking to it at once, as one of its
+core jobs. Two analysts editing different rows in the same table never block each other. A dozen
+dashboards can query the same ten-million-row table at the same time because the index lives on
+the server, built once, shared by everyone. And a database transaction, a group of changes that
+either all commit or all roll back together, means an edit that fails partway through never leaves
+the data half written. None of that is spatial yet. It is just what a real database gives any kind
+of data. PostGIS is what makes that same database understand shapes.
+
+<Callout type="info" title="A file is not wrong, it is just single-user">
+A GeoPackage or a shapefile is still the right choice for a one-off analysis, a dataset an analyst
+hands to a client, or anything that only one person touches at a time. The trade toward a database
+happens when a second concurrent user shows up, or the row count climbs into the millions, or
+several different applications need to read the same live data. Reach for PostGIS when the problem
+changes shape, not by default.
+</Callout>
+
+## PostGIS adds shapes to a database that only knew tables
+
+PostgreSQL out of the box stores integers, text, dates, and the other ordinary column types. It has
+no idea what a polygon is. PostGIS is an extension, a package of new types and functions installed
+into a PostgreSQL database, that teaches it geometry. Turning it on is one line of SQL run once per
+database:
+
+```sql
+CREATE EXTENSION postgis;
+```
+
+After that line runs, the database has a `geometry` type, a `geography` type, and several hundred
+functions with names starting `ST_`, short for Spatial Type, that measure, combine, and test those
+shapes. A quick way to confirm the extension actually loaded is to ask the database for its
+version:
+
+```sql
+SELECT PostGIS_Version();
+```
+
+<ExpectedOutput label="the installed PostGIS version and its build flags">
+```
+      postgis_version
+-----------------------------
+ 3.4 USE_GEOS=1 USE_PROJ=1
+(1 row)
+```
+</ExpectedOutput>
+
+The exact version number depends on which PostGIS build is installed, but seeing any row back
+instead of an error confirms the extension is live. From this point on, a `geometry` or `geography`
+column behaves like any other column. It can sit in a `WHERE` clause, join against another table,
+and get indexed, except the operations available on it are spatial ones: does this polygon contain
+that point, how far apart are these two lines, what is the combined area of every parcel in a zone.
+
+<Quiz
+  id="postgis-what-it-is"
+  question="What does running CREATE EXTENSION postgis actually do to a PostgreSQL database?"
+  answer={1}
+  options={[
+    "It converts the whole database into a separate spatial database engine, replacing PostgreSQL.",
+    "It adds spatial column types and ST_ functions to an existing PostgreSQL database, so it can be queried like any other table.",
+    "It downloads a folder of shapefiles into the database for the analyst to browse.",
+    "It only works on a brand new, empty database, so existing tables have to be recreated after installing it.",
+  ]}
+  explanation="PostGIS is an extension, meaning it adds new capability to a running PostgreSQL database rather than replacing it or requiring a fresh one. Existing tables are untouched, and any table can gain a geometry column afterward. It does not ship any data of its own, it ships types and functions."
+/>
+
+## Two ways to store a shape: geometry and geography
+
+PostGIS actually offers two spatial types, and picking the wrong one is the single most common
+mistake a beginner makes with it. The `geometry` type treats coordinates as points on a flat plane.
+Every distance, area, and length calculation on a `geometry` column uses ordinary flat geometry, the
+same math a printed map's ruler would use. This is fast, and it is also exactly right when the data
+covers a small enough area that the Earth's curve does not matter, a single city, a county, most
+of what a typical project ever touches, especially once the data is projected into a local system
+like a UTM zone.
+
+The `geography` type stores the same coordinates but treats them as points on the surface of a
+sphere approximating the real Earth. Every `ST_Distance` or `ST_Area` call on a `geography` column
+runs the slower, more careful ellipsoidal math and returns an answer already in meters or square
+meters, correct anywhere on the globe. That accuracy costs speed. Ellipsoidal calculations run
+several times slower than flat ones, so `geography` is the right call for global-scale data, flight
+paths, ocean routes, worldwide store locations, and the wrong call for a project that only ever
+covers one metro area, where the extra cost buys nothing.
+
+The difference shows up immediately on the same two points measured both ways. New York City sits
+near longitude -74.0, latitude 40.7. London sits near longitude -0.13, latitude 51.5.
+
+```sql
+SELECT
+  ST_Distance(
+    'SRID=4326;POINT(-74.006 40.7128)'::geometry,
+    'SRID=4326;POINT(-0.1276 51.5074)'::geometry
+  ) AS geometry_distance,
+  ST_Distance(
+    'SRID=4326;POINT(-74.006 40.7128)'::geography,
+    'SRID=4326;POINT(-0.1276 51.5074)'::geography
+  ) AS geography_distance;
+```
+
+<ExpectedOutput label="the same two points measured two different ways, illustrative figures">
+```
+ geometry_distance | geography_distance
+--------------------+--------------------
+              69.4  |         5570224.5
+```
+</ExpectedOutput>
+
+The `geometry` column returns 69.4, a number in degrees of longitude and latitude mashed together,
+meaningless as a distance since a degree of longitude near the equator covers far more ground than
+a degree of longitude near the pole. The `geography` column returns roughly 5,570,224 meters, about
+5,570 kilometers, close to the real great circle distance between the two cities. Same coordinates,
+same function name, two very different answers, because one type assumes a flat plane and the other
+does not.
+
+<Callout type="warning" title="A geometry column in degrees does not measure distance in meters">
+The most common PostGIS beginner mistake is running ST_Distance or ST_Area on a geometry column
+stored in EPSG:4326, the ordinary longitude and latitude system, and treating the number that comes
+back as meters. It is degrees, and a degree is not a fixed length anywhere except along the equator.
+Either cast the column to geography for a global-scale answer, or reproject the geometry into a
+local metric system such as a UTM zone before measuring, the way the coordinate reference systems
+lesson earlier in this track covered.
+</Callout>
+
+## Every geometry remembers its own coordinate reference system
+
+A `geometry` or `geography` column does not just hold raw numbers. It carries an SRID, short for
+Spatial Reference Identifier, alongside every shape. The SRID is the same integer code used
+everywhere else in GIS work: 4326 for WGS84 longitude and latitude, 3857 for Web Mercator, 32618 for
+UTM zone 18N, and so on. Because the code travels with the geometry, PostGIS can catch a mistake a
+plain file format cannot. Try to compare a geometry stored with SRID 4326 against one stored with
+SRID 3857 and PostGIS refuses, raising an error instead of silently comparing numbers that mean
+different things.
+
+A column declares its SRID as part of its type, written `geometry(Point, 4326)` or
+`geometry(Polygon, 32618)`. That single declaration does two jobs at once: it locks every row in the
+column to one geometry type, so a points table cannot accidentally receive a polygon, and it locks
+every row to one CRS, so nobody has to guess what a pair of numbers in that column means. Anyone
+who inherits the table months later can read the column type and know both facts without opening a
+single row.
+
+<Quiz
+  id="postgis-geometry-vs-geography"
+  question="A dataset of shipping routes crosses entire oceans, and an analyst needs accurate distances in kilometers. Which PostGIS type fits, and why?"
+  answer={2}
+  options={[
+    "The geometry type, because it is faster and speed always outweighs accuracy in PostGIS.",
+    "Either type works identically, since ST_Distance always returns meters regardless of the column type.",
+    "The geography type, because it measures on the ellipsoid and returns real-world distances that stay accurate across long, global-scale spans.",
+    "Neither type can measure distance, so the analyst has to compute it outside the database.",
+  ]}
+  explanation="Geography is built for exactly this case: ellipsoidal math that stays accurate over continental or global distances, at the cost of being slower than flat geometry math. Geometry would return a number in degrees that does not represent a real distance at that scale. Distance is one of the core things ST_Distance computes inside the database, no external step needed."
+/>
+
+## Getting data into a PostGIS table
+
+Three tools cover almost every case an analyst runs into for loading data into PostGIS, and picking
+between them mostly comes down to whether the job is a one-off or something to script.
+
+`ogr2ogr`, the same command line tool the previous lesson used to convert between file formats, can
+write straight into a PostGIS database instead of another file. The destination is a connection
+string instead of a filename:
+
+```bash
+ogr2ogr -f "PostgreSQL" \
+  "PG:host=localhost dbname=gis_project user=analyst" \
+  parks.gpkg -nln parks -lco GEOMETRY_NAME=geom
+```
+
+That one line reads every feature out of `parks.gpkg` and creates a new table named `parks` in the
+`gis_project` database, with a geometry column named `geom`. `ogr2ogr` figures out the column types
+from the source data and even carries the source CRS over as the new column's SRID automatically.
+
+`shp2pgsql` does the same job specifically for shapefiles, and it takes a different shape: it does
+not talk to the database directly, it prints SQL, which then gets piped into `psql`, PostgreSQL's
+command line client:
+
+```bash
+shp2pgsql -s 4326 parcels.shp parcels | psql -d gis_project
+```
+
+The `-s 4326` flag tells `shp2pgsql` what SRID to stamp on the output, since a shapefile's own CRS
+information sits in a loosely followed sidecar file that is not always trustworthy.
+
+QGIS covers the same ground with a GUI, through its Database Manager or by right-clicking a layer
+and choosing Export, then "Export Layer to PostgreSQL." That path suits a single import somebody
+wants to see happen and confirm interactively, where the command line tools suit anything that
+needs to run unattended or repeat on a schedule.
+
+## Building the table by hand
+
+Sometimes the table exists before any data is loaded into it, built directly in SQL so its columns
+and constraints are exactly what the project needs. This creates a table for parks with a name, a
+polygon boundary in WGS84, and an index that makes spatial queries against it fast:
+
+```sql
+CREATE TABLE parks (
+    id serial PRIMARY KEY,
+    name text NOT NULL,
+    geom geometry(Polygon, 4326) NOT NULL
+);
+
+CREATE INDEX parks_geom_idx ON parks USING GIST (geom);
+```
+
+The `geom` column's type declaration, `geometry(Polygon, 4326)`, does the same double duty
+described earlier: only polygons are allowed in, and every one of them is understood to be in
+WGS84 longitude and latitude. The `GIST` index, short for Generalized Search Tree, is the index
+type PostGIS relies on for geometry columns. Without it, a query like "find every park within this
+neighborhood's boundary" has to check every single row in the table one at a time. With it, the
+database can skip straight to the rows near the area in question, the same way a phone book's
+alphabetical order skips straight to a name instead of reading every entry.
+
+A quick check confirms the table looks the way it was meant to:
+
+```sql
+\d parks
+```
+
+<ExpectedOutput label="the table structure, trimmed to what matters">
+```
+ Column |         Type          | Nullable
+--------+------------------------+----------
+ id     | integer                | not null
+ name   | text                   | not null
+ geom   | geometry(Polygon,4326) | not null
+Indexes:
+    "parks_pkey" PRIMARY KEY, btree (id)
+    "parks_geom_idx" gist (geom)
+```
+</ExpectedOutput>
+
+The `geom` column reports its own type and SRID right there in the schema, `geometry(Polygon,4326)`,
+and the `parks_geom_idx` index shows up under the primary key. Any query that filters or joins on
+`geom` from here on will use that index automatically. Nobody querying this table later has to ask
+what coordinate system it is in or whether it is indexed. The table answers both questions itself.
+
+<Quiz
+  id="postgis-gist-index"
+  question="Why does the parks table get a GIST index on its geom column instead of relying on the default primary key index alone?"
+  answer={0}
+  options={[
+    "A GIST index lets spatial queries, like finding features near or inside a boundary, skip most of the table instead of scanning every row.",
+    "A GIST index is required by PostgreSQL before any geometry column can be created at all.",
+    "The GIST index replaces the need for an SRID on the geometry column.",
+    "GIST indexes only matter for text columns, so it has no real effect on a geometry column.",
+  ]}
+  explanation="A GIST index builds a spatial search structure so PostGIS can jump toward the relevant rows instead of checking every geometry in the table, which is what makes spatial queries fast at scale. Geometry columns can exist without one, they are just slow to query. It has nothing to do with SRID, and it is exactly the index type built for geometry, not text."
+/>
+
+Right now the `parks` table can hold shapes and answer what type and CRS they are in, but nothing
+in this lesson has asked it a real spatial question yet. That is what spatial SQL is for: writing
+`ST_Intersects`, `ST_DWithin`, and `ST_Area` straight into a `WHERE` clause or a `SELECT` list, so
+the database itself finds every parcel that touches a flood zone or every park within walking
+distance of a school. The next lesson picks up exactly there, with the table this one just built.

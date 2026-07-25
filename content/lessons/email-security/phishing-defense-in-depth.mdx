@@ -1,0 +1,57 @@
+---
+title: Phishing Defense in Depth
+module: email-security
+moduleTitle: Email Security
+moduleOrder: 50
+moduleIcon: MailWarning
+order: 3
+summary: Assume one phish will land, then build so one click is not game over.
+estimatedMinutes: 16
+objectives:
+  - Layer authentication, filtering, sandboxing, and identity controls
+  - Treat the user report button as a sensor instead of a failure
+  - Design for the click that gets through with MFA and least privilege
+tags:
+  - email
+  - phishing
+  - defense-in-depth
+  - mfa
+  - sandboxing
+---
+
+Every control you stack in front of the inbox has a bypass. DMARC does nothing against a lookalike domain the attacker actually owns. The gateway rewrites links, so the attacker weaponizes the page an hour after delivery when it is already inside. The sandbox detonates the attachment, so the attacker password-protects the zip. Plan for the phish that gets through, because one will.
+
+Defense in depth here means stacking controls that fail differently, so no single bypass ends the story. Think of it as a set of independent chances to catch or contain the attack, not one wall you are betting the company on.
+
+Start at the edge with authentication. SPF, DKIM, and DMARC at `p=reject` kill exact-domain spoofing, which removes the most convincing pretext an attacker has. That does not stop lookalikes like `yourcompany-support.com`, but it forces the attacker off your name and onto something a trained user can spot.
+
+## Filtering, rewriting, and detonation
+
+The gateway is your bulk filter. It scores sender reputation, checks against block lists, strips known-bad attachments, and rewrites URLs so a click at delivery time and a click three hours later both route through an inspection proxy. Time-of-click rewriting matters because attackers flip a benign link to malicious after the message clears the initial scan.
+
+Attachment sandboxing is the next layer. Suspicious files get detonated in an isolated VM where the platform watches for the behavior that signatures miss: a Word doc spawning PowerShell, a PDF reaching out to a fresh domain, a macro writing to disk. Microsoft calls this Safe Attachments, Proofpoint calls it TAP, the mechanic is the same. It buys you coverage on novel payloads at the cost of a short delivery delay.
+
+None of that touches BEC, which carries no payload. For the text-only fraud you need impersonation detection that reads display-name tricks and lookalike domains, plus a hard business rule: any change to banking details or any wire gets verified by a phone call to a known number, never by replying to the email.
+
+## The user report button is a sensor
+
+Users will click. Treat that as a fact and turn them into detection instead. A one-click report button, the Microsoft Report Message add-in or a PhishAlarm equivalent, sends the full message with headers straight to the SOC queue. Every report is free threat intel, often arriving before your automated tools have caught up on a fresh campaign.
+
+Measure the report rate, not just the click rate. A team that reports the phish in two minutes is worth more than a team that never clicks but never tells you anything, because the report is what lets you purge the same message from forty other mailboxes before those people click.
+
+<Callout type="security" title="Phishing simulations need sign-off, not surprise">
+Running a simulated phishing campaign against your own staff is a legitimate defensive exercise, but it needs written authorization from leadership and usually HR, and it needs care in how results are handled. Never name and shame individuals, never run one against another organization, and never use a real third party's branding without permission. Scope it, document it, and treat the click data as training signal, not a disciplinary weapon.
+</Callout>
+
+## Design for the click that lands
+
+The last layer assumes the first ones failed. Phishing-resistant MFA is the single biggest lever: FIDO2 hardware keys and passkeys cannot be relayed to a fake login page the way a one-time code can, which is why they beat SMS and app OTP against real credential-harvesting kits. Least privilege means the compromised account cannot reach the crown jewels. Egress filtering and EDR mean the malware that does execute still has to get past the endpoint and out the door.
+
+Stack it right and the attacker has to beat authentication, filtering, the sandbox, a trained reporter, phishing-resistant MFA, and least privilege in one shot. Any one of those holding turns a breach into an incident report.
+
+<Exercise
+  id="phish-layers"
+  prompt="A finance user clicks a link in a phishing email and enters their Microsoft 365 password on a convincing fake page. Name three separate controls that could still prevent this from becoming account takeover, and say what each one stops."
+/>
+
+<Notes />

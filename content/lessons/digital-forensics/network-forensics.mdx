@@ -1,0 +1,90 @@
+---
+title: Network Forensics
+module: digital-forensics
+moduleTitle: Digital Forensics
+moduleOrder: 22
+moduleIcon: FileSearch
+order: 4
+summary: A pcap remembers everything that crossed the wire. Pull the files and creds back out.
+estimatedMinutes: 17
+objectives:
+  - Triage a pcap to find the conversations that matter
+  - Follow a TCP stream to reconstruct a full exchange
+  - Extract transferred files and cleartext credentials from captured traffic
+tags:
+  - forensics
+  - pcap
+  - network
+---
+
+A packet capture is a recording of the wire. Every request, every file transfer, every login that used a plaintext protocol is sitting in that file waiting to be read. Someone captured the traffic during the incident, handed you a `.pcap`, and now the job is turning ten million packets into "here is exactly what the attacker took".
+
+## Triage before you drown
+
+Do not scroll a pcap packet by packet. You will die of old age. Start by asking what protocols and hosts are even in the file, then narrow to the interesting ones. `tshark` is Wireshark's command-line engine and it is faster for this than clicking.
+
+<CommandBlock
+  title="analyst@workstation"
+  commands={[
+    { cmd: "capinfos capture.pcap", comment: "size, packet count, time range at a glance" },
+    { cmd: "tshark -r capture.pcap -q -z io,phs", comment: "protocol hierarchy: what is actually in here" },
+    { cmd: "tshark -r capture.pcap -q -z conv,tcp", comment: "top TCP conversations by bytes, find the big transfers" },
+  ]}
+/>
+
+The protocol hierarchy tells you where to look. Ten megabytes of FTP-DATA means a file left the building. A spike of DNS with long random subdomains is often exfiltration or command and control tunneled through DNS. Follow the volume and the oddities.
+
+## Follow the stream
+
+A single TCP conversation is scattered across hundreds of packets in capture order. Reassembling it by hand is pointless. Wireshark's **Follow TCP Stream** stitches a conversation back into the two-sided dialog it actually was, client bytes one color, server bytes another.
+
+In the GUI you right-click a packet and choose Follow, then TCP Stream. From the command line you filter by the stream index.
+
+<CommandCard command="tshark -r capture.pcap -q -z follow,tcp,ascii,4" explain="Reassemble TCP stream number 4 and print it as ASCII. You see the full request and response as one readable exchange, which is where an HTTP POST or an FTP login shows up in plain view." />
+
+Point this at an HTTP conversation and you read the exact URL, headers, and body. Point it at an FTP or Telnet session and the `USER` and `PASS` commands are right there, because those protocols never encrypted anything. This is why cleartext protocols are a gift to a forensic analyst and a liability to everyone else.
+
+## Pull the files and credentials out
+
+Wireshark can carve transferred objects straight out of the capture. Under File, then Export Objects, it lists every file it reassembled from HTTP, SMB, FTP, or TFTP, and you save them to disk with one click. From the command line, `tshark --export-objects http,out/` does the same in bulk.
+
+Credentials fall out of any plaintext auth. Filter for the protocols that carry them and read the values directly.
+
+<CommandBlock
+  title="analyst@workstation"
+  commands={[
+    { cmd: "tshark -r capture.pcap --export-objects http,loot/", comment: "dump every file transferred over HTTP" },
+    { cmd: "tshark -r capture.pcap -Y 'ftp.request.command == \"PASS\"'", comment: "show every FTP password sent in the clear" },
+    { cmd: "tshark -r capture.pcap -Y 'http.authorization'", comment: "find HTTP Basic auth headers, base64 but trivial to decode" },
+  ]}
+/>
+
+HTTP Basic auth looks encrypted because it is base64, but base64 is encoding, not encryption. Pipe the captured string through `base64 -d` and you have `username:password` in cleartext. Anyone who sees the packet sees the login.
+
+<Callout type="security" title="Capture and analyze only authorized traffic">
+Sniffing network traffic pulls in other people's private data by design. Capture and analyze pcaps only on networks you own or have explicit authorization to monitor. Intercepting communications you were not cleared to see is a wiretap violation in many jurisdictions, engagement scope or not.
+</Callout>
+
+<Quiz
+  id="basic-auth-decode"
+  question="A pcap shows an HTTP Authorization header with a base64 value. What does that tell you about the credentials?"
+  answer={1}
+  options={[
+    "They are encrypted and cannot be recovered from the capture",
+    "They are only encoded; base64 -d reveals username:password in cleartext",
+    "They are hashed, so you must crack them offline",
+    "They are useless without the server's private key",
+  ]}
+  explanation="HTTP Basic auth base64-encodes the credentials, which is not encryption. Decoding the value with base64 -d gives you the plaintext username and password directly."
+/>
+
+<Exercise
+  id="export-http-objects"
+  prompt="You need to pull every file transferred over HTTP out of capture.pcap into a folder. Write the tshark command."
+  answer="tshark -r capture.pcap --export-objects http,loot/"
+  placeholder="tshark -r capture.pcap ..."
+>
+--export-objects http,loot/ reassembles every HTTP-transferred file and writes them into loot/, so you recover exactly what moved across the wire.
+</Exercise>
+
+<Notes />

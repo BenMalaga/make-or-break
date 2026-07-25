@@ -1,0 +1,165 @@
+---
+title: Density, Interpolation, and Zonal Statistics
+module: gis-spatial-analysis
+moduleTitle: Spatial Analysis
+moduleOrder: 3
+moduleIcon: Radar
+order: 6
+summary: "Turning scattered points into a smooth surface, filling gaps between measurements, and summarizing a raster inside each polygon are the three moves that make raw spatial data usable."
+estimatedMinutes: 14
+prerequisites: ["raster-analysis"]
+objectives:
+  - Explain how kernel density turns a set of points into a continuous surface, and name one way that surface gets misread
+  - Distinguish inverse distance weighting from kriging as two approaches to interpolating values between measured points
+  - Judge whether interpolation is valid for a given kind of data, and explain why categorical or sparse data breaks it
+  - Compute a summary statistic such as mean rainfall or mean elevation for each polygon in a zonal statistics operation
+tags:
+  - gis
+  - analysis
+  - interpolation
+---
+
+The previous lesson worked with rasters that already existed: an elevation grid, a satellite band, a slope surface computed from both. Every cell already had a value. Real data rarely shows up that way. A police department has addresses where incidents were reported, not a grid. A state climate office has forty weather stations, not a value for every square kilometer between them. The raster tools from before assume the grid is already filled in. This lesson is about the three ways an analyst gets from scattered points, or from one raster, to something a decision can actually rest on.
+
+## Turning points into a surface: kernel density
+
+A map of incident locations as individual dots gets unreadable fast. Past a few hundred points, dots pile on top of each other near anything busy and the map just shows a dark smear downtown. What an analyst usually wants instead is a smooth surface: not "here are the exact points," but "here is how concentrated they are, everywhere, as a continuous gradient."
+
+**Kernel density estimation** does this by placing a small bump of influence, called a kernel, on top of every point, then adding all the bumps together. Near a single point, that bump is tallest right at the point and fades out over a set radius called the **bandwidth**. Where two points sit close together, their bumps overlap and stack, so the combined surface reads higher there than around an isolated point. The result is a raster: every cell holds a density value, and cells near clusters of points come out high while empty areas fade toward zero. QGIS calls this tool Heatmap, and it is the same computation whether it runs there or in Python.
+
+The bandwidth is the one setting that changes the map's story more than any other. A small bandwidth produces a spiky surface with sharp peaks right at each point, useful for finding exact hot spots but noisy with anything less than a lot of data. A large bandwidth smooths everything into a few broad hills, which reads cleanly but can blur two nearby clusters into one blob that was never really a single hot spot. There is no universally correct bandwidth. It depends on the spacing of the real points and the question being asked, and an analyst usually tries two or three values before picking one.
+
+Here is a minimal version of the computation in Python, using `scipy`, which ships the same math QGIS runs internally:
+
+```python
+import numpy as np
+from scipy.stats import gaussian_kde
+
+# x and y are longitude/latitude arrays of reported incident locations
+kde = gaussian_kde(np.vstack([x, y]))
+
+# build a grid to evaluate the density on, matching a raster's cells
+grid_x, grid_y = np.mgrid[x.min():x.max():100j, y.min():y.max():100j]
+density = kde(np.vstack([grid_x.ravel(), grid_y.ravel()])).reshape(grid_x.shape)
+```
+
+`gaussian_kde` builds the stacked-bump function from the input points, and calling it on the grid coordinates evaluates that function at every cell, producing a density raster the same shape as the grid. Everything downstream, the color ramp on the map, the contour lines drawn around hot spots, reads off that `density` array.
+
+<Callout type="info" title="A density surface describes reports, not crime">
+A crime heatmap built from police reports shows where incidents were reported and recorded, not where crime actually happened. Areas with heavier patrol presence generate more reports for the same underlying behavior, and some crimes are reported far less often than others regardless of location. Feed that surface back into deciding where to send more patrols and the pattern reinforces itself: more patrols there means more reports there means an even hotter spot next time, independent of whether the real rate changed at all. The density calculation is neutral. What goes into it is not, and reading the result as "this is where crime is" instead of "this is where reports are dense" is the single most common misuse of this tool.
+</Callout>
+
+<Quiz
+  id="kde-bandwidth-tradeoff"
+  question="An analyst runs kernel density on the same set of incident points twice, once with a small bandwidth and once with a large one. What is the main tradeoff between the two runs?"
+  answer={2}
+  options={[
+    "The small bandwidth ignores isolated points entirely, while the large bandwidth counts every point twice.",
+    "There is no real difference, since kernel density always produces the same surface regardless of bandwidth.",
+    "The small bandwidth shows sharp, spiky peaks right at dense clusters but reads as noisy, while the large bandwidth smooths everything into broad hills that can blur separate clusters together.",
+    "The small bandwidth only works on points that fall inside city limits, while the large bandwidth works anywhere.",
+  ]}
+  explanation="Bandwidth controls how far each point's influence reaches before fading out. A small bandwidth keeps that influence tight, so real clusters show up as sharp, distinct peaks, at the cost of a noisier-looking surface overall. A large bandwidth spreads each point's influence further, which smooths the map but can merge two nearby but genuinely separate clusters into what looks like one broad hot spot. Bandwidth is a real setting with a real effect, not a cosmetic toggle."
+/>
+
+## Filling the gaps: interpolation
+
+Kernel density smooths a large pile of points into a surface of concentration. A different problem shows up when there are only a few points, each with a real measured value, and the question is what the value would be somewhere in between. Forty weather stations report today's temperature. What was it at a point eighteen kilometers from the nearest station? No station sits there, so nothing was measured there. **Interpolation** is the family of methods that estimate a value at an unmeasured location from the values at nearby measured ones.
+
+The simplest version, and the one worth understanding first because the fancier ones are variations on it, is **inverse distance weighting**, usually written IDW. The idea is that every known point contributes to the estimate at the target location, but closer points contribute more than distant ones. Each known point gets a weight equal to one divided by its distance to the target, raised to some power. Add up each point's value times its weight, divide by the sum of the weights, and that ratio is the estimate. A weather station five kilometers away pulls the estimate much harder toward its reading than one sixty kilometers away, exactly matching the intuition that nearby measurements should matter more.
+
+```python
+import numpy as np
+
+# station coordinates and their measured temperature in Celsius
+stations_x = np.array([0, 10, 10])
+stations_y = np.array([0, 0, 10])
+temps = np.array([18.0, 21.0, 15.0])
+
+def idw(x, y, values, xi, yi, power=2):
+    distances = np.sqrt((x - xi) ** 2 + (y - yi) ** 2)
+    if np.any(distances == 0):
+        return values[np.argmin(distances)]
+    weights = 1 / distances ** power
+    return np.sum(weights * values) / np.sum(weights)
+
+estimate = idw(stations_x, stations_y, temps, xi=3, yi=3)
+print(round(estimate, 2))
+```
+
+<ExpectedOutput label="estimated temperature at a point closer to the coolest station">
+```
+18.25
+```
+</ExpectedOutput>
+
+The target point at (3, 3) sits closest to the station reading 18.0 degrees, so the estimate lands near that value and only slightly pulled up by the two warmer, more distant stations. Raising the power sharpens this effect further, letting the nearest station dominate almost completely. Lowering it toward zero flattens the weights until every station counts about the same, which is really just an average and stops being useful as distance-aware interpolation at all.
+
+**Kriging** is the more sophisticated relative of IDW, and it is worth knowing by name even without working through its math here. Where IDW picks a weighting rule by hand and hopes it fits the data, kriging first measures how similar nearby points tend to be as a function of distance, using the actual sample data, and derives the optimal weights from that measured relationship instead of assuming one. It also reports a confidence figure for every estimate, something IDW cannot do. The cost is complexity: kriging needs enough sample points to estimate that similarity relationship reliably, and setting it up correctly takes real statistical judgment. Most GIS software, including QGIS through its SAGA and GRASS toolboxes, offers both. IDW is the fast, adequate first pass. Kriging is what an analyst reaches for once the interpolation itself needs defending in a report.
+
+## Where interpolation is honest and where it is not
+
+Interpolation makes a strong assumption that goes unstated far too often: that the thing being measured varies smoothly across space, so a value halfway between two stations really is likely to sit somewhere between their two readings. That assumption holds for temperature, rainfall, elevation, air pressure, and soil moisture. These are continuous physical quantities that do not jump around unpredictably between one point and the next.
+
+The assumption fails outright for categorical data. Land use is either forest, farmland, or urban at a given spot, and there is no meaningful "62 percent of the way from forest to urban" value to interpolate toward. Interpolating a categorical field produces numbers that look like data but describe nothing real. It also fails, more subtly, when points are too sparse or too clustered relative to how fast the real phenomenon changes. Ten rain gauges spread evenly across a county can interpolate rainfall reasonably, because rainfall varies gradually over that kind of distance on most days. Three rain gauges spread across a mountain range, where a ridge line can be the difference between a downpour and dry ground within a few hundred meters, will interpolate confidently and be wrong, because the terrain breaks the smoothness the method assumes.
+
+<Quiz
+  id="interpolation-validity"
+  question="A city has store locations labeled by category: grocery, hardware, and pharmacy. An analyst tries to interpolate a continuous surface predicting which category a random point on the map belongs to. What is wrong with this?"
+  answer={1}
+  options={[
+    "Nothing, interpolation works equally well on any kind of point data as long as there are enough points.",
+    "Store category is categorical, not continuous, so there is no meaningful in-between value to estimate, and the interpolated numbers would not describe anything real.",
+    "Interpolation can only be run on rasters, never on point data like store locations.",
+    "The problem is only that there are not enough stores, and adding more would fix it.",
+  ]}
+  explanation="Interpolation assumes the underlying value changes gradually across space, which is true of temperature or rainfall but meaningless for a label like grocery versus hardware. There is no partial category between two store types, so no amount of extra points fixes the core mismatch. Interpolation runs on point measurements of a continuous quantity, and produces a raster as its output, so the raster-versus-point framing in the other options is backwards."
+/>
+
+## Summarizing a raster inside each zone
+
+Density surfaces and interpolated rasters both produce one value per cell across a whole area. Plenty of real questions want that per-cell detail collapsed into one number per region instead: what is the average rainfall in each county, not what is the rainfall at every single pixel. **Zonal statistics** does exactly this. It takes a raster and a set of polygons, called zones, and for each polygon computes a summary statistic, usually the mean but sometimes the minimum, maximum, or sum, from only the raster cells that fall inside that polygon's boundary.
+
+A watershed management office wants the average elevation inside each of a dozen watershed boundaries, computed from a single digital elevation raster covering the whole region. A climate office wants the average rainfall inside each of twenty-one county polygons, computed from one statewide rainfall raster. In both cases there is one raster and many polygons, and zonal statistics answers "summarize the raster, once per polygon" without the analyst manually clipping the raster twenty-one separate times.
+
+```python
+from rasterstats import zonal_stats
+
+stats = zonal_stats(
+    "nj_counties.gpkg",
+    "annual_rainfall_mm.tif",
+    stats=["mean", "min", "max"],
+    geojson_out=True,
+)
+
+for feature in stats[:3]:
+    props = feature["properties"]
+    print(props["name"], round(props["mean"], 1))
+```
+
+<ExpectedOutput label="illustrative output from a synthetic county rainfall raster, mean millimeters per year">
+```
+Bergen 1123.4
+Passaic 1145.2
+Essex 1101.8
+```
+</ExpectedOutput>
+
+The `zonal_stats` function from the `rasterstats` library does the heavy lifting: for every polygon in `nj_counties.gpkg`, it finds every cell in `annual_rainfall_mm.tif` whose center falls inside that polygon, then computes the mean, minimum, and maximum across exactly those cells. `geojson_out=True` attaches the results back onto each polygon's own properties, so `props["mean"]` reads naturally alongside whatever attributes the county layer already carried, like its name. The three counties above sit close together geographically and end up with broadly similar rainfall means, which is a reasonable sanity check: a result showing one of them at double the others would be worth investigating before trusting the map built from it.
+
+One trap catches almost everyone the first time. A mean can hide real variation. A county with a wet coastal strip and a dry inland half can report a moderate average that describes neither half accurately. Pulling `min` and `max` alongside `mean`, as the example above does, is a cheap way to catch that kind of case before it gets baked into a report as a single misleading number.
+
+<Quiz
+  id="zonal-stats-purpose"
+  question="A watershed agency has one elevation raster covering an entire state and a polygon layer of twelve watershed boundaries. What does running zonal statistics with mean as the summary give them?"
+  answer={0}
+  options={[
+    "One mean elevation value per watershed polygon, computed only from the raster cells that fall inside each polygon's boundary.",
+    "A single mean elevation value for the entire state, ignoring the watershed boundaries.",
+    "A new raster with the same resolution as the input, but recolored by watershed.",
+    "The total number of raster cells in each watershed, with no elevation values involved.",
+  ]}
+  explanation="Zonal statistics computes one summary number per polygon zone, drawn only from the cells that fall within that specific polygon, which is exactly why it needs both a raster and a set of zone polygons as input. It collapses many cells down to one figure per zone rather than producing a new raster or a single statewide figure, and the statistic it reports is the elevation values themselves, not a cell count."
+/>
+
+These three tools solve three different shapes of the same underlying problem: too many points to read individually, too few points to cover the whole area, and too much detail in a raster to report region by region. Kernel density smooths, interpolation fills, and zonal statistics collapses. A later step in spatial analysis often chains all three: interpolate a rainfall surface from stations, run zonal statistics to get a mean per watershed, then combine that watershed table with a slope raster and a land-cover layer to score which watersheds are most at risk of flash flooding. Each of the three moves in this lesson is a building block for exactly that kind of layered analysis.

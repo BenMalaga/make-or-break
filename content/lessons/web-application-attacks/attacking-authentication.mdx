@@ -1,0 +1,138 @@
+---
+title: Attacking Authentication
+module: web-application-attacks
+moduleTitle: Web Application Attacks
+moduleOrder: 15
+moduleIcon: Crosshair
+order: 7
+summary: Login is a promise the app must re-check on every request, and it usually slips at the reset flow, the OTP, or the session token.
+estimatedMinutes: 18
+objectives:
+  - Spot username enumeration from different responses and from response timing
+  - Tell credential stuffing apart from brute force and explain why rate limits matter
+  - Find weak password reset and MFA flows, from guessable tokens to skippable second factors
+  - Explain the common JWT and session mistakes and how a server verifies tokens correctly
+prerequisites:
+  - sql-injection
+tags:
+  - web
+  - authentication
+  - jwt
+  - session
+---
+
+One way past a login is to inject into the query behind it, the trick from the last lesson: a single quote, a comment marker, and the password comparison never runs. That is a single door. Authentication has a whole hallway of them. The reset flow, the one-time code, the "remember me" cookie, the JWT an API trusts on the next request. This lesson walks that hallway.
+
+Authentication answers one question: who is this request from. The login is the moment the app decides. The session token is the promise it carries forward, re-checked on every request after. An attacker who cannot force the moment often forges the promise instead, and most apps guard the moment far better than they guard the promise.
+
+## Username enumeration comes first
+
+Guessing a password is far cheaper once the attacker knows the account exists. Apps leak that constantly. A login that answers "invalid password" for a real account and "invalid username" for a fake one is naming its users out loud. A reset form that answers "email sent" for known addresses and "no account found" for unknown ones does the same thing from a different page.
+
+Timing leaks even when the text does not. A careful server hashes the submitted password with bcrypt or Argon2, which is deliberately slow. If it only runs that hash when the username exists, real accounts take measurably longer to reject than fake ones. Sending one wrong password against a list of candidates and watching the response time split is enough to separate the real from the invented.
+
+Registration forms give it away too. A signup that refuses a taken username confirms which names are already registered. The defense is boring and effective: one generic answer for every failure, and the same amount of work whether the account exists or not.
+
+## Brute force and credential stuffing are not the same
+
+Brute force points many password guesses at one account. Credential stuffing points one guess at many accounts, and that one guess is a real username-and-password pair stolen from some other site's breach. Stuffing works because people reuse passwords, and it slips past naive defenses because it never makes many attempts against any single account.
+
+That distinction drives the defense. A per-account lockout after five bad tries stops brute force cold and does almost nothing to stuffing, which might try one password per account across a million accounts. Rate limiting has to consider the source IP and the whole login endpoint, not just the target username. A crude lockout also hands the attacker a denial-of-service lever and a fresh enumeration signal, because "this account is locked" is another way of saying "this account exists".
+
+Good defenses stack. Slow, per-user hashing raises the cost of every guess. Exponential backoff on repeated failures buys time. A challenge after a few failures blunts automation. Multi-factor turns a correct password into a first step rather than the finish line. Throttling should be gentle to real users and expensive to a script.
+
+<Callout type="security" title="Authorized targets only">
+Guessing credentials against a system nobody gave written permission to test is illegal and destructive. It locks out real people and floods logs with noise that on-call engineers have to chase. Every technique here belongs on a lab target, a CTF box, or an engagement with signed scope. Nowhere else.
+</Callout>
+
+<Quiz
+  id="attacking-authentication-stuffing-vs-brute"
+  question="A site locks any account after five failed passwords, yet attackers still take over thousands of accounts overnight. Which technique best explains it?"
+  answer={1}
+  options={[
+    "Brute force, throwing millions of password guesses at the admin account",
+    "Credential stuffing, trying one breached password per account so no single account reaches the lockout",
+    "SQL injection hidden inside the login query",
+    "Cross-site scripting on the profile page",
+  ]}
+  explanation="Credential stuffing replays real username-and-password pairs from other breaches, one attempt per account. A per-account lockout never triggers because no account is hammered. Defending it needs source-based and endpoint-wide rate limiting plus multi-factor, not just a per-user counter."
+/>
+
+## The password reset is a second login, usually weaker
+
+Every reset flow is an alternate way to take over an account, and teams tend to build it in a hurry. The token is where it breaks. A reset link built from a sequential id, a timestamp, or a handful of random digits is guessable: the attacker requests a reset for the victim, then walks the token space until one works.
+
+Expiry and reuse are the next failure. A token that never expires sits in an old inbox as a permanent skeleton key. A token that still works after the password already changed lets an attacker undo the victim's own reset. A single-use, short-lived, high-entropy token tied to one account closes all three gaps.
+
+Host header poisoning is the subtle one. Many apps build the reset URL from the incoming Host header instead of a fixed configured domain. The attacker sends a reset request for the victim with the Host header pointed at an attacker-controlled domain. The mailer stamps that domain into the link, so the victim's email now carries a valid token pointing at the attacker's server. A click, or even an automated link-preview fetch by the mail client, delivers the token straight to the attacker. The server should build that link from a base URL it controls, never from a header the client can set.
+
+## Multi-factor is only as strong as its enforcement
+
+A second factor stops a stolen password, but only if the server actually requires it. Three bypasses show up again and again.
+
+Skipping the step is the first. The password page redirects to a code prompt at /mfa, but the server marked the session fully authenticated at the password step, so requesting the real destination like /account directly sails through. The code prompt was decoration. The fix is to treat the session as half-authenticated until the second factor verifies, and to gate every protected route on the full state.
+
+Brute-forcing the code is the second. A six-digit one-time code is a million possibilities, which sounds large and is not when the verify endpoint has no rate limit and no attempt cap. The code endpoint needs the same throttling and lockout as the password, plus a short validity window so the code expires before a script can walk the space.
+
+Response tampering is the third. Some flows check the code in the browser, or the server returns a result the client is trusted to honor, something shaped like a success-or-failure flag. Intercepting the response and flipping failure to success walks right past a factor that was never enforced on the server. The rule underneath all three: the server decides, and it decides after the second factor, not before.
+
+<Quiz
+  id="attacking-authentication-mfa-skip"
+  question="After a correct password, the app shows a one-time-code prompt at /mfa. An attacker requests /account directly and lands on the dashboard. What went wrong?"
+  answer={2}
+  options={[
+    "The password was too weak to trust",
+    "The one-time code had too few digits",
+    "The server marked the session fully authenticated at the password step, so the second factor is never enforced on protected routes",
+    "The account was not locked after failed attempts",
+  ]}
+  explanation="The second factor only matters if the server keeps the session half-authenticated until the code verifies and gates every protected route on that full state. Marking the session authenticated at the password step turns the MFA page into scenery an attacker can walk around."
+/>
+
+## Sessions carry the promise forward
+
+A perfect password check is wasted if the token it hands out is weak. The session token is worth inspecting on its own. A token that is a base64 of the username is not a secret, it is a guess. Two session weaknesses cause most real takeovers.
+
+Session fixation comes first. If the app accepts a session id the client already holds and keeps that same id after login, an attacker can plant a known id in the victim's browser, wait for the victim to authenticate, and then present the same id from the attacker's own browser as an authenticated session. The defense is to regenerate the session id at every privilege change, above all at login, so the pre-login value becomes worthless.
+
+Tokens that never rotate are the second. A token that does not change on login can be captured once and replayed forever. Logout that only deletes the cookie in the browser while the server still honors the token is the same bug wearing a different hat: the promise outlives the moment it was supposed to end. Sessions should be short-lived, rotate on login, and be invalidated server-side on logout.
+
+## JWT is where trust goes to break
+
+A JSON Web Token is three base64url chunks split by dots: header, payload, signature. The payload is readable by anyone with a base64 decoder, no key required, so it is not a place for secrets. The signature is the only thing stopping an attacker from rewriting the claims, and developers break that check in a few predictable ways.
+
+The alg-none bug is the classic. The header names the signing algorithm. A verifier that honors a header of "none" and an empty signature is checking nothing, so an edited payload with a claim like an admin role sails through. A correct verifier pins the algorithm on the server side and refuses "none" outright.
+
+The weak-secret bug is the other common one. An HS256 token signed with a guessable secret can be cracked offline, where there is no rate limit and no lockout to slow the attempt down, just a wordlist against the token. A recovered secret lets an attacker mint any token they want.
+
+<CommandCard command="hashcat -m 16500 token.jwt rockyou.txt" explain="Mode 16500 targets HS256 JWT signatures. Given the whole token and a wordlist in a lab, hashcat recovers the signing secret when that secret is weak, which then lets an attacker mint tokens with any claims. That is the entire reason production JWT secrets must be long and random, never a word from a dictionary." />
+
+Correct verification is the answer to both: pin the expected algorithm server-side, reject "none", verify the signature with a strong secret or the right public key, and honor the expiry claim so an old token stops working.
+
+<Quiz
+  id="attacking-authentication-jwt-alg-none"
+  question="A JWT library accepts a token whose header says alg is none and whose signature is empty. Why is that exploitable?"
+  answer={1}
+  options={[
+    "The token is encrypted, so nobody can read the claims",
+    "The server skips signature verification, so an attacker can rewrite claims like role or user id and the token is still accepted",
+    "It forces the user to log in again",
+    "It only works when the connection uses HTTPS",
+  ]}
+  explanation="With alg set to none and the verifier honoring it, the server checks no signature at all. An attacker rewrites the claims, drops the signature, and the token is treated as authentic. A correct verifier pins the algorithm and refuses none."
+/>
+
+<Exercise title="Break and then fix a login in your own lab">
+Spin up DVWA (or use OWASP Juice Shop or the PortSwigger Web Security Academy) so every request lands on a target you control.
+
+1. Open the DVWA "Brute Force" module and set security to low. Watch how the page responds to a wrong password versus a right one, then note the exact difference an attacker would filter on.
+2. Point ffuf at the login and let it find the difference for you: `ffuf -w rockyou.txt -X POST -d 'username=admin&password=FUZZ' -u http://localhost/dvwa/vulnerabilities/brute/ -b 'PHPSESSID=YOUR_COOKIE; security=low' -fr 'incorrect'`. The `-fr incorrect` filter hides every failed login, so only a success surfaces.
+3. Raise DVWA to "high" security and run the same command. The added token and delay should break your automation. Observe what changed in the responses.
+4. In Juice Shop, walk the forgot-password flow and read the security question logic, then find the JWT the app stores and decode its payload in your browser console with `atob(token.split('.')[1])`. Confirm you can read the claims without any key.
+
+Write down which defense would have stopped each step: generic error messages, rate limiting, a stronger reset flow, and correct token verification.
+</Exercise>
+
+Authentication only proves who a request is from. It says nothing about what that identity is allowed to reach, and apps get that second question wrong even more often than the first. A logged-in user changing an id in a URL to read someone else's invoice is the next lesson: access control and IDOR.
+
+<Notes />

@@ -1,0 +1,95 @@
+---
+title: How DNS Really Works
+module: dns-and-network-services-security
+moduleTitle: DNS and Network Services Security
+moduleOrder: 51
+moduleIcon: Waypoints
+order: 1
+summary: Every connection starts with a name lookup you never see and rarely question.
+estimatedMinutes: 16
+objectives:
+  - Trace a recursive lookup from stub resolver to authoritative server
+  - Read the record types that carry real weight in an assessment
+  - Explain why caching and TTLs shape both performance and attacks
+tags:
+  - dns
+  - networking
+  - resolution
+  - "53"
+---
+
+Before your browser sends a single byte to a web server, it asks a question in the dark: "what is the address for this name?" It trusts whatever answer comes back. That blind trust is the reason DNS matters to anyone doing security, and it is why understanding the plumbing pays off before you ever touch an attack.
+
+DNS turns names people can remember into addresses machines can route. `example.com` becomes `93.184.216.34`. The whole system exists because nobody wants to memorize an IPv6 address, and because the address behind a name can change without the name changing.
+
+## The lookup nobody watches
+
+Say you type a hostname. Your machine's **stub resolver**, the tiny client baked into the OS, does almost no work itself. It hands the question to a **recursive resolver**, usually your ISP's box or something like `1.1.1.1` or `8.8.8.8`. That resolver does the legwork.
+
+The recursive resolver walks the tree from the top. It asks a **root server** who handles `.com`. Root points it at the `.com` **TLD servers**. Those point it at the **authoritative** name server for `example.com`. The authoritative server is the source of truth, the one whose owner actually set the records. Its answer flows back up the chain to you.
+
+<CommandBlock
+  title="attacker@kali: watch a lookup happen"
+  commands={[
+    { cmd: "dig example.com A", comment: "the everyday query: give me the A record" },
+    { cmd: "dig +trace example.com", comment: "walk root to TLD to authoritative, one hop at a time" },
+    { cmd: "dig example.com NS", comment: "who is authoritative for this zone" },
+  ]}
+/>
+
+Run `dig +trace` once and the abstract tree becomes concrete. You see the root referral, then the `.com` referral, then the final authoritative answer. That is the whole recursion, printed.
+
+## Records that actually matter
+
+A zone is a bag of records, each a type. You do not need all of them, but a handful come up constantly.
+
+- **A** and **AAAA**: the IPv4 and IPv6 addresses a name points to. The payoff record.
+- **CNAME**: an alias. `www` is a CNAME to the real host. Dangling CNAMEs pointing at deprovisioned cloud assets are a whole subdomain-takeover class.
+- **MX**: mail servers for the domain. Read these before any phishing or email-security work.
+- **TXT**: free-form text. SPF, DKIM, and domain-verification tokens live here, which makes TXT a quiet goldmine during recon.
+- **NS** and **SOA**: who is authoritative, and the zone's serial and timers.
+
+<ExpectedOutput label="dig example.com A, trimmed to what matters">
+```
+;; ANSWER SECTION:
+example.com.  3600  IN  A  93.184.216.34
+
+;; Query time: 24 msec
+;; SERVER: 1.1.1.1#53(1.1.1.1)
+```
+</ExpectedOutput>
+
+That `3600` is the **TTL**, in seconds. It tells every resolver how long it may cache this answer before asking again.
+
+## Caching is the point, and the problem
+
+Nobody could run the internet if every lookup walked to the root. So resolvers cache. Once `1.1.1.1` learns `example.com` is `93.184.216.34`, it holds that for the TTL and serves it to the next thousand people who ask.
+
+Caching is why DNS is fast. It is also why DNS attacks pay off. Poison one cache entry on a busy resolver and you redirect everyone behind it until the TTL expires. Hold that thought, because it is the core of the next lesson.
+
+<Callout type="security" title="Query only what you are cleared to enumerate">
+Passive lookups against public records are low risk, but heavy enumeration, zone-transfer attempts, and brute-forced subdomain floods are active recon that some scopes forbid and some jurisdictions treat as unauthorized access. Point this at your own domains, a lab like the ones in a home range, or a target with written authorization. Stay inside the engagement scope.
+</Callout>
+
+<Quiz
+  id="dns-recursion-authoritative"
+  question="During a recursive lookup for www.example.com, which server holds the authoritative answer?"
+  answer={3}
+  options={[
+    "Your machine's stub resolver",
+    "The recursive resolver at 8.8.8.8",
+    "The root name server",
+    "The name server the zone owner configured for example.com",
+  ]}
+  explanation="The stub and recursive resolvers only fetch and relay. The root and TLD servers hand out referrals. The authoritative server for the zone is the one whose owner set the records, and it gives the real answer."
+/>
+
+<Exercise
+  id="dns-ttl-meaning"
+  prompt="A record shows a TTL of 300. In one sentence, what does that let a recursive resolver do, and for how long?"
+  answer="It lets the resolver cache and reuse the answer for 300 seconds before it must ask the authoritative server again."
+>
+Think about what the number is counting down, and who is doing the counting.
+</Exercise>
+
+<Notes />

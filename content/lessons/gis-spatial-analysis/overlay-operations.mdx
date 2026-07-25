@@ -1,0 +1,207 @@
+---
+title: "Overlay: Clip, Intersect, Union, and Difference"
+module: gis-spatial-analysis
+moduleTitle: Spatial Analysis
+moduleOrder: 3
+moduleIcon: Radar
+order: 3
+summary: "Overlay combines two polygon layers into a genuinely new one, and clip, intersect, union, and difference are four distinct ways to do that combining, each answering a different question."
+estimatedMinutes: 14
+prerequisites: ["buffers-and-proximity"]
+objectives:
+  - Distinguish clip, intersect, union, and difference by what each keeps and discards from two input layers
+  - Explain how attributes from the two input layers combine, or fail to combine, in each overlay operation's output
+  - Run each overlay operation in GeoPandas and read the resulting attribute table correctly
+  - Choose the right overlay operation for a stated question, using a flood zone and parcel layer as the running example
+tags:
+  - gis
+  - analysis
+  - overlay
+---
+
+The previous lesson ended on a hand-off: proximity and predicates both build zones or test relationships, but neither one actually merges two layers into something new. A buffer draws a zone. A predicate asks whether two shapes touch, cross, or sit inside one another. Neither operation changes the geometry an analyst is left holding at the end. Overlay is the tool that does. Feed it two polygon layers and it hands back a third layer with its own new shapes, built directly from where the first two agreed and disagreed with each other.
+
+## Overlay builds new geometry, a predicate only answers yes or no
+
+A spatial predicate like intersects, covered two lessons back, is a test. It takes two geometries and returns true or false, and the geometries themselves never change. Overlay is a computation. It takes two full layers and produces a third, whose shapes are cut, combined, or trimmed based on how every feature in one layer sits against every feature in the other. The output has real polygons an analyst can measure, map, and query, not just a filtered list of true and false answers.
+
+There are four overlay operations worth knowing well, and each one keeps a different slice of the two inputs. **Clip** cuts one layer down to the boundary of another and keeps only the first layer's data. **Intersect** keeps only the ground the two layers actually share, and it keeps the descriptive columns from both. **Union** keeps everything from both layers, splitting the geometry wherever the two overlap so nothing gets lost. **Difference**, also called erase, removes one layer's footprint from the other and returns only what is left over. Same two input layers, four different questions, four different outputs.
+
+QGIS groups all four under Vector, then Geoprocessing Tools, with each operation named almost exactly what it does: Clip, Intersection, Union, Difference. GeoPandas offers Clip as its own function and folds the other three into a single `overlay()` call with a `how` argument. PostGIS exposes the same ideas as `ST_Intersection`, `ST_Union`, and `ST_Difference`. The names travel across every tool, because the underlying geometric operation is the same regardless of where it runs.
+
+## Clip: cut A down to the shape of B
+
+Clip answers a narrow question: given a layer of features, and a boundary that defines an area of interest, what does that layer look like restricted to just that area. A regional roads dataset almost always extends far past any one city an analyst actually cares about. Clipping the roads to a city boundary polygon trims every road down to only the portion inside the city, and drops anything that falls entirely outside it.
+
+The part worth sitting with is that clip cuts geometry, it does not just pick whole features. A road that starts inside the city and runs two kilometers past its edge does not get kept whole or dropped whole. It gets sliced exactly at the boundary line, and only the inside portion survives into the output. That is a real difference from filtering roads with an intersects predicate, which would keep the entire road, uncut, the moment any part of it falls inside the city.
+
+```python
+import geopandas as gpd
+
+roads = gpd.read_file("regional_roads.gpkg")
+city_boundary = gpd.read_file("city_boundary.gpkg")
+
+city_roads = gpd.clip(roads, city_boundary)
+print(f"{len(city_roads)} of {len(roads)} road segments fall inside the city")
+```
+
+<ExpectedOutput label="a count of road segments after clipping to the city boundary">
+```
+6,213 of 41,880 road segments fall inside the city
+```
+</ExpectedOutput>
+
+`gpd.clip(roads, city_boundary)` takes the roads layer as the thing being cut and the boundary as the cutting shape, in that order. The result carries the roads' own attribute columns, road name, surface type, speed limit, unchanged. It carries nothing from `city_boundary` itself, no city name, no population, nothing, because clip's whole job is restricting an area, not blending two datasets together. If the boundary layer's own attributes matter to the output, clip is the wrong tool, and intersect is the one to reach for instead.
+
+<Quiz
+  id="clip-cuts-geometry"
+  question="A road segment starts inside a city and continues two kilometers past the city boundary. After clipping the roads layer to the city boundary, what happens to that segment?"
+  answer={1}
+  options={[
+    "It is dropped entirely, because clip only keeps segments that fall completely inside the boundary.",
+    "It is cut exactly at the boundary line, and only the portion inside the city survives, carrying none of the boundary layer's own attributes.",
+    "It is kept whole and unmodified, since clip only filters whole features rather than cutting geometry.",
+    "It is kept whole, and the city's name and population are added onto the road's attribute row.",
+  ]}
+  explanation="Clip trims geometry at the cutting boundary rather than keeping or dropping whole features, so a road crossing the line ends up shortened to just its inside portion. The output keeps only the attributes of the layer being clipped, never the boundary layer's own columns. The other three options describe either a plain predicate filter or a full attribute join, neither of which is what clip does."
+/>
+
+## Intersect: keep only where both layers agree
+
+Intersect answers a broader question than clip. Instead of restricting one layer to a boundary, it computes the actual overlap between two layers that both carry meaningful attributes, and it keeps the descriptive columns from both sides on whatever ground they share. This is the operation reached for the moment a question depends on two conditions being true in the same place at once: land that is both zoned residential and inside a flood zone, a sensor coverage area that overlaps a restricted airspace, a proposed pipeline route that crosses a protected habitat.
+
+Here is a small parcels layer next to a flood zone, built directly in code so the geometry is exact and the result is easy to check by hand:
+
+```python
+import geopandas as gpd
+from shapely.geometry import Polygon
+
+parcels = gpd.GeoDataFrame(
+    {
+        "parcel_id": [101, 205, 309],
+        "zoning": ["residential", "commercial", "residential"],
+        "geometry": [
+            Polygon([(0, 0), (0, 10), (10, 10), (10, 0)]),
+            Polygon([(10, 0), (10, 10), (20, 10), (20, 0)]),
+            Polygon([(20, 0), (20, 10), (30, 10), (30, 0)]),
+        ],
+    }
+)
+
+flood_zone = gpd.GeoDataFrame(
+    {
+        "flood_risk": ["high"],
+        "geometry": [Polygon([(5, 0), (5, 10), (25, 10), (25, 0)])],
+    }
+)
+
+flood_parcels = gpd.overlay(parcels, flood_zone, how="intersection")
+print(flood_parcels[["parcel_id", "zoning", "flood_risk"]])
+```
+
+<ExpectedOutput label="every parcel that shares any ground with the flood zone, attributes from both layers">
+```
+   parcel_id       zoning flood_risk
+0        101  residential       high
+1        205   commercial       high
+2        309  residential       high
+```
+</ExpectedOutput>
+
+Three parcels sit side by side along the x axis, and the flood zone is a wide band running from x equals 5 to x equals 25, wide enough to clip into the edge of parcel 101, swallow parcel 205 whole, and clip into the edge of parcel 309. `gpd.overlay(parcels, flood_zone, how="intersection")` computes the overlap for every pair that shares ground, and it stitches the attribute columns from both inputs onto each resulting row. Every one of the three parcels touches the flood zone somewhere, so all three survive, each one now carrying `flood_risk` alongside its own `zoning` and `parcel_id`.
+
+That result answers "which parcels touch the flood zone at all," but the original question was narrower: which residential parcels fall in the flood zone. Intersect does not know or care about the values inside `zoning`, it only computes geometry. Getting to the real answer takes one more line, an ordinary attribute filter on the table intersect just produced:
+
+```python
+at_risk_homes = flood_parcels[flood_parcels["zoning"] == "residential"]
+print(at_risk_homes[["parcel_id", "zoning", "flood_risk"]])
+```
+
+<ExpectedOutput label="the commercial parcel drops out, leaving only the residential ones actually at risk">
+```
+   parcel_id       zoning flood_risk
+0        101  residential       high
+2        309  residential       high
+```
+</ExpectedOutput>
+
+Parcel 205, the commercial one, disappears from this second table even though it sat entirely inside the flood zone. That is exactly the shape of the original question: land that is both flood zone and residential, not just any land that happens to touch the flood zone. Intersect did the geometric half of the work, computing exactly where the two layers overlap and preserving both sets of attributes so that filter could run. Without the flood zone's attribute riding along, there would be no `flood_risk` column to check, and without the parcels' own `zoning` column riding along, there would be no way to separate homes from storefronts.
+
+<Callout type="info" title="Two things named intersect, one geometric idea">
+The predicate from an earlier lesson, `.intersects()`, and the overlay operation here, `how="intersection"`, share a name because they share an idea, but they are not interchangeable. The predicate answers one true or false question per pair of geometries and changes nothing. The overlay operation computes and returns the actual overlapping shape, as a new geometry, for every pair that overlaps, and carries attributes along with it. Reaching for the predicate when a real geometry is needed, or the reverse, is an easy mix-up worth catching early.
+</Callout>
+
+<Quiz
+  id="intersect-attribute-combination"
+  question="In the parcels and flood zone example, parcel 205 is zoned commercial and sits entirely inside the flood zone. What does its row look like in the output of gpd.overlay(parcels, flood_zone, how=&quot;intersection&quot;)?"
+  answer={1}
+  options={[
+    "Only the zoning column survives, since flood_risk only attaches to parcels that are zoned residential.",
+    "The row carries both zoning from the parcels layer and flood_risk from the flood zone layer, since intersect keeps the combined attributes of both inputs wherever they overlap.",
+    "The row carries no attributes at all, since intersect only returns geometry.",
+    "The row carries flood_risk but not zoning, since intersect always drops the left layer's own attributes.",
+  ]}
+  explanation="Intersect keeps the descriptive columns from both input layers on the overlapping geometry it produces, regardless of what any particular value happens to be. Parcel 205's zoning value being commercial rather than residential has no bearing on whether the column appears, only on what a later filter step does with it. The other options either invent a rule intersect does not follow or ignore the left layer's attributes entirely, which it never drops."
+/>
+
+## Union: keep everything, split where they overlap
+
+Clip restricts one layer to a boundary. Intersect keeps only the shared ground. Union goes the other direction entirely: it keeps every scrap of area from both input layers, and it splits the geometry into separate pieces everywhere the two disagree about coverage, so that no region ends up misdescribed by being merged with a neighbor it does not actually match.
+
+Running the same two layers through union instead of intersection shows the difference immediately:
+
+```python
+full_picture = gpd.overlay(parcels, flood_zone, how="union")
+print(full_picture[["parcel_id", "zoning", "flood_risk"]])
+```
+
+<ExpectedOutput label="five pieces instead of three, some carrying a null where one layer never reached">
+```
+   parcel_id       zoning flood_risk
+0        101  residential        NaN
+1        101  residential       high
+2        205   commercial       high
+3        309  residential       high
+4        309  residential        NaN
+```
+</ExpectedOutput>
+
+Where intersect returned three rows, union returns five. Parcel 101 now splits into two pieces: the sliver from x equals 0 to 5, which never touches the flood zone and shows `NaN` for `flood_risk`, and the sliver from x equals 5 to 10, which does overlap and carries `flood_risk` of `high`. Parcel 309 splits the same way at its other edge. Parcel 205, entirely inside the flood zone, needed no split and appears once, fully tagged. Union never throws geometry away and never merges regions that do not actually share the same combination of attributes, so any area covered by only one of the two input layers still shows up, just with a missing value standing in for whatever the other layer never provided.
+
+That `NaN` is doing real work, not standing in as an error. It means, honestly, that this particular sliver of ground was never inside the flood zone at all, so there is nothing true to put in that column. A union is the right tool whenever the finished map needs to account for every square meter of both inputs, flooded or not, zoned or not, rather than only the parts where the two happen to agree.
+
+## Difference: what is left after B is removed from A
+
+Difference, sometimes called erase, is the mirror image of intersect. Where intersect keeps only the shared ground, difference throws the shared ground away and keeps whatever is left of the first layer once the second layer's footprint has been cut out of it. This is the tool for questions phrased as a subtraction: buildable land is parcel area minus wetlands, developable ground is a site minus a utility easement, safe zone is a district minus its flood zone.
+
+```python
+buildable = gpd.overlay(parcels, flood_zone, how="difference")
+print(buildable[["parcel_id", "zoning"]])
+```
+
+<ExpectedOutput label="parcel 205 vanishes entirely, since the flood zone covered it completely">
+```
+   parcel_id       zoning
+0        101  residential
+1        309  residential
+```
+</ExpectedOutput>
+
+Only two rows come back, not three. Parcel 101 keeps just its unflooded sliver, the x equals 0 to 5 strip, and parcel 309 keeps its own unflooded sliver on the other end. Parcel 205 disappears completely, because the flood zone covered every bit of it and difference has nothing left of that parcel to hand back. Notice too that `flood_risk` never appears in this output at all, not even as a null. Difference keeps only the attributes of the layer being subtracted from, since the second layer's whole purpose here is defining what gets cut away, not contributing any descriptive value of its own.
+
+Losing parcel 205 entirely is not a bug to work around, it is the correct answer to the question difference is built to ask: after removing every bit of flood-prone ground, what land is actually left to build on. A parcel that was flood-prone from corner to corner simply has no safe area left, and the output says so by leaving it out rather than by returning an empty shape with a misleading row still attached to it.
+
+<Quiz
+  id="choose-the-right-overlay"
+  question="An engineer needs a single layer showing only the buildable land: every part of a parcel that is not inside the flood zone, with no extra filtering step needed afterward. Which overlay operation produces that directly?"
+  answer={2}
+  options={[
+    "Intersect, since it already keeps only the ground where the two layers overlap.",
+    "Clip, cutting the parcels down to the flood zone's own boundary.",
+    "Difference, subtracting the flood zone from the parcels layer and keeping only what remains.",
+    "Union, keeping every piece from both layers so nothing is lost.",
+  ]}
+  explanation="Difference removes the second layer's footprint from the first and hands back exactly the remainder, which is what buildable land actually means here. Intersect would return the opposite, the flood-prone ground itself, not the safe remainder. Clip would restrict the parcels to the flood zone's shape rather than exclude it. Union would keep everything, flooded and unflooded together, which still needs a filter afterward to isolate the buildable part."
+/>
+
+Four operations, one shared mechanism: two polygon layers go in, and the geometry of wherever they meet decides what comes out. Clip trims one layer to another's shape and keeps only its own data. Intersect keeps the shared ground and both layers' attributes together. Union keeps every piece of both, split cleanly at the seams. Difference keeps only what survives after one layer is cut away from the other. The choice between them is really a choice about which question is actually being asked, not a technical detail to pick almost at random. The next lesson turns these overlay outputs into hard numbers, measuring the area, length, and count of whatever geometry each operation leaves behind.

@@ -1,0 +1,221 @@
+---
+title: Dictionaries and Lookups
+module: python-deep-dive
+moduleTitle: Python Deep Dive
+moduleOrder: 2
+moduleIcon: FileCode
+order: 2
+summary: "Stop counting positions and start asking by name: the Python dict looks a value up by a key you choose, not a number Python assigned."
+estimatedMinutes: 14
+prerequisites: ["lists-and-collections"]
+objectives:
+  - Create a dict of key/value pairs and read a value by its key
+  - Add and update keys, and explain why keys are unique
+  - Handle a missing key with .get() instead of crashing on KeyError
+  - Loop over pairs with .items() and pick a dict over a list by the question being asked
+tags:
+  - python
+  - dictionaries
+---
+
+A paper phone book holds a thousand numbers, and nobody finds a friend's number by counting from the cover to entry 634. They flip to the letter, land on the name, and read the number sitting next to it. The name is the way in. The position is irrelevant.
+
+The previous lesson, lists and collections, stored items in order and reached them by position: an index, meaning a number Python assigned counting from zero, where `names[0]` is the first item and `names[2]` is the third. That is the right tool when position is the real question, like "what came first" or "give me the next one." It falls apart the moment the real question is "what is Grace's number," because a person's name has nothing to do with where they happened to land in a list. Reaching that number through a list would mean searching every entry until a match turns up. Python has a collection built for exactly this shape of question, and it is one of the most used tools in the whole language.
+
+## Reaching a value by a name you chose
+
+A dictionary, which Python calls a dict, is a collection of key/value pairs. Each pair ties a key, the thing looked up, to a value, the thing found. It is written inside curly braces, with a colon between each key and its value and commas between the pairs. Here is a small phone book as a dict:
+
+```python
+phone_book = {"Ada": "555-0101", "Grace": "555-0199", "Katherine": "555-0142"}
+```
+
+Three pairs. The keys are the names on the left of each colon. The values are the numbers on the right. Reading a value works with square brackets, the same brackets a list uses, except a dict expects a key inside them instead of a position number:
+
+```python
+phone_book = {"Ada": "555-0101", "Grace": "555-0199", "Katherine": "555-0142"}
+print(phone_book["Grace"])
+```
+
+<ExpectedOutput label="looking up Grace by name, not by position">
+```
+555-0199
+```
+</ExpectedOutput>
+
+That single line is the whole point of a dict. `phone_book["Grace"]` does not care whether Grace is the first pair or the fiftieth. Python jumps straight to the key and hands back its value, and it does so just as fast on a dict of three names as on a dict of three million. This is the split worth holding onto: a list is indexed by a number Python assigned, and a dict is indexed by a key the programmer chose. When the natural way to find a thing is a name, an ID, a word, or a code the programmer already knows, a dict fits. When the natural way is a position or an order, a list fits.
+
+Keys are usually strings, meaning text, but they can be numbers too. Values can be anything: strings, numbers, even lists or other dicts. The key is the label and the value is whatever hangs off it.
+
+<Quiz
+  id="dict-why-over-list"
+  question="A program needs to find a phone number given a person's name. Why is a dict a better fit than a list for this?"
+  answer={1}
+  options={[
+    "A list cannot hold text, only numbers, so it cannot store phone numbers.",
+    "A dict looks values up by a key the programmer chose, so the name itself finds the number, while a list only finds items by their position number.",
+    "A dict automatically sorts its entries into alphabetical order.",
+    "A list can hold at most three items, but a dict has no size limit.",
+  ]}
+  explanation="The dict is built for lookup by identity: the name is the key, and the key finds the value directly. A list would force a search through every entry, since it only knows items by position. Lists hold text fine, dicts do not auto-sort, and neither has a three-item cap, so the other answers are wrong."
+/>
+
+## Adding and updating both use the same move
+
+A dict is not frozen once it's built. Assigning to a key with square brackets on the left of an equals sign writes into the dict. If the key is new, the pair gets added. If the key already exists, its value gets replaced. It's the same syntax for both, and Python decides which one happens based on whether the key is already there:
+
+```python
+inventory = {"apples": 12, "pears": 4}
+inventory["plums"] = 7
+inventory["apples"] = 20
+print(inventory)
+```
+
+<ExpectedOutput label="one new key added, one existing key overwritten">
+```
+{'apples': 20, 'pears': 4, 'plums': 7}
+```
+</ExpectedOutput>
+
+Two writes, two different outcomes. `inventory["plums"] = 7` added a brand new pair, because no plums key existed. `inventory["apples"] = 20` overwrote the old count of 12, because apples was already a key. Notice apples kept its spot at the front even after the value changed. Python remembers the order keys were first inserted, so updating a value does not move the key.
+
+That overwrite behavior is not an accident, and it points at a rule that defines the whole structure: keys are unique. A dict cannot hold two pairs with the same key. Ask for `inventory["apples"]` and there has to be exactly one answer, so a second write to an existing key can only mean "change this one," never "add a duplicate." This is why a dict is the natural home for anything with an identity that should appear once: a username, a product code, a setting name. If uniqueness of the label matters, the dict enforces it for free.
+
+Values carry no such rule. Two different keys can point at the same value with no trouble at all. Ada and Grace could share a number, and the dict would keep both names as separate keys pointing at one string. It's the keys that must be distinct, not the values.
+
+## Asking for a key that is not there
+
+Every lookup so far assumed the key exists. Real programs cannot assume that. Someone searches for a name that was never added, a config reads a setting nobody set, a lookup runs on data that arrived incomplete. When square brackets ask for a key that is not in the dict, Python does not return blank or zero. It stops the program with an error:
+
+```python
+phone_book = {"Ada": "555-0101", "Grace": "555-0199"}
+print(phone_book["Alan"])
+```
+
+<ExpectedOutput label="a missing key does not return blank, it raises">
+```
+Traceback (most recent call last):
+  File "phone.py", line 2, in <module>
+    print(phone_book["Alan"])
+          ~~~~~~~~~~^^^^^^^^
+KeyError: 'Alan'
+```
+</ExpectedOutput>
+
+That last line, `KeyError: 'Alan'`, is Python saying the key Alan is not in this dict, and it will not guess what was meant. The program halts right there. Anything after that line never runs.
+
+The fix is to ask in a way that tolerates a miss. Every dict has a `.get()` method, which reads a key but returns a fallback value instead of crashing when the key is absent. Give it the key to look for and a default to return if the key is missing:
+
+```python
+phone_book = {"Ada": "555-0101", "Grace": "555-0199"}
+print(phone_book.get("Alan", "not listed"))
+print(phone_book.get("Ada", "not listed"))
+```
+
+<ExpectedOutput label="get returns the default for a miss, the real value for a hit">
+```
+not listed
+555-0101
+```
+</ExpectedOutput>
+
+Same dict, two calls. The first asks for Alan, who is not a key, so `.get()` hands back the default `"not listed"` and the program keeps running. The second asks for Ada, who is a key, so the default is ignored and the real number comes back. Reach for square brackets when a missing key genuinely means the program is broken and should stop loudly. Reach for `.get()` when a missing key is a normal, expected case that deserves a sensible answer instead of a crash.
+
+There is a third way to sidestep the crash: ask whether a key exists before reading it. The `in` operator checks membership and answers with True or False, so `"Ada" in phone_book` is True and `"Alan" in phone_book` is False. That is worth reaching for when the code needs to do something different depending on presence, like add a key only when it's absent, rather than just supply a fallback value. Checking with `in` and reading with `.get()` are the two clean ways to touch a key that might not be there. The bare square brackets are the one that bites.
+
+<Callout type="warning" title="Square-bracket lookups crash on any key that is not present">
+The most common dict bug is reading `data["field"]` on data that might not carry that field. One missing key raises KeyError and takes the whole program down, often on input that looked fine in testing and only broke on the odd real record. When a lookup runs on anything a program did not build itself, a user's input, a parsed file, a response from elsewhere, prefer `.get()` with a default, or check the key is present first. A KeyError deep in a running job is a debugging session that a two-word change would have avoided.
+</Callout>
+
+<Quiz
+  id="dict-get-vs-brackets"
+  question="A dict named prices has the keys &quot;apple&quot; and &quot;pear&quot;. How do prices[&quot;banana&quot;] and prices.get(&quot;banana&quot;, 0) differ?"
+  answer={2}
+  options={[
+    "Both return 0, because banana is not a key in the dict.",
+    "Both raise a KeyError and stop the program.",
+    "prices[&quot;banana&quot;] raises a KeyError and halts the program, while prices.get(&quot;banana&quot;, 0) returns 0 instead of crashing.",
+    "prices[&quot;banana&quot;] returns None, while prices.get(&quot;banana&quot;, 0) raises a KeyError.",
+  ]}
+  explanation="Square brackets on a missing key raise KeyError and stop everything. The .get() method with a default returns that default, here 0, for a missing key, and never raises. Square brackets do not quietly return None, and get is the safe one, so the other options invert the behavior."
+/>
+
+## Walking every pair with .items()
+
+Reading one key at a time covers lookups. Plenty of work needs the opposite: touch every pair in the dict, not just one. A dict knows how to hand back its pairs for a loop through the `.items()` method, which yields each key and value together. A for loop can catch both at once by naming two loop variables:
+
+```python
+phone_book = {"Ada": "555-0101", "Grace": "555-0199", "Katherine": "555-0142"}
+for name, number in phone_book.items():
+    print(name, "->", number)
+```
+
+<ExpectedOutput label="one line per pair, in the order the keys were added">
+```
+Ada -> 555-0101
+Grace -> 555-0199
+Katherine -> 555-0142
+```
+</ExpectedOutput>
+
+Read `for name, number in phone_book.items()` as: for each pair, put the key into `name` and the value into `number`, then run the body. On the first pass `name` is `"Ada"` and `number` is `"555-0101"`. On the second, `"Grace"` and its number. The loop walks every pair once, in insertion order, and stops when the dict runs out. This is how a program prints a whole dict, adds up all its values, or checks each pair against a rule.
+
+That two-variable unpacking is what makes `.items()` clean. Without it, a loop would get keys alone and have to look each value back up by hand. With it, both halves of the pair land in named variables on every trip.
+
+## The counting pattern: where dicts earn their keep
+
+The sharpest example of a dict beating a list is counting how often things occur. Count the words in a sentence, the visits per page, the errors per type, and a list forces an ugly search for "have I seen this one already." A dict makes it three lines, because the thing being counted becomes the key and the running total becomes the value:
+
+```python
+sentence = "the cat sat on the mat the cat"
+counts = {}
+for word in sentence.split():
+    counts[word] = counts.get(word, 0) + 1
+print(counts)
+```
+
+<ExpectedOutput label="each distinct word mapped to how many times it appeared">
+```
+{'the': 3, 'cat': 2, 'sat': 1, 'on': 1, 'mat': 1}
+```
+</ExpectedOutput>
+
+The dict starts empty, written as `{}`. The `.split()` method breaks the sentence into a list of words at the spaces, and the loop walks that list. The whole trick lives in one line: `counts[word] = counts.get(word, 0) + 1`. The first time a word shows up it is not a key yet, so `counts.get(word, 0)` returns 0, adds 1, and stores 1. Every later time that word returns, `.get()` finds the current count, adds 1, and overwrites the old value with the new one. That is exactly why `.get()` with a default of 0 is used instead of plain square brackets. On the first sighting of any word, `counts[word]` would raise a KeyError, because the word is not there yet. The default seeds the count so the addition has something to build on.
+
+A list could never do this in three lines. It has no notion of "the entry for this word," only positions, so counting with a list means scanning the whole thing for each word to find its tally, or building two parallel lists and keeping them in sync by hand. The dict maps identity straight to a value, which is the exact shape counting needs. Any time the question is "how many of each" or "which value goes with this label," a dict is almost always the answer.
+
+<Quiz
+  id="dict-counting-get"
+  question="In the counting loop, why does it use counts.get(word, 0) + 1 rather than counts[word] + 1?"
+  answer={1}
+  options={[
+    "The .get() method reads a key faster than square brackets do on every lookup.",
+    "The first time a word appears it is not a key yet, so counts[word] would raise a KeyError, while .get() supplies 0 as a starting count.",
+    "The .get() method automatically sorts the words from most frequent to least.",
+    "Using counts[word] + 1 would count every word exactly twice.",
+  ]}
+  explanation="On a word's first appearance the key does not exist, so square-bracket reading would raise KeyError before the addition ever runs. get returns the default 0 so the first count becomes 1. It is not about speed, it does not sort, and square brackets would not double anything, they would simply crash."
+/>
+
+<CommandCard command="python3 tally.py" title="terminal" explain="Runs the code saved in tally.py, so Python reads the file top to bottom and prints whatever the code prints." />
+
+<Exercise title="Build a tiny frequency counter">
+Save this into a file named `tally.py`:
+
+```python
+sentence = "red blue red green blue red"
+counts = {}
+for word in sentence.split():
+    counts[word] = counts.get(word, 0) + 1
+
+print(counts)
+print("red appeared", counts["red"], "times")
+print("yellow appeared", counts.get("yellow", 0), "times")
+```
+
+Run it with `python3 tally.py`. Before you look, predict the count for each color, then check the printout against your guess. Now change the last line's `counts.get("yellow", 0)` to `counts["yellow"]` and run it again. Watch it raise a KeyError, because yellow was never a key. Then change it back and add a color of your own to the sentence to see the dict grow.
+</Exercise>
+
+Keys and values in a dict are almost always text: names, words, codes, labels. Splitting a sentence, lowercasing words so "The" and "the" count as one, stripping punctuation off the edges, all of that is string work, and strings have a whole toolkit of their own. The next lesson, working with text, opens that toolkit: how to slice, search, clean, and reshape strings so the keys going into a dict are the keys actually wanted.
+
+<Notes />

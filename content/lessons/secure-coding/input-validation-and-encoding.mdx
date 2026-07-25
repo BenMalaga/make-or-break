@@ -1,0 +1,92 @@
+---
+title: Input Validation and Output Encoding
+module: secure-coding
+moduleTitle: Secure Coding
+moduleOrder: 38
+moduleIcon: ShieldCheck
+order: 2
+summary: Validate on the way in, encode on the way out, and injection mostly dies.
+estimatedMinutes: 18
+objectives:
+  - Write allowlist validation instead of denylist filters
+  - Kill SQL injection with parameterized queries, not string cleaning
+  - Encode output for the exact context it lands in
+tags:
+  - secure-coding
+  - validation
+  - encoding
+  - injection
+  - xss
+---
+
+The single quote that breaks a SQL query and the `<script>` that pops an alert are the same failure. In both cases your app took data and let it run as code. Two defenses stop nearly all of it, and developers reach for the wrong one constantly, so get the split straight before you write another line.
+
+Validation asks one question: is this input shaped like what I expect? Encoding asks a different one: how do I safely place this data into a specific output? You need both, and neither substitutes for the other.
+
+## Validate with an allowlist
+
+Validation happens at the boundary, the moment input arrives, and its job is to reject anything that does not match a known-good shape. A US zip code is five digits. Match `^\d{5}$` and drop everything else. A username is letters, numbers, and underscores up to 32 characters. Define what good looks like and refuse the rest.
+
+Do this with an allowlist, never a denylist. A denylist tries to enumerate bad input: block `'`, block `<script>`, block `../`. You will lose, every time, because attackers have more encodings than you have filters. Uppercase, URL-encoding, unicode homoglyphs, null bytes, nested tags that survive a single strip pass. An allowlist flips the burden: instead of naming every attack, you name the handful of things you accept.
+
+<Callout type="security" title="Practice on your own inputs">
+The payloads that defeat weak filters, like `%2e%2e%2f` or `<scr<script>ipt>`, are worth understanding so you can see why denylists fail. Fire them only at applications you own or are cleared to test. Throwing bypass strings at someone else's live site to see what sticks is an attack, not research.
+</Callout>
+
+## Validation does not stop injection
+
+Here is the part people get wrong. Cleaning input does not stop SQL injection. The real fix is to keep data out of the code channel entirely, so the database never parses your value as SQL in the first place. That is what parameterized queries do.
+
+```python
+# vulnerable: email is concatenated into the query text
+cur.execute("SELECT * FROM users WHERE email = '" + email + "'")
+
+# safe: email is bound as a value, never parsed as SQL
+cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+```
+
+The placeholder version sends the query and the data on separate rails. The database treats `email` as a string value no matter what characters it holds, so a single quote is just a character. Same idea everywhere a "code plus data" API exists: pass an argv array to `execve` instead of building a shell string, use prepared statements, use a template engine that escapes by default. Validation is a useful second layer. It is not the fix.
+
+## Encode for the exact context
+
+Cross-site scripting is the output-side twin of injection. When you drop untrusted data into a page, you have to encode it for the precise spot it lands in, because each context has different dangerous characters.
+
+- HTML body: entity-encode, so `<` becomes `&lt;` and the browser renders it as text.
+- HTML attribute: entity-encode and keep the value quoted, or an attacker closes the attribute and adds their own.
+- Inside a `<script>` block or an `onclick`: JavaScript-encode, and honestly, just do not put user data there. That context is a minefield.
+- URL parameter: percent-encode.
+
+Modern frameworks encode HTML output by default. React escapes `{value}` for you. The bugs happen when you step around the framework: `dangerouslySetInnerHTML`, a Jinja `|safe` filter, `innerHTML =`. Those are the lines to hunt.
+
+<CommandBlock
+  title="find the dangerous output sinks in a repo you own"
+  commands={[
+    { cmd: "grep -rn 'dangerouslySetInnerHTML' src/", comment: "React escape hatch that renders raw HTML" },
+    { cmd: "grep -rn '|safe' templates/", comment: "Jinja filter that turns off auto-escaping" },
+    { cmd: "grep -rn 'innerHTML' src/", comment: "raw DOM write, no encoding applied" },
+  ]}
+/>
+
+<Quiz
+  id="valenc-sqli-fix"
+  question="Your login endpoint concatenates the username into a SQL string. What actually fixes the injection?"
+  answer={1}
+  options={[
+    "Strip single quotes and semicolons from the username",
+    "Use a parameterized query so the value is never parsed as SQL",
+    "Reject any username longer than 20 characters",
+    "Lowercase the input before running the query",
+  ]}
+  explanation="Filtering characters is a denylist that attackers route around with encodings. Parameterized queries send data on a separate channel, so the value can never be interpreted as SQL code."
+/>
+
+<Exercise
+  id="valenc-context"
+  prompt="You are inserting an untrusted comment into an HTML page body. Name the one character whose encoding matters most to stop it from starting a tag."
+  answer="<"
+  placeholder="a single character"
+>
+A script tag has to start somehow. Encode the character that opens any HTML tag and the browser prints it as text.
+</Exercise>
+
+<Notes />

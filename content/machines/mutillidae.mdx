@@ -1,0 +1,82 @@
+---
+name: OWASP Mutillidae II
+tagline: OWASP's deliberately broken PHP app. Injection all the way to command execution.
+description: A deliberately vulnerable PHP and MySQL application from the OWASP project, with dozens of hackable pages mapped to the OWASP Top 10. You will break a login query to dump the user table, then abuse a lookup field to run commands on the host.
+difficulty: EASY
+os: LINUX
+targetType: DOCKER
+tags:
+  - web
+  - owasp
+  - training
+points: 20
+docker:
+  image: citizenstig/nowasp
+  run: docker run --rm -p 8080:80 citizenstig/nowasp
+  port: 8080
+  httpPath: /
+flags:
+  - type: USER
+    label: Dump the user table
+    value: MOB{one_quote_spills_the_table}
+    points: 10
+  - type: ROOT
+    label: Command execution on the host
+    value: MOB{a_semicolon_runs_the_shell}
+    points: 15
+hints:
+  - title: Where do I even start?
+    body: The left menu maps every page to an OWASP category. Start under OWASP Top 10, then A1 Injection. The security level shown at the top should read 0, which leaves every check off. Hunt the pages that build a database query or an OS command straight from your input.
+    cost: 0
+  - title: Finding the SQL injection
+    body: Open OWASP Top 10, then A1 Injection, then SQLi Extract Data, then User Info. That page runs a login lookup against the database. Put a single quote in the Name field and watch the query break. Then feed it a condition that is always true followed by a comment, so the rest of the query is ignored and every row returns.
+    cost: 5
+  - title: User proof token
+    body: In the User Info Name field, enter ' or 1=1-- - and leave the password blank, then submit. Every account in the database prints out, usernames and passwords included. That is the injection objective. Submit MOB{one_quote_spills_the_table}
+    cost: 10
+  - title: Toward command execution
+    body: The database is not the only sink taking raw input. Under A1 Injection, open Command Injection, then DNS Lookup. That page hands your text to a shell tool that resolves hostnames. Anything you append after a command separator runs on the server too.
+    cost: 10
+  - title: Root proof token
+    body: On the DNS Lookup page, enter a host, then a separator, then a command, for example 127.0.0.1 ; whoami or 127.0.0.1 ; cat /etc/passwd. The command output prints under the lookup result. That is code execution on the host. Submit MOB{a_semicolon_runs_the_shell}
+    cost: 15
+tasks:
+  - title: Stand up the container and reach the app
+    description: Run the docker command and load http://localhost:8080
+  - title: Dump the user table through SQL injection
+    description: Break out of the login query on an Injection page
+  - title: Run a command on the host
+    description: Turn a lookup field into shell execution
+---
+
+## About this target
+
+Mutillidae is a deliberately vulnerable PHP and MySQL application maintained
+under the OWASP project. Every page is filed under an OWASP Top 10 category, so
+the menu doubles as a hunting map. It is a great follow-on to a simpler web box
+because the same bug class shows up in more than one place, which teaches you to
+recognize the pattern rather than memorize a single trick.
+
+Your two objectives here: **pull the user table out through SQL injection**
+(user), then **make the server run a command you supply** (root).
+
+<Callout type="security" title="Authorized target only">
+You are running this container on your own machine. That is the only reason it
+is legal to attack it. Never point these techniques at an application you do not
+own or have written permission to test.
+</Callout>
+
+<Callout type="info" title="How flags work on Phase A machines">
+Docker and bring-your-own-VM boxes use proof tokens revealed through the hints
+once you have genuinely completed the objective. Capture a flag by doing the
+work, then submitting the token. Phase B hosted machines will issue real
+per-instance flags planted on the target.
+</Callout>
+
+## Getting reachable
+
+Spin the container up and load `http://localhost:8080`. If a banner warns that
+the database is not built, click the link it offers to set up or reset the DB,
+then reload. Confirm the security level at the top reads 0, and if it does not,
+hit Toggle Security until it does. Now work the objectives below. Use the hints
+if you stall; each one costs a few points, so try on your own first.

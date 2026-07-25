@@ -1,0 +1,194 @@
+[
+  {
+    "domain": 4,
+    "question": "An analyst must brief the board of directors on a recent ransomware incident. Which section of the incident report is written specifically for this non-technical audience and leads with business impact rather than technical detail?",
+    "options": ["Executive summary", "Root cause analysis", "Evidence and artifact log", "Detection engineering appendix"],
+    "correct": [0],
+    "explanation": "The executive summary is the high-level, jargon-free portion aimed at leadership and decision makers, focusing on impact, scope, and recommendations. Root cause analysis and the evidence log are detailed technical sections, and a detection appendix is not a standard executive-facing element.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A SOC manager wants a KPI that shows how long it takes the team to identify that a security incident is occurring. Which metric best captures this?",
+    "options": ["Mean time to detect (MTTD)", "Mean time to respond (MTTR)", "Mean time between failures (MTBF)", "Mean time to remediate"],
+    "correct": [0],
+    "explanation": "MTTD measures the average elapsed time from the start of malicious activity to its detection. MTTR (respond) measures time to take action after detection, mean time to remediate measures time to full recovery, and MTBF is a reliability metric, not a detection KPI.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A hospital cannot patch a vulnerable infusion pump because the manufacturer's contract voids support if the firmware is modified. Which category best describes this obstacle to remediation?",
+    "options": ["Proprietary system", "Zero-day vulnerability", "False positive", "Service-level objective"],
+    "correct": [0],
+    "explanation": "A vendor-controlled proprietary system whose warranty or support is voided by changes is a classic inhibitor to remediation. A zero-day is an unpatched flaw, a false positive is an erroneous finding, and an SLO is a target metric, none of which describe a contractual barrier to patching.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which elements should a well-formed vulnerability management report include so stakeholders can act on it? (Choose two.)",
+    "options": ["Affected hosts and risk scoring", "Recommended mitigation or remediation actions", "The analyst's personal opinion of the vendor", "Raw packet captures for every scanned subnet"],
+    "correct": [0, 1],
+    "explanation": "Useful vulnerability reports identify the affected assets with a risk score and provide actionable mitigation guidance so owners can prioritize. Personal opinions add no value, and dumping raw packet captures into the report buries the actionable information rather than supporting decisions.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "An organization must demonstrate to an external auditor that it meets PCI DSS scanning requirements. Which report type is designed for this purpose?",
+    "options": ["Compliance report", "Lessons learned report", "Threat hunting hypothesis", "Penetration test rules of engagement"],
+    "correct": [0],
+    "explanation": "A compliance report maps the security posture against a specific regulatory or framework requirement such as PCI DSS to prove adherence. A lessons learned report is a post-incident artifact, a hunting hypothesis is investigative, and rules of engagement govern a pen test scope, none of which prove compliance.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A security team commits to remediating any critical vulnerability within 15 days. This internal target that measures performance against a defined goal is best described as a:",
+    "options": ["Service-level objective (SLO)", "Memorandum of understanding (MOU)", "Recovery point objective (RPO)", "Business impact analysis (BIA)"],
+    "correct": [0],
+    "explanation": "An SLO is an internal, measurable target such as remediating criticals within a set window, used to track vulnerability management performance. An MOU is an agreement between parties, RPO is a data-loss tolerance for backups, and a BIA analyzes impact rather than setting a remediation deadline.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "After containing an incident, the team meets to determine the underlying reason the attacker succeeded, not just the symptom that was observed. This activity is called:",
+    "options": ["Root cause analysis", "Chain of custody", "Escalation", "Data enrichment"],
+    "correct": [0],
+    "explanation": "Root cause analysis identifies the fundamental condition that allowed the incident, enabling durable fixes. Chain of custody tracks evidence handling, escalation raises severity to the right responders, and data enrichment adds context to indicators, none of which determine the underlying cause.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "When should a lessons learned meeting ideally be held following a security incident?",
+    "options": ["Shortly after recovery, while details are still fresh", "Only at the annual compliance audit", "Before the incident is contained", "Never, to avoid assigning blame"],
+    "correct": [0],
+    "explanation": "Lessons learned should occur soon after the incident is resolved so participants recall specifics and can improve the process. Waiting for an annual audit loses detail, holding it before containment is premature, and skipping it forfeits process improvement.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A data breach has exposed EU residents' personal data. Under GDPR, the organization generally must notify the supervisory authority within what timeframe of becoming aware of the breach?",
+    "options": ["72 hours", "24 hours", "30 days", "6 months"],
+    "correct": [0],
+    "explanation": "GDPR Article 33 requires notification to the relevant supervisory authority within 72 hours of becoming aware of a personal data breach where feasible. The other durations do not match the GDPR regulatory reporting requirement.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "During an active intrusion, a Tier 1 analyst determines the scope now exceeds their authority and involves possible data theft. What is the correct next action?",
+    "options": ["Escalate the incident to the incident response lead and management", "Delete the affected systems to stop the attacker", "Post the details to a public forum for crowd advice", "Wait until the next business day to report it"],
+    "correct": [0],
+    "explanation": "Escalation routes the incident to responders with the authority and expertise to handle its severity, per the response plan. Deleting systems destroys evidence, public posting leaks sensitive details, and delaying reporting lets the attacker continue.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A legacy application cannot be patched without breaking a critical integration, so the team deploys a WAF rule and network segmentation to reduce exposure instead. In an action plan, these measures are known as:",
+    "options": ["Compensating controls", "Root cause elimination", "Acceptable use policies", "Key risk indicators"],
+    "correct": [0],
+    "explanation": "Compensating controls reduce risk when a direct fix is not feasible, such as adding a WAF rule and segmentation around an unpatchable system. Root cause elimination would mean fixing the flaw itself, an acceptable use policy governs user behavior, and a KRI is a metric, not a mitigating control.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A CISO wants a monthly vulnerability metric that shows whether the overall exposure of the environment is improving or worsening over time. Which reporting element best serves this need?",
+    "options": ["Trend analysis of open vulnerabilities", "A single point-in-time host count", "The color of each severity badge", "A list of scanner license keys"],
+    "correct": [0],
+    "explanation": "Trend analysis plots vulnerability counts across reporting periods so leadership can see if the program is reducing risk. A single point-in-time count shows no direction, badge colors are cosmetic, and license keys are administrative data unrelated to exposure trends.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which stakeholder is the appropriate point of contact for deciding whether and how to notify affected customers and the media about a breach?",
+    "options": ["Public relations, coordinating with legal", "The junior SOC analyst who found the alert", "The external attacker's ISP", "The vulnerability scanner vendor"],
+    "correct": [0],
+    "explanation": "Public relations, working with legal, manages customer and media communications to control message and meet obligations. A junior analyst lacks the authority, the attacker's ISP is not an internal stakeholder, and the scanner vendor has no role in breach communications.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "An incident report must preserve the integrity of collected evidence for potential prosecution. Which practice documents who handled the evidence and when?",
+    "options": ["Chain of custody", "Executive summary", "Risk appetite statement", "Change advisory board minutes"],
+    "correct": [0],
+    "explanation": "Chain of custody records every person who possessed the evidence and each transfer, preserving admissibility. An executive summary is a narrative overview, a risk appetite statement defines tolerance, and CAB minutes cover change management, none of which track evidence handling.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A financial firm is considering involving law enforcement in an ongoing intrusion. Which consideration is most important to weigh before doing so?",
+    "options": ["Law enforcement may take custody of systems and control disclosure timing", "It guarantees the stolen data will be recovered immediately", "It removes the firm's regulatory reporting obligations", "It automatically restores affected services"],
+    "correct": [0],
+    "explanation": "Engaging law enforcement can mean handing over evidence or systems and deferring to their investigative and disclosure timelines, which affects operations. It does not guarantee data recovery, does not eliminate separate regulatory duties, and does not restore services.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A vulnerability management report shows that a flaw remediated last quarter has reappeared on the same hosts. Which metric is this observation tracking?",
+    "options": ["Recurrence", "Mean time to detect", "Alert volume", "Risk appetite"],
+    "correct": [0],
+    "explanation": "Recurrence measures vulnerabilities that were fixed but returned, often signaling a broken patch or configuration drift. MTTD tracks detection speed, alert volume counts alerts generated, and risk appetite defines tolerance, none of which describe a reintroduced flaw.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Which items belong in the body of a formal incident response report? (Choose two.)",
+    "options": ["A timeline of events with dates and times", "The scope and impact of the incident", "The analyst's home address for follow-up", "Marketing copy promoting the security team"],
+    "correct": [0, 1],
+    "explanation": "A complete incident report documents a factual timeline and clearly states the scope and impact so stakeholders understand what happened and how badly. Personal contact details like a home address do not belong, and promotional marketing copy is irrelevant to an incident record.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A vulnerability scan flags 4,000 findings. To make the report actionable for leadership, the analyst prioritizes the most severe issues first. This is best expressed as which reporting metric?",
+    "options": ["Top 10 critical vulnerabilities", "Total port count scanned", "Number of scanner plugins loaded", "Average packet size"],
+    "correct": [0],
+    "explanation": "A top 10 or top critical list focuses attention on the highest-risk items rather than an overwhelming raw count. Port counts, plugin totals, and packet size are technical scanner details that do not help leadership prioritize remediation.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "Two departments sign an agreement that a shared server can only be taken offline for patching during a specific quarterly window. In vulnerability management terms, this agreement acts as a:",
+    "options": ["Inhibitor to remediation via an MOU", "Service-level objective for detection", "Root cause of the vulnerability", "Compensating control"],
+    "correct": [0],
+    "explanation": "A memorandum of understanding that restricts patching windows is an organizational inhibitor to timely remediation. It is not a detection SLO, it does not cause the vulnerability, and it does not itself reduce risk the way a compensating control would.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 4,
+    "question": "When writing the executive summary of an incident report, which writing choice is most appropriate for the intended audience?",
+    "options": ["Avoid deep technical jargon and focus on business impact", "Include full hex dumps of malware for completeness", "Use only acronyms without expanding them", "Withhold recommendations to avoid liability"],
+    "correct": [0],
+    "explanation": "Executives need plain language centered on impact and decisions, not low-level technical artifacts. Hex dumps and unexplained acronyms confuse the audience, and omitting recommendations defeats the purpose of informing decision makers.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 4,
+    "question": "A rising KPI in the SOC shows analysts are receiving far more alerts than they can triage, contributing to fatigue and missed events. Which metric captures this condition?",
+    "options": ["Alert volume", "Mean time to remediate", "Recovery time objective", "Patch compliance rate"],
+    "correct": [0],
+    "explanation": "Alert volume tracks how many alerts are generated and is used to spot overload and tuning needs. Mean time to remediate measures recovery duration, RTO is a continuity target, and patch compliance measures remediation coverage, none of which reflect alert overload.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "An action plan for a widespread phishing incident includes user awareness training, patching mail gateways, and tightening configurations. Which best describes the role of the awareness training component?",
+    "options": ["It addresses the human factor to reduce the chance of recurrence", "It serves as legal evidence for prosecution", "It replaces the need for technical controls entirely", "It is a regulatory reporting requirement to law enforcement"],
+    "correct": [0],
+    "explanation": "Awareness, training, and education reduce the likelihood that users fall for the same attack again, addressing the human element in an action plan. It is not evidence, it complements rather than replaces technical controls, and it is not a law-enforcement reporting mandate.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "A regulated bank suffers a confirmed breach of customer financial data. Which communication obligation is driven primarily by external mandates rather than internal preference?",
+    "options": ["Regulatory reporting to the appropriate authorities", "Deciding the SOC shift schedule", "Choosing which SIEM dashboard to build", "Selecting a new endpoint vendor"],
+    "correct": [0],
+    "explanation": "Regulatory reporting to bodies governing financial data is a legal obligation with defined timelines, not a discretionary choice. Shift scheduling, dashboard design, and vendor selection are internal operational decisions unrelated to mandated breach notification.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 4,
+    "question": "Legal counsel instructs the incident team to preserve all relevant emails and logs because litigation is anticipated. This directive is known as a:",
+    "options": ["Legal hold", "Change freeze", "Risk transfer", "Data classification"],
+    "correct": [0],
+    "explanation": "A legal hold requires preserving potentially relevant data when litigation is reasonably anticipated, overriding normal deletion schedules. A change freeze pauses system changes, risk transfer shifts risk via insurance or contracts, and data classification labels sensitivity, none of which mandate evidence preservation for litigation.",
+    "difficulty": "HARD"
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "slug": "isc2-cc",
+  "code": "CC",
+  "name": "(ISC)2 Certified in Cybersecurity",
+  "vendor": "(ISC)2",
+  "description": "A vendor-neutral entry point into the field, covering the foundational principles every security role builds on. A strong first cert if you are new to cybersecurity.",
+  "passScore": 70,
+  "examMinutes": 120,
+  "questionCount": 100,
+  "icon": "Shield",
+  "order": 5,
+  "domains": [
+    { "number": 1, "name": "Security Principles", "weight": 26 },
+    { "number": 2, "name": "Business Continuity, Disaster Recovery, and Incident Response", "weight": 10 },
+    { "number": 3, "name": "Access Controls Concepts", "weight": 22 },
+    { "number": 4, "name": "Network Security", "weight": 24 },
+    { "number": 5, "name": "Security Operations", "weight": 18 }
+  ]
+}

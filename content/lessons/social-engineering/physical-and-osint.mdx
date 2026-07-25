@@ -1,0 +1,103 @@
+---
+title: Physical and OSINT
+module: social-engineering
+moduleTitle: Social Engineering
+moduleOrder: 11
+moduleIcon: Drama
+order: 3
+summary: Walk through the door and build the story that gets you there, using only public data.
+estimatedMinutes: 18
+objectives:
+  - Describe common physical intrusion techniques like tailgating
+  - Explain how badge cloning works at a conceptual level
+  - Run an OSINT sweep to feed a credible pretext
+tags:
+  - social-engineering
+  - osint
+  - physical
+---
+
+Not every attack arrives over the wire. Sometimes the fastest path to a server
+room is a friendly face at the front door. Physical social engineering and open
+source intelligence (OSINT) are the two halves of getting inside a building: one
+is the entry, the other is the homework that makes the entry look routine.
+
+## Getting through the door
+
+Physical operators rely on human courtesy far more than on lock picks:
+
+- **Tailgating**: follow an authorized employee through a door before it closes.
+  Carry a coffee in each hand and someone will hold it open for you.
+- **Piggybacking**: the same, but the employee actively lets you in after a word.
+- **Pretext props**: a hi-vis vest, a clipboard, a laptop bag, and a lanyard read
+  as "belongs here" to almost everyone.
+- **Impersonation**: pose as a delivery driver, an auditor, or the fire inspector.
+
+The defense you are testing is whether staff challenge a stranger. Most will not,
+which is exactly the finding a report needs to change behavior.
+
+## Badge cloning, at a glance
+
+Many offices use low-frequency 125 kHz proximity cards (like HID Prox) that were
+never designed to be secure. They broadcast a static ID with no authentication. A
+long-range reader hidden in a bag can capture that ID from a badge in someone's
+pocket, and a cheap tool can then replay it.
+
+<CommandBlock
+  title="operator@field"
+  commands={[
+    { cmd: "proxmark3 /dev/ttyACM0", comment: "connect to the RFID research tool" },
+    { cmd: "lf search", comment: "identify the card type on the reader" },
+    { cmd: "lf hid read", comment: "capture a 125 kHz prox card's facility and ID" },
+  ]}
+/>
+
+<Callout type="security" title="Why this still works">
+Modern 13.56 MHz smart cards (like DESFire) support real cryptographic
+authentication. Plenty of buildings never upgraded from the old 125 kHz prox
+cards, so the ID is trivial to read and clone. If your assessment finds prox
+cards in use, the fix is a card technology migration, not a policy memo.
+</Callout>
+
+## OSINT: the homework
+
+Before any of that, you research. OSINT is intelligence gathered from public
+sources, and it is what makes a pretext land. Names, org charts, badge photos,
+email formats, and even the type of coffee in the lobby all come from open data.
+
+<CommandBlock
+  title="operator@kali"
+  commands={[
+    { cmd: "theHarvester -d targetcorp.com -b bing", comment: "harvest emails and hostnames" },
+    { cmd: "whois targetcorp.com", comment: "registration, contacts, name servers" },
+    { cmd: "exiftool company-brochure.pdf", comment: "metadata often leaks usernames and software" },
+  ]}
+/>
+
+Pair those with LinkedIn for the org chart, the company's own site for the email
+format (`first.last@` versus `flast@`), and image search for what real badges look
+like. Every detail you collect is one less thing the target has to take on faith.
+
+<Exercise
+  id="email-format"
+  prompt="theHarvester returns j.smith@targetcorp.com and a.patel@targetcorp.com. What is the likely email format, and what would you guess for an employee named Maria Gomez?"
+>
+The format is first-initial dot last name. Maria Gomez would likely be
+m.gomez@targetcorp.com. Confirm before relying on it, but this is enough to seed
+a spear phishing list.
+</Exercise>
+
+<Quiz
+  id="tailgate"
+  question="Why is tailgating so effective against most offices?"
+  answer={1}
+  options={[
+    "It defeats cryptographic smart cards",
+    "It exploits social courtesy, since people hold doors and rarely challenge strangers",
+    "It requires no building to have any doors",
+    "It only works after business hours",
+  ]}
+  explanation="Tailgating relies on human politeness. Holding a door for someone carrying boxes feels normal, so the badge reader never gets a say."
+/>
+
+<Notes />

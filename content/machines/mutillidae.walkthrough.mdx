@@ -1,0 +1,54 @@
+---
+title: OWASP Mutillidae II walkthrough
+---
+
+## Recon
+
+Load `http://localhost:8080`. If you see a red banner about the database not
+being built, click the link to set up or reset the DB, then reload. Check the
+status bar at the top: the security level should read 0. If it reads higher, hit
+Toggle Security until it drops to 0, which turns off the input filtering.
+
+Skim the left menu. Every entry sits under an OWASP category, and the two you
+care about live under OWASP Top 10, then A1 Injection.
+
+## Dumping the user table (user)
+
+The login lookup builds a SQL query by pasting your input straight into a string.
+
+1. Open OWASP Top 10, then A1 Injection, then SQLi Extract Data, then User Info.
+2. In the Name field, enter `' or 1=1-- -` and leave the password blank.
+3. Submit.
+
+The single quote closes the string literal, `or 1=1` makes the WHERE clause
+always true, and the trailing comment eats the rest of the query. Every row in
+the accounts table comes back, usernames and passwords included.
+
+Objective complete. Proof token: `MOB{one_quote_spills_the_table}`.
+
+## Command execution (root)
+
+The database is not the only place taking raw input. The DNS lookup page hands
+your text to a shell tool that resolves hostnames, and it never sanitizes the
+separator characters.
+
+1. Open A1 Injection, then Command Injection, then DNS Lookup.
+2. In the hostname field, enter `127.0.0.1 ; whoami`.
+3. Submit, and read the output under the lookup result.
+
+The semicolon ends the intended command and starts yours, so the server runs
+`whoami` and prints the web user. Swap in `127.0.0.1 ; cat /etc/passwd` to read
+files, or any other command you want.
+
+You now have code execution on the host. Proof token:
+`MOB{a_semicolon_runs_the_shell}`.
+
+## Lessons learned
+
+- Injection is one root cause with many faces. The SQLi and the command injection
+  are the same mistake, trusting user input at a sink, aimed at two different
+  interpreters.
+- Parameterized queries kill the SQL side, and never shelling out with user
+  input kills the command side. Escaping is not the fix, structure is.
+- The OWASP menu is a map. When a target labels its own weak spots by category,
+  use that to hunt systematically instead of poking at random.

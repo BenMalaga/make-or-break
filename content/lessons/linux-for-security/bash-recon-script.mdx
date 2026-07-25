@@ -1,0 +1,406 @@
+---
+title: Write a Recon Bash Script
+module: linux-for-security
+moduleTitle: Linux for Security
+moduleOrder: 2
+moduleIcon: Terminal
+order: 5
+summary: "Variables, quoting, exit codes, loops, functions: the glue that turns four lessons of commands into one file that runs the same way twice."
+estimatedMinutes: 18
+prerequisites:
+  - filesystem-and-permissions
+  - processes-and-services
+  - text-processing
+  - cli-networking
+objectives:
+  - Explain what the kernel does with a shebang line, and why a script needs the execute bit
+  - Quote a variable correctly and name the two things that happen to an unquoted expansion
+  - Read an exit code and branch on it, since an exit code is the only thing if ever tests
+  - Write a for loop and a function, and say what local and return do inside one
+  - Assemble dig, ping, netcat, and curl into one script that saves every result to disk
+tags:
+  - linux
+  - bash
+  - automation
+  - recon
+---
+
+Networking from the CLI ended with a working kit: `ip`, `ping`, `dig`, `curl`,
+`netcat`, `ss`. Against a new host those commands get typed in nearly the same
+order every time, with the same address retyped into each one. Six commands, six
+chances to fat-finger an octet, and the first command's output has scrolled off
+the screen by the time the last one finishes.
+
+A script fixes all of that, and it is not a new language. A script is a plain
+text file holding the same commands, which the shell reads and runs exactly as
+if someone had typed them. Every tool from the last four lessons still works,
+unchanged. What this lesson adds is the small amount of glue that turns a pile
+of commands into something worth keeping: variables, quoting, exit codes, loops,
+and functions.
+
+## The file, the shebang, and the execute bit
+
+A script starts as a text file with no special status. Nothing about the `.sh`
+on the end matters to Linux; the extension is a hint for humans.
+
+```bash
+#!/usr/bin/env bash
+# recon.sh - single-host recon
+echo "hello"
+```
+
+Line one is the shebang, written `#!` and said out loud as "hash bang". The
+kernel reads the first two bytes of any file it is asked to execute. If those
+bytes are `#!`, it does not try to run the file as a program at all. It reads
+the rest of that line as the path to an interpreter, starts that interpreter,
+and hands it the file. So `./recon.sh` really means "run bash, give it recon.sh
+to read".
+
+`#!/usr/bin/env bash` asks `env` to find bash on PATH rather than hardcoding a
+location. That matters more than it looks. Bash sits at `/bin/bash` on most
+Linux distributions, but a current bash on macOS lives at
+`/opt/homebrew/bin/bash` or `/usr/local/bin/bash`, and `/bin/bash` there is a
+1.5-decade-old version missing half the syntax. Everything after a `#` on any
+other line is a comment the shell ignores.
+
+The execute bit from the filesystem and permissions lesson is what makes the
+kernel willing to run the file at all.
+
+<CommandCard
+  command="chmod +x recon.sh"
+  title="linux"
+  explain="Adds the execute permission for owner, group, and other. Without it the kernel refuses the file and bash reports 'Permission denied' with exit code 126."
+/>
+
+There is a way around it that is worth knowing. `bash recon.sh` runs the script
+with no execute bit and no shebang needed, because that command line names bash
+directly and passes the file as ordinary data for it to read. Handy on a target
+where the execute bit cannot be set.
+
+## Variables hold text, and quotes decide where it splits
+
+A variable assignment has no spaces around the `=`.
+
+```bash
+TARGET="10.10.14.23"
+```
+
+`TARGET = "10.10.14.23"` is not an assignment. The shell reads it as a command
+named `TARGET` with two arguments and answers `TARGET: command not found`. A `$`
+in front of the name expands it back to its text, and braces pin down where the
+name ends when it butts up against other characters: `"${TARGET}_scan.txt"`.
+
+Now the part that bites everyone. When the shell expands an unquoted variable,
+it does two more things to the result. It splits the text into separate words at
+every space or tab, and it expands any `*` or `?` against the filenames in the
+current directory. Double quotes switch both off.
+
+```bash
+NOTE="wide open"
+mkdir $NOTE      # creates two directories: wide, and open
+mkdir "$NOTE"    # creates one directory: wide open
+```
+
+Single quotes go further and switch off `$` too, so `'$TARGET'` stays the six
+literal characters `$TARGET`. That is the whole difference: double quotes let
+variables through, single quotes let nothing through.
+
+The rule is to double-quote every expansion, every time, with no exceptions
+worth the effort of remembering. Unquoted variables work perfectly on every test
+value that has no spaces in it, which is why the bug never shows up until the
+script meets a real hostname list or a directory somebody named with a space.
+
+A script also gets a handful of variables it never sets. `$1` is its first
+argument, `$2` the second. `$0` is the script's own name as invoked. `$#` is how
+many arguments arrived. `"$@"` is all of them, each kept as its own word.
+
+<Quiz
+  id="bash-quoting-split"
+  question="A script sets DIR to the value 'scan results' (with a space) and then runs mkdir $DIR with no quotes. What lands on disk?"
+  answer={1}
+  options={[
+    "One directory named 'scan results', since the variable holds one value",
+    "Two directories, 'scan' and 'results', because the shell split the expansion at the space before mkdir ever saw it",
+    "Nothing. mkdir errors, because directory names cannot contain spaces",
+    "One directory named 'scan_results', with the space converted automatically",
+  ]}
+  explanation="The shell expands the variable first, then splits the resulting text into words on whitespace. mkdir is handed two arguments and does exactly what it was told. Quoting the expansion stops the split and passes one argument through intact."
+/>
+
+## An exit code is the only thing a command reports back
+
+Every command that finishes hands a number from 0 to 255 back to whatever
+started it. That number is the exit code. Zero means success. Anything else
+means failure, and the specific number is the program's own choice. The shell
+keeps the most recent one in `$?`.
+
+<ExpectedOutput label="Reading the exit code of a command that failed">
+```
+$ ping -c 1 -W 2 10.10.14.99 > /dev/null 2>&1
+$ echo $?
+1
+```
+</ExpectedOutput>
+
+A few codes are conventions across most tools. 0 is success, 1 is a generic
+failure, 126 means the file was found but is not executable, 127 means the
+command was not found at all, and 128 plus a signal number means a signal killed
+the process, so a Ctrl-C during a run leaves 130. Those last two connect to the
+signals covered in the processes and services lesson.
+
+One exit code is worth calling out because it looks like a bug. `grep` exits 1
+when it matched nothing. That is not an error, it is the answer, and it is
+exactly what makes grep usable as a test rather than a filter.
+
+Which leads to the one sentence that makes bash click: `if` does not evaluate a
+condition. It runs a command and branches on that command's exit code.
+
+```bash
+if ping -c 1 -W 2 "$TARGET" > /dev/null 2>&1; then
+    echo "[+] $TARGET replied"
+else
+    echo "[-] no reply from $TARGET"
+fi
+```
+
+No brackets anywhere. ping is the condition. The square brackets that show up in
+most scripts are not syntax either: `[` is a real command, both a shell builtin
+and a program at `/usr/bin/[`, whose last argument has to be `]`. So
+`[ -z "$TARGET" ]` runs a string test and exits 0 when the string is empty.
+Quoting matters there for the same reason as everywhere else. With `A` empty,
+`[ $A = b ]` collapses to `[ = b ]` and bash answers
+`[: =: unary operator expected`.
+
+Two operators chain on exit codes directly. `cmd1 && cmd2` runs cmd2 only if
+cmd1 exited 0. `cmd1 || cmd2` runs cmd2 only if cmd1 did not. And `exit 1`
+inside a script sets the script's own exit code, which is how a script tells
+whatever called it that things went wrong.
+
+<Callout type="tip" title="set -euo pipefail, minus the -e">
+`set -u` makes an unset variable an error instead of an empty string. `set -o
+pipefail` makes a pipeline report the first non-zero exit code in it, not just
+the last command's. Both are free and both catch real bugs. `set -e`, which
+kills the script on any non-zero exit, is the wrong call in a recon script: a
+target that drops ICMP makes ping exit 1, and that is expected information, not
+a crash. `set -uo pipefail` plus explicit checks is the better trade.
+</Callout>
+
+<Quiz
+  id="bash-if-exit-code"
+  question="What does a bash if statement actually evaluate?"
+  answer={2}
+  options={[
+    "A boolean expression, which is why the square brackets are required",
+    "The text the command prints on stdout, treating any output as true",
+    "The exit code of the command it is given: 0 runs the then branch, anything else runs the else branch",
+    "Whether the variable named after if has been assigned a value",
+  ]}
+  explanation="if takes a command, runs it, and reads its exit code. The brackets are optional because [ is itself just a command that exits 0 or 1. That is why 'if grep -q admin users.txt' works with no brackets at all."
+/>
+
+## Loops and functions
+
+`for` walks a list of words, assigning each to a variable in turn.
+
+```bash
+for PORT in 21 22 25 80 443 3306 8080; do
+    if nc -z -w 2 "$TARGET" "$PORT" 2>/dev/null; then
+        echo "[+] ${PORT}/tcp open"
+    fi
+done
+```
+
+`nc -z` is netcat's scan mode: connect, report the result through the exit code,
+send nothing. It exists in OpenBSD netcat and in nmap's ncat, not in every
+netcat build. `-w 2` caps the wait at two seconds so a filtered port does not
+stall the loop.
+
+Brace expansion builds a list without typing it: `{1..1024}` becomes the words 1
+through 1024. Worth knowing what that costs. The shell expands the whole list in
+memory before the loop starts, so `for PORT in {1..65535}` builds a 65,535-word
+list first, then opens one connection at a time, in series. It works. It is also
+a bad port scanner, and a real scanner should do that job.
+
+`while read` walks lines instead of words, which is what a host list needs.
+
+```bash
+while read -r HOST; do
+    ping -c 1 -W 1 "$HOST" > /dev/null 2>&1 && echo "[+] $HOST up"
+done < hosts.txt
+```
+
+The `-r` stops `read` from treating backslashes as escapes, and the `< hosts.txt`
+at the end redirects the file into the loop's stdin, using the same redirection
+from the text processing lesson.
+
+A function names a block of commands and is then called exactly like a command,
+with no parentheses and no commas.
+
+```bash
+banner() {
+    printf '\n[*] %s\n' "$1"
+}
+
+have() {
+    command -v "$1" > /dev/null 2>&1
+}
+```
+
+Inside a function, `$1` is the function's first argument, not the script's. A
+function's exit code is its last command's exit code unless `return N` says
+otherwise, which is why `have` drops straight into an `if`: `command -v` exits 0
+when the named tool is on PATH. And `local NAME="value"` scopes a variable to
+the function. Without `local` every variable in bash is global, so a function
+that uses `i` as a counter silently overwrites the `i` a loop three screens away
+is depending on. That is the most common bug in any bash script long enough to
+have functions.
+
+## The whole thing
+
+```bash
+#!/usr/bin/env bash
+# recon.sh - single-host recon, saves everything
+# usage: ./recon.sh <target>
+set -uo pipefail
+
+TARGET="${1:-}"
+if [ -z "$TARGET" ]; then
+    echo "usage: $0 <target>" >&2
+    exit 1
+fi
+
+OUTDIR="recon_${TARGET}"
+mkdir -p "$OUTDIR"
+
+banner() { printf '\n[*] %s\n' "$1"; }
+have()   { command -v "$1" > /dev/null 2>&1; }
+
+banner "resolving $TARGET"
+if have dig; then
+    dig +short "$TARGET" | tee "$OUTDIR/dns.txt"
+fi
+
+banner "checking whether $TARGET answers ICMP"
+if ping -c 1 -W 2 "$TARGET" > "$OUTDIR/ping.txt" 2>&1; then
+    echo "[+] host replied"
+else
+    echo "[-] no reply: filtered, or down"
+fi
+
+HTTP_OPEN=0
+banner "sweeping common ports"
+for PORT in 21 22 25 53 80 443 3306 8080; do
+    if nc -z -w 2 "$TARGET" "$PORT" 2>/dev/null; then
+        echo "[+] ${PORT}/tcp open" | tee -a "$OUTDIR/ports.txt"
+        [ "$PORT" = "80" ] && HTTP_OPEN=1
+    fi
+done
+
+if [ "$HTTP_OPEN" -eq 1 ]; then
+    banner "grabbing HTTP headers"
+    curl -sSI --max-time 5 "http://$TARGET" | tee "$OUTDIR/headers.txt"
+fi
+
+banner "done, results in $OUTDIR/"
+```
+
+`${1:-}` is doing quiet work. Under `set -u`, a bare `$1` in a script called
+with no arguments is an unset-variable error and the script dies before it can
+print its own usage line. `${1:-}` means "the value of `$1`, or an empty string
+if it is unset", which hands the guard something to test. The `>&2` sends that
+usage line to stderr, where error text belongs.
+
+`tee` writes to a file and passes the text through to stdout at the same time,
+so the run is watchable and recorded at once. `2>&1` on the ping line folds
+stderr into the same file, so a failure gets stored instead of vanishing.
+
+<ExpectedOutput label="One run against a lab host. Addresses and versions are from this run only.">
+```
+[*] resolving 10.10.14.23
+
+[*] checking whether 10.10.14.23 answers ICMP
+[+] host replied
+
+[*] sweeping common ports
+[+] 22/tcp open
+[+] 80/tcp open
+
+[*] grabbing HTTP headers
+HTTP/1.1 200 OK
+Server: nginx/1.18.0 (Ubuntu)
+Date: Wed, 15 Jul 2026 09:14:02 GMT
+Content-Type: text/html
+Connection: keep-alive
+
+[*] done, results in recon_10.10.14.23/
+```
+</ExpectedOutput>
+
+Nothing printed under "resolving", and that is correct rather than broken. The
+target is already an IP address, so `dig +short` tries to look up `10.10.14.23`
+as a name, finds no such record, and prints nothing at all while still exiting
+0. A script that reads its own output would have to account for that.
+
+<Quiz
+  id="bash-set-e-choice"
+  question="recon.sh runs with set -uo pipefail but deliberately without set -e. The target silently drops ICMP, so ping exits 1. What does the script do next?"
+  answer={1}
+  options={[
+    "It stops there, because any non-zero exit code ends a bash script",
+    "It prints the no-reply line and carries on to the port sweep, because the if already handles that exit code and -e was left out on purpose",
+    "It retries the ping until the host answers or the timeout expires",
+    "It exits with code 1 and removes the output directory it created",
+  ]}
+  explanation="A non-zero exit code only ends a script when set -e is active. Here ping's failure is a handled result, routed into the else branch, and a filtered host is still worth port-sweeping. That is precisely why -e was left out."
+/>
+
+## Where this script bites
+
+The rerun is dirty. `mkdir -p` does not clear the directory, and `tee -a`
+appends, so a second run against the same target stacks new open ports on top of
+the old list. Either remove the directory first or stamp the name with
+`OUTDIR="recon_${TARGET}_$(date +%s)"`.
+
+An editor on Windows is the classic mystery. Windows ends lines with carriage
+return plus newline, so the shebang line becomes `#!/usr/bin/env bash\r` and the
+kernel goes looking for an interpreter whose name ends in a carriage return. The
+error reads `bad interpreter: No such file or directory` while the interpreter is
+plainly sitting right there. `sed -i 's/\r$//' recon.sh` fixes it.
+
+And the script is not a scanner. A serial netcat loop over eight ports is slow,
+noisy, and worse at the job than any real scanner. The value here is the glue:
+one argument instead of six retypes, every result on disk under a predictable
+name, and a run that behaves the same at 2am as it did at noon.
+
+<Callout type="danger" title="Authorized targets only">
+An automated script fires real traffic at a real host, faster and more of it
+than hand-typing ever does. Point it only at a lab owned outright or a machine
+covered by written permission to test. Scanning a network without authorization
+is a crime in most countries, and "it was just a bash script" has never been a
+defense.
+</Callout>
+
+<Exercise title="Break it, then fix it">
+Save the assembled script as `recon.sh`, run `chmod +x recon.sh`, and point it
+at a lab host you own or `127.0.0.1`.
+
+Now break it on purpose. Strip the quotes off `"$TARGET"` in the ping line and
+run it with a quoted argument that has a space in it, like
+`./recon.sh "10.0.0.1 10.0.0.2"`. Read the error carefully and work out which
+command received which arguments.
+
+Then add one stage of your own. A `have ss` check that dumps local listening
+sockets is a good one, since it reuses the function already in the file. Add it,
+test it, keep it. Add stages one at a time and the script stays something you
+trust, because you can account for every line in it.
+</Exercise>
+
+Variables, quoting, exit codes, loops, and functions are most of the bash anyone
+needs, and the rest is looked up when a specific problem demands it. The Linux
+side is now covered: a filesystem, processes, text, the network, and a way to
+package all of it. What the script does not have is anything worth pointing at.
+The Reconnaissance modules take that up: finding the targets, mapping what is
+running on them, and turning that into an actual picture of an environment,
+which is the work the script was built to automate.
+
+<Notes />

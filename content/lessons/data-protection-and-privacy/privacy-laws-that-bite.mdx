@@ -1,0 +1,69 @@
+---
+title: Privacy Laws That Bite
+module: data-protection-and-privacy
+moduleTitle: Data Protection and Privacy
+moduleOrder: 53
+moduleIcon: FileLock
+order: 5
+summary: A data subject request lands and you have 30 days to find every record about one person across 40 services you built to answer nothing.
+estimatedMinutes: 18
+objectives:
+  - Name the GDPR and CCPA obligations that turn into engineering work
+  - Explain the 72-hour breach notification clock and why IR plans need a legal track
+  - Design a data layer that can produce, delete, and prove consent for one subject
+tags:
+  - gdpr
+  - ccpa
+  - breach-notification
+  - privacy
+  - compliance
+---
+
+Privacy law looks like a legal-team problem right up until a data subject access request lands in the queue. Now you have 30 days to find and hand over every piece of data you hold about one named person, spread across 40 microservices, three databases, an analytics warehouse, and a pile of backups, none of which you designed to answer that question. The law is an engineering requirement wearing a suit, and retrofitting compliance onto a system that never planned for it is one of the more miserable projects you can be handed.
+
+GDPR is the one with the sharpest teeth. It covers anyone processing the personal data of people in the EU, wherever your company sits, so a US startup with EU users is fully in scope. The fines run up to 4 percent of global annual revenue or 20 million euros, whichever is larger, and regulators use them. Amazon drew a 746 million euro penalty, Meta drew larger. This is not a theoretical maximum.
+
+Underneath the fines are obligations that land directly on your schema. The right of access means a user can demand everything you hold about them, so you need to be able to find it all by identifier. The right to erasure, the "right to be forgotten," means you must actually delete it, which is why a soft-delete flag does not count and orphaned copies in a reporting table will sink you. Data minimization says do not collect what you do not need. Purpose limitation says do not reuse data for something the user never agreed to. Consent has to be real, freely given, and logged, which makes a pre-ticked checkbox illegal under the regulation.
+
+## The 72-hour clock
+
+The breach rule is the one that reshapes your incident response. GDPR Article 33 gives you 72 hours from becoming aware of a personal-data breach to notify the supervisory authority. Not 72 hours from finishing your investigation. From awareness. That timer is why a mature IR plan runs a legal and notification track in parallel with containment, instead of waiting for engineering to fully understand the incident before anyone tells a lawyer.
+
+The US layers on top of this rather than replacing it. All 50 states now have breach-notification laws, HIPAA has its own breach rule for health data, and GLBA covers financial institutions. If you are breached, you are usually reporting under several regimes at once, each with its own clock and threshold.
+
+CCPA, extended by CPRA, is the California analog and applies once you cross revenue or data-volume thresholds. It gives residents the right to know what you collected, to delete it, and to opt out of the sale of their data, which is the reason the "Do Not Sell My Personal Information" link exists. It bars you from discriminating against someone for exercising those rights, and it grants a private right of action after a breach, meaning individuals can sue directly.
+
+<Callout type="security" title="Testing privacy flows still processes real people">
+When you build or test the access-request and deletion machinery, use synthetic subjects, not real customers. Pulling a live person's full profile "just to test the export" is itself a processing action the law governs, and doing it outside an authorized environment or without a lawful basis is the kind of casual mishandling these statutes exist to punish. Seed a test account, exercise the flow against it, and keep real records out of your dev and staging paths.
+
+</Callout>
+
+## Build for it, or bolt it on badly
+
+Every one of these rights maps to a capability your data layer either has or fakes. You need to find all data on a subject, which forces a real data map and consistent identifiers. You need to delete it everywhere, which forces you to know every copy, backups and analytics included. You need to export it in a portable form. You need to prove consent, which means logging it with a timestamp and the policy version it was given against. And you need to detect and report a breach inside 72 hours, which forces the logging and monitoring you should have anyway.
+
+<CommandBlock
+  title="the capabilities a DSAR and deletion flow imply"
+  commands={[
+    { cmd: "SELECT * FROM * WHERE subject_id = :id", comment: "you must be able to resolve one person across every store" },
+    { cmd: "DELETE cascading to backups and the analytics warehouse", comment: "soft-delete is not erasure under GDPR" },
+    { cmd: "consent_log: {subject, purpose, policy_version, granted_at}", comment: "prove consent was real, specific, and timestamped" },
+  ]}
+/>
+
+Build these on day one and they are cheap. Bolt them on after a regulator asks and you get a fragile script that misses the warehouse and the backups, which is exactly the gap that turns a request into a finding. The fine is the headline, but the operational cost that actually bleeds engineering time is the erasure-and-export machinery, so design for "produce and delete everything about one subject" from the start.
+
+<Quiz
+  id="gdpr-72-hour-clock"
+  question="Under GDPR Article 33, when does the 72-hour breach notification clock start?"
+  answer={1}
+  options={[
+    "When your investigation is complete and the full scope is confirmed",
+    "When you become aware that a personal-data breach has occurred",
+    "When the affected users first complain",
+    "Within 72 hours of the end of the calendar quarter",
+  ]}
+  explanation="The clock runs from awareness of the breach, not from the end of the investigation. That is why incident response has to launch legal and notification work in parallel with containment rather than waiting to fully understand the incident."
+/>
+
+<Notes />

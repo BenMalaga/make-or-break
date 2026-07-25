@@ -1,0 +1,103 @@
+---
+title: Phishing and Pretexting
+module: social-engineering
+moduleTitle: Social Engineering
+moduleOrder: 11
+moduleIcon: Drama
+order: 2
+summary: The message that turns one click into a foothold, and the red flags that stop it.
+estimatedMinutes: 18
+objectives:
+  - Distinguish phishing, spear phishing, whaling, smishing, and vishing
+  - Build a credible pretext for an authorized assessment
+  - Spot the red flags that reveal a malicious message
+tags:
+  - social-engineering
+  - phishing
+  - pretexting
+---
+
+Phishing is a fraudulent message that gets a target to click a link, open a file,
+or hand over a secret. Pretexting is the story that makes the message believable.
+One is the delivery, the other is the script. Strong operators write both, and
+strong defenders learn to take both apart.
+
+## The phishing family
+
+The word "phishing" covers a spread of techniques that differ mostly by target
+and channel:
+
+- **Phishing**: mass, generic email blasted to thousands. Low effort, low hit rate.
+- **Spear phishing**: tailored to one person or a small team using details you
+  researched. Far higher success.
+- **Whaling**: spear phishing aimed at executives, where one catch is worth a lot.
+- **Smishing**: the same play delivered by SMS, where short URLs hide the domain.
+- **Vishing**: voice phishing over the phone, where urgency and authority land hard.
+
+## Building a pretext
+
+A pretext is a role plus a reason. It must give the target a plausible identity to
+picture and a plausible motive to act. The best pretexts borrow the organization's
+own routine so nothing feels out of place.
+
+- Match the channel people already expect: an IT reset really does come by email.
+- Reference something real: a project name, a vendor, a recent all-hands.
+- Keep the ask small and specific. "Confirm your login" beats "send me everything."
+- Give an exit that seems normal, like a link to a page that just says "Thanks."
+
+<Callout type="warning" title="Authorization is the line">
+Everything in this lesson is for engagements you have written permission to run.
+Sending a phishing email to someone who has not authorized the test, or targeting
+an organization you were not hired by, is a crime in most jurisdictions. Scope and
+rules of engagement come first, always.
+</Callout>
+
+## Tooling the campaign
+
+On an authorized assessment, a framework tracks who opened, who clicked, and who
+submitted credentials so you can report real numbers. GoPhish is the common
+open-source choice.
+
+<CommandBlock
+  title="operator@kali"
+  commands={[
+    { cmd: "tar -xzf gophish-v0.12.1-linux-64bit.tar.gz", comment: "unpack the framework" },
+    { cmd: "./gophish", comment: "starts admin UI on 127.0.0.1:3333" },
+    { cmd: "grep -i 'admin' gophish.log", comment: "read the generated first-run password" },
+  ]}
+/>
+
+From the admin panel you build a sending profile, a landing page that clones a
+login screen, an email template, and a target group, then launch and watch the
+timeline fill in.
+
+## Reading the red flags
+
+Whether you are crafting or catching, the tells are the same. Train your eye on:
+
+- **Sender mismatch**: the display name says "IT Support" but the address is a
+  lookalike domain like `micros0ft-support.com`.
+- **Urgency and threats**: "act in 15 minutes or lose access."
+- **Hovered link does not match**: the visible text says one site, the URL another.
+- **Unexpected attachments**: an invoice or resume you never asked for.
+- **Generic greeting** on a message that should know your name, or the reverse:
+  eerily specific detail meant to build false trust.
+
+<Exercise
+  id="spot-the-tell"
+  prompt="A message from 'hr@yourcompany-portal.com' says your direct deposit failed and to re-enter your bank details at a link. Name two red flags."
+>
+The domain is a lookalike, not the real corporate domain, and the request asks
+for sensitive financial data via a link under time pressure. Real payroll changes
+do not get collected through an emailed link.
+</Exercise>
+
+<Quiz
+  id="phish-type"
+  question="An attacker calls the finance team pretending to be the bank's fraud department to extract an account number. What is this called?"
+  answer={3}
+  options={["Whaling", "Smishing", "Spear phishing", "Vishing"]}
+  explanation="Voice phishing over a phone call is vishing. The bank-fraud-department story is the pretext that carries it."
+/>
+
+<Notes />

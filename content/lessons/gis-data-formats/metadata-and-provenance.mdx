@@ -1,0 +1,113 @@
+---
+title: "Metadata: Knowing What You Actually Have"
+module: gis-data-formats
+moduleTitle: Spatial Data and Formats
+moduleOrder: 2
+moduleIcon: Database
+order: 5
+summary: "A shapefile with no metadata is a shape with no story, and an analyst who trusts it without checking is one CRS mismatch away from a map that is wrong in a way nobody notices."
+estimatedMinutes: 12
+prerequisites: ["finding-real-data"]
+objectives:
+  - List the core metadata fields to check before trusting any spatial dataset: CRS, collection date, source, scale or resolution, a data dictionary, accuracy, and license
+  - Explain why an undefined or mismatched CRS breaks an analysis without throwing an error
+  - Describe what provenance means for a dataset and why it matters for reproducing a result
+  - Build the habit of inspecting a new dataset's metadata before running any analysis on it
+tags:
+  - gis
+  - metadata
+  - quality
+---
+
+A junior analyst at a county planning office loads a parcel layer someone found on a shared drive, drops it into a project already showing streets and buildings, and hits render. The parcels do not appear over the county. They appear as a tiny cluster of points sitting in the Atlantic Ocean, just off the coast of west Africa, right where the equator crosses the prime meridian: coordinates 0, 0. No error message. No crash. The software drew exactly what it was told to draw. The file's coordinate reference system, the rule that says what a pair of numbers means on the Earth, was never set, so every tool downstream guessed, and the guess landed the parcels in the one place on the planet they could not possibly be.
+
+That bug has a name among people who have hit it more than once: null island. It is not rare. It is the single most common first encounter a new GIS analyst has with a fact the previous lesson only gestured at: a dataset is never just its shapes. A shape file, a download link, an API response, all of them carry a second, quieter layer of information that says what the shapes actually are, where they came from, and how far they can be trusted. That second layer is called metadata, and skipping it is how confident-looking maps end up confidently wrong.
+
+## Metadata is data about the data
+
+Metadata is information describing a dataset rather than information inside it. A parcel layer's attribute table might say a lot about each parcel: owner, zoning, assessed value. None of that says who collected the parcel boundaries, when, at what precision, or in what coordinate system. That describing information lives one level up, usually in a separate file or a web page next to the download link, and it is what turns a pile of coordinates into something an analyst can actually reason about.
+
+Treat metadata the way a careful cook treats a label on an unfamiliar ingredient. The ingredient might look fine. The label is what says whether it is expired, what it actually is, and whether it is safe to use in this recipe. A dataset with no label is not automatically bad, but using it without reading one first is a bet, not a decision.
+
+A handful of fields matter enough that they are worth checking on every new dataset, before a single analysis step runs.
+
+**The coordinate reference system.** This is the rule that maps a pair of numbers to an actual location on the Earth. WGS84, the reference system behind ordinary GPS coordinates and GeoJSON, uses EPSG code 4326 and puts longitude before latitude. Web Mercator, the projection nearly every web map uses for display, is EPSG 3857. A dataset built for local measurement, distances in meters over a small area, usually sits in a UTM zone, one of sixty narrow north-south strips each with its own EPSG code. None of these are interchangeable, and a file that never states which one it uses is a file whose numbers have no confirmed meaning yet.
+
+**When the data was collected.** A road network from 2011 is missing every road built since. A land cover raster from before a wildfire season shows forest where there is now char. The collection date is not trivia. It is the expiration date on everything the dataset claims.
+
+**Who collected it, and how.** A city's own survey crew walking property lines with GPS-grade equipment produces something different from a dataset built by tracing satellite imagery by eye. Neither is automatically better, but an analyst needs to know which one they are holding, because the two carry very different error profiles.
+
+**Scale or resolution.** A vector dataset digitized at a scale of 1:100,000 was never meant to place a fence line to the meter, no matter how precise the file's decimal places look. A raster with 30 meter pixels, the resolution Landsat imagery ships at, cannot resolve a single building. Every dataset was built to answer questions at some grain of detail, and asking it a finer question than that just returns false precision.
+
+**A data dictionary.** This is a plain explanation of what each column in the attribute table actually means: what `LU_CODE` stands for, what value `3` represents in a zoning field, whether a null in a population column means zero or means unmeasured. Column names are often abbreviated, agency-specific, or inherited from a decades-old database schema. Without a dictionary, a column is a label an analyst has to guess at, and a wrong guess about what a code means produces a wrong map that looks perfectly confident.
+
+**Accuracy.** Most serious datasets state a positional accuracy, something like "features are accurate to within 5 meters," sometimes alongside an attribute accuracy for how often the descriptive fields are correct. This is the number that says whether a result is trustworthy to the meter or only to the neighborhood.
+
+**License.** Whether a dataset can legally be used in a paid product, redistributed, or published in a report is a licensing question, not a technical one, and it is worth answering before the data is built into something that ships.
+
+<Callout type="info" title="Undefined is not the same as WGS84">
+A file with no coordinate reference system set is not the same as a file that uses WGS84. Software that opens an undefined file often assumes WGS84 anyway, because it has to assume something, and that silent assumption is exactly how a dataset that was actually recorded in a UTM zone in meters ends up plotted as if those numbers were degrees of longitude and latitude. The numbers do not change. Their meaning does, and the map moves.
+</Callout>
+
+<Quiz
+  id="metadata-null-island"
+  question="A dataset loads into a GIS project and every feature appears clustered near coordinates 0, 0 in the ocean, far from where the data was supposedly collected. What is the most likely cause?"
+  answer={2}
+  options={[
+    "The dataset's attribute table has too many columns for the software to render correctly.",
+    "The features were deleted and the software is showing an empty placeholder location.",
+    "The dataset's coordinate reference system was never defined, so the software fell back to a default that does not match how the coordinates were actually recorded.",
+    "The license file is missing, which prevents the software from placing the features correctly.",
+  ]}
+  explanation="Coordinates clustering at 0, 0, often called null island, is the classic sign of an undefined or mismatched coordinate reference system. The software has to assume some meaning for the numbers and guesses wrong. Column count and license status have no bearing on where a feature is drawn, and a deleted feature simply would not appear at all."
+/>
+
+## Why a CRS mismatch breaks things without an error
+
+A coordinate reference system mismatch is dangerous precisely because it usually does not crash anything. Two layers with different but valid coordinate reference systems can both load, both draw, and both look like ordinary maps. The problem only shows up as an effect: the river runs through the middle of a lake instead of alongside it, the buildings sit a few blocks off from the roads, or a distance calculation between two points returns a number that is off by a factor of ten thousand because one layer's units were degrees and the other's were meters.
+
+Most desktop GIS software, including QGIS, reprojects layers on the fly for display when each layer states its coordinate reference system correctly. That reprojection is what saves an analyst from misalignment day to day. It only works because every layer involved actually declares what system its numbers are in. A file with an undefined coordinate reference system gives the software nothing to reproject from, so the software either refuses to guess or guesses wrong, and either way the fix has to happen at the data level, not by nudging a layer on screen.
+
+This is also why measurements are the first thing to check after any coordinate reference system question. A distance or area computed while a project is displayed in Web Mercator, EPSG 3857, will be distorted, sometimes by a lot, because that projection stretches distances as latitude moves away from the equator. Real measurement work happens in a projection built for it, typically a local UTM zone, precisely because degrees and Web Mercator meters were never designed to answer "how far apart are these two points" correctly everywhere on Earth.
+
+<Quiz
+  id="metadata-crs-measurement"
+  question="An analyst measures the area of several parcels while the map project is displayed in Web Mercator (EPSG 3857). What is the risk?"
+  answer={1}
+  options={[
+    "There is no risk, because Web Mercator is the standard reference system for all measurement work.",
+    "Web Mercator distorts distance and area away from the equator, so the measured values can be meaningfully wrong depending on the parcels' latitude.",
+    "The measurement will fail outright and the software will refuse to compute an area.",
+    "The risk only applies to line features, never to polygons like parcels.",
+  ]}
+  explanation="Web Mercator is built for consistent map display, not accurate measurement, and it stretches distances as latitude increases. Measuring area or distance in it can produce numbers that are off by a meaningful margin, worse the further the parcels sit from the equator. The software will happily compute a number, it just will not be the right one, and the distortion affects polygons and lines alike."
+/>
+
+## Provenance: knowing where a result came from
+
+Provenance is the record of where a dataset came from and what happened to it on the way to an analyst's screen. It is the chain: original source, who touched it, what processing steps were applied, in what order. A parcel layer might start as a county's official survey, get exported to a state clearinghouse, get clipped to a study area by a research group, then get reprojected by a student for a class project. Each step can introduce a small change: a slightly different accuracy, a dropped column, a coordinate reference system swapped along the way.
+
+Provenance matters most at the moment someone tries to reproduce a result. If an analysis found that a certain neighborhood has an unusually high concentration of flood-prone parcels, another analyst checking that claim needs to know exactly which parcel dataset was used, from what date, and what filtering happened before the flood zone overlay ran. Without that trail, "reproduce this" turns into "start over and hope the same numbers come out." Good metadata is what makes an analysis a chain of documented steps instead of a black box that happened to produce a map once.
+
+This is also why serious open datasets, the kind published by Natural Earth, national mapping agencies, or Overture Maps, ship changelogs and version numbers alongside the geometry. A version number is a promise: this exact set of coordinates and this exact set of fields is what version 2.1 means, so anyone citing it later knows precisely what they are pointing at.
+
+## Making the check a habit, not an afterthought
+
+The practical move is simple and easy to skip under deadline pressure: before running any analysis on a new dataset, open its metadata first. In QGIS, right-clicking a layer and opening its properties shows the coordinate reference system, the source path, and the feature count in seconds. A downloaded dataset almost always ships with a metadata file, an `.xml` sidecar, a `README`, or a webpage section labeled "data dictionary" or "field descriptions." Reading that before the first join or overlay costs a few minutes. Discovering a CRS mismatch after a week of analysis costs the week.
+
+<Quiz
+  id="metadata-habit-provenance"
+  question="Why does provenance, the documented chain of a dataset's origin and processing steps, matter for reproducing an analysis?"
+  answer={0}
+  options={[
+    "Without knowing exactly which version of a dataset and which processing steps produced a result, another analyst cannot confirm the result came from real data rather than a coincidence in a different dataset.",
+    "Provenance only matters for legal compliance and has no effect on whether a result can be checked.",
+    "Provenance is unnecessary once a dataset has a coordinate reference system defined, since the CRS is the only fact that affects reproducibility.",
+    "Provenance matters only for raster datasets, not for vector datasets like parcels or roads.",
+  ]}
+  explanation="Reproducing a result means running the same steps on the same version of the same source data, and provenance is the record that specifies exactly that. A defined CRS alone does not say which source, which date, or which processing the current file reflects. Provenance applies to vector and raster data alike, and it matters well beyond legal licensing questions."
+/>
+
+The dataset that opens without a single readable field of metadata is not automatically unusable. It is a dataset an analyst has to treat as unverified until the CRS, the collection date, the field meanings, and the license are pinned down by some other means: contacting the source, checking a companion report, or testing the coordinates against a known landmark. Building the reflex to ask "what is this, really" before "what does this show me" is what separates a map that happens to look right from one that is right.
+
+The next lesson turns from data files to a database built for exactly this kind of scrutiny at scale: how PostGIS stores spatial data in a proper SQL database, where the coordinate reference system of every geometry is tracked explicitly by the system itself rather than left to a sidecar file an analyst might never open.

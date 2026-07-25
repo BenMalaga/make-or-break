@@ -1,0 +1,349 @@
+[
+  {
+    "domain": 3,
+    "question": "A security engineer must ensure that if a web server's long-term private key is later stolen, previously recorded TLS sessions still cannot be decrypted. Which cipher suite property achieves this?",
+    "options": [
+      "Ephemeral key exchange (ECDHE) providing forward secrecy",
+      "Static RSA key exchange",
+      "A longer symmetric key such as AES-256",
+      "Certificate pinning in the client"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Forward secrecy uses ephemeral Diffie-Hellman keys (DHE or ECDHE) that are negotiated per session and discarded afterward, so compromise of the server's long-term key does not expose past traffic. Static RSA key exchange fails this because one key protects every session. Symmetric key length and pinning do not address decryption of recorded sessions.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An organization wants clients to receive a certificate's revocation status during the TLS handshake without each client contacting the CA's responder directly, reducing responder load and improving client privacy. Which mechanism should be implemented?",
+    "options": [
+      "OCSP stapling",
+      "Downloading the full Certificate Revocation List on each client",
+      "Certificate pinning",
+      "Key escrow"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "With OCSP stapling, the server periodically fetches a CA-signed, time-stamped OCSP response and staples it into the handshake, so clients get revocation status without querying the CA. This offloads the responder and hides which clients visit the site. A CRL must be downloaded in full, and pinning and escrow serve different purposes.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A mobile application developer wants the app to trust only one specific certificate or public key for its backend API, rejecting any other otherwise valid certificate presented during the handshake. Which technique accomplishes this?",
+    "options": [
+      "Certificate pinning",
+      "Certificate stapling",
+      "A wildcard certificate",
+      "Cross-certification"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Certificate or public key pinning embeds the expected certificate or key in the application, so a fraudulently issued but chain-valid certificate is refused. This protects against a rogue or compromised CA. Stapling delivers revocation status, wildcards cover subdomains, and cross-certification links separate PKI hierarchies.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A developer must select block cipher modes of operation that provide both confidentiality and built-in integrity through an authentication tag (authenticated encryption). Which two modes meet this requirement? (Choose two.)",
+    "options": [
+      "AES-GCM",
+      "AES-CCM",
+      "AES-CBC",
+      "AES-ECB"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explanation": "GCM (Galois/Counter Mode) and CCM (Counter with CBC-MAC) are authenticated encryption modes that emit an authentication tag with the ciphertext, letting the receiver detect tampering. CBC provides confidentiality only and needs a separate MAC, and ECB is insecure because identical plaintext blocks yield identical ciphertext.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A security analyst downloads a firmware image and wants to confirm it was not altered by comparing a value the vendor published. Which cryptographic primitive is used for this integrity check?",
+    "options": [
+      "A cryptographic hash such as SHA-256",
+      "A symmetric cipher such as AES",
+      "An asymmetric cipher such as RSA",
+      "A key derivation function such as PBKDF2"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A cryptographic hash like SHA-256 produces a fixed-length digest; if the recomputed digest matches the vendor's published value, the file is unchanged. Hashes are one-way and reveal any modification. Encryption provides confidentiality, and key derivation functions turn passwords into keys rather than verifying file integrity.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "To make stored password hashes resistant to GPU-accelerated brute-force attacks, a developer needs an algorithm that is deliberately slow and memory-hard. Which choice is most appropriate?",
+    "options": [
+      "Argon2",
+      "MD5",
+      "SHA-1",
+      "CRC32"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Argon2 is a modern password-hashing and key-stretching function that is intentionally slow and memory-hard, sharply raising the cost of brute-force and GPU attacks. MD5 and SHA-1 are fast general-purpose hashes unsuitable for password storage, and CRC32 is a non-cryptographic checksum.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An enterprise needs a dedicated, tamper-resistant appliance to generate, store, and use cryptographic keys so that private keys never leave the hardware boundary. Which device should be deployed?",
+    "options": [
+      "A Hardware Security Module (HSM)",
+      "A Trusted Platform Module (TPM) on each laptop",
+      "A self-encrypting drive (SED)",
+      "A TLS accelerator card"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "An HSM is a hardened, tamper-resistant appliance dedicated to key generation, storage, and cryptographic operations, keeping private keys inside its boundary. A TPM is a per-device chip for platform integrity and local key storage, an SED encrypts a single drive at rest, and an accelerator only offloads TLS math.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A company must secure several distinctly named services (mail.example.com, vpn.example.com, and portal.example.net) with a single certificate. Which certificate type best fits?",
+    "options": [
+      "A Subject Alternative Name (SAN) multi-domain certificate",
+      "A wildcard certificate",
+      "A domain-validated single-name certificate",
+      "A self-signed certificate"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A SAN (multi-domain) certificate lists multiple specific fully qualified domain names, even across different registered domains, in its SAN field. A wildcard covers only subdomains of one domain, so it could not include example.net, and a single-name or self-signed certificate would not cover the whole set.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "After a server is hardened to disable TLS 1.0/1.1 and all non-forward-secret cipher suites, a subset of legacy clients can no longer connect while modern browsers work fine. What is the MOST likely cause?",
+    "options": [
+      "The legacy clients share no common protocol version or cipher suite with the server",
+      "The server certificate has expired",
+      "OCSP stapling is misconfigured",
+      "The server's private key was revoked"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "When a server offers only newer protocols and suites, clients that support none of them fail negotiation, while modern clients still succeed. An expired certificate or a revoked key would break every client, not just the old ones, and a stapling fault would not selectively block legacy clients.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "Which statement correctly describes symmetric encryption such as AES?",
+    "options": [
+      "The same secret key is used to encrypt and decrypt the data",
+      "A public key encrypts and a separate private key decrypts",
+      "It is used primarily to create digital signatures",
+      "It requires no key to be established between parties"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Symmetric algorithms like AES use one shared secret key for both encryption and decryption, which is fast but requires secure key distribution. Public and private key pairs belong to asymmetric cryptography, which underlies digital signatures, and some key must always be established between communicating parties.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "What is the primary advantage of OCSP over a traditional Certificate Revocation List when checking certificate status?",
+    "options": [
+      "OCSP returns the real-time status of a single certificate instead of requiring download of an entire list",
+      "OCSP encrypts the certificate's private key",
+      "OCSP eliminates the need for a certificate authority",
+      "OCSP lengthens the certificate's validity period"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "OCSP lets a client query the status of one specific certificate and get a near real-time answer, avoiding the bandwidth and latency of downloading and parsing a large, periodically published CRL. It does not replace the CA, manage private keys, or change validity periods.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A sender hashes a document and encrypts the hash with their own private key, attaching the result to the message. Which security services does this digital signature provide?",
+    "options": [
+      "Integrity, authentication, and non-repudiation",
+      "Confidentiality of the document body",
+      "Forward secrecy",
+      "Key escrow"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Signing a hash with the sender's private key lets recipients verify it with the sender's public key, proving the message was unchanged (integrity), originated with the key holder (authentication), and cannot later be disowned (non-repudiation). The document body itself is not encrypted, so confidentiality is not provided.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A security architect is planning cryptographic agility against future quantum computers running Shor's algorithm. Which currently deployed algorithm is MOST at risk and should be prioritized for a post-quantum replacement?",
+    "options": [
+      "RSA",
+      "AES-256",
+      "SHA-512",
+      "HMAC-SHA-256"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Shor's algorithm efficiently breaks the integer-factorization and discrete-log problems that RSA and ECC rely on, so those public-key algorithms are the priority for post-quantum replacement, such as lattice-based schemes. Symmetric ciphers like AES-256 and hashes like SHA-512 are only weakened by Grover's algorithm, which is offset by larger key or output sizes.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "An operator must allow monitoring data to flow out of an isolated SCADA network to a corporate historian while making it physically impossible for any traffic to flow back into the control network. Which control enforces this?",
+    "options": [
+      "A unidirectional gateway (data diode)",
+      "A stateful firewall rule",
+      "A jump box using RDP",
+      "A VLAN access control list"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A data diode (unidirectional gateway) uses hardware that physically permits data to travel in only one direction, so telemetry can leave the OT network with no possible return path. Firewalls, jump hosts, and VLAN ACLs are software-enforced and can be misconfigured or bypassed, unlike a hardware-enforced one-way link.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A laptop uses full-disk encryption and must store the encryption key in tamper-resistant hardware bound to that specific machine, releasing it only after a verified boot. Which component provides this?",
+    "options": [
+      "A Trusted Platform Module (TPM)",
+      "A network Hardware Security Module",
+      "A key escrow server",
+      "A self-signed certificate"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A TPM is a chip on the motherboard that securely stores keys and platform integrity measurements, releasing the disk-encryption key only when boot measurements are as expected, which binds the key to that device. An HSM is a separate network appliance, escrow is a recovery process, and a certificate is unrelated to this local key release.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "In a BYOD program, the security team must separate corporate email and apps from an employee's personal data on the same phone so corporate data can be wiped without touching personal content. Which MDM capability achieves this?",
+    "options": [
+      "Containerization (storage segmentation)",
+      "Full-device remote wipe only",
+      "Certificate pinning",
+      "Geofencing"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Containerization creates an encrypted, managed workspace that segregates corporate apps and data from personal content, enabling a selective wipe of only the corporate container. A full-device wipe would erase personal data too, while pinning and geofencing address unrelated concerns.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Why might an architect choose a 256-bit elliptic curve (ECC) key over a 3072-bit RSA key for a resource-constrained IoT device?",
+    "options": [
+      "ECC provides comparable security strength with a much smaller key, reducing computation and power use",
+      "ECC keys never expire",
+      "ECC does not require a certificate authority",
+      "RSA cannot be used for digital signatures"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A 256-bit ECC key offers security strength roughly equivalent to a 3072-bit RSA key while needing far less computation, memory, and power, which suits constrained devices. Both key types still expire, use certificate authorities, and can create signatures; only the size-to-strength efficiency differs.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "To limit the impact of a CA compromise, an enterprise keeps its root CA powered off and offline and issues day-to-day certificates from a subordinate CA. What is the primary security benefit of this design?",
+    "options": [
+      "The root private key stays protected, and a compromised intermediate can be revoked and replaced without replacing the root",
+      "Certificates no longer need to be validated by clients",
+      "OCSP is no longer required",
+      "Wildcard certificates become unnecessary"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Keeping the root CA offline protects its private key, the ultimate trust anchor; if an issuing intermediate CA is compromised, it can be revoked and reissued without replacing the root and every certificate beneath it. Clients still validate the chain and revocation status as usual.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A developer adds a unique random value to each password before hashing it and stores that value with the hash. Which attack does this specifically defeat?",
+    "options": [
+      "Precomputed rainbow table attacks",
+      "TLS downgrade attacks",
+      "Cross-site scripting",
+      "SQL injection"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A unique per-password salt ensures identical passwords produce different hashes, so precomputed rainbow tables are useless and each password must be attacked individually. Salting does not address transport-layer downgrades or web application injection flaws.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "Which two technologies allow useful computation on sensitive data while keeping the underlying values protected from the party performing the processing? (Choose two.)",
+    "options": [
+      "Homomorphic encryption",
+      "Secure multiparty computation",
+      "Electronic Code Book (ECB) mode",
+      "Base64 encoding"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explanation": "Homomorphic encryption permits computation directly on ciphertext so the processor never sees plaintext, and secure multiparty computation lets parties jointly compute a result without revealing their private inputs. ECB is a weak block cipher mode, and Base64 is only an encoding, not a confidentiality control.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A mobile payment app must process biometric and key material in an isolated area of the processor that the main operating system cannot read, even if that OS is later compromised. Which technology provides this?",
+    "options": [
+      "A trusted execution environment (secure enclave)",
+      "A software-only sandbox inside the app",
+      "A CRL distribution point",
+      "A stateful firewall"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A trusted execution environment or secure enclave is a hardware-isolated region of the processor that runs sensitive code and stores secrets separately from the main OS, protecting them even if the OS is compromised. A software sandbox lacks hardware isolation, and the other options are unrelated to processor-level isolation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An organization must be able to recover encrypted data if an employee leaves or loses their private key, without weakening the encryption for everyone else. Which approach supports this requirement?",
+    "options": [
+      "Key escrow with a designated recovery agent",
+      "Disabling encryption on shared drives",
+      "Using one shared symmetric key for all users",
+      "Shortening certificate lifetimes"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "Key escrow securely stores copies of keys, or authorizes a recovery agent to decrypt, so approved personnel can recover data when a key is lost or an employee departs. Reusing one key or disabling encryption weakens security broadly, and shorter certificate lifetimes do not enable data recovery.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "Users get a browser warning that a site's certificate does not match the site name, even though the certificate is issued by a trusted CA and has not expired. What is the MOST likely cause?",
+    "options": [
+      "The requested hostname is not listed in the certificate's Common Name or Subject Alternative Name fields",
+      "The server is using TLS 1.3",
+      "The client's clock is set correctly",
+      "OCSP stapling is enabled"
+    ],
+    "correct": [
+      0
+    ],
+    "explanation": "A name-mismatch warning appears when the FQDN in the URL is absent from the certificate's CN and SAN fields, for example reaching the site through an alias the certificate does not cover. A modern TLS version, a correct clock, and stapling would not produce a name-mismatch error.",
+    "difficulty": "HARD"
+  }
+]

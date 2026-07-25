@@ -1,0 +1,86 @@
+---
+name: VAmPI
+tagline: A deliberately vulnerable REST API. Learn how APIs actually get broken.
+description: A small Flask REST API seeded on purpose with the classic API security flaws. It walks you through broken object level authorization, broken authentication, mass assignment, and excessive data exposure against a target that is safe to break.
+difficulty: MEDIUM
+os: LINUX
+targetType: DOCKER
+tags:
+  - api
+  - web
+  - injection
+points: 30
+docker:
+  image: erev0s/vampi
+  run: docker run --rm -p 5000:5000 erev0s/vampi
+  port: 5000
+  httpPath: /
+flags:
+  - type: USER
+    label: Broken object level authorization
+    value: MOB{ids_are_not_permissions}
+    points: 15
+  - type: ROOT
+    label: Broken authentication
+    value: MOB{admin_is_just_a_claim}
+    points: 15
+hints:
+  - title: Where do I even start?
+    body: VAmPI is a JSON API, not a site you click through. Talk to it with curl, HTTPie, or Burp. Before anything works, hit GET /createdb once to build and seed the database, then read the root path to see it is running in vulnerable mode.
+    cost: 0
+  - title: Map the endpoints
+    body: The routes live under /users/v1 and /books/v1. Register two of your own accounts and log in as each. Login hands you a JWT, so keep both tokens. The first bug is about what one logged in user is allowed to do to another user's object.
+    cost: 5
+  - title: Acting on someone else's object
+    body: Look at the routes that change a user, like the password and email update endpoints. Each one takes a username in the URL path. Send user one's token but put user two's username in the path. The server never checks that the token owner matches the object owner.
+    cost: 10
+  - title: User proof token
+    body: With user one's token, send a PUT to /users/v1/{user two}/password with a new password in the body. It succeeds, and you can now log in as user two with the password you just set. You changed an account you do not own. Submit MOB{ids_are_not_permissions}
+    cost: 10
+  - title: Toward admin
+    body: Now become an administrator. Three doors are open. The unauthenticated debug route leaks every user's password in cleartext. Registration honors an admin field you add to the JSON body. And the JWT is signed with a weak secret you can recover with jwt_tool or hashcat, then forge a token with admin set to true.
+    cost: 10
+  - title: Root proof token
+    body: Pick any door and end up holding a token whose admin claim is true, then use it on an admin only action like deleting a user. Once you hold administrator rights on the API, submit MOB{admin_is_just_a_claim}
+    cost: 15
+tasks:
+  - title: Stand up the container and seed the database
+    description: Run the docker command, then call GET /createdb once
+  - title: Map the API surface
+    description: Enumerate the user and book routes and grab a JWT by logging in
+  - title: Abuse broken object level authorization
+    description: Use one user's token to change another user's account
+  - title: Take over an administrator account
+    description: Reach a valid admin session through the broken auth flaws
+---
+
+## About this target
+
+VAmPI is a small REST API built with Flask, seeded on purpose with the API bugs
+that show up in real breaches. There is no UI to click. You talk to it with curl,
+HTTPie, or Burp, which is exactly how you test an API in the field. It ships in a
+deliberately vulnerable mode, so the flaws are switched on and waiting.
+
+Your two objectives here: **make the API act on an object that belongs to another
+user** (user), then **take over an administrator account by abusing its broken
+authentication** (root).
+
+<Callout type="security" title="Authorized target only">
+You are running this container on your own machine. That is the only reason it
+is legal to attack it. Never point these techniques at an API you do not own or
+have written permission to test.
+</Callout>
+
+<Callout type="info" title="How flags work on Phase A machines">
+Docker and bring-your-own-VM boxes use proof tokens revealed through the hints
+once you have genuinely completed the objective. Capture a flag by doing the
+work, then submitting the token. Phase B hosted machines will issue real
+per-instance flags planted on the target.
+</Callout>
+
+## Getting reachable
+
+Start the container and confirm the API answers at `http://localhost:5000`.
+Before anything else, call `GET /createdb` once to build and seed the database,
+or every route will come back empty. Then work the objectives below. Use the
+hints if you stall; each one costs a few points, so try on your own first.

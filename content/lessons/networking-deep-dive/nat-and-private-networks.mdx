@@ -1,0 +1,136 @@
+---
+title: NAT and Private Networks
+module: networking-deep-dive
+moduleTitle: Networking Deep Dive
+moduleOrder: 2
+moduleIcon: Waypoints
+order: 3
+summary: "A house has a dozen devices and one public IP. NAT is the trick that makes that work, and the workaround it never stopped being."
+estimatedMinutes: 15
+prerequisites:
+  - switching-and-vlans
+objectives:
+  - Identify the three private IPv4 ranges and explain why they never appear on the public internet
+  - Explain why IPv4's limited address space made private ranges and address sharing necessary
+  - Trace how a router uses PAT, also called NAT overload, and a translation table to share one public address among many devices
+  - Explain what port forwarding does and why NAT is a workaround rather than a real fix for address exhaustion
+tags:
+  - nat
+  - ipv4
+---
+
+The switching and VLANs lesson kept everything inside one wall: a frame addressed to a device on the same subnet stayed on that subnet, and a switch delivered it using nothing but a MAC address table, no router involved at all. That was the easy case. The moment a device on that local network needs something outside it, a video call, a search result, a software update, the packet has to leave the building entirely, and it leaves carrying a private address that means nothing anywhere else. Something has to fix that address before the packet reaches the open internet, and that something is the router sitting at the edge, running a function called NAT.
+
+## The math that forced this compromise
+
+IPv4 addresses are 32 bits long, which sounds like a technical detail until it becomes a hard ceiling. Thirty-two bits allows for a little over 4.3 billion distinct addresses, full stop, no more can ever exist within that format. When the addressing scheme was designed, 4.3 billion looked functionally infinite. Computers were rare, expensive, and mostly institutional. Nobody planning the internet's address space in the early 1980s was picturing a world where a single household might own fifteen networked devices: two phones, a laptop, a tablet, a smart thermostat, three streaming boxes, a couple of game consoles, a handful of light bulbs, and a printer, all wanting to talk to the internet at the same time.
+
+That world arrived decades ahead of any plan for it. By the early 2010s, the pool of available public IPv4 addresses was running out for real, and it did in fact run dry, region by region, starting around 2011. If every device in every home, office, and data center needed its own unique public address, the internet would have hit a wall it could not grow past. Two things bought the time to keep building anyway. One was reserving blocks of addresses that would never be handed out publicly, meant for reuse inside private networks over and over, unlimited times, since they would never collide on the actual internet. The other was a router function that lets many devices share one public address at once. Together those two ideas are why a two-bedroom apartment and a thousand-person office can both run modern networks on IPv4 today, decades past when the address math alone said it should have collapsed.
+
+## Three ranges nobody routes on the public internet
+
+The Internet Engineering Task Force set aside specific blocks of IPv4 address space explicitly for private use, documented in a standard usually cited as RFC 1918. Three ranges cover it: 10.0.0.0/8, which spans every address from 10.0.0.0 through 10.255.255.255, a huge block of over sixteen million addresses; 172.16.0.0/12, running from 172.16.0.0 through 172.31.255.255; and 192.168.0.0/16, from 192.168.0.0 through 192.168.255.255. Every one of those addresses is reserved by agreement across the entire internet. No internet service provider assigns them as public addresses, and no router on the public internet will forward a packet destined for one, because those addresses are defined as meaningless outside a private network.
+
+That reservation is exactly why a huge number of home routers ship with a default network of 192.168.1.0/24 and nobody's internet breaks. A house in Denver and a house in Tokyo can both run devices numbered 192.168.1.2, 192.168.1.3, and 192.168.1.4, and there is zero conflict, because those addresses only have meaning inside each house's own network. The moment a packet from either house needs to leave and cross the public internet, its private source address gets swapped out before it goes anywhere, which is the entire subject of the next section. Millions of separate networks reusing the identical address space, all day, every day, works because private addresses are locally scoped by design, the same way a house number like "42" repeats on nearly every street in a country without ever causing a letter to reach the wrong city. An organization with more devices than a /16 comfortably fits picks the larger 10.0.0.0/8 block instead; a mid-sized office often lands in 172.16.0.0/12. The choice of which private range to use is purely a matter of how many addresses a given network needs, since all three are equally invisible to the outside.
+
+<Quiz
+  id="private-ranges"
+  question="Two unrelated companies both number a printer 10.0.5.20 on their internal networks. Why does this cause no conflict on the public internet?"
+  answer={1}
+  options={[
+    "It does cause a conflict, but routers silently drop the resulting duplicate traffic",
+    "10.0.0.0/8 is a reserved private range that no public router forwards, so the address only has meaning inside each company's own network",
+    "IPv4 addresses are automatically renumbered by an internet-wide registry whenever a duplicate appears",
+    "Printers are excluded from IPv4 addressing rules and use a separate numbering system"
+  ]}
+  explanation="Private ranges like 10.0.0.0/8 are reserved specifically so they can be reused endlessly inside separate networks. No public router treats those addresses as globally unique or forwards packets addressed to them, so two networks can both use 10.0.5.20 with no collision, since neither address is ever visible to the other network or the internet at large."
+/>
+
+## NAT: rewriting the source address on the way out
+
+Network Address Translation, NAT, is the function a router performs to let devices holding private addresses reach the public internet at all. A device on a private network sends a packet toward some public server, and that packet has to pass through the router at the edge of the network on its way out. Before that router forwards the packet, it rewrites the packet's source address, replacing the device's private address with the router's own single public address. The router keeps a record of that swap, so when a reply comes back addressed to the router's public address, the router knows exactly which internal device to hand it to and rewrites the destination address back to that device's private address before delivering it.
+
+That description covers the simplest form of NAT, a one-to-one swap, but it does not yet explain how a whole house full of devices shares a single public address at the same time without replies getting mixed up. The mechanism that solves that is called Port Address Translation, PAT, also commonly called NAT overload, and it is what almost every home and small-office router actually runs. PAT adds the TCP or UDP port number into the equation. Every outbound connection from an internal device gets a distinct combination of the router's public address and a specific external port number assigned to it, even if a hundred different internal devices are all making outbound connections through that same router at once. The router remembers each mapping: which internal address and port sent which outbound connection, and which external port on the router's public address now represents that connection to the outside world. A reply comes back addressed to the router's public address on that specific port, the router looks up the mapping, and forwards the packet to the correct internal device on its correct internal port. Ports go up to 65,535, which gives one public address enormous headroom to represent many simultaneous internal connections at once, far more than any household or small office is likely to run concurrently.
+
+<CommandCard command="curl -s ifconfig.me" title="on a laptop inside a home network" explain="returns the router's single public address, not the laptop's own private one" />
+
+<ExpectedOutput label="response">
+```
+203.0.113.47
+```
+</ExpectedOutput>
+
+Every device behind that router, a laptop, a phone, a smart speaker, would return that exact same public address if each ran the same command, because from the internet's point of view, they are all speaking through one address. The router's translation table is what keeps their traffic from being one indistinguishable mess. A real table, simplified, looks like this while a few connections are active at once:
+
+```text
+Internal (private)          Public (translated)         Destination
+192.168.1.14:51322     ->   203.0.113.47:40001    ->    142.250.72.14:443
+192.168.1.9:33871      ->   203.0.113.47:40002    ->    151.101.1.140:443
+192.168.1.14:51890     ->   203.0.113.47:40003    ->    172.217.16.14:443
+192.168.1.22:44210     ->   203.0.113.47:40004    ->    140.82.121.4:443
+```
+
+Two different rows both start with 192.168.1.14, the same internal laptop, holding two separate browser tabs open to two different sites. NAT overload keeps them apart cleanly because each got its own external port, 40001 and 40003, even though they share both the same internal address and the same public address on the way out. A reply packet arriving at 203.0.113.47 on port 40003 has exactly one row it could belong to, and the router forwards it to 192.168.1.14 on port 51890 without ambiguity. Delete that row when the connection closes, and port 40003 becomes available again for something else.
+
+<Quiz
+  id="pat-overload"
+  question="A router uses PAT/NAT overload with one public IP address, 203.0.113.47. Two different internal devices each open a web connection at the same moment. How does the router tell their return traffic apart?"
+  answer={3}
+  options={[
+    "It cannot; only one device on a NAT network can be online at a time",
+    "It assigns each device a temporary second public IP address for the duration of the connection",
+    "It relies on the two devices using different DNS servers",
+    "It assigns each outbound connection a distinct external port number on the shared public address and tracks the mapping in a translation table"
+  ]}
+  explanation="PAT is specifically the port-based version of NAT: many internal devices share one public IP, and the router tells their traffic apart using the port number, not a separate address for each. There is no limit of one active device, and DNS server choice has nothing to do with how return traffic finds its way back."
+/>
+
+## Port forwarding: opening a door on purpose
+
+The translation table only creates entries for connections that started from inside the private network. That default behavior is a side effect of NAT rather than a security feature built on purpose, but it produces the same practical result as one: a device sitting outside the network cannot simply reach in and start a new connection to something inside, because there is no existing row in the table pointing to any internal device for an unsolicited inbound packet. The router has nothing to match it against, and it drops.
+
+That default becomes a problem the moment someone wants to run something that needs to accept connections initiated from the outside: a home file server, a self-hosted game server, a security camera someone wants to check from work, a small web project running on a spare machine at home. None of that works unless the router is told, in advance, that traffic arriving on a specific external port should be handed to a specific internal device on a specific internal port, permanently, not just for the duration of an outbound connection that internal device started. That manual rule is called port forwarding. An administrator configures the router directly: traffic arriving on the public address at port 25565, say, should always go to 192.168.1.50 on port 25565, regardless of whether anything inside the network asked for it first. From that point forward, that one port on that one internal device is reachable from anywhere on the internet.
+
+Port forwarding is exactly the exception to NAT's normal behavior, and it is worth being precise about what it actually changes. Everything else on the network stays exactly as protected as it was, since the translation table still has no entry for any other internal device or port. Only the specific rule that was configured opens up, and only on the port named in that rule. Running a home server, in practice, is inseparable from setting up at least one port-forwarding rule, because without it the server exists on the network but is completely unreachable from outside.
+
+<Quiz
+  id="port-forwarding"
+  question="A household wants to run a small web server on a machine at 192.168.1.80 so a friend across the country can visit it. What has to happen on the home router?"
+  answer={2}
+  options={[
+    "Nothing; NAT automatically makes any internal server reachable from outside once it starts listening",
+    "The private IP range has to be switched from 192.168.0.0/16 to a public range",
+    "A port-forwarding rule has to be configured, directing inbound traffic on a chosen port to 192.168.1.80 on the matching internal port",
+    "The router has to be replaced with one that does not use NAT"
+  ]}
+  explanation="NAT's translation table only tracks connections that started from inside the network, so an unsolicited connection from a friend outside has nothing to match against and gets dropped by default. Port forwarding is the manual rule that tells the router to hand a specific inbound port straight to a specific internal device, which is what makes a home server reachable at all."
+/>
+
+<Callout type="warning" title="A port-forwarding rule stays open even after the reason for it is gone">
+It is common to forward a port for a game server or a temporary project, get what was needed, and forget the rule exists. The rule does not expire on its own. Months later that port is still sitting open, pointed at a device that may no longer be running the service it was forwarded for, or worse, is now running something else entirely that was never meant to be internet-facing. Reviewing and removing forwarding rules that are no longer needed is a basic piece of home and small-office network hygiene, not an optional extra.
+</Callout>
+
+## What NAT actually cost the internet
+
+NAT is often described casually as a solution, and it is worth being honest that it is not one. It is a workaround, and a genuinely clever one, that let the internet keep growing for roughly three decades past the point its address space alone would have allowed. That is a real achievement. But the original design of the internet assumed something NAT quietly breaks: any host should be able to open a connection to any other host, directly, as an equal. That assumption is called the end-to-end principle, and NAT violates it structurally, not as a bug but as its entire mechanism. A device behind NAT cannot be reached unless something, a port-forwarding rule, a relay server, a third-party service acting as a go-between, deliberately punches a hole for it.
+
+The practical fallout from that shows up constantly in areas that need two private-network devices to talk to each other directly. Peer-to-peer file sharing struggles when both peers sit behind separate NAT routers, since neither one can simply dial the other; workarounds like STUN and TURN servers, and a negotiation process called hole punching, exist specifically to fight through NAT rather than because the underlying goal is hard on its own merits. Online multiplayer games run into the same wall, which is why game consoles and PC games alike are full of settings pages devoted to NAT type, UPnP, and manual port configuration, none of which would need to exist if every device already had its own reachable address. Voice and video calling services solved this by routing most calls through relay servers in the middle rather than connecting two home networks directly, which works, but adds a middle server, and cost, and latency, to something that architecturally should have been two devices talking straight to each other.
+
+None of that makes NAT a mistake. Given the actual constraint, an address space that ran out decades before anyone expected it to, NAT and private addressing together were close to the only viable path forward without a wholesale redesign happening under emergency conditions. But it is a patch on a scarcity problem, not a fix for it, and the tradeoffs it introduced, broken direct connectivity, more complexity for anything peer-to-peer, extra infrastructure just to route around NAT itself, are the honest price of that patch. They are still being paid today by every developer who has to reason about NAT traversal instead of a straightforward connection between two addresses.
+
+<Exercise title="Read a translation table">
+A small office router shows this NAT table while three employees are on video calls at once:
+
+```text
+Internal (private)          Public (translated)         Destination
+10.0.1.11:52001         ->   198.51.100.9:41001    ->    64.233.185.127:443
+10.0.1.19:52210         ->   198.51.100.9:41002    ->    64.233.185.127:443
+10.0.1.11:52340         ->   198.51.100.9:41003    ->    17.248.128.10:443
+```
+
+A reply packet arrives from the internet addressed to 198.51.100.9 on port 41002. Work out, from the table alone, which internal device gets that packet and on which port. Then explain in a sentence why 10.0.1.11 needed two separate rows even though it is one physical device.
+</Exercise>
+
+The three private ranges, PAT's port juggling, and the manual doorway of port forwarding all describe how IPv4 was stretched to outlast its own address math. None of it adds a single new address to the world; it only makes the existing 4.3 billion do more work, and unevenly at that, since the connectivity NAT breaks has to be rebuilt by hand every time something needs it. The actual fix, an address space large enough that private ranges and address sharing become unnecessary entirely, already exists and has for years. The next lesson, IPv6 and the modern internet, covers it directly: what a 128-bit address looks like, why that number makes exhaustion a non-issue for the foreseeable future, and why every device getting its own real, reachable address again changes some of what this lesson just spent its time working around.
+
+<Notes />

@@ -1,0 +1,237 @@
+---
+title: PKI and Certificates
+module: cryptography
+moduleTitle: Cryptography
+moduleOrder: 8
+moduleIcon: KeyRound
+order: 3
+prerequisites:
+  - hashing-and-integrity
+summary: Assemble public keys and signatures into trust that scales across the whole web.
+estimatedMinutes: 16
+objectives:
+  - Explain why a raw public key does not prove who owns it
+  - Describe how a certificate binds a public key to a name through a CA signature
+  - Trace a chain of trust from a root CA down to a site certificate
+  - Reason about what a CA verifies, plus expiry and revocation
+tags:
+  - cryptography
+  - pki
+  - certificates
+---
+
+A public key can be copied by anyone, and that is the whole problem. The earlier
+lessons handed over two building blocks: a hash function that folds any input
+into a fixed fingerprint, and a key pair whose public half is safe to publish to
+the world. Neither piece, on its own, says who a key belongs to. Public key
+infrastructure, PKI, assembles those pieces into trust at scale, the machinery
+that lets a browser open a connection to a bank it has never met and be sure it
+reached the bank and not an impostor.
+
+The gap is concrete. A server sends over a public key, claiming it belongs to
+example.com. An attacker sitting on the wire between the client and the server,
+a man in the middle, can intercept that message and swap in a public key of its
+own. The client sees only bytes. It has no way to tell the genuine key from the
+substitute. Encrypting a secret to the attacker's key just means the attacker
+reads the secret and forwards the traffic along, and both ends feel secure. The
+math held. The identity did not.
+
+## Signatures make a promise checkable
+
+A digital signature runs the key pair backwards. The publisher does not encrypt
+a message so that only a private key can open it. The publisher processes a
+message with the private key so that anyone holding the public key can confirm
+the result. The signer hashes the message, transforms that hash with the private
+key, and attaches the transformed value as the signature. A verifier holding the
+signer's public key reverses the transform to recover the original hash, hashes
+the received message independently, and compares the two.
+
+Consider a worked example. A developer releasing a firmware image runs SHA-256
+over the image to get a 32-byte digest, signs that digest with her private key,
+and posts the image and the signature side by side. A device pulling the update
+hashes the image it actually received, uses the developer's public key to unwrap
+the signature back into a digest, and checks that the two digests match. A match
+proves two separate things at once. The image was not altered after it was
+signed, which is integrity, and it came from the holder of that private key,
+which is authenticity. Flip one bit of the image and the hashes diverge. Try to
+forge the signature without the private key and the unwrapped value is noise.
+
+What a signature does not prove matters just as much. It says nothing about
+whether the developer is honest, only that the bytes came from whoever controls
+the key. The guarantee also rests entirely on the hash underneath it. The
+warning from the hashing lesson about collision-broken functions lands right
+here: a signature computed over an MD5 digest can be lifted onto a second,
+malicious file that was crafted to share that digest, so the signature still
+verifies over content the signer never saw. This is why modern signatures use
+SHA-256 or stronger.
+
+<Quiz
+  id="pki-and-certificates-signature-proves"
+  question="A device verifies a firmware image against a signature using the publisher's public key, and the check passes. What has it actually proven?"
+  answer={2}
+  options={[
+    "That the publisher is a trustworthy company",
+    "That the image is encrypted and unreadable in transit",
+    "That the image is unchanged and was signed by the holder of the matching private key",
+    "That the image is free of bugs and safe to install",
+  ]}
+  explanation="A verified signature proves integrity plus authenticity: the bytes are unchanged since signing and came from the private-key holder. It says nothing about the signer's honesty or the code's quality."
+/>
+
+## A certificate is a signed statement of identity
+
+A signature only helps a verifier who already trusts the public key doing the
+checking, which drags the trust problem back one step. How does a client get a
+trustworthy copy of the server's public key in the first place? A certificate is
+the answer. An X.509 certificate is a small structured document that pairs a
+public key with an identity, a domain name such as example.com, and adds
+validity dates, the name of the issuer, and a handful of other fields. A
+certificate authority, the CA, then signs that whole document with the CA's own
+private key.
+
+Read the result as a sentence the CA is willing to vouch for: this public key
+belongs to example.com, and the binding holds from this start date to that
+expiry date. A client that trusts the CA, and can verify the CA's signature on
+the certificate, can then trust the tie between the name and the key without
+having ever met the server. The check mirrors the firmware example exactly. A
+certificate has a to-be-signed section, the name and key and dates, plus a
+signature over that section. The client hashes the to-be-signed section,
+verifies that hash against the signature with the CA's public key, and confirms
+that the domain in the certificate matches the site it asked for. The lonely
+public key from the start of the lesson now travels wrapped in a statement that
+a trusted third party stands behind.
+
+## The chain of trust
+
+No single CA can personally sign every certificate on the internet, and keeping
+one all-powerful signing key connected to the network would be reckless. Trust
+is delegated down a chain instead, with three kinds of certificate in play.
+
+- Root CA: its certificate is self-signed. It is trusted not because some other
+  party vouches for it but because a copy already sits in the client's trust
+  store. The root's private key is kept offline, in a vault, and touched rarely.
+- Intermediate CA: signed by a root, and doing the day-to-day work of signing
+  site certificates. If an intermediate key is compromised, the root can revoke
+  that one intermediate instead of the entire operation.
+- Leaf certificate: the end-entity certificate for example.com itself, signed by
+  an intermediate. This is the one the server actually presents.
+
+Verification walks the chain upward. The client checks the leaf's signature with
+the intermediate's public key, checks the intermediate's signature with the
+root's public key, and stops the moment it reaches a root already present in its
+trust store. Every browser and operating system ships with a curated set of a
+few hundred root certificates, chosen and audited by the vendor's root program.
+The trust store is the fixed point that everything else is measured against, and
+shipping it is what lets the whole system bootstrap from nothing. Break any link
+in the chain, an intermediate past its expiry, a signature that fails to verify,
+a root that is absent from the store, and the client rejects the connection
+outright.
+
+<CommandBlock
+  title="analyst@host"
+  commands={[
+    { cmd: "openssl s_client -connect example.com:443 -showcerts", comment: "pull the full certificate chain a server presents" },
+    { cmd: "openssl x509 -in cert.pem -noout -subject -issuer -dates", comment: "read who it is for, who signed it, and how long it is valid" },
+    { cmd: "openssl x509 -in cert.pem -noout -ext subjectAltName", comment: "list every hostname this certificate covers" },
+  ]}
+/>
+
+The Subject names who the certificate is for, the Issuer names who signed it, and
+the Subject Alternative Name list holds every hostname the certificate is valid
+for. Modern clients ignore the legacy Common Name field for hostname matching and
+read the SAN list instead. A mismatch between that list and the hostname the
+client dialed is precisely what a browser certificate warning is complaining
+about.
+
+<Callout type="warning" title="A rogue root vouches for everything">
+Because the trust store is the anchor, adding or removing a root is a heavyweight
+decision. A root certificate quietly installed on a machine can sign a valid
+certificate for any site at all, which is exactly the foothold a corporate
+TLS-inspecting proxy relies on, and exactly the foothold malware wants. A
+certificate that verifies cleanly against an attacker-controlled root looks
+perfect to the browser. The compromise is in the store, not the math.
+</Callout>
+
+<Quiz
+  id="pki-and-certificates-chain-trust"
+  question="Why does a browser accept a leaf certificate for example.com that it has never seen before?"
+  answer={1}
+  options={[
+    "Because the leaf certificate is self-signed",
+    "Because the leaf chains up through intermediates to a root already in the browser's trust store",
+    "Because the connection is carried over HTTPS on port 443",
+    "Because the certificate has not yet reached its expiry date",
+  ]}
+  explanation="Trust flows down from a pre-installed root through intermediates to the leaf. HTTPS transport and unexpired dates prove nothing about identity on their own."
+/>
+
+## What a CA checks, and when a certificate dies
+
+A frequent misconception is that a CA investigates the organization behind a
+site in depth. For the certificates that secure most of the web, domain-validated
+ones, the CA confirms exactly one thing before signing: control of the domain.
+The usual proof is mechanical. The CA asks the applicant to place a specific
+token at a known URL on the domain, or to publish a DNS record the CA dictates,
+or to answer mail at an address like admin at the domain. The ACME protocol,
+made familiar by Let's Encrypt, automates this dance so a server can prove
+control and collect a certificate in seconds with no human in the loop. Domain
+validation says nothing about the company operating the domain. Organization
+validated and extended validation certificates check a real legal entity, but
+they are a small minority now and browsers stopped giving them special treatment
+in the address bar.
+
+Every certificate also carries a hard expiry, and that date is a safety
+mechanism, not an accounting detail. A shorter lifetime caps the damage from a
+key that leaks quietly, since a stolen key stops working on its own once the
+certificate lapses. Ninety-day certificates are now common, and the industry
+keeps pushing lifetimes down for that reason. Expiry is the slow net. Revocation
+is the emergency brake, meant for the case where a private key is known to be
+compromised well before its certificate would have expired. Two mechanisms
+handle it at a high level. A certificate revocation list, a CRL, is a signed
+list of revoked serial numbers that a CA publishes for clients to download. The
+online certificate status protocol, OCSP, lets a client ask a responder, live,
+whether one specific certificate is still valid right now.
+
+<Callout type="security" title="Revocation is the weak seam">
+Revocation checking often soft-fails. When an OCSP responder is unreachable,
+many clients proceed rather than block the user, so a stolen key can stay useful
+longer than it should. Short lifetimes are now the more reliable defense, which
+is why the ecosystem leans on ninety-day certificates instead of trusting
+revocation to arrive in time. A defender inspecting certificates watches for the
+quiet failures: certificates expiring within days, self-signed certificates that
+internal tools trust out of convenience, and extra roots sitting in a machine's
+trust store that nobody can account for.
+</Callout>
+
+<Quiz
+  id="pki-and-certificates-domain-control"
+  question="For a domain-validated certificate, what does the certificate authority confirm before it signs?"
+  answer={2}
+  options={[
+    "That the applicant is the registered legal owner of the business",
+    "That the applicant's government identity documents are on file",
+    "That the applicant controls the domain named in the certificate",
+    "That the applicant's server negotiates a strong cipher",
+  ]}
+  explanation="Domain validation checks one thing: control of the domain, proven by a token at a URL, a named DNS record, or a reply to mail at the domain. It makes no claim about the organization behind it."
+/>
+
+<Exercise id="pki-and-certificates-inspect-cert" title="Read a real certificate chain" prompt="Open a real site over HTTPS and walk its certificate chain from the leaf to the root.">
+Visit any HTTPS site in a desktop browser, then click the padlock in the address
+bar and open the certificate details. Find the Subject and confirm it lists the
+hostname you connected to. Read the Issuer to see which CA signed it, then find
+the validity dates and note how far off the expiry is. Now switch to the chain or
+certification path view and follow it upward: the leaf, one or more
+intermediates, and the root. Confirm the root's Subject and Issuer are identical,
+which is what self-signed looks like. If a terminal is handy, run
+`openssl s_client -connect example.com:443 -showcerts` and match what you see to
+the browser's chain. Mark this done once you can name every certificate between
+the site and the trust store.
+</Exercise>
+
+Certificates and signatures are the trust layer, sitting still. The live
+negotiation that carries a certificate chain across the wire, agrees on a cipher,
+and turns an open TCP pipe into an encrypted, authenticated channel is the TLS
+handshake, and that is where all of these pieces start moving at once.
+
+<Notes />

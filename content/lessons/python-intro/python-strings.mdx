@@ -1,0 +1,339 @@
+---
+title: "Working with Strings"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 4
+summary: "Text in Python lives in a string, and a string comes with its own toolkit: joining, formatting, cleaning, and picking apart characters by position."
+estimatedMinutes: 14
+prerequisites: ["python-numbers"]
+objectives:
+  - Create a string with single or double quotes and combine strings with + and *
+  - Build a message with an f-string instead of gluing pieces together by hand
+  - Clean and transform text with len(), .upper(), .lower(), .strip(), .replace(), and .split()
+  - Read a single character or a range of characters out of a string with indexing and slicing
+tags:
+  - python
+  - strings
+  - text
+---
+
+The previous lesson worked entirely in numbers: ages, prices, totals, things a program can add and multiply. Most of what a program actually handles is not a number at all. A name typed into a form, a line read from a file, an error message, a username: all of that is text, and Python calls text a string. Everything a number lesson teaches about math, a string lesson has to teach about words and characters instead, because a string does not add the way a number does.
+
+## Writing a string
+
+A string is a sequence of characters wrapped in quotes. Python accepts single quotes or double quotes, and treats them the same:
+
+```python
+name = "Priya"
+greeting = 'hello'
+print(name)
+print(greeting)
+print(type(name))
+```
+
+<ExpectedOutput label="both quote styles produce the same kind of value">
+```
+Priya
+hello
+<class 'str'>
+```
+</ExpectedOutput>
+
+`type(name)` prints `<class 'str'>`, Python's name for the string type. `str` is short for string, and it shows up constantly in error messages and documentation, so it is worth recognizing on sight. The choice between single and double quotes is mostly style. One case where it matters: a string containing an apostrophe reads more cleanly in double quotes, since `"it's fine"` does not need any special handling, while `'it's fine'` would end the string early at that apostrophe and break the code.
+
+Numbers and strings that look alike are not the same thing. `"5"` is a string holding the character 5, not the number five, and Python will not silently treat one as the other. Typing a number as text, like reading it from a form field, means converting it with `int()` or `float()` before doing math on it. That conversion belongs to the numbers lesson; this one stays with text.
+
+## Joining and repeating
+
+The `+` operator glues two strings into one, end to end. This is called concatenation:
+
+```python
+first = "Priya"
+last = "Shah"
+full_name = first + " " + last
+print(full_name)
+```
+
+<ExpectedOutput label="three pieces joined into one string">
+```
+Priya Shah
+```
+</ExpectedOutput>
+
+Notice the middle piece is `" "`, a string that is just a single space. Without it, `first + last` would produce `PriyaShah` with no gap, because `+` does exactly what it is told and nothing more. Building a sentence this way means remembering every space and punctuation mark by hand, which gets tedious and error-prone fast. There is a cleaner way to do this, covered in the next section.
+
+The `*` operator repeats a string a given number of times:
+
+```python
+border = "-" * 20
+print(border)
+print("ha" * 3)
+```
+
+<ExpectedOutput label="a string repeated back to back, no separator inserted">
+```
+--------------------
+hahaha
+```
+</ExpectedOutput>
+
+`"-" * 20` is a fast way to draw a divider line without typing twenty hyphens, and it shows up constantly for spacing out printed output. `+` only works between two strings, and `*` only works between a string and a whole number, meaning `"ha" * "3"` would fail. The number tells Python how many copies to lay down, so it has to actually be a number, not a string that merely looks like one.
+
+## Measuring a string with len()
+
+Every string has a length: how many characters it holds, counting letters, digits, spaces, and punctuation all the same. The built-in function `len()` reports it:
+
+```python
+word = "python"
+print(len(word))
+print(len("hi there"))
+```
+
+<ExpectedOutput label="len counts every character, spaces included">
+```
+6
+8
+```
+</ExpectedOutput>
+
+`"python"` has six characters, so `len(word)` returns 6. `"hi there"` has eight characters, because the space between "hi" and "there" counts just as much as any letter does. `len()` is not specific to strings; it also reports how many items are in a list or a dict, which later lessons cover. On a string, it is the character count, full stop.
+
+## Putting values inside text with f-strings
+
+Concatenation with `+` works, but it turns ugly fast once numbers get involved, because `+` refuses to join a string and a number directly:
+
+```python
+name = "Priya"
+age = 29
+print("Name: " + name + ", age: " + age)
+```
+
+<ExpectedOutput label="mixing a string and a number with + crashes">
+```
+Traceback (most recent call last):
+  File "intro.py", line 3, in <module>
+    print("Name: " + name + ", age: " + age)
+TypeError: can only concatenate str (not "int") to str
+```
+</ExpectedOutput>
+
+That `TypeError` is Python refusing to guess whether `age` should become the text `"29"` or something else. An f-string sidesteps the whole problem. Writing an `f` right before the opening quote turns a string into a template: anything inside curly braces gets evaluated and dropped into the text as its normal value, numbers included.
+
+```python
+name = "Priya"
+age = 29
+message = f"Name: {name}, age: {age}"
+print(message)
+```
+
+<ExpectedOutput label="an f-string fills in values, no manual conversion needed">
+```
+Name: Priya, age: 29
+```
+</ExpectedOutput>
+
+`{name}` was replaced with the value stored in `name`, and `{age}` was replaced with the value stored in `age`, converted to text automatically. An f-string can hold more than a bare variable name inside the braces; it can hold a small expression, like `f"next year: {age + 1}"`, and Python runs the math before inserting the result. This is the standard way to build any message that mixes fixed text with values that change, and it reads far closer to the sentence a person would actually write than a chain of `+` signs does.
+
+<Quiz
+  id="strings-fstring-vs-plus"
+  question="A program needs to print a message combining the text \"Score: \" with a number stored in a variable called score. Why does an f-string handle this more cleanly than +?"
+  answer={2}
+  options={[
+    "f-strings run faster than every other way of building text in Python.",
+    "The + operator cannot be used with variables, only with values typed directly into the code.",
+    "The + operator refuses to join a string and a number directly and raises a TypeError, while an f-string converts the number to text automatically inside the braces.",
+    "f-strings can only insert numbers, never other strings, so they are a poor fit for this case."
+  ]}
+  explanation="Concatenating a str and an int with + raises a TypeError, since + will not guess how to convert one side. An f-string handles the conversion itself, so {score} just works whether score holds a number or another string. Speed is not the reason, and + does work fine with variables, so those answers are wrong. f-strings can insert any value, not just numbers."
+/>
+
+## Cleaning and reshaping text
+
+Every string comes with built-in methods, meaning functions that belong to the string itself and get called with a dot after it. Four of them cover most of the everyday cleanup work: changing case, trimming stray whitespace, swapping one piece of text for another, and breaking a string into pieces.
+
+`.upper()` and `.lower()` return a new string with every letter shifted to uppercase or lowercase:
+
+```python
+shout = "watch out"
+print(shout.upper())
+print("WATCH OUT".lower())
+```
+
+<ExpectedOutput label="case conversion, original string left unchanged">
+```
+WATCH OUT
+watch out
+```
+</ExpectedOutput>
+
+These matter most when comparing text a person typed against a fixed value, since `"Yes"`, `"yes"`, and `"YES"` should usually count as the same answer. Lowercasing both sides of a comparison, as in `answer.lower() == "yes"`, catches all three without writing three separate checks.
+
+`.strip()` removes whitespace, meaning spaces, tabs, and newline characters, from the start and end of a string, leaving the middle untouched:
+
+```python
+raw = "   hello world   \n"
+print(f"[{raw}]")
+print(f"[{raw.strip()}]")
+```
+
+<ExpectedOutput label="strip only touches the edges, not spaces in the middle">
+```
+[   hello world   
+]
+[hello world]
+```
+</ExpectedOutput>
+
+The square brackets in that print statement are just there to make the leading and trailing whitespace visible; they are not part of the string. Text read from a file or typed by a user very often carries invisible extra whitespace at the edges, and comparing it against a clean value without stripping first is a common source of bugs that look impossible to explain until the whitespace is spotted.
+
+`.replace()` swaps every occurrence of one piece of text for another:
+
+```python
+sentence = "I like cats and cats like me"
+print(sentence.replace("cats", "dogs"))
+```
+
+<ExpectedOutput label="every match gets replaced, not just the first one">
+```
+I like dogs and dogs like me
+```
+</ExpectedOutput>
+
+Both occurrences of "cats" changed, because `.replace()` does not stop after the first hit. It takes two pieces of text: what to look for, and what to put in its place.
+
+`.split()` breaks a string into a list of pieces, cutting at whitespace by default:
+
+```python
+sentence = "the quick brown fox"
+words = sentence.split()
+print(words)
+print(len(words))
+```
+
+<ExpectedOutput label="split turns one string into a list of words">
+```
+['the', 'quick', 'brown', 'fox']
+4
+```
+</ExpectedOutput>
+
+`.split()` returns a list, the collection type where items sit in order and get reached by position, covered in an earlier lesson. That list is what makes counting words, checking how many pieces a line has, or looping over each word possible, instead of treating the whole sentence as one solid block of text. `.split()` also accepts an argument, like `sentence.split(",")`, to cut at commas instead of whitespace, which comes up constantly when reading a line of comma-separated data.
+
+None of these four methods change the original string. Each one returns a new string (or, for `.split()`, a new list) and leaves the original exactly as it was. A string in Python cannot be modified in place, so `shout.upper()` on its own does nothing useful; the result has to be printed or stored in a variable to be kept.
+
+<Quiz
+  id="strings-methods-immutability"
+  question="After running raw = \"  hi  \" followed by raw.strip(), what does raw hold?"
+  answer={0}
+  options={[
+    "\"  hi  \", unchanged, because .strip() returns a new string instead of modifying raw",
+    "\"hi\", because .strip() rewrites raw in place",
+    "An empty string, because .strip() clears whatever it is called on",
+    "A TypeError, because .strip() cannot be called without printing its result immediately"
+  ]}
+  explanation="Calling a string method like .strip() never changes the original string. It computes and returns a new string, and if that return value is not printed or assigned somewhere, it is simply thrown away. raw itself still holds the original padded text. There is no error, and .strip() does not clear a string, it trims whitespace from the edges."
+/>
+
+## Reaching one character, or a range of them
+
+Every string is really a lineup of individual characters, and each one sits at a position Python calls an index. Indexing starts at 0, so the first character is at position 0, not position 1. Square brackets after a string, holding a single number, pull out the character at that position:
+
+```python
+word = "python"
+print(word[0])
+print(word[1])
+print(word[5])
+```
+
+<ExpectedOutput label="position 0 is the first character, not the second">
+```
+p
+y
+n
+```
+</ExpectedOutput>
+
+`word[0]` is `"p"`, the very first letter. `word[5]` is `"n"`, the sixth letter, because counting from 0 means the sixth character sits at index 5, not index 6. This off-by-one shift trips up almost everyone the first time, and it is worth saying plainly: index 0 means "first," always. Asking for an index that does not exist, like `word[10]` on a six-character word, raises an `IndexError` and stops the program, the same way an unknown dict key raises a `KeyError`.
+
+A negative index counts backward from the end. `word[-1]` is always the last character, no matter how long the string is, which is handy since it does not depend on knowing the string's length ahead of time:
+
+```python
+word = "python"
+print(word[-1])
+print(word[-2])
+```
+
+<ExpectedOutput label="negative indexes count backward from the end">
+```
+n
+o
+```
+</ExpectedOutput>
+
+Reaching a whole range of characters at once, instead of just one, is called slicing. A slice looks like `word[start:stop]`, and it returns every character from index `start` up to, but not including, index `stop`:
+
+```python
+word = "python"
+print(word[0:3])
+print(word[2:5])
+```
+
+<ExpectedOutput label="a slice stops one before the number after the colon">
+```
+pyt
+tho
+```
+</ExpectedOutput>
+
+`word[0:3]` grabs indexes 0, 1, and 2, giving `"pyt"`. It does not include index 3, which is the letter "h". That "stop is exclusive" rule feels backward at first, but it has a payoff: `word[0:3]` and `word[3:6]` split the string cleanly at index 3 with no gap and no overlap, which would not be true if the stop index were included. Leaving off either side of the colon means "go to the edge": `word[:3]` starts at the beginning, and `word[3:]` runs to the end.
+
+```python
+word = "python"
+print(word[:3])
+print(word[3:])
+```
+
+<ExpectedOutput label="leaving a side blank means the beginning or the end">
+```
+pyt
+hon
+```
+</ExpectedOutput>
+
+Indexing and slicing are how a program pulls a file extension off a filename, checks whether a string starts with a given prefix, or grabs the first few characters of a code for a lookup. Combined with `.split()`, they cover most of the everyday work of pulling structure out of a plain block of text.
+
+<Quiz
+  id="strings-indexing-slicing"
+  question="Given code = \"AB1234\", what does code[2:6] return?"
+  answer={1}
+  options={[
+    "AB12",
+    "1234",
+    "B123",
+    "AB1234"
+  ]}
+  explanation="code[2:6] starts at index 2 and stops right before index 6. Index 0 is A, 1 is B, 2 is 1, 3 is 2, 4 is 3, 5 is 4, so the slice covers indexes 2 through 5, which spells 1234. AB12 would be code[0:4], B123 misses where the letters end, and AB1234 is the entire string, not a slice starting at index 2."
+/>
+
+<CommandCard command="python3 clean_name.py" title="terminal" explain="Runs the code saved in clean_name.py, so Python reads the file top to bottom and prints whatever the code prints." />
+
+<Exercise title="Clean up a messy piece of input">
+Save this into a file named `clean_name.py`:
+
+```python
+raw_input = "  PRIYA shah  "
+cleaned = raw_input.strip().lower()
+first_initial = cleaned[0]
+message = f"Hello, {cleaned.title()}! Your initial is {first_initial.upper()}."
+print(message)
+print(f"Original length: {len(raw_input)}, cleaned length: {len(cleaned)}")
+```
+
+Run it with `python3 clean_name.py` and read the output line by line. Before running it, guess what `cleaned[0]` will be once the whitespace is stripped and the text is lowercased. Then change `raw_input` to your own name typed messily, in all capitals with extra spaces around it, and run the file again to see the same cleanup apply to it.
+</Exercise>
+
+A string built from user input, a file, or a network response is rarely as tidy as the examples above. It shows up with extra whitespace, mixed case, and stray characters, and the methods in this lesson, `.strip()`, `.lower()`, `.replace()`, `.split()`, along with indexing and slicing, are the standard toolkit for turning that mess into something a program can trust. The next lesson picks up right where strings leave off: making decisions in code, using comparisons and conditionals to act differently depending on what a string, a number, or any other value turns out to be.
+
+<Notes />

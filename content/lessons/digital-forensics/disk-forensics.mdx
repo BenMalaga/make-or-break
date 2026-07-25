@@ -1,0 +1,78 @@
+---
+title: Disk and File System Forensics
+module: digital-forensics
+moduleTitle: Digital Forensics
+moduleOrder: 22
+moduleIcon: FileSearch
+order: 2
+summary: Deleted does not mean gone. Carve files back and read the artifacts a user left behind.
+estimatedMinutes: 17
+objectives:
+  - Recover deleted files by carving them from unallocated space
+  - Read file system metadata to reconstruct what happened on disk
+  - Locate the artifacts that reveal user activity
+tags:
+  - forensics
+  - file-carving
+  - disk
+---
+
+When a user deletes a file, the operating system almost never wipes the data. It just marks the space as free and removes the pointer in the file system table. The bytes sit on disk untouched until something else happens to write over them. That gap between "deleted" and "overwritten" is where most disk forensics lives.
+
+## Deleted is a pointer, not an erase
+
+On a file system like NTFS or ext4, a file has two parts: the metadata entry (name, size, where the blocks are) and the actual data blocks. Deletion clears the metadata's active flag. The data blocks become "unallocated", meaning reusable, but they still hold the old content.
+
+The Sleuth Kit is the standard command-line toolkit for reading this structure directly on an image. `fls` lists files including deleted ones, and `icat` pulls the raw content out by its inode number.
+
+<CommandBlock
+  title="analyst@workstation"
+  commands={[
+    { cmd: "fls -r -d evidence.img", comment: "-r recursive, -d shows only deleted entries" },
+    { cmd: "icat evidence.img 4523", comment: "dump the file at inode 4523, deleted or not" },
+    { cmd: "mmls evidence.img", comment: "read the partition table to find each partition's offset" },
+  ]}
+/>
+
+A deleted entry in `fls` output shows with an asterisk, and it still lists the inode. If the data blocks have not been reused, `icat` hands you the whole file back. This is how a "shredded" resignation letter or a wiped log ends up in your report intact.
+
+## Carving when the metadata is gone
+
+Sometimes the file system entry is destroyed but the data blocks survive, so there is no inode to follow. **File carving** ignores the file system entirely and scans raw bytes for known signatures. A JPEG starts with the magic bytes `FF D8 FF`, a PDF with `%PDF`, a ZIP with `PK`. Carvers find those headers and pull out the file that follows.
+
+<CommandCard command="foremost -t jpg,pdf,doc -i evidence.img -o carved/" explain="Scan the image for JPEG, PDF, and DOC signatures and write every hit into the carved/ directory. scalpel and photorec do the same job with different config styles." />
+
+Carving is dumb by design, which is its strength. It does not care that the file table says the disk is empty. Point it at unallocated space and it reconstructs files the OS swears do not exist. The tradeoff is fragmented files come back broken, since a naive carver assumes each file is one contiguous run of blocks.
+
+## Artifacts that tell the story
+
+Recovered files are only half the picture. File systems and applications scatter **artifacts** that record user behavior. On Windows, the Recycle Bin (`$Recycle.Bin`), prefetch files (`C:\Windows\Prefetch`, one per executable that ran), and the registry hives log what ran and when. On Linux, `~/.bash_history`, `/var/log/`, and file timestamps do the same.
+
+Every file carries **MAC times**: Modified, Accessed, and Changed (or Created). These timestamps are the raw material for the timeline you will build later. A binary with an access time three seconds before a suspicious outbound connection is not a coincidence, it is a lead.
+
+<Callout type="security" title="Work on the image, on authorized cases only">
+Everything here runs against a copy you were authorized to acquire, never a live production disk you do not own. Carving and inode recovery expose personal files in full. Handle recovered data under the same scope and custody rules that let you image the drive in the first place.
+</Callout>
+
+<Quiz
+  id="carving-vs-fls"
+  question="A file's file system entry has been destroyed, but its data blocks were never overwritten. Which technique recovers it?"
+  answer={2}
+  options={[
+    "Re-reading the registry hive",
+    "Following the inode with icat",
+    "File carving by signature, for example with foremost",
+    "Checking the MAC timestamps",
+  ]}
+  explanation="With no metadata entry to follow, inode-based recovery has nothing to point to. Carving scans raw bytes for file signatures like FF D8 FF and reconstructs the file directly from the data blocks."
+/>
+
+<Exercise
+  id="jpeg-magic"
+  prompt="Name the three magic bytes (in hex) that mark the start of a JPEG file, the signature a carver searches for."
+  answer="FF D8 FF"
+>
+JPEG files begin with FF D8 FF. Carvers key on these signatures to find and extract images from unallocated space regardless of what the file system claims.
+</Exercise>
+
+<Notes />

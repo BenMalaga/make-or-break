@@ -1,0 +1,209 @@
+---
+title: "Your First Python Program"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 1
+summary: "Python turns a plain-text file into running instructions, and the first useful instruction almost every program shares is printing text to the screen."
+estimatedMinutes: 13
+prerequisites: []
+objectives:
+  - Explain what Python is and why beginners usually start there
+  - Run a Python program in the Build tab and read what it prints
+  - Use print() with strings, and tell a string apart from the code around it
+  - Read a syntax error without panicking, and use # comments to leave notes in code
+tags:
+  - python
+  - beginner
+  - intro
+---
+
+A recipe card lists steps in order: crack the eggs, then whisk, then pour into the pan. Nobody whisks before cracking the eggs and expects it to work. A Python program is the same kind of thing: a list of instructions that run one after another, top to bottom, and the order they're written in is the order they happen.
+
+Python is a programming language, meaning a set of rules for writing instructions a computer can carry out. What makes Python worth starting with is not that it's the only language, or even the most powerful one. It's that Python reads close to plain English, and it forgives a beginner more than most languages do. A misplaced comma in some languages breaks the whole program in a cryptic way. Python still complains when something's wrong, but the complaint usually points straight at the problem. That combination, readable code plus readable errors, is why Python shows up first in so many places: data analysis, web servers, small automation scripts, and the AI tools everyone hears about now. Learning it here is a stepping stone into all of that, not a detour from it.
+
+## Where the code actually runs
+
+Every example in this lesson can run right now, in the Build tab on this platform. Build is an editor with a real Python interpreter behind it, running in the browser, so there's no separate program to install and no terminal window to hunt for on a phone or a shared computer. Type code in, run it, and the output shows up right there.
+
+That matters because reading about code and running code teach different things. Reading shows what a line is supposed to do. Running shows what it actually does, on this exact input, right now. The gap between those two is where most real learning happens, and it's worth closing that gap on every example in this lesson rather than skimming past the code blocks.
+
+## print() puts text on the screen
+
+Almost every Python program starts life by proving it can do one thing: put a line of text where a person can see it. The tool for that is a function named `print()`. A function is a named, reusable chunk of behavior. Calling one means writing its name followed by parentheses, with whatever it needs to do its job placed inside those parentheses. `print()` needs one thing: something to print.
+
+```python
+print("Hello, world")
+```
+
+<ExpectedOutput label="the program's only line, printed to the screen">
+```
+Hello, world
+```
+</ExpectedOutput>
+
+That single line is a complete, working Python program. Running it does exactly one thing: it prints the text `Hello, world` and stops. Nothing else happens because nothing else was asked to happen. A program only does what's written in it, never more, and that fact turns out to matter constantly once programs get longer than one line.
+
+Look closely at what's inside the parentheses: `"Hello, world"`, wrapped in double quotes. Those quotes are not decoration. They mark the boundary of a string, which is Python's name for a chunk of text. Everything between the quotes, including the comma and the space, is just text, handed to `print()` exactly as written. The quotes themselves never show up in the output, because they're not part of the text. They're the fence around it.
+
+Drop the quotes and the meaning changes completely:
+
+```python
+print(Hello)
+```
+
+<ExpectedOutput label="Python looking for a name that was never created">
+```
+Traceback (most recent call last):
+  File "hello.py", line 1, in <module>
+    print(Hello)
+          ^^^^^
+NameError: name 'Hello' is not defined
+```
+</ExpectedOutput>
+
+Without quotes, `Hello` isn't text anymore. Python reads it as the name of something, a variable or a function, that should already exist somewhere in the program. Nothing named `Hello` was ever created, so Python has nothing to hand to `print()`, and it says so directly: `NameError: name 'Hello' is not defined`. That single character difference, quotes or no quotes, is the line between "print this text" and "go find this thing I supposedly already made." Keeping that split straight is one of the first habits worth building.
+
+<Quiz
+  id="print-string-vs-name"
+  question="print(\"Hello\") works, but print(Hello) raises NameError. What is the actual difference between the two?"
+  answer={2}
+  options={[
+    "print(Hello) is missing a semicolon at the end of the line.",
+    "print() only accepts numbers, and Hello looks like a word instead of a number.",
+    "\"Hello\" is a string, marked by quotes, so Python prints the text directly. Hello with no quotes is read as the name of a variable, and no variable named Hello was ever created.",
+    "Python is case-sensitive, and Hello needs to be written as hello in lowercase.",
+  ]}
+  explanation="The quotes are what turn Hello into a string, a piece of literal text, rather than a name Python has to look up. Without quotes, Python assumes Hello refers to something already defined and fails to find it. Python doesn't use semicolons to end lines, print() happily takes text, and lowercasing the word would not fix a missing definition."
+/>
+
+## A program is a list, run in order
+
+One line proved the point in isolation. Real programs are several lines, and Python runs them top to bottom, the same way a recipe runs step to step. Each `print()` call adds one more line to the output, in the order the calls appear in the file:
+
+```python
+print("Starting the recipe")
+print("Cracking two eggs")
+print("Whisking")
+print("Done")
+```
+
+<ExpectedOutput label="four print calls, four lines, in file order">
+```
+Starting the recipe
+Cracking two eggs
+Whisking
+Done
+```
+</ExpectedOutput>
+
+Nothing here decides which line runs first. Python simply starts at the top of the file and works down, one statement at a time, where a statement is one complete instruction, usually one line. Swap the second and third lines in the source file and the output swaps too. This sounds almost too obvious to say out loud, but it is the single fact every later Python concept builds on. Loops repeat a block of statements. Conditionals skip some statements based on a check. Functions bundle a group of statements under a name so they can run again later without being retyped. All of that machinery exists to control which statements run and how many times, but the underlying rule never changes: statements execute top to bottom, one after another.
+
+## Leaving notes with #
+
+Code explains what a program does. It rarely explains why, and "why" is the part a person reading the code six months later actually needs. Python has a way to leave a note that the interpreter itself ignores completely: start a line, or the end of a line, with a hash character, `#`. Everything from that `#` to the end of the line is a comment, and Python skips over it as if it weren't there.
+
+```python
+# This program greets the user and reports today's plan
+print("Good morning")
+print("Today's plan: three lessons, one break")  # keeps the promise short
+```
+
+<ExpectedOutput label="comments never print, only the print() lines do">
+```
+Good morning
+Today's plan: three lessons, one break
+```
+</ExpectedOutput>
+
+Two comments sit in that file. Neither one shows up in the output, because a comment isn't an instruction, it's a note left for whoever reads the code. The first comment sits on its own line, explaining the whole program before any code runs. The second sits at the end of a line that already has real code on it, adding a side note without interrupting the instruction. Both forms are common. A comment costs nothing at run time and pays off the first time a program needs to be understood again after time away from it, which for most people is measured in days, not years.
+
+## When a typo turns into an error
+
+Errors are not a sign that something is broken beyond repair. They're Python's way of refusing to guess. A typo, a missing quote, a misplaced parenthesis, any of these stop the program and print a message pointing at the exact spot Python got confused. This kind of failure has a name: a syntax error, meaning the code doesn't follow Python's grammar rules, the same way a sentence missing its verb doesn't follow English grammar. Python cannot even start running a file with a syntax error in it, because it can't figure out what the instructions are supposed to be in the first place.
+
+```python
+print("Missing a closing quote)
+```
+
+<ExpectedOutput label="an unterminated string, caught before the program can run at all">
+```
+  File "broken.py", line 1
+    print("Missing a closing quote)
+          ^
+SyntaxError: unterminated string literal (detected at line 1)
+```
+</ExpectedOutput>
+
+That message is worth reading slowly instead of flinching at. `SyntaxError` names the category of mistake. `unterminated string literal` says exactly what's wrong in plain words: a string was opened with a quote and never closed with a matching one. `line 1` says where. Compare that to the earlier `NameError`, which fired on a program that started running fine and only failed once it hit `Hello`. A `SyntaxError` blocks the whole file before a single line executes; a `NameError` (and several other error types) happens partway through a run, after some lines already succeeded. Both are ordinary, both are readable, and both are pointing at something specific and fixable. Nobody writes Python without triggering plenty of both, including people who've written it for years. The skill worth building early is reading the last line of the error first, since that's almost always where the actual explanation lives.
+
+<Quiz
+  id="syntax-vs-runtime-error"
+  question="A file has ten print() calls. Line 3 has a missing closing quote, and separately, line 8 refers to a variable that was never created. What actually happens when this file is run?"
+  answer={0}
+  options={[
+    "Python reports a SyntaxError before running any line at all, because the missing quote on line 3 breaks the file's grammar and Python cannot parse the program to start it.",
+    "Lines 1 and 2 print normally, then the program stops at line 3 with a SyntaxError, having already produced some output.",
+    "The whole file runs to completion, but line 3 and line 8 print blank lines instead of text.",
+    "Python fixes the missing quote automatically since the intent is obvious, then stops at line 8 with a NameError.",
+  ]}
+  explanation="A SyntaxError means Python cannot understand the file's structure well enough to run any of it, so nothing prints before the error, not even lines above the mistake. That is different from an error like NameError, which only shows up once execution actually reaches the bad line, after earlier lines have already run. Python never silently fixes broken syntax or swaps in blank output."
+/>
+
+## Two small programs to run
+
+A single print() call proves the syntax. A short program with a few of them proves the shape: statements, comments, and a predictable line-by-line result.
+
+```python
+# A tiny status report
+print("System check")
+print("CPU: ok")
+print("Memory: ok")
+print("Network: ok")
+print("All systems go")
+```
+
+<ExpectedOutput label="a five-line report, one print() per line">
+```
+System check
+CPU: ok
+Memory: ok
+Network: ok
+All systems go
+```
+</ExpectedOutput>
+
+Nothing new happens here mechanically, and that's the point. Five statements, five lines, run in the order they're written, exactly as the earlier examples predicted. A second one, mixing a comment with a couple of blank-looking prints to control spacing:
+
+```python
+print("Order received")
+print()
+# A blank print() with nothing inside still prints a line, just an empty one
+print("Order shipped")
+```
+
+<ExpectedOutput label="print() with nothing inside still writes an empty line">
+```
+Order received
+
+Order shipped
+```
+</ExpectedOutput>
+
+`print()` with nothing between its parentheses still runs. It writes a line to the output, just an empty one, which is a small but genuinely useful trick for putting visual space between chunks of output. That's also a preview of something worth remembering: what goes inside the parentheses is optional in the sense that it can be empty, but the parentheses themselves are never optional. `print` by itself, with no parentheses at all, refers to the function without calling it, and calling is what actually runs it.
+
+<Quiz
+  id="program-execution-order"
+  question="A program has these four lines in this exact order: print(\"one\"), print(\"two\"), a comment line starting with #, then print(\"three\"). What prints, and in what order?"
+  answer={1}
+  options={[
+    "one, three, two, because comments run last regardless of position.",
+    "one, two, three, in that order, because Python runs statements top to bottom and the comment produces no output at all.",
+    "Only two and three print, because a comment above a print() line cancels it.",
+    "The comment causes a SyntaxError, since comments are only allowed at the very top of a file.",
+  ]}
+  explanation="Statements run top to bottom in the order they appear, and a comment is not a statement at all, so it never produces output and never affects the lines around it. The three print() calls run in file order: one, two, three. Comments are allowed anywhere in a file, not just at the top, and they cannot cancel a nearby line."
+/>
+
+Everything in this lesson, `print()`, strings, comments, and the top-to-bottom order of statements, is the floor the rest of Python stands on. The next lesson in this module builds directly on that floor by giving a program something to remember between one line and the next: a variable, a name attached to a value so it can be reused, changed, and passed around instead of retyped every time.

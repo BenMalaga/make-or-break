@@ -1,0 +1,280 @@
+---
+title: Remainders and Modular Arithmetic
+module: math-and-logic
+moduleTitle: Math and Logic
+moduleOrder: 5
+moduleIcon: Sigma
+order: 3
+summary: "The leftover from a division, generalized: how the remainder powers clock arithmetic, even and odd tests, greatest common divisors, and the wrap-around math behind hashing and ciphers."
+estimatedMinutes: 16
+objectives:
+  - Compute a remainder with Python's % operator and read it as what is left after clean division
+  - Use modular arithmetic to wrap a running count around a fixed size, from clocks to even-versus-odd
+  - Trace Euclid's algorithm to find a greatest common divisor by repeated remainders
+  - Build a least common multiple from a gcd, and recognize modular arithmetic in hashing and ciphers
+tags:
+  - math
+  - python
+  - algorithms
+prerequisites: ["divisibility-and-primes"]
+---
+
+The divisibility-and-primes lesson leaned on one small test over and over. To
+check whether 7 divides 91, it asked whether the division came out clean. 91
+divided by 7 is 13 with nothing left over, so 7 is a factor. That leftover
+amount, the part that does not divide evenly, is called the remainder, and it
+carries more information than the clean-or-not verdict alone. A remainder of zero
+was the only case the factor test cared about. This lesson keeps every other
+remainder too, and builds a small, sturdy branch of math on top of them.
+
+## The remainder and the % operator
+
+When one whole number is divided by another, two facts fall out: how many whole
+times the second number fits into the first, and how much is left over. Python
+hands back each fact with its own operator. The double slash `//` gives the whole
+count. The percent sign `%`, read out loud as "mod" or "modulo", gives the
+remainder.
+
+```python
+print(17 // 5)  # 3
+print(17 % 5)   # 2
+```
+
+Five fits into seventeen three whole times, which accounts for fifteen of it, and
+two are left over. The two results always snap back together into the original
+number: `5 * 3 + 2` is `17`. Whenever the remainder is zero, the division was
+clean and the divisor is a factor, which is exactly the test from the previous
+lesson written in one symbol. `18 % 6` is `0`, so 6 divides 18. `18 % 7` is `4`,
+so 7 does not.
+
+The remainder from `% n` is always one of the numbers from 0 up to n minus 1.
+Divide anything at all by 5 and the leftover can only be 0, 1, 2, 3, or 4. Divide
+by 12 and it lands somewhere from 0 to 11. That bounded, predictable range is the
+whole point. The modulo operation takes numbers of any size and folds them down
+into a small fixed set of slots.
+
+## Clock arithmetic: wrapping around a fixed size
+
+A twelve-hour clock ran on modular arithmetic centuries before the first
+computer. Five hours after nine o'clock is not fourteen o'clock. The hands sweep
+past twelve and land on two. The clock counts up, then wraps back to the start
+once it reaches its size. That wrap is a modulo by 12.
+
+```python
+print((9 + 5) % 12)  # 2
+```
+
+Nine plus five is fourteen, and fourteen mod twelve is two, because twelve fits
+into fourteen once with two left over. The clock never shows a number outside 0
+through 11 no matter how many hours get added, and `% 12` enforces the same
+ceiling. Any counting that loops back on itself after a fixed number of steps is
+modular arithmetic in disguise: days of the week wrap every 7, compass degrees
+wrap every 360, and the position of a repeating pattern wraps every cycle length.
+
+## Even and odd is a clock of size two
+
+The smallest useful modulus is 2. Dividing any whole number by 2 leaves a
+remainder of either 0 or 1 and nothing else, so `% 2` sorts every number into two
+buckets. A remainder of 0 means the number is even. A remainder of 1 means it is
+odd.
+
+```python
+print(4 % 2)  # 0
+print(7 % 2)  # 1
+
+def is_even(n):
+    return n % 2 == 0
+
+print(is_even(10))  # True
+print(is_even(3))   # False
+```
+
+That `n % 2 == 0` test is the single most common use of modulo in everyday code.
+It is how a program strips out every other row, alternates two colors, splits a
+list into two halves, or picks only the even numbers out of a sequence. The same
+one-line check is what the even-fibonacci challenge later in this module hinges
+on, so it is worth burning into memory now.
+
+<Callout type="info" title="Python's % follows the sign of the divisor">
+With negative numbers, Python's remainder takes the sign of the number being
+divided by, not the number on the left. `-1 % 12` is `11`, not `-1`, which is
+exactly what a clock wants: one hour before twelve o'clock is eleven o'clock.
+Languages like C and Java answer `-1` here instead, so code ported between them
+can drift by a full cycle. When the modulus is positive, Python's answer is
+always in the clean range 0 to n minus 1.
+</Callout>
+
+<Quiz
+  id="remainders-clock-wrap"
+  question="Reading (10 + 6) % 12 as six hours after ten o'clock on a twelve-hour clock, what does it evaluate to?"
+  answer={1}
+  options={[
+    "16, because 10 + 6 is 16 and the clock keeps counting up",
+    "4, because 16 wraps past 12 and 16 = 1 * 12 + 4",
+    "6, because the remainder is always the smaller number added on",
+    "0, because 12 divides evenly into any sum",
+  ]}
+  explanation="10 + 6 is 16, and 16 mod 12 is 4 because twelve fits into sixteen once with four left over. Six hours after ten o'clock is four o'clock, and the modulo keeps the answer inside the clock's range of 0 to 11."
+/>
+
+## Greatest common divisor, found by remainders
+
+The greatest common divisor of two numbers, written gcd, is the largest whole
+number that divides both of them with no remainder. The gcd of 48 and 18 is 6,
+because 6 divides both cleanly and nothing larger does. One way to find it is to
+list every factor of each number and compare, but that gets slow fast. A far
+quicker method comes from a single observation the Greek mathematician Euclid
+wrote down more than two thousand years ago.
+
+Euclid noticed that the gcd of two numbers is the same as the gcd of the smaller
+number and the remainder of the larger divided by the smaller. In symbols,
+`gcd(a, b)` equals `gcd(b, a % b)`. Each step swaps in a strictly smaller
+remainder, so the numbers shrink quickly, and the moment the remainder hits zero
+the number sitting beside it is the answer.
+
+```python
+def gcd(a, b):
+    while b != 0:
+        a, b = b, a % b
+    return a
+
+print(gcd(48, 18))  # 6
+```
+
+The loop is worth tracing by hand, because every line is just a remainder. Start
+with a as 48 and b as 18:
+
+- `48 % 18` is `12`, so the pair becomes a = 18, b = 12.
+- `18 % 12` is `6`, so the pair becomes a = 12, b = 6.
+- `12 % 6` is `0`, so the pair becomes a = 6, b = 0.
+- b is now 0, so the loop stops and returns a, which is 6.
+
+Three remainder steps, and the answer drops out. This is the same algorithm
+Python's own `math.gcd(48, 18)` runs under the hood, and it stays fast even on
+enormous numbers because the values collapse so quickly. The engine driving it is
+nothing but `%` applied again and again.
+
+<Quiz
+  id="remainders-euclid-trace"
+  question="Euclid's algorithm computes gcd(21, 6) by repeatedly replacing the pair with (b, a % b) until the second number is 0. What does it return, and why?"
+  answer={0}
+  options={[
+    "3, because 21 % 6 is 3, then 6 % 3 is 0, so it returns the last nonzero value 3",
+    "6, because 6 is the smaller number and it stops there",
+    "1, because 21 and 6 are both odd multiples that share no factor",
+    "9, because 21 minus 6 minus 6 leaves 9",
+  ]}
+  explanation="21 % 6 is 3 (since 21 = 3 * 6 + 3), giving the pair (6, 3). Then 6 % 3 is 0, giving (3, 0), so the loop stops and returns 3. And 3 really is the largest number dividing both 21 and 6."
+/>
+
+## Least common multiple, straight from the gcd
+
+The least common multiple of two numbers, written lcm, is the smallest number
+that both of them divide into evenly. The lcm of 4 and 6 is 12, because 12 is the
+first number that appears in both the 4-times table and the 6-times table. It is
+the number a scheduler wants when two repeating events need to line up: an event
+every 4 days and one every 6 days coincide every 12 days.
+
+There is no need for a separate search once the gcd is in hand. The product of two
+numbers equals the product of their gcd and their lcm, so dividing the product by
+the gcd recovers the lcm directly.
+
+```python
+def lcm(a, b):
+    return a * b // gcd(a, b)
+
+print(lcm(4, 6))    # 12
+print(lcm(48, 18))  # 144
+```
+
+For 4 and 6, the product is 24 and the gcd is 2, so the lcm is `24 // 2`, which is
+12. Multiplying the two numbers and then dividing out the part they share removes
+the double-counting, and what remains is the smallest common multiple. The whole
+computation rides on the gcd, which itself rode on repeated remainders, so a
+single idea from the top of the lesson quietly powers all of it.
+
+<Quiz
+  id="remainders-lcm-from-gcd"
+  question="Using lcm(a, b) = a * b // gcd(a, b), what is the least common multiple of 4 and 6?"
+  answer={2}
+  options={[
+    "24, the plain product of 4 and 6",
+    "2, the greatest common divisor of 4 and 6",
+    "12, because gcd(4, 6) is 2 and 4 * 6 // 2 is 12",
+    "10, because 4 + 6 is 10",
+  ]}
+  explanation="gcd(4, 6) is 2, so the lcm is 4 * 6 // 2, which is 24 // 2, which is 12. Twelve is the first number that both 4 and 6 divide into evenly."
+/>
+
+## Where the remainder shows up
+
+Modular arithmetic hides inside systems that look nothing like a clock. Two of
+the most common deserve a concrete look.
+
+A hash table stores items in a fixed number of slots, called buckets, and decides
+where each item goes by taking the remainder of a key against the bucket count.
+With 8 buckets, key 12 lands in `12 % 8`, which is bucket 4.
+
+```python
+buckets = 8
+for key in [12, 20, 5, 33]:
+    print(key, "->", key % buckets)
+```
+
+That prints bucket 4 for 12, bucket 4 again for 20, bucket 5 for 5, and bucket 1
+for 33. Keys 12 and 20 both mapped to bucket 4, which is called a collision, and
+handling collisions gracefully is one of the central jobs of a hash table. The
+modulo is what folds an unlimited range of keys down into a small, fixed set of
+homes.
+
+A Caesar cipher shifts each letter forward by a fixed amount and wraps around the
+end of the alphabet, which is a clock of size 26. Shifting the letter x forward by
+3 should not run off the end into nonexistent letters; it should wrap back to a.
+
+```python
+def shift_letter(ch, k):
+    base = ord("a")
+    return chr((ord(ch) - base + k) % 26 + base)
+
+print(shift_letter("x", 3))  # a
+```
+
+The letter x sits at position 23 in the alphabet, and 23 plus 3 is 26, which mod
+26 is 0, the position of a. The cipher wheel is a modulus, plain and simple.
+
+<Callout type="security" title="Modular arithmetic is the backbone of cryptography">
+The wrap-around behavior that turns a Caesar cipher's alphabet into a loop is a
+toy version of what secures real communication. The math behind RSA and
+Diffie-Hellman, the schemes that protect logins and payments, works by raising
+huge numbers to powers and taking the remainder against an even larger number.
+The security rests on a gap: computing the remainder is fast, but reversing it to
+recover the secret is, for the right choice of numbers, so slow that no computer
+can do it in a useful amount of time. The cryptography module builds on exactly
+this foundation.
+</Callout>
+
+<Exercise title="Detect a leap year with modulo">
+Open the Build tab and write a function `is_leap(year)` that returns `True` for a
+leap year and `False` otherwise. The rule is built entirely from remainders: a
+year is a leap year if it is divisible by 4, except that years divisible by 100
+are not, unless they are also divisible by 400. So `year % 4 == 0` is the base
+test, `year % 100 != 0` is the exception, and `year % 400 == 0` is the exception
+to the exception.
+
+Combine them into one return statement using `and` and `or`, then check your
+function against four known answers: 2000 is a leap year, 1900 is not, 2024 is,
+and 2023 is not. If any of those four comes out wrong, look at which of the three
+remainder tests is firing when it should not.
+</Exercise>
+
+With this in hand, the even test `n % 2 == 0` is ready to earn its keep. The
+even-fibonacci challenge in the Challenges tab asks for the sum of only the
+even-valued terms of the Fibonacci sequence, and telling even from odd is that
+one modulo check applied inside the loop. It is a clean first place to put
+remainders to work on a real problem.
+
+Counting things without listing them one by one is the next tool the Make track
+reaches for, and it starts in counting-and-combinatorics, where the question
+shifts from what is left over to how many arrangements exist in the first place.
+
+<Notes />

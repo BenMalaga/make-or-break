@@ -1,0 +1,79 @@
+---
+title: Defending a Wireless Network
+module: wireless-security
+moduleTitle: Wireless Security
+moduleOrder: 20
+moduleIcon: Wifi
+order: 5
+summary: WPA3, network segmentation, and watching the air for rogue APs. What actually stops the attacks in this module.
+estimatedMinutes: 16
+objectives:
+  - Explain how WPA3-SAE defeats offline handshake cracking
+  - Segment guest, IoT, and trusted devices onto separate networks
+  - Detect a rogue AP or deauth flood on your own network
+tags:
+  - wireless
+  - wpa3
+  - segmentation
+  - defense
+  - rogue-ap
+---
+
+You just spent four lessons breaking Wi-Fi. Now flip sides, because the defenses map cleanly onto the attacks and most of them are free. The single highest-value move against everything in this module is WPA3, and the reason it matters is specific: it kills the offline crack.
+
+## WPA3 breaks the offline attack
+
+WPA2-Personal fails because the handshake leaks enough to guess passwords offline forever. WPA3-Personal replaces that handshake with **SAE** (Simultaneous Authentication of Equals), also called Dragonfly. SAE never transmits anything that lets an eavesdropper verify a password guess offline. Capture the exchange all you want, there is no MIC-style value you can grind a wordlist against on your own hardware.
+
+SAE also enforces guesses online, against the live AP, one attempt per handshake. That turns billions of GPU guesses per second into a handful of tries against a device you can rate-limit and alarm on. A weak WPA3 passphrase is still weak, but the attacker has to knock on the actual door for every guess, and you will see them knocking.
+
+If your gear supports it, run WPA3, or WPA3/WPA2 mixed ("transition") mode if you still have legacy clients. Understand the tradeoff: transition mode keeps a WPA2 handshake on the air for old devices, so it keeps the crack alive too. Pure WPA3 is the real fix. Check what a client actually negotiated:
+
+<CommandBlock
+  title="admin@laptop"
+  commands={[
+    { cmd: "iw dev wlan0 link", comment: "shows the connected BSSID, SSID, and signal" },
+    { cmd: "sudo iw dev wlan0 station dump | grep -i 'authorized\\|type'", comment: "inspect the association details" },
+  ]}
+/>
+
+## Segment the network
+
+WPA3 protects the front door. Segmentation contains the damage if anything gets past it. Put untrusted and chatty devices on their own network so a compromise of one does not reach the rest.
+
+Three separate SSIDs or VLANs is a sane baseline: one for trusted computers and phones, one for IoT (cameras, smart plugs, the TV) that talks only to the internet and not to your laptops, and one guest network isolated from both. Most consumer routers do guest isolation with a checkbox. IoT segmentation usually means a second SSID or a VLAN on prosumer gear.
+
+The point is blast radius. A camera with a hardcoded password on the IoT network cannot pivot to your file server if the two networks cannot route to each other. Enable client isolation on guest and IoT so associated devices cannot even see each other.
+
+## Watch for rogue APs and deauth floods
+
+The evil twin and the deauth attack both leave signatures in the air, and you have the same tools the attacker does. Scan your own space and know what a legitimate baseline looks like.
+
+<CommandBlock
+  title="admin@laptop"
+  commands={[
+    { cmd: "sudo airodump-ng wlan0mon", comment: "list every AP broadcasting your SSID; a second BSSID for your name is a rogue" },
+    { cmd: "sudo tcpdump -i wlan0mon -e -s 256 type mgt subtype deauth", comment: "watch live for deauth frames; a steady stream at one client is an attack" },
+  ]}
+/>
+
+Two BSSIDs advertising your SSID means someone cloned your network. A continuous burst of deauth frames aimed at your clients is the lure phase of an evil twin or a plain denial of service. On managed enterprise gear this is a built-in feature called a Wireless Intrusion Prevention System (WIPS); at home you run the scan yourself when something feels off.
+
+<Callout type="tip" title="802.11w blunts the deauth">
+Protected Management Frames (802.11w, PMF) authenticate management frames, including deauth, so a forged disconnect gets ignored. It is mandatory in WPA3 and optional in WPA2. Turn it on if your AP offers it. That one setting defangs the deauth attack the whole capture pipeline depends on.
+</Callout>
+
+<Callout type="security" title="Only test networks you own">
+The scanning and monitoring commands here run against your own network, which is exactly where they belong. Do not point airodump or tcpdump at a neighbor's SSID to "check if they are secure." Defensive framing does not make interception legal.
+</Callout>
+
+<Exercise
+  id="wpa3-defense"
+  prompt="Which WPA2-Personal weakness does WPA3-SAE specifically eliminate, the one that lets an attacker guess passwords forever after a single capture?"
+  answer="offline cracking"
+  placeholder="a few words"
+>
+SAE never exposes a value an eavesdropper can test guesses against locally. Guessing has to happen online against the live AP, one try at a time, where you can rate-limit and alert on it.
+</Exercise>
+
+<Notes />

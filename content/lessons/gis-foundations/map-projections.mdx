@@ -1,0 +1,141 @@
+---
+title: Why Every Flat Map Lies
+module: gis-foundations
+moduleTitle: GIS Foundations
+moduleOrder: 1
+moduleIcon: Compass
+order: 4
+summary: "A projection squashes the round Earth onto a flat plane, and the math forces a choice about which property to keep true and which to sacrifice."
+estimatedMinutes: 15
+prerequisites: ["coordinate-systems"]
+objectives:
+  - Explain why no flat map can preserve area, shape, distance, and direction at the same time
+  - Tell a conformal projection like Web Mercator apart from an equal area projection and say what each one protects
+  - Explain why UTM zones exist and when to reach for one instead of a geographic CRS
+  - Reproject a layer with GeoPandas and explain why distance and area must be measured in a projected CRS, not a geographic one
+tags:
+  - gis
+  - projections
+  - crs
+---
+
+The previous lesson on coordinate reference systems settled what a pair of numbers means: a longitude and a latitude, angles measured from the center of the Earth, agreed on by a datum like WGS84 and identified by a code like EPSG:4326. That solves the problem of where a point sits on a sphere. It does not solve a second, harder problem: how to draw that sphere on a flat screen or a flat sheet of paper. Every map an analyst has ever looked at, from a subway map to a satellite basemap, had to answer that second question, and the answer always costs something.
+
+## Flattening a sphere always breaks something
+
+Peel an orange in one piece and try to lay the peel flat on a table. It will not lie flat without tearing, stretching, or overlapping somewhere. A globe has the same problem, just with a mathematical version of that stretch instead of a physical one. A **projection** is the set of formulas that takes a location's latitude and longitude and converts it into an x and y position on a flat plane. Every map made from a projection has run every point on Earth through one of these formulas.
+
+The trouble is a hard mathematical fact, not a limitation anyone will eventually fix with better software. A flat map can preserve, at most, some of four properties, and never all four at once: **area** (a country's true size relative to others), **shape** (the local outline of a coastline or a country border), **distance** (how far apart two points really are), and **direction** (a straight line on the map holds a constant compass bearing). Push a curved surface into a flat one and something in that list has to give. A cartographer picks which property matters for the job and accepts distortion in the rest.
+
+<Callout type="info" title="Tissot's indicatrix makes the distortion visible">
+Drop a small circle onto the globe at regular intervals, then run each circle through a projection and look at what comes out the other side. On a projection that keeps shape, the circles stay circles but grow or shrink in size. On a projection that keeps area, the circles stay the same size everywhere but stretch into ellipses near the edges of the map. That picture, called Tissot's indicatrix, is the fastest way to see which property a projection sacrificed, since the distortion pattern gives it away immediately.
+</Callout>
+
+## Conformal projections keep shape, at the cost of area
+
+A projection that preserves shape locally, meaning angles and small outlines stay correct even though sizes drift, is called **conformal**. The most familiar conformal projection by far is Web Mercator, EPSG:3857, the projection behind Google Maps, OpenStreetMap's default tiles, and nearly every slippy map on the web.
+
+Web Mercator earns its spot for a practical reason that has nothing to do with fairness to any country: it makes north point straight up everywhere on the map, and a small shape like a city block looks like the same small shape no matter where on the map it sits. That property, angles staying true, is exactly what a tile-based web map needs, since tiles get stitched together edge to edge across the whole world and nobody wants a street grid that tilts depending on latitude.
+
+The price for that convenience shows up in area, and it shows up badly. Web Mercator stretches land more and more as it approaches the poles, because the formula has to pull the converging meridians of a globe apart until they run perfectly parallel on the flat map. Greenland, a real 2.16 million square kilometers, ends up looking roughly the same size as Africa on a Web Mercator map, even though Africa is about 30 million square kilometers, fourteen times larger. Nothing is broken. The projection is doing exactly what a conformal projection does. It was just never built to answer "how big is this country," and using it to answer that question anyway is the single most common mapping mistake a beginner makes.
+
+<Quiz
+  id="projection-four-properties"
+  question="A projection makes Greenland look about the same size as Africa on screen, even though Africa is roughly fourteen times larger by real area. What does this show?"
+  answer={2}
+  options={[
+    "The projection has a bug and needs a software update to fix the area calculation.",
+    "Greenland and Africa really are close in area, and most other maps are the ones that are wrong.",
+    "No flat projection can preserve area, shape, distance, and direction all at once, and this one traded area accuracy away to keep angles and shapes correct.",
+    "The map is using the wrong datum, and switching from WGS84 to NAD83 would fix the size mismatch.",
+  ]}
+  explanation="This is the defining trade-off of flat mapping, not a bug or a datum problem. Web Mercator is conformal, so it keeps local shape and angle correct, and that choice forces area to distort more and more near the poles, which is exactly where Greenland sits. Africa straddles the equator, where Web Mercator distorts the least, which is why the size gap looks so extreme on screen."
+/>
+
+## Equal area projections keep size honest instead
+
+A projection built to preserve area is called, reasonably enough, an **equal area projection**. On a true equal area projection, a one square kilometer patch of land covers the same amount of screen or paper space no matter where on Earth it sits, whether that patch is near the equator or tucked up near a pole. The Mollweide projection and the Albers equal area projection are two common examples, both built specifically for comparing sizes: a choropleth map coloring countries by population density, a map showing how much forest cover each continent lost, a chart comparing the land area of river basins.
+
+The catch runs the other direction from Web Mercator. An equal area projection gets the sizes right by letting shapes bend. Continents near the edges of an equal area world map often look visibly warped, stretched wide or squeezed thin compared to how they look on a globe. That warping is not a flaw to fix. It is the projection paying, in shape, for the area accuracy it delivers. A map author who needs true relative sizes accepts bent coastlines as the cost of that honesty.
+
+No projection escapes this exchange. A projection can be conformal or it can be equal area, but a single projection cannot be both, except at one isolated point or along one line where the math happens to agree, and everywhere else it has to pick a side.
+
+## Projected CRS versus geographic CRS, and why it matters for measuring
+
+Underneath the conformal versus equal area choice sits a more basic split that affects every distance and area calculation a GIS ever runs. A **geographic CRS**, like EPSG:4326, stores coordinates as angles: degrees of longitude and latitude. A **projected CRS** stores coordinates as flat, linear units, almost always meters, after running the data through a specific projection formula.
+
+The problem with measuring anything directly in a geographic CRS is that a degree is not a fixed distance. One degree of longitude spans about 111 kilometers at the equator and shrinks toward zero at the poles, since the meridians converge there, while one degree of latitude stays close to 111 kilometers everywhere. Ask a GIS to compute the area of a polygon while its coordinates are still in degrees, and it will multiply degrees by degrees and hand back a number in square degrees, a unit with no meaning to anyone and no fixed real-world size. Distance calculations in a geographic CRS have the identical problem, just in one dimension instead of two.
+
+This is why the standard move before measuring anything is to reproject the data into a CRS with real metric units. **UTM**, the Universal Transverse Mercator system, exists precisely for this job. It divides the whole Earth into 60 narrow north-south zones, each six degrees of longitude wide, and gives each zone its own conformal projection tuned so that distortion inside that zone stays under about one part in a thousand. New Jersey sits in UTM zone 18N, EPSG:32618. A survey crew in Perth, Australia works in zone 50S, EPSG:32750. Pick the zone that contains the area of interest, reproject into it, and distances and areas measured in that projected CRS come out honest, in meters, for anything local to that zone.
+
+```python
+import geopandas as gpd
+
+parcels = gpd.read_file("parcels.gpkg")
+print(parcels.crs)
+print(parcels.area.head())
+```
+
+<ExpectedOutput label="area computed while the layer is still in a geographic CRS">
+```
+EPSG:4326
+0    0.000004
+1    0.000007
+2    0.000003
+Name: geometry, dtype: float64
+```
+</ExpectedOutput>
+
+Those numbers are technically the polygon areas in square degrees, and they are useless for anything a person would ask, like how many acres a parcel covers. Reprojecting into the UTM zone that covers the parcels fixes it.
+
+```python
+parcels_utm = parcels.to_crs(epsg=32618)  # UTM zone 18N covers New Jersey
+print(parcels_utm.area.head())
+```
+
+<ExpectedOutput label="the same polygons, now measured in square meters">
+```
+0    412.7
+1    788.3
+2    301.9
+Name: geometry, dtype: float64
+```
+</ExpectedOutput>
+
+Same geometry, same parcels, one line of code between them, and the second result is a number an analyst can actually hand to someone. GeoPandas' `to_crs()` runs every coordinate through the target projection's formula and returns a new layer in the new CRS. The rule that falls out of this is simple enough to memorize: measure distance or area only after the data sits in a projected CRS with linear units, never while it is still in degrees.
+
+<Quiz
+  id="projection-crs-for-measuring"
+  question="An analyst computes the area of a set of lake polygons while the data is still in EPSG:4326 and gets a tiny decimal number for each lake. What went wrong?"
+  answer={1}
+  options={[
+    "Nothing went wrong, small decimal numbers are just how GIS software always reports area.",
+    "EPSG:4326 stores coordinates in degrees, not meters, so the area came out in square degrees, a unit with no fixed real-world size. The data needs to be reprojected into a projected CRS like a UTM zone before the area means anything.",
+    "The lakes must be smaller than one square meter each, since the numbers are so small.",
+    "GeoPandas has a bug in its area function and the fix is to upgrade to the newest version.",
+  ]}
+  explanation="A degree of longitude or latitude is not a fixed distance, so multiplying degrees together for an area calculation produces square degrees, a unit nobody can act on. Reprojecting into a projected CRS, typically the local UTM zone, converts coordinates into meters first, and area computed after that reprojection comes out in honest square meters. This is a units mismatch, not a software bug or a real property of the lakes."
+/>
+
+## Matching the projection to the job
+
+Choosing a projection comes down to two questions: what is the map or the analysis actually for, and how large an area does it cover. A web basemap meant for navigation, where streets need to look straight and north needs to point up everywhere, reaches for Web Mercator. A world map comparing country populations or forest cover by true size reaches for an equal area projection like Mollweide or Albers. A local analysis measuring parcel area, buffer distances around a school, or the length of a proposed bike lane reaches for the UTM zone that covers the site, or a similar local projected CRS with metric units.
+
+Scale matters as much as purpose. UTM zones work cleanly at the scale of a city, a county, or a single state, because the distortion inside one narrow zone stays small. Ask UTM to cover an entire country that spans several zones, and the seams between zones start causing trouble, since a single project usually needs one consistent CRS throughout. At that larger, whole-country or whole-continent scale, a projection built for large areas, something like an Albers equal area projection with parameters tuned to that specific region, takes over from UTM.
+
+None of these choices are permanent commitments. QGIS and GeoPandas both reproject a layer on demand, so a dataset kept in a stable geographic CRS like EPSG:4326 for storage and interchange can be reprojected into whatever projected CRS a particular map or calculation needs, then reprojected again for the next job. The skill worth building is not memorizing one correct projection. It is asking, before every map or every measurement, which property this task actually needs kept honest, and picking the projection built for that.
+
+<Quiz
+  id="projection-choosing-for-job"
+  question="A researcher is building a web map where users pan and zoom around city streets, and separately needs to calculate the true square kilometer area of every country in South America for a report. Which projection choice fits each task?"
+  answer={0}
+  options={[
+    "Web Mercator for the interactive street map, since it keeps local shape and direction correct for panning and zooming, and an equal area projection for the country area report, since it keeps size comparisons honest.",
+    "Web Mercator for both tasks, since it is the most widely used projection and works equally well for any job.",
+    "An equal area projection for both tasks, since preserving area is always the more important property to protect.",
+    "UTM zone 18N for both tasks, since UTM is accurate everywhere on Earth regardless of location or scale.",
+  ]}
+  explanation="The street map needs shapes and directions to look right as a user pans across many tiles, which is exactly what a conformal projection like Web Mercator delivers. The country area report needs true relative sizes, which only an equal area projection delivers, at the cost of bent shapes that do not matter for that report. UTM is built for narrow local zones, not a whole continent, so it is the wrong tool for either task here."
+/>
+
+Getting the projection right does not end the work, it starts the next stage of it. Coordinates that are correctly referenced and correctly projected are finally ready to be organized into the shapes a GIS actually analyzes: points, lines, and polygons on one side, grids of cells on the other. That split, the vector and raster data models, is where the next lesson picks up.

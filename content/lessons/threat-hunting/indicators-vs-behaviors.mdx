@@ -1,0 +1,65 @@
+---
+title: Indicators vs Behaviors
+module: threat-hunting
+moduleTitle: Threat Hunting
+moduleOrder: 26
+moduleIcon: Footprints
+order: 4
+summary: A hash is trivial to change. The thing the malware has to do is not. Hunt the thing it has to do.
+estimatedMinutes: 17
+objectives:
+  - Tell an IOC apart from a TTP and rank them by durability
+  - Read the Pyramid of Pain to decide what to hunt
+  - Write a behavioral hunt that survives the attacker changing tools
+tags:
+  - threat-hunting
+  - ioc
+  - ttp
+  - pyramid-of-pain
+  - mitre-attack
+---
+
+You get a threat report with 200 file hashes and 50 malicious IPs. You block every one. The attacker recompiles the payload, which changes every hash, spins up a fresh VPS, which changes every IP, and walks right back in that afternoon. You spent your morning blocking artifacts that cost the attacker sixty seconds to rotate.
+
+That is the core problem with indicators. They are precise, easy to share, and almost worthless the moment the adversary notices you have them.
+
+## IOCs are cheap for the attacker to change
+
+An indicator of compromise is a specific artifact: a file hash, an IP, a domain, a registry key value, a mutex name. IOCs are great for one thing, matching a known-bad thing you have seen before, fast and at scale. Feed them to your EDR and firewall and let the machine do the matching.
+
+But rank them by how hard they are to change and the picture gets grim. A hash changes with a single recompile. A domain changes with a ten-dollar registration. An IP changes with a new cloud instance. You are playing whack-a-mole against a mole with an infinite budget for new holes.
+
+## TTPs are expensive for the attacker to change
+
+Tactics, techniques, and procedures describe how the attacker operates, not what they touched. Dumping credentials from LSASS memory. Using WMI for lateral movement. Establishing persistence through a scheduled task. Those are behaviors, and behaviors are tied to the attacker's goals and skills, not to a swappable file.
+
+David Bianco's Pyramid of Pain is the map. At the bottom, hashes and IPs, trivial for the attacker to change and therefore low-value to hunt. At the top, TTPs, and the label on that top tier is "tough." Force an attacker to change their actual technique and you have made them re-tool, retrain, and rethink. That is the pain you want to inflict.
+
+<CommandCard command="Hunt: any process reading lsass.exe memory that is not a known security tool." explain="This catches Mimikatz, but it also catches the next twelve credential dumpers nobody has named yet, because they all have to touch LSASS to get the credentials. The behavior is the goal, and the goal cannot be recompiled away." />
+
+## Write the hunt against the behavior
+
+The practical difference lands in what you query. An IOC hunt asks "does hash abc123 exist on any host." A behavioral hunt asks "did any process open a handle to LSASS with read access when it was not on my short list of legitimate tools." The first misses a renamed binary. The second catches the whole class.
+
+Behavioral hunts cost more up front. You have to understand what the technique requires at a technical level, and you accept more false positives because legitimate software sometimes does suspicious-looking things. A backup agent might touch memory. A management tool might spawn shells. That tuning work is the price, and it buys you detections that keep working after the attacker swaps every artifact you could have blocked.
+
+<Callout type="security" title="Behavioral hunting needs deep telemetry">
+Catching TTPs requires endpoint visibility that IOC matching does not: process handle access, command-line arguments, parent-child lineage, module loads. Deploy that telemetry only on systems you administer and are authorized to monitor. The richer the data, the more sensitive it is, so scope collection and access accordingly.
+</Callout>
+
+Do not throw IOCs away. They are the cheap, fast first pass, perfect for the machine. Just do not confuse blocking a hash with stopping an adversary. Spend your human hunting time near the top of the pyramid, where a find actually costs the attacker something.
+
+<Quiz
+  id="ioc-ttp-durability"
+  question="An attacker learns you have blocked all their known file hashes and C2 domains. Which of your defenses is hardest for them to defeat?"
+  answer={3}
+  options={[
+    "The blocked file hashes, because recompiling is difficult",
+    "The blocked C2 domains, because registering new ones is expensive",
+    "The blocked source IP addresses, because cloud instances are hard to obtain",
+    "A behavioral detection for credential dumping from LSASS, because they cannot reach the credentials without doing it",
+  ]}
+  explanation="Hashes, domains, and IPs sit at the bottom of the Pyramid of Pain and rotate cheaply. A detection tied to the behavior itself, reading LSASS to steal credentials, forces the attacker to change their whole technique, which is the expensive kind of pain."
+/>
+
+<Notes />

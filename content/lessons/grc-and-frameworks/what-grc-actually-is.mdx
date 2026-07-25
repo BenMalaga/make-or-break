@@ -1,0 +1,68 @@
+---
+title: What GRC Actually Is
+module: grc-and-frameworks
+moduleTitle: Governance, Risk, and Compliance
+moduleOrder: 35
+moduleIcon: Scale
+order: 1
+summary: The reason your finding gets fixed is a GRC person turned it into a risk the business had to own.
+estimatedMinutes: 14
+objectives:
+  - Separate governance, risk, and compliance into what each one actually does
+  - Explain why a technical finding needs a business owner to get fixed
+  - Read a control back to the requirement and the risk it exists to reduce
+tags:
+  - grc
+  - governance
+  - risk
+  - compliance
+---
+
+You popped a domain admin on the engagement, wrote the finding, handed over the report, and six months later nothing changed. The vuln is still there. That gap between "we proved it is exploitable" and "someone with a budget fixed it" is exactly the space GRC lives in. Governance, risk, and compliance is the machinery that turns a technical fact into an obligation somebody has to act on.
+
+Most hackers roll their eyes at this stuff. Fair, a lot of it is spreadsheets and meetings. But the pentest that gets remediated and the pentest that rots in a SharePoint folder differ by whether a GRC process picked up your finding and gave it an owner, a due date, and a consequence.
+
+## Three words that do three different jobs
+
+Governance is who decides and who is accountable. It is the policies, the roles, the reporting lines, the answer to "who owns patching for the payment servers." No owner means no fix. When a finding falls through the cracks, governance is usually what failed.
+
+Risk is the ranking function. You cannot fix everything, so risk management scores what could go wrong by how likely it is and how much it would hurt, then sorts. Your critical SQL injection and a low-severity missing header both go into the same queue, and risk is what decides the SQLi gets fixed first.
+
+Compliance is the checklist someone outside imposed. PCI DSS if you take card payments, HIPAA if you touch patient data, SOC 2 if you sell software to enterprises. Compliance is the floor, not the ceiling. Passing an audit means you met a minimum, not that you are secure.
+
+<Callout type="info" title="Compliance is not security">
+A company can be fully PCI compliant and still get breached next week. The standard is a baseline written by committee, always a step behind real attackers. Treat "we are compliant" as "we cleared the bar," never as "we are safe." The two get conflated constantly, and the conflation is where breaches hide.
+</Callout>
+
+## Why your finding needs a business owner
+
+Read the sentence a GRC analyst writes about your work: "Unauthenticated SQL injection on the customer portal exposes 400,000 records, which maps to a reportable breach under state law, estimated impact in the millions, owner is the VP of Engineering, remediate by Q3." That is your finding translated into money, law, and a name.
+
+The board does not fund a CVSS score. They fund a dollar figure attached to a person who has to answer for it. GRC does that translation. It takes "port 445 is open to the internet" and turns it into "this is how we get ransomwared, here is the cost, here is who is on the hook." That reframe is why the fix gets budget.
+
+## Trace a control back to why it exists
+
+Every good control chains back to a risk and forward to a requirement, and you should be able to walk that chain in both directions.
+
+<CommandCard command="MFA on all admin accounts -> reduces risk of credential stuffing / password reuse -> satisfies PCI DSS 8.4 + SOC 2 CC6.1" explain="The control on the left is not there because someone likes MFA. It exists because a specific risk was scored high, and a specific standard requires addressing it. If you cannot name the risk and the requirement, the control is cargo-cult security." />
+
+When you audit a control and it does not trace back to a real risk, it is theater, and it is wasting money that a real gap needs. When it traces to a risk but no standard requires it, that is often the most important control in the building, because the business chose to do it without being forced.
+
+<Callout type="security" title="Read the scope before you touch anything">
+GRC also draws the fences you operate inside. On any authorized engagement, the rules of engagement, scope document, and signed authorization are governance artifacts. Testing outside that scope, even by accident, turns a paid assessment into unauthorized access. Read the scope, confirm the target list in writing, and stay inside the lines.
+</Callout>
+
+<Quiz
+  id="grc-compliance-vs-security"
+  question="A company just passed its PCI DSS audit. What does that actually tell you about its security?"
+  answer={2}
+  options={[
+    "It is secure and unlikely to be breached",
+    "Its network is fully hardened against modern attacks",
+    "It met a minimum baseline; real security may be better or worse",
+    "Its pentest findings have all been remediated",
+  ]}
+  explanation="Compliance is a floor set by a standard, not proof of security. A compliant company can still be breached, because the standard lags real attacker behavior and only checks for a defined minimum."
+/>
+
+<Notes />

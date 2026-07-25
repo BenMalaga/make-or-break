@@ -1,0 +1,84 @@
+---
+title: Kioptrix Level 1 walkthrough
+---
+
+## Host discovery
+
+From your attacker box on the same lab network:
+
+```
+sudo netdiscover -r 192.168.56.0/24
+# or
+sudo nmap -sn 192.168.56.0/24
+```
+
+Compare the results against hosts you already know (your attacker box, the
+gateway). The unfamiliar address is your target. Export it for convenience:
+
+```
+export IP=192.168.56.X
+```
+
+## Enumeration
+
+Scan all ports, then fingerprint the open ones:
+
+```
+nmap -p- --min-rate 2000 -oN allports.txt $IP
+nmap -sVC -p <open,ports> -oN services.txt $IP
+```
+
+Read every line. This box is old, so expect a mix of legacy daemons: a web
+server, file sharing, and other network services. Record the exact version
+string for each one. Those versions are your leads. Enumerate the web root too:
+
+```
+gobuster dir -u http://$IP -w /usr/share/wordlists/dirb/common.txt
+whatweb http://$IP
+```
+
+## Foothold (user)
+
+One of the running services advertises a version old enough to have a public
+remote exploit.
+
+1. Take the service name and version string from your scan and search public
+   exploit sources for a matching advisory.
+2. Read the exploit, understand what it does, and set your target address and any
+   required options.
+3. Run it to land a shell as the service account.
+4. Read the user flag:
+
+```
+cat user.txt
+```
+
+Proof token: `MOB{old_services_never_die}`.
+
+## Privilege escalation (root)
+
+Depending on which service you exploited, you may already hold a privileged
+shell. Otherwise, run the standard checks:
+
+```
+id; uname -a
+sudo -l
+find / -perm -4000 -type f 2>/dev/null
+```
+
+Match the kernel version, a SUID binary, or a sudo right to a known escalation
+and take root. Grab the final flag:
+
+```
+cat /root/root.txt
+```
+
+Proof token: `MOB{one_exploit_from_root}`.
+
+## Lessons learned
+
+- The full port scan matters. Old boxes expose services well above port 1024.
+- Version numbers are the objective, not a footnote. Match them to advisories.
+- The oldest software on a host is almost always the way in. Patch cadence is a
+  security control.
+- Privesc is a checklist you run every time, not a lucky guess.

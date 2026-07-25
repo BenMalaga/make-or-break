@@ -1,0 +1,189 @@
+---
+title: "Functions and Scripts"
+module: powershell
+moduleTitle: PowerShell
+moduleOrder: 1
+moduleIcon: Terminal
+order: 7
+summary: "A function wraps working code in a name so it can be called again with different input, and understanding its parameters and output is what turns a one-off line into a real tool."
+estimatedMinutes: 14
+prerequisites: ["ps-flow-control"]
+objectives:
+  - Define a function with the function keyword and param(), and explain how a parameter behaves like a variable inside the function body
+  - Add a type to a parameter, such as [int]$Count, and explain what that catches before the function ever runs
+  - Explain how a function produces output: any value not captured becomes output, and an explicit return does the same job
+  - Save a function in a .ps1 file, run it as a script, and explain in plain terms why Windows sometimes blocks a script from running
+tags:
+  - powershell
+  - functions
+  - scripts
+---
+
+The previous lesson, flow control, gave a script the ability to decide with `if` and `elseif`, and to repeat with `for`, `foreach`, and `while`. Combine those with a few lines of real logic and a script already does useful work: check a condition, walk a collection, act differently depending on what turns up. What is still missing is reuse. A block of working code sitting in the middle of one script only helps that one script. Copying it into a second script means copying it by hand and hoping nothing was typed differently the second time. A function is how PowerShell solves that problem.
+
+## A working line is not yet a tool
+
+A single line that computes something useful, even a good one, is fragile the moment it needs to run more than once. It depends on whatever variables happen to be sitting nearby, it has no name of its own, and reusing it means finding the line, copying it, and pasting it somewhere else, variable names and all. A function draws a box around that logic and gives the box a name. Once the logic has a name, it can be called from anywhere in the script, called more than once, and called with different input each time, without ever being retyped. That is the entire value of a function: it turns something that worked once into something that works on demand.
+
+## Defining a function
+
+A function is written with the `function` keyword, a name, and a block of code in curly braces:
+
+```powershell
+function Get-Greeting {
+    param($Name)
+    "Hello, $Name"
+}
+```
+
+`function` marks the start of the definition. `Get-Greeting` is the name that will be typed later to run this code. Everything inside the curly braces is the function's body, and it does not run yet, defining a function only teaches PowerShell what to do the next time that name is used. Naming a function follows the same verb-noun rule as every built-in cmdlet: `Get` retrieves something, so `Get-Greeting` is a reasonable name for a function that hands back a greeting. Custom functions are expected to follow this pattern just as strictly as the cmdlets that ship with PowerShell, because the whole point of the naming rule is that any name, built-in or custom, should be guessable.
+
+## Parameters are declared with param()
+
+The line `param($Name)` is what makes a function flexible instead of fixed. It declares that this function accepts one piece of input, and that input will be available inside the function body as the variable `$Name`. Whatever value gets passed in when the function is called lands in `$Name` for that run only. A function can declare more than one parameter by listing them inside the same parentheses, separated by commas:
+
+```powershell
+function Get-Total {
+    param($Price, $Quantity)
+    $Price * $Quantity
+}
+```
+
+`Get-Total` now expects two values. Inside the body, `$Price` and `$Quantity` behave exactly like any other variable: they can be multiplied, compared, or interpolated into a string. The only special thing about them is where their value comes from. An ordinary variable gets its value from an assignment written nearby. A parameter gets its value from whoever calls the function, which is what makes the same function block produce a different answer every time it runs.
+
+## A typed parameter rejects the wrong kind of value up front
+
+A parameter can be given a type by writing the type in square brackets directly in front of the dollar sign, the same casting syntax used to convert a variable's type elsewhere in PowerShell:
+
+```powershell
+function Get-DoubleCount {
+    param([int]$Count)
+    $Count * 2
+}
+
+Write-Output (Get-DoubleCount -Count 5)
+```
+
+<ExpectedOutput label="a typed parameter accepts a whole number and doubles it">
+```
+10
+```
+</ExpectedOutput>
+
+`[int]$Count` tells PowerShell that whatever arrives in `$Count` must be a whole number, or must be convertible to one. Passing `-Count 5` is no surprise, it prints `10`. Passing `-Count "5"`, the text version, still works, because PowerShell can convert that text into the number `5` before the function ever runs. What a typed parameter refuses is a value that cannot honestly become that type, so `-Count "five"` stops with an error before a single line of the function body executes, instead of quietly doing the wrong math or failing somewhere deep inside the function on a later line. The type is a fence at the front door, and it is one of the cheapest ways to make a function harder to misuse by accident.
+
+<Quiz
+  id="ps-fn-typed-param"
+  question="A function is defined as function Get-Square { param([int]$Number) $Number * $Number }. What happens when it is called as Get-Square -Number 'abc'?"
+  answer={2}
+  options={[
+    "It runs normally and returns 0, since text cannot be squared.",
+    "PowerShell silently converts 'abc' to the number 0 and returns 0.",
+    "PowerShell raises an error before the function body runs, because 'abc' cannot be converted to an int.",
+    "The function ignores the type and treats $Number as text, returning 'abcabc'.",
+  ]}
+  explanation="A typed parameter like [int]$Number checks that the incoming value can become that type before the function body ever runs. 'abc' cannot be converted to a whole number, so PowerShell raises an error at the call, rather than letting bad input reach the math inside the function. It does not silently fall back to 0 or quietly treat the value as text."
+/>
+
+## What a function actually returns
+
+PowerShell has a simple, sometimes surprising rule for a function's output: any value that is not captured by something else becomes part of what the function returns. There is no need to explicitly hand a value back. Looking again at `Get-Greeting`:
+
+```powershell
+function Get-Greeting {
+    param($Name)
+    "Hello, $Name"
+}
+
+Get-Greeting -Name "Ada"
+```
+
+<ExpectedOutput label="the last uncaptured value in the function becomes its output">
+```
+Hello, Ada
+```
+</ExpectedOutput>
+
+The string `"Hello, $Name"` is the last line of the function body, and nothing inside the function grabs hold of it, no variable assignment, no pipe into another cmdlet. Because it is left uncaptured, PowerShell sends it out as the function's result the moment the function finishes. This is the same rule that makes a bare `2 + 2` print `4` at the prompt: an uncaptured value gets written out. A function body follows that rule line by line, so if more than one line in the body produces an uncaptured value, all of them become part of the output, collected together.
+
+An explicit `return` does the same job, with one added effect: it stops the function immediately at that line, which matters when a function needs to exit early depending on a condition.
+
+```powershell
+function Get-Status {
+    param([int]$Score)
+    if ($Score -ge 60) {
+        return "Pass"
+    }
+    return "Fail"
+}
+
+Get-Status -Score 45
+```
+
+<ExpectedOutput label="return both produces the output and exits the function right there">
+```
+Fail
+```
+</ExpectedOutput>
+
+Here `$Score` is 45, so the `if` branch is skipped and the second `return "Fail"` line runs, both producing the value and ending the function on the spot. Either style works. A short function with one obvious result at the end usually skips `return` entirely and just leaves the value uncaptured. A function with several `if` branches, each needing to hand back a different answer and stop right there, reads more clearly with an explicit `return` on each branch.
+
+<Quiz
+  id="ps-fn-output-rule"
+  question="A function's body has one line: $x = 10. Nothing else runs. What does calling this function print?"
+  answer={1}
+  options={[
+    "10, because assignment always prints its value.",
+    "Nothing, because $x = 10 is an assignment, and an assignment's value is captured by the variable, not left uncaptured for output.",
+    "An error, because a function must contain a return statement.",
+    "The text $x = 10, printed exactly as it was typed.",
+  ]}
+  explanation="Only a value left uncaptured becomes output. $x = 10 is an assignment, so the value 10 is captured into the variable $x rather than sent out as a result, and the function produces nothing. A function does not require return, and PowerShell never prints the literal code that was typed."
+/>
+
+## Calling a function
+
+Once a function is defined, calling it looks exactly like calling any built-in cmdlet, because from the caller's point of view there is no difference between the two:
+
+```powershell
+function Get-Greeting {
+    param($Name)
+    "Hello, $Name"
+}
+
+$message = Get-Greeting -Name "Grace"
+Write-Output $message
+```
+
+<ExpectedOutput label="a function's output can be captured into a variable, just like a cmdlet's">
+```
+Hello, Grace
+```
+</ExpectedOutput>
+
+`Get-Greeting -Name "Grace"` calls the function with `"Grace"` as the value of `$Name`, and the result, the uncaptured string from inside the function, gets assigned to `$message` this time instead of printing immediately. That is the payoff promised at the top of this lesson. The logic was written once, and now it runs against a different name with a one-line call, no retyping, no copy and paste.
+
+## From one function to a saved script
+
+A function defined at the prompt disappears the moment the shell session ends. Real reuse means saving the code to a file. A PowerShell script is a plain text file with the extension `.ps1`, holding the same commands and function definitions that would be typed at a prompt, one after another. A file named `greetings.ps1` might contain the `Get-Greeting` function above, followed by a line that calls it, and running that file runs every line in order, top to bottom, exactly like a hand-typed session.
+
+A single script file is not limited to one function. A real script usually defines several small functions near the top, each doing one clear job, and then a handful of lines at the bottom that call them in sequence to do the actual work. That shape, small named pieces plus a short list of calls, is what separates a script that stays readable after six months from a long tangle of one-off lines nobody wants to touch again.
+
+On Windows, a script is run by giving its path, usually with a leading `./` or `.\`, such as `./greetings.ps1`. That leading path is not optional decoration. PowerShell will not run a script found only by name in the current folder, as a safeguard against a malicious script quietly shadowing a trusted command with the same name.
+
+There is a second safeguard worth knowing about even without a Windows machine at hand: Windows PowerShell ships with an execution policy, a setting that controls whether `.ps1` files are allowed to run at all. The default on most Windows systems is restrictive enough to block scripts entirely, including one just written and saved. That is deliberate. A downloaded script that runs the instant it is double-clicked is exactly the kind of thing malware relies on, so PowerShell asks for an explicit decision first, usually made once by an administrator with `Set-ExecutionPolicy`, rather than letting any file with a `.ps1` extension run silently. This has nothing to do with the code inside a script being correct. A perfectly working script can still refuse to run on a machine whose execution policy has not been relaxed, and that is a policy setting to check, not a bug to chase in the function itself.
+
+<Quiz
+  id="ps-fn-execution-policy"
+  question="A correctly written script named backup.ps1 refuses to run on a Windows machine with a message about the execution policy. What does that most likely mean?"
+  answer={0}
+  options={[
+    "Windows has a setting controlling whether .ps1 scripts are allowed to run, and it is currently blocking scripts, regardless of whether the code is correct.",
+    "The .ps1 file extension is invalid, and the file must be renamed to .exe before it can run.",
+    "PowerShell only allows functions to run interactively, never from a saved file.",
+    "The script contains a syntax error, and the execution policy message is PowerShell's generic name for any error.",
+  ]}
+  explanation="The execution policy is a safeguard controlling whether scripts are allowed to run at all, independent of whether the code inside them is correct. A correct script can still be blocked if the policy has not been relaxed. .ps1 is the real, required extension for a PowerShell script, functions run from files just as well as interactively, and the execution policy message is distinct from an ordinary syntax error."
+/>
+
+The idea underneath everything in this lesson is small but it carries the rest of the module: a function is a name attached to logic, a parameter is how that logic accepts different input each time, and a `.ps1` file is what lets a whole collection of functions and commands be saved, shared, and run again without a person retyping any of it.

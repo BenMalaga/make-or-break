@@ -1,0 +1,291 @@
+---
+title: What a Bug Really Is
+module: debugging-and-testing
+moduleTitle: Debugging and Testing
+moduleOrder: 5
+moduleIcon: Bug
+order: 1
+summary: "A bug is the gap between what code does and what it was meant to do, and every hunt is a search for the one spot where they split."
+estimatedMinutes: 13
+prerequisites: [errors-and-how-to-handle-them]
+objectives:
+  - Define a bug as the gap between a program's behavior and its intent
+  - Tell a loud exception apart from a silent logic bug and know which is harder
+  - Trace a wrong result to the single line where behavior first diverges from intent
+  - Run the reproduce, guess, check, narrow loop to halve the search each step
+tags:
+  - debugging
+  - bugs
+---
+
+The last module ended with a program that stayed on its feet. A missing notes
+file raised `FileNotFoundError`, an `except` block caught it, printed a calm line,
+and the program carried on. Catching an exception like that assumes the hard part
+is already done: the failure is known and there is a plan for it. Debugging is the
+part before that, when a program does something wrong and nobody has said where or
+why.
+
+"It doesn't work" is where most debugging starts, and it is a feeling, not a fact.
+It names a disappointment, not a location. The single move that turns a stuck
+afternoon into a ten-minute fix is trading that feeling for a precise claim: this
+exact input produced this exact wrong output, and the correct output was that one.
+Everything in this module grows out of making that swap, whether the code throws
+an error or just lies quietly.
+
+## A bug is a gap, not a gremlin
+
+A bug is the distance between what a program does and what it was intended to do.
+That is the whole definition, and it carries more weight than it looks. It says a
+bug has two halves, the behavior and the intent, and that neither one can be
+pinned down without the other. A program that returns 67.5 is not wrong in the
+abstract. It is wrong because the answer was supposed to be 90.
+
+Hold both halves in view and something clarifies. The wrong output does not appear
+from nowhere. Somewhere during the run the program's state matched the
+expectation, and then at some later step it stopped matching. Between those two
+moments sits one instruction where reality first parted from the plan. That single
+spot is the bug. Everything after it is just the wrong value being carried
+forward, faithfully, into every place that reads it.
+
+This reframes debugging from a hunt through the whole program into a search for
+one boundary: the last moment things were right and the first moment they were
+wrong. The task is not to find "the broken code" in some vague sense. It is to
+find the earliest point where a value stopped matching the expectation. Land on
+that point and the fix is usually small and obvious. Miss it and the work becomes
+patching symptoms three functions away from the cause.
+
+<Quiz
+  id="bug-where-is-it"
+  question="A function returns 67.5 when a hand calculation says the answer should be 90. In the precise sense used here, where is the bug?"
+  answer={1}
+  options={[
+    "Inside the computer, which rounded the result incorrectly while running the code.",
+    "At the one spot where what the code does first diverges from what it was intended to do.",
+    "Everywhere the wrong 67.5 later gets read, since each of those uses is also wrong.",
+    "Nowhere until the program raises an exception, because a wrong number alone is not a bug.",
+  ]}
+  explanation="A bug is the gap between behavior and intent, and the hunt is for the single spot where the run first parts from expectation. The downstream reads inherit the wrong value but are not the cause. A wrong answer with no crash is still a bug, silence does not make code correct."
+/>
+
+## Loud bugs and quiet bugs
+
+Bugs come in two broad shapes, and they are not equally kind. The first is the
+exception, the crash from the previous module. Something asks Python to do the
+impossible, it raises, and if nothing catches it the program stops and prints a
+traceback. This is the loud kind, and loud is a gift. The program names the type,
+the message, and the exact line, then gets out of the way.
+
+The second kind never says a word. The program runs to the end, returns a value,
+and the value is wrong. No traceback, no red text, nothing to read. This is the
+logic bug, and it is the reason debugging is a skill rather than a chore. Take a
+function that averages test scores, where a score of -1 marks a student who did
+not sit the exam and should be left out.
+
+```python
+def average(scores):
+    total = 0
+    for s in scores:
+        if s >= 0:
+            total += s
+    return total / len(scores)
+```
+
+The intent is plain: add up the real scores, then divide by how many real scores
+there were. Run it on a class where one student was absent.
+
+```python
+print(average([80, 90, -1, 100]))
+```
+
+<ExpectedOutput label="running it">
+```
+67.5
+```
+</ExpectedOutput>
+
+No crash. The function ran to the end and handed back a number, and the number is
+wrong. Three students scored 80, 90, and 100, so the average of everyone who sat
+the exam is 90.0. The function said 67.5. Nothing on the screen admits that
+anything went wrong, which is exactly what makes the quiet kind dangerous.
+
+The gap is one line wide. The loop adds only the non-negative scores, so `total`
+is 270, which is right. But `len(scores)` counts every element, including the -1,
+so the division is 270 divided by 4 instead of 270 divided by 3. The count is
+wrong. That is the single spot where the code does something other than what it
+was meant to do, and the odd 67.5 is that one mistake played out to the end.
+
+The same function also hides a loud bug, and the contrast is worth seeing. Hand it
+an empty list, a class where nobody has a score yet.
+
+```python
+print(average([]))
+```
+
+<ExpectedOutput label="running it on an empty list">
+```
+Traceback (most recent call last):
+  File "/home/grades/report.py", line 8, in <module>
+    print(average([]))
+          ~~~~~~~^^^^
+  File "/home/grades/report.py", line 6, in average
+    return total / len(scores)
+           ~~~~~~^~~~~~~~~~~~~~
+ZeroDivisionError: division by zero
+```
+</ExpectedOutput>
+
+Read that the way the previous lesson taught, bottom line first.
+`ZeroDivisionError: division by zero` is the type and the message, and the `File`
+block just above points at line 6, `return total / len(scores)`, as the spot. With
+no scores, `len(scores)` is 0, and Python refuses to divide by zero. The loud bug
+names its own address in one line. The quiet bug a moment ago named nothing. Same
+function, two completely different debugging experiences, which is why the quiet
+one is usually the harder catch.
+
+<Quiz
+  id="bug-loud-vs-quiet"
+  question="Between an uncaught exception and a logic bug that returns a wrong number, which is usually harder to find, and why?"
+  answer={1}
+  options={[
+    "The exception, because a traceback buries the real cause under a stack of File lines.",
+    "The logic bug, because the program runs to completion and returns a wrong answer with nothing on screen pointing at the fault.",
+    "The exception, because Python refuses to say which line raised it.",
+    "They are equally hard, since both stop the program at the same point.",
+  ]}
+  explanation="An exception announces itself: it prints its type, message, and line. A logic bug is silent, the program finishes and a wrong result looks exactly like a right one, so nothing flags where to look. The traceback is a help, not an obstacle, and it always names the failing line."
+/>
+
+## The computer did exactly what it was told
+
+When a program misbehaves, the first thought is often that the machine is being
+weird. It almost never is. A processor running the same instructions on the same
+input produces the same result every time, with no mood and no improvisation. The
+67.5 was not a glitch. It was the honest, mechanical consequence of the code as
+written.
+
+That is the shift that makes debugging possible at all. The bug is not in the
+computer. It is in the code, which means it is a wrong assumption that a person
+wrote down and the machine then obeyed to the letter. `len(scores)` looked correct
+to whoever wrote it because they were picturing a list with no absentees. The
+assumption "the count that matters equals the length of the list" was false for
+this input, and the code captured that false assumption perfectly. The machine did
+not misunderstand. The written instruction was wrong.
+
+This is oddly freeing. If a computer were genuinely unpredictable, there would be
+nothing to study and no reliable way to corner a fault. Because it is relentlessly
+literal, every bug is findable. The wrong output is a message: one assumption about
+what the code does is false, and the program will point straight at which one when
+someone reads what it actually did instead of what was meant.
+
+The habit worth building here is suspicion aimed inward. When a result looks
+impossible, the productive reflex is not "the language is broken" but "which of my
+beliefs about this code is wrong?" Nine times out of ten the answer is a small
+gap between what a line was imagined to do and what it literally does, like the
+difference between the count of real scores and the length of the whole list.
+Trust the machine to be consistent, and distrust the assumptions written into the
+code.
+
+<Callout type="warning" title="A bug you cannot reproduce is a bug you cannot fix">
+The fastest way to burn an afternoon is to change code in response to a failure
+seen only once. If a wrong result cannot be produced on demand, there is no way to
+tell whether an edit fixed it or merely got lucky. Before touching anything, find
+the exact input that triggers the bug every single time. A failure that shows up
+"sometimes" usually rides on an input not yet pinned down: an empty list, a
+missing key, the order two events happen in. Nail the reproduction first, then
+fix.
+</Callout>
+
+## The debugging loop
+
+With the mindset in place, the method is a short loop, run tight and often. It has
+four steps, and each one beats guessing.
+
+First, reproduce it. Get the bug to happen on demand with a specific input, like
+`average([80, 90, -1, 100])` returning 67.5. A failure that can be triggered at
+will is a failure that can be studied. A failure that cannot be triggered is a
+rumor.
+
+Second, form a guess about where the divergence is. Not the whole cause, just a
+location: the total is probably fine, so the count is the suspect. The guess does
+not have to be correct. It has to be checkable.
+
+Third, check the guess against a real value. Look at what the program actually
+holds at that point in the run. Is `total` really 270? Is `len(scores)` really 4?
+One look confirms or kills the guess with a fact instead of a hunch.
+
+Fourth, narrow the search. Each check should rule out roughly half of what is
+left. This is the same trick as finding a word in a dictionary by opening to the
+middle: one look says which half to keep, so a two-hundred-line program collapses
+into a handful of checks instead of a line-by-line reread. Confirm the total is
+right and the entire summing loop is cleared at a stroke, which means the fault has
+to live in the division.
+
+That halving is the whole difference between debugging that scales and debugging
+that crawls. Rereading code from the top treats every line as equally likely,
+which is slow and, worse, tends to slide right past the wrong assumption because
+it reads exactly like a correct one. Checking an actual value does not care how the
+code reads. It reports what happened, and it forces the space of suspects to
+shrink.
+
+<Quiz
+  id="bug-halve-the-search"
+  question="A wrong total comes out of a 200-line script. After the bug is reproduced reliably, what is the fastest next move?"
+  answer={2}
+  options={[
+    "Reread all 200 lines from the top until the mistake finally jumps out.",
+    "Change several suspicious lines at once and rerun to see if the number fixes itself.",
+    "Check the value at a point near the middle of the run, so one look rules out half the code.",
+    "Rewrite the script from scratch to avoid whatever caused the wrong total.",
+  ]}
+  explanation="Narrowing the search in half each time turns 200 lines into a few checks. Reading top to bottom treats every line as equally likely and is slow. Changing many lines at once hides which change mattered. Rewriting discards a reproducible clue and often reintroduces the same wrong assumption."
+/>
+
+Applied to the average, the loop closes fast. Reproduce: 67.5 on that input.
+Guess: the count is wrong. Check: `len(scores)` is 4, but only three scores were
+added. Fix: count the scores as they are added, and divide by that count.
+
+```python
+def average(scores):
+    total = 0
+    count = 0
+    for s in scores:
+        if s >= 0:
+            total += s
+            count += 1
+    return total / count
+```
+
+<ExpectedOutput label="running average([80, 90, -1, 100]) after the fix">
+```
+90.0
+```
+</ExpectedOutput>
+
+Now `count` rises only when a score is actually added, so it holds 3, and 270
+divided by 3 is 90.0. The change is two lines, because the bug was one false
+assumption in one spot. Nearly every bug looks like this once it is cornered: the
+search is the real work, and the fix is small.
+
+<Exercise title="Corner a bug by halving the search">
+Type the buggy `average` into a file and confirm it returns 67.5 on
+`[80, 90, -1, 100]`. That is your reproduction, so keep that exact input.
+
+Now form one guess about where the wrong number is born and check it with a single
+line. Add `print(total)` right before the `return`, run it, and read the value. If
+`total` is 270, you have just cleared the whole loop: the summing is right, so the
+fault is in the division. Notice that one print ruled out half of the function.
+
+Then check the other half. Add `print(len(scores))` beside it and run again. When
+it prints 4 while only three scores were added, you have found the exact spot where
+the code and the intent split. Fix it by counting scores as they are added, rerun,
+confirm 90.0, then delete both prints.
+</Exercise>
+
+That single `print(total)` did the real work: it showed what the code actually
+held at a chosen moment, instead of what it was supposed to hold. That is the idea
+behind the two core tools for watching a program run. The next lesson, print
+debugging and the debugger, makes it deliberate: where to place a print so it
+splits the search cleanly, and when to stop printing and pause the program
+mid-run to inspect every value at once.
+
+<Notes />

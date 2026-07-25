@@ -1,0 +1,70 @@
+---
+title: What Threat Modeling Buys You
+module: threat-modeling
+moduleTitle: Threat Modeling
+moduleOrder: 43
+moduleIcon: Workflow
+order: 1
+summary: The cheapest place to kill a vulnerability is a whiteboard, before any code exists.
+estimatedMinutes: 16
+objectives:
+  - Explain why design-stage flaws cost more than code-stage bugs
+  - Run the four-question frame on any feature before it ships
+  - Tell a design flaw apart from an implementation bug
+tags:
+  - threat-modeling
+  - design
+  - sdlc
+  - appsec
+---
+
+A password reset shipped clean. Six weeks later someone noticed the reset token was just the user's account ID with base64 slapped on it, so anyone could reset anyone's password by editing one field in the request. That cost a weekend of incident response and a public apology. It also cost nothing to catch, because a thirty-minute conversation before the first commit would have surfaced it.
+
+That conversation is threat modeling. You look at a design, ask what an attacker could do to it, and decide what to change, all before the design hardens into code that is painful to rip out.
+
+## Why the timing is the whole point
+
+A static analyzer finds bugs in code that already exists. A pen tester finds them in a system that is already running. Both are useful and both arrive late. By the time a SAST tool flags your token generator, three services already depend on its shape and the fix touches a migration.
+
+Threat modeling moves the find to the left, to the moment when the fix is an eraser. Change a box on a diagram and you have changed nothing that runs yet. The industry number people throw around is that a defect caught at design costs a fraction of the same defect caught in production, and while the exact multiplier is arguable, the direction is not. Cheaper to fix, less to unwind, no incident bridge at 2 a.m.
+
+The token bug is the tell. No scanner catches "we chose a predictable token" because predictability is a design decision, not a syntax error. The code is perfectly valid. The idea is broken. That class of problem is exactly what threat modeling exists to find.
+
+## Four questions, asked out loud
+
+Adam Shostack's frame is four questions and you can run it on a napkin.
+
+What are we building. Draw the thing. Boxes for components, arrows for data, and mark where trust changes hands.
+
+What can go wrong. Walk each arrow and ask how an attacker abuses it. Who can spoof, tamper, read, or flood this.
+
+What are we going to do about it. For each threat that matters, pick one: mitigate, eliminate the feature, transfer the risk, or knowingly accept it.
+
+Did we do a good enough job. Look back before you close the session. Did you cover every trust boundary, and did the fixes actually land.
+
+That fourth question is the one teams skip and it is the one that keeps the model honest.
+
+## Design flaw versus implementation bug
+
+Keep these separate in your head because they get fixed by different people at different stages. An implementation bug is a mistake in otherwise sound code: a missing bounds check, an unescaped query, an off-by-one. Fuzzers and code review catch those.
+
+A design flaw is a sound implementation of a bad idea. Storing passwords reversibly so support can read them back. Trusting a client-side price field. Using sequential IDs as capability tokens. The code works exactly as written, which is why tooling stays quiet. Only a human asking "should we even be doing it this way" catches it, and that human is you at the whiteboard.
+
+<Callout type="security" title="Model what you own">
+Threat modeling means enumerating how a system could be attacked, and that reasoning is only yours to apply to systems you build, own, or are contracted to assess. Map your own designs freely. Do not turn the same enumeration loose on a third party's live product as unsolicited recon and call it a threat model. The activity is defensive because the target is yours.
+</Callout>
+
+<Quiz
+  id="tm-design-vs-bug"
+  question="A support tool decrypts and displays users' stored passwords in plaintext. Every line of code runs correctly. What kind of problem is this?"
+  answer={1}
+  options={[
+    "An implementation bug a fuzzer would catch",
+    "A design flaw that threat modeling is meant to find early",
+    "A false positive, since the code works as written",
+    "A performance issue unrelated to security",
+  ]}
+  explanation="The code is correct, so scanners stay quiet. The mistake is the decision to store passwords reversibly at all. That is a design flaw, the exact class threat modeling surfaces before it ships."
+/>
+
+<Notes />

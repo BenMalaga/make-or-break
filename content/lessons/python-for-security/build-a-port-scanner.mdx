@@ -1,0 +1,298 @@
+---
+title: Build a Port Scanner
+module: python-for-security
+moduleTitle: Python for Security
+moduleOrder: 13
+moduleIcon: FileCode
+order: 4
+summary: "Turn one socket check into a threaded TCP scanner, and learn why a closed port and a filtered port behave nothing alike."
+estimatedMinutes: 16
+prerequisites: ["python-for-hackers", "http-with-python", "sockets-and-networking"]
+objectives:
+  - Turn one socket check into a loop that sweeps a range of ports
+  - Explain where a serial scan spends its time and why most of it is waiting
+  - Use a thread pool to overlap the waiting and scan hundreds of ports at once
+  - Grab a service banner so an open port reports what is answering
+  - Tell a closed port from a filtered one by how each one responds
+tags:
+  - python
+  - port-scanner
+  - sockets
+  - threading
+---
+
+The socket in Sockets and Networking did one thing. It opened a TCP connection
+to a single port and reported back whether anything was listening. One port, one
+answer. A real target has 65,535 ports, and the interesting ones sit wherever the
+services happen to be. Checking them by hand is not a plan.
+
+A port scan is the act of trying to connect to a range of ports on a host to see
+which ones accept a connection. An open port means a program on that host is
+listening there, ready to talk. Finding the open ports is usually the first
+useful thing anyone learns about a target, because a port that answers is a door,
+and a door is where the work starts. A scanner is the loop that finds them. Two
+questions turn one socket into that loop: how to ask about many ports, and how to
+stop spending so much time waiting.
+
+## The check, as a function
+
+The socket lesson connected with `connect`, which raises an exception when the
+port refuses. For a scanner that is the wrong shape, because a refused port is
+not an error, it is a result. The socket module has a quieter version:
+`connect_ex` returns a number instead of throwing. Zero means the connection
+succeeded. Anything else is the operating system's error code for why it did not.
+Wrapping that in a function gives a single, reusable check:
+
+```python
+import socket
+
+def scan(target, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    result = sock.connect_ex((target, port))
+    sock.close()
+    return result == 0
+```
+
+`settimeout(1)` is the load-bearing line. Without it, a port that never answers
+would hang the socket for the operating system's default, which can be a minute
+or more. With it, the socket gives up after one second and moves on. That timeout
+is the single biggest control over how a scan behaves, and the rest of this lesson
+keeps coming back to it.
+
+A scanner is now just this function called across a range of ports:
+
+```python
+target = "scanme.nmap.org"
+for port in range(1, 1025):
+    if scan(target, port):
+        print(f"{port} open")
+```
+
+`range(1, 1025)` covers ports 1 through 1024, the block where most well-known
+services live: 22 for SSH, 80 for web, 443 for HTTPS. This loop works. It is also
+slow, and the reason it is slow is worth understanding before reaching for a fix,
+because the fix only makes sense once the waste is clear.
+
+## Where the second goes
+
+The speed of this loop depends entirely on what the ports do when contacted, and
+they do one of three things. An open port completes the connection fast.
+`connect_ex` returns 0 almost instantly. A closed port is nearly as quick: the
+host sends back a TCP reset, a packet that means "nothing is listening here," and
+`connect_ex` returns an error code right away. Neither of those is the problem.
+
+The problem is the third case. A filtered port sits behind a firewall configured
+to drop the connection attempt silently, sending nothing back at all. The socket
+has no way to know the difference between "still thinking" and "will never
+answer," so it waits the full one-second timeout before giving up. One second
+does not sound like much. Multiply it by a few hundred filtered ports and the
+scan crawls. A range of 1,000 ports where most are filtered spends over sixteen
+minutes doing nothing but waiting, one idle second at a time.
+
+That is the key insight. The slow part of scanning is not computing anything. It
+is a program sitting still, blocked, waiting for a reply that a firewall has
+already decided never to send.
+
+<Quiz
+  id="ports-closed-vs-filtered"
+  question="A serial scan of 1,000 ports finishes in about a second against one host but takes more than sixteen minutes against another. Both hosts are up. What is the difference?"
+  answer={0}
+  options={[
+    "The slow host's ports are filtered, so each connect waits out the full one-second timeout instead of getting an instant reset.",
+    "The slow host is physically farther away, so each packet takes longer to arrive.",
+    "Python slows its loop down when it detects a firewall.",
+    "The fast host caches port results and returns them without checking.",
+  ]}
+  explanation="A closed port answers with a TCP reset, so connect_ex returns almost immediately. A filtered port sits behind a firewall that drops the attempt silently, so the socket waits the entire timeout before giving up. A thousand ports at one second each is where the sixteen minutes go, and it is exactly the waste that threads remove."
+/>
+
+## Overlapping the waiting
+
+If the scanner spends its time waiting, the fix is to wait on many ports at once.
+While one check is stuck on a filtered port's timeout, nothing stops another
+check from firing off its own connection. That overlap is the entire idea behind
+threading a scanner.
+
+A thread is a second line of execution inside the same program, able to run while
+another line is blocked. Python has a well-known catch here called the Global
+Interpreter Lock, or GIL: a rule that stops two threads from running Python code
+at literally the same instant. For work that is all computation, that lock makes
+threads nearly pointless. Scanning is the opposite of computation. It is
+I/O-bound, meaning it spends almost all its time waiting on input and output, in
+this case the network. And CPython releases the GIL while a thread is blocked
+inside a socket call. So while one thread sits inside `connect_ex` waiting for a
+reply, the lock is free and another thread runs its own connect. The work that
+overlaps is the waiting, which is nearly all of the work.
+
+Managing threads by hand is fiddly. `ThreadPoolExecutor` from the standard library
+does it instead: hand it a function and a list of inputs, and it runs the function
+across a fixed pool of worker threads, keeping the pool busy until the inputs run
+out.
+
+```python
+import socket
+from concurrent.futures import ThreadPoolExecutor
+
+target = "scanme.nmap.org"
+open_ports = []
+
+def scan(port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    if sock.connect_ex((target, port)) == 0:
+        open_ports.append(port)
+    sock.close()
+
+with ThreadPoolExecutor(max_workers=200) as pool:
+    pool.map(scan, range(1, 1025))
+
+print(sorted(open_ports))
+```
+
+`pool.map(scan, range(1, 1025))` hands each port to the next free worker. With
+200 workers, up to 200 sockets are waiting on their timeouts at the same time, so
+the whole sweep finishes in the length of the slowest few timeouts rather than the
+sum of all of them. A scan that took sixteen minutes serial drops to a few seconds.
+
+Two details keep this correct. The `with` block matters: leaving it waits for
+every worker to finish before the `print` runs, so `open_ports` is complete when
+it is read. And the shared `open_ports.append` is safe here only by luck of the
+implementation. In CPython a single list append is atomic, so two threads
+appending at once cannot corrupt the list. Any operation more involved than that
+would need a lock, and a program that assumes threads can scribble on shared data
+freely is a bug waiting to surface.
+
+More workers is not always faster. Every open socket costs a file descriptor, and
+operating systems cap how many a process may hold at once, often around 1,024 by
+default. Push `max_workers` into the thousands and the scanner starts failing to
+open sockets, or the target's own rate limiting starts dropping the flood and
+skewing the results. Somewhere between 100 and 300 workers is a sane band for most
+scans. Faster past that point usually means less accurate, not more.
+
+<Quiz
+  id="ports-gil-io-bound"
+  question="The GIL stops two threads from running Python code at the same time. Why does a thread pool still make the scanner much faster?"
+  answer={2}
+  options={[
+    "ThreadPoolExecutor rewrites the code so the GIL no longer applies.",
+    "The socket module is exempt from the GIL entirely.",
+    "Scanning spends almost all its time blocked on the network, and CPython releases the GIL during that wait, so other threads run while one is stuck.",
+    "Each worker thread is assigned its own CPU core automatically.",
+  ]}
+  explanation="Scanning is I/O-bound, not CPU-bound. When a thread blocks inside connect_ex waiting for a reply, CPython releases the lock, freeing another thread to start its own connection. What overlaps is the idle waiting, and the waiting is nearly the whole job. The GIL only bites when threads compete to run actual Python computation."
+/>
+
+## Making the result useful
+
+An open port number is a lead, not an answer. Port 22 is almost certainly SSH,
+but "almost certainly" is not knowledge, and a service can run on any port its
+owner chose. The way to learn what is actually listening is to read the first
+thing it says. Many services announce themselves the instant a connection opens:
+SSH sends its version string, FTP and SMTP send a greeting line. Reading those few
+bytes is called grabbing the banner.
+
+```python
+def scan(port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    if sock.connect_ex((target, port)) == 0:
+        try:
+            banner = sock.recv(1024).decode(errors="ignore").strip()
+        except OSError:
+            banner = ""
+        open_ports.append((port, banner))
+        print(f"{port:>5} open  {banner}")
+    sock.close()
+```
+
+The `try`/`except OSError` is not defensive boilerplate, it is doing real work.
+Not every service greets a new connection. A web server, for one, says nothing at
+all until the client sends a request first. So `recv` on port 80 sits there with
+nothing to read, waits out the one-second timeout, and raises an exception. Without
+the `except`, that exception would kill the check and drop port 80 from the results
+even though it is wide open. Catching it lets the port still register, just with an
+empty banner. `decode(errors="ignore")` handles the other rough edge: a banner is
+raw bytes, some of which are not valid text, and ignoring the bad ones keeps a
+stray byte from crashing the scan.
+
+Run against a host that is explicitly cleared for scan testing and the output
+names the services directly:
+
+<ExpectedOutput label="threaded banner scan of ports 1-1024">
+```
+   22 open  SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2.13
+   80 open
+ 9929 open
+31337 open
+```
+</ExpectedOutput>
+
+Port 22 hands over its full SSH banner, so the service and even the operating
+system flavor are visible. The exact version string above is illustrative and
+drifts over time as the host is updated. Port 80 shows open with a blank banner,
+which is correct, not a bug: the web server is waiting for a request that the
+scanner never sends. Ports 9929 and 31337 answer but stay silent, the same as 80.
+
+<Quiz
+  id="ports-empty-banner"
+  question="The scan reports port 80 as open but with an empty banner, while port 22 shows a full SSH version string. What explains the blank on port 80?"
+  answer={1}
+  options={[
+    "Port 80 is actually closed, and reporting it open is a bug in connect_ex.",
+    "A web server sends nothing until it receives a request, so recv waits out the timeout and returns no data.",
+    "The banner was longer than 1,024 bytes, so recv discarded it.",
+    "HTTP runs over UDP, which cannot carry a banner.",
+  ]}
+  explanation="SSH greets every new connection with its version line, so recv returns it at once. HTTP stays silent until the client sends a request, so recv on port 80 waits out the one-second timeout and comes back empty. The blank banner is the honest answer, which is exactly why the recv is wrapped so the port still counts as open."
+/>
+
+Turning the target into a command-line argument with `argparse` from Python for
+Hackers, instead of hardcoding it, makes this something worth keeping in a scripts
+folder. That, along with reading targets from a file and writing clean output, is
+where the next lesson goes.
+
+<Callout type="security" title="A scan is an action against a real machine">
+A port scan is active reconnaissance. It opens real connections, it shows up in
+the target's logs, and in many places scanning a host without permission is a
+crime, not a gray area. The only legitimate targets are a lab the operator owns, a
+box under their control, or a host with written authorization to test.
+`scanme.nmap.org`, used above, is a machine the nmap project publishes
+specifically for scan practice, at a gentle rate.
+</Callout>
+
+<Callout type="tip" title="This will never beat nmap, and it is not meant to">
+nmap does everything here and far more: it fingerprints services precisely,
+handles half-open scans, and paces itself against defenses. A hand-rolled scanner
+is for understanding what nmap does underneath, and for the odd host where dropping
+a binary is off the table but Python is already present.
+</Callout>
+
+<CommandCard
+  command="nmap -p 1-1024 scanme.nmap.org"
+  title="linux"
+  explain="The same sweep with the real tool. -p 1-1024 sets the port range. nmap reports each port as open, closed, or filtered, the same three states the scanner above runs into, and labels the likely service."
+/>
+
+<Exercise title="Time the difference yourself">
+Save the serial loop from the top of this lesson as `scan_serial.py`, pointed at
+`127.0.0.1` (your own machine, always safe to scan). Run it with
+`time python3 scan_serial.py` and note the seconds it reports.
+
+Now save the threaded version as `scan_threads.py` and run it the same way with
+`time`. Compare the two numbers. On localhost the gap is small because nothing is
+filtered, so nothing waits out a timeout.
+
+To feel the real difference, change `target` to `scanme.nmap.org` in both and run
+each once. The serial version will crawl through the filtered ports; the threaded
+version will not. The gap you see is the sum of every timeout, collapsed into the
+length of one.
+</Exercise>
+
+A working scanner prints open ports to a screen. That is a tool, not a program
+someone else can run. Automating Recon takes this scanner and gives it a real
+interface: `argparse` for proper flags, targets read from a file, results written
+as JSON or CSV instead of print statements, error handling for hosts that vanish
+mid-scan, and rate limiting so the scan stays a good citizen on the network.
+
+<Notes />

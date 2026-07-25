@@ -1,0 +1,194 @@
+[
+  {
+    "domain": 1,
+    "question": "According to the Filesystem Hierarchy Standard (FHS), which directory is intended for host-specific system configuration files?",
+    "options": ["/etc", "/var", "/opt", "/usr"],
+    "correct": [0],
+    "explanation": "The FHS designates /etc for host-specific, static configuration files such as passwd, fstab, and service configs. /var holds variable data like logs and spools, /opt holds add-on application packages, and /usr holds shareable read-only program data.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "What best describes the /proc directory on a Linux system?",
+    "options": ["A virtual, in-memory filesystem that exposes kernel and per-process information", "A directory that stores all installed program binaries", "The default location for regular users' home directories", "A physical disk partition reserved for temporary files"],
+    "correct": [0],
+    "explanation": "/proc is a virtual filesystem (procfs) that exists only in memory and is populated by the kernel at runtime. It presents kernel parameters and a numbered directory for each running process rather than storing data on disk.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "On a Debian-based system, which command installs a local .deb file directly but does NOT automatically resolve or download missing dependencies?",
+    "options": ["dpkg -i package.deb", "apt install ./package.deb", "rpm -i package.deb", "dnf install package.deb"],
+    "correct": [0],
+    "explanation": "dpkg is the low-level Debian package tool; dpkg -i installs a .deb but reports unmet dependencies without fetching them. apt install ./package.deb uses the higher-level tool that does resolve dependencies from repositories. rpm and dnf are for RPM-based distributions.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "You want a systemd service to launch automatically at every boot but you do NOT want it running right now. Which command accomplishes this?",
+    "options": ["systemctl enable myservice", "systemctl start myservice", "systemctl restart myservice", "systemctl mask myservice"],
+    "correct": [0],
+    "explanation": "systemctl enable creates the symlinks that cause a unit to start at boot without affecting its current state. systemctl start launches it immediately, and systemctl mask prevents it from starting at all. Use enable --now if you want both boot persistence and an immediate start.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which signal number corresponds to SIGKILL, the signal a process cannot catch or ignore?",
+    "options": ["1", "9", "15", "19"],
+    "correct": [1],
+    "explanation": "SIGKILL is signal 9 and forcibly terminates a process; it cannot be trapped, blocked, or ignored. Signal 1 is SIGHUP, 15 is SIGTERM (the default graceful kill), and 19 is SIGSTOP on most Linux systems.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Which file stores the hashed user passwords and password-aging information on a modern Linux system?",
+    "options": ["/etc/passwd", "/etc/shadow", "/etc/group", "/etc/gshadow"],
+    "correct": [1],
+    "explanation": "/etc/shadow holds the hashed passwords and aging fields and is readable only by root. /etc/passwd stores account details like UID, GID, home directory, and shell, while /etc/group and /etc/gshadow store group membership and group passwords.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "In an /etc/fstab entry, what does the sixth (last) field specify?",
+    "options": ["The dump backup frequency", "The fsck pass number that controls check order at boot", "The mount options", "The filesystem type"],
+    "correct": [1],
+    "explanation": "The six fstab fields are device, mount point, filesystem type, mount options, dump frequency, and fsck pass order. The sixth field sets the order fsck checks filesystems: 0 disables checking, 1 is reserved for the root filesystem, and 2 is used for other filesystems.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "Which command from the iproute2 suite displays and manages IP addresses and has largely replaced the deprecated ifconfig?",
+    "options": ["ip addr", "netstat", "route", "iwconfig"],
+    "correct": [0],
+    "explanation": "ip addr (part of iproute2) shows and manages interface addresses and is the modern replacement for ifconfig. netstat is legacy and superseded by ss, route is superseded by ip route, and iwconfig manages wireless interfaces.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "What is the correct order of commands to build an LVM logical volume from a raw disk or partition?",
+    "options": ["pvcreate, then vgcreate, then lvcreate", "vgcreate, then pvcreate, then lvcreate", "lvcreate, then vgcreate, then pvcreate", "mkfs, then pvcreate, then lvcreate"],
+    "correct": [0],
+    "explanation": "LVM is layered: pvcreate initializes a physical volume, vgcreate groups physical volumes into a volume group, and lvcreate carves a logical volume out of that group. You then create a filesystem on the logical volume with mkfs.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "Which journalctl option restricts the output to messages logged during the current boot?",
+    "options": ["-b", "-k", "-f", "-u"],
+    "correct": [0],
+    "explanation": "journalctl -b limits output to the current boot; -b -1 shows the previous boot. The -k flag filters to kernel messages, -f follows the log in real time, and -u filters by a specific systemd unit.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "What is the valid range of nice values for a process on Linux, and which end represents the highest scheduling priority?",
+    "options": ["0 to 20, where 20 is highest priority", "-20 to 19, where -20 is highest priority", "-19 to 20, where 20 is highest priority", "-100 to 100, where 0 is highest priority"],
+    "correct": [1],
+    "explanation": "Nice values range from -20 to 19. A lower nice value means a more favorable (higher) scheduling priority, so -20 is the most aggressive and 19 is the most yielding. Only the root user can assign negative nice values.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "Which command adds an existing user to a supplementary group WITHOUT removing that user's current group memberships?",
+    "options": ["usermod -G developers alice", "usermod -aG developers alice", "groupmod -a developers alice", "gpasswd -d alice developers"],
+    "correct": [1],
+    "explanation": "usermod -aG appends the user to the listed supplementary group; the -a (append) flag is essential. Using usermod -G without -a replaces all of the user's supplementary groups with only those listed, and gpasswd -d removes a user from a group.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which command is used specifically to print the UUID, LABEL, and filesystem TYPE of block devices?",
+    "options": ["fdisk -l", "blkid", "df -h", "free -m"],
+    "correct": [1],
+    "explanation": "blkid queries block devices and reports their UUID, LABEL, and filesystem TYPE, which is useful for building /etc/fstab entries. fdisk -l lists partition tables, df -h shows mounted filesystem usage, and free -m reports memory usage.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "After a partition has been formatted for swap with mkswap, which command activates it so the kernel begins using it?",
+    "options": ["swapon /dev/sdb2", "mount /dev/sdb2", "swapoff /dev/sdb2", "mkfs.swap /dev/sdb2"],
+    "correct": [0],
+    "explanation": "swapon enables a prepared swap area for immediate use, and adding it to /etc/fstab makes it persist across reboots. mkswap only formats the area, swapoff disables swap, and mount is for regular filesystems rather than swap.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which systemd target corresponds to a multi-user, networked, text-only environment, equivalent to the traditional runlevel 3?",
+    "options": ["graphical.target", "multi-user.target", "rescue.target", "basic.target"],
+    "correct": [1],
+    "explanation": "multi-user.target provides a full multi-user, non-graphical system and maps to legacy runlevel 3. graphical.target adds a display manager (runlevel 5), rescue.target is single-user maintenance mode, and basic.target is an early boot milestone.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "On an RPM-based distribution, which command reports which installed package owns a specific file?",
+    "options": ["rpm -qf /usr/bin/bash", "rpm -ql bash", "rpm -qa", "rpm -qi bash"],
+    "correct": [0],
+    "explanation": "rpm -qf (query file) identifies the package that owns a given file path. rpm -ql lists the files contained in a package, rpm -qa lists all installed packages, and rpm -qi displays package metadata.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which command is the modern replacement for netstat and is used to display listening TCP sockets along with the owning process?",
+    "options": ["ss -tlnp", "ip link show", "arp -a", "traceroute"],
+    "correct": [0],
+    "explanation": "ss is part of iproute2 and replaces netstat; ss -tlnp shows TCP (t) listening (l) sockets with numeric addresses (n) and the process (p). ip link manages interfaces, arp shows the neighbor cache, and traceroute maps the path to a host.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which command is the dedicated tool for viewing and changing a user account's password-aging policy, such as maximum days between changes and account expiration?",
+    "options": ["passwd", "chage", "chattr", "getent"],
+    "correct": [1],
+    "explanation": "chage (change age) sets and displays password-aging parameters like minimum and maximum days, warning period, and expiration date. passwd changes the actual password, chattr changes file attributes, and getent queries the name service databases.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Under the FHS, which directory conventionally contains variable system log files?",
+    "options": ["/etc/log", "/var/log", "/usr/log", "/log"],
+    "correct": [1],
+    "explanation": "/var holds variable data, and /var/log is the standard location for system and service log files. /etc holds configuration, /usr holds read-only program data, and /log is not part of the standard hierarchy.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Which command launches a program so it keeps running after you log out by making it ignore the SIGHUP signal sent when the controlling terminal closes?",
+    "options": ["nohup mycommand &", "nice mycommand", "fg mycommand", "kill -HUP mycommand"],
+    "correct": [0],
+    "explanation": "nohup runs a command immune to SIGHUP, so it survives after the terminal or session ends, and appending & sends it to the background. nice adjusts scheduling priority, fg brings a job to the foreground, and kill -HUP sends the very signal you are trying to avoid.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which two files store local user account information, as opposed to group information? (Choose two.)",
+    "options": ["/etc/passwd", "/etc/shadow", "/etc/group", "/etc/gshadow"],
+    "correct": [0, 1],
+    "explanation": "/etc/passwd stores per-user account fields (UID, GID, home directory, shell) and /etc/shadow stores each user's hashed password and aging data. /etc/group and /etc/gshadow store group definitions and group passwords, not individual user accounts.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which two utilities are used to configure NetworkManager connections? (Choose two.)",
+    "options": ["nmcli", "nmtui", "ifconfig", "systemctl"],
+    "correct": [0, 1],
+    "explanation": "nmcli is the command-line client for NetworkManager and nmtui is its text-based (curses) interface; both create and manage connection profiles. ifconfig is a deprecated net-tools utility that is not NetworkManager-aware, and systemctl manages systemd units rather than network profiles.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "On a Red Hat or Fedora system, which command installs a package and automatically resolves and downloads its dependencies from configured repositories?",
+    "options": ["dnf install httpd", "rpm -i httpd", "dpkg -i httpd", "apt install httpd"],
+    "correct": [0],
+    "explanation": "dnf is the high-level package manager on modern RHEL and Fedora systems and resolves dependencies from repositories. rpm installs a local package but does not fetch dependencies, while dpkg and apt are the Debian-family tools.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Which command creates an ext4 filesystem on a newly created partition?",
+    "options": ["mkfs.ext4 /dev/sdb1", "fsck.ext4 /dev/sdb1", "tune2fs /dev/sdb1", "mount -t ext4 /dev/sdb1 /mnt"],
+    "correct": [0],
+    "explanation": "mkfs.ext4 formats a partition with the ext4 filesystem. fsck.ext4 checks and repairs an existing filesystem, tune2fs adjusts parameters on an existing ext filesystem, and mount attaches an already-formatted filesystem to a directory.",
+    "difficulty": "MEDIUM"
+  }
+]

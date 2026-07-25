@@ -1,0 +1,212 @@
+---
+title: Querying With SELECT
+module: sql-and-databases
+moduleTitle: SQL and Databases
+moduleOrder: 4
+moduleIcon: Database
+order: 2
+summary: "SELECT is how you read data back out of a table: the exact shape, a real books table, and why naming columns beats SELECT star."
+estimatedMinutes: 14
+prerequisites: [what-a-database-is]
+objectives:
+  - Write a SELECT statement that returns specific columns from a table
+  - Explain why a query's result is itself a table called a result set
+  - Choose a named column list over SELECT * and justify why it is safer in real code
+  - Rename output columns with AS and remove duplicate rows with DISTINCT
+tags:
+  - sql
+  - select
+---
+
+The last lesson, what a database is, built a books table: five rows, one per book, with columns for id, title, author, year, and rating. A table full of rows sitting on a disk does nothing on its own. The point of storing data is being able to ask for the parts that matter right now, and in SQL that asking has a single name. It is the most common thing anyone ever does with a database, and it starts with the word SELECT.
+
+Here is the table again, so every query below has real rows to act on. This is the whole books table, all five rows and all five columns.
+
+| id | title | author | year | rating |
+|----|-------|--------|------|--------|
+| 1 | Dune | Frank Herbert | 1965 | 4.8 |
+| 2 | Neuromancer | William Gibson | 1984 | 4.3 |
+| 3 | Foundation | Isaac Asimov | 1951 | 4.5 |
+| 4 | The Caves of Steel | Isaac Asimov | 1954 | 4.4 |
+| 5 | The Left Hand of Darkness | Ursula K. Le Guin | 1969 | 4.6 |
+
+Notice that Isaac Asimov wrote two of these books, rows 3 and 4. That repetition matters later, when duplicates come up. For now, hold onto the shape: five rows, and each row has exactly the same five columns.
+
+## Every query has the same skeleton
+
+A query that reads data is built from two keywords. SELECT names the columns wanted. FROM names the table they come from. The simplest useful query asks for two columns out of the books table and leaves the rest behind.
+
+```sql
+SELECT title, author
+FROM books;
+```
+
+Read it out plainly: from the books table, hand back the title and the author of each book. The semicolon at the end marks the end of the statement, the way a period ends a sentence. Some tools let a statement run without the semicolon, but writing it is a good habit, because it makes the boundary between one statement and the next unmistakable.
+
+What comes back is not a change to the table and not a single value. It is a fresh table of its own, made of only the columns asked for and all the rows that qualified. That returned table has a name worth knowing: a result set. It has rows and columns just like the stored table does, but it is handed back once and then discarded. The books table on disk is untouched. A SELECT reads; it never rewrites.
+
+The result set from that query has two columns and five rows.
+
+| title | author |
+|-------|--------|
+| Dune | Frank Herbert |
+| Neuromancer | William Gibson |
+| Foundation | Isaac Asimov |
+| The Caves of Steel | Isaac Asimov |
+| The Left Hand of Darkness | Ursula K. Le Guin |
+
+Two details in that output are easy to miss and worth naming. The columns appear in the order the query listed them, title first and author second, not in the order the table stores them. And all five rows came back, because nothing in the query narrowed the rows down. Picking which rows survive is a separate job, and it belongs to the next lesson.
+
+Because a SELECT only reads, it is safe to run over and over. It cannot corrupt the table, lose a row, or leave the data in a half-changed state. Running the same query twice returns the same result set both times, assuming nothing else changed the table in between. That property is what makes SELECT the right tool for exploring: a query can be tried, adjusted, and tried again with no risk to the stored data, which is a very different feeling from the statements that write and delete.
+
+Against a SQLite database loaded with these five books, running that same query prints the result set as plain text. SQLite's default output separates the columns of each row with a vertical bar and prints no header line unless asked.
+
+<CommandCard
+  command="sqlite3 library.db 'SELECT title, author FROM books;'"
+  title="terminal"
+  explain="Opens the database file library.db, runs the one query, prints the result set, and exits."
+/>
+
+<ExpectedOutput label="running the query in SQLite">
+```
+Dune|Frank Herbert
+Neuromancer|William Gibson
+Foundation|Isaac Asimov
+The Caves of Steel|Isaac Asimov
+The Left Hand of Darkness|Ursula K. Le Guin
+```
+</ExpectedOutput>
+
+That pipe-separated text is the same result set as the table above, just drawn without borders. Five rows, two values each, in the order the columns were named. The tidy grid and the bar-separated lines are two ways of showing one thing.
+
+<Quiz
+  id="select-result-shape"
+  question="A query reads SELECT rating, title FROM books against the five-row table. What does the result set look like?"
+  answer={2}
+  options={[
+    "One column of five values, because a query can only return a single column at a time.",
+    "Five columns and five rows, because SELECT always returns the whole table.",
+    "Two columns, rating then title, with five rows, one per book.",
+    "Two columns, title then rating, because the database sorts columns alphabetically.",
+  ]}
+  explanation="SELECT returns exactly the columns named, in the order they were listed, so rating comes before title. No row filter was applied, so all five books appear. The database does not reorder the columns alphabetically or force the table's own order."
+/>
+
+## SELECT * grabs every column
+
+Typing out a column list is fine for two columns. When a table is wide, or when the goal is just to see what is in there, SQL offers a shortcut. A single asterisk in place of the column list means every column, in the order the table defines them.
+
+```sql
+SELECT *
+FROM books;
+```
+
+That returns the entire books table as the result set: all five columns, all five rows, exactly the grid shown at the top of this lesson. The star is genuinely useful while exploring an unfamiliar table, when the fastest question is simply "what is in here?" and the answer is "show me all of it."
+
+In real code that ships and runs unattended, a named column list beats the star, for two concrete reasons. The first is clarity. A query that says `SELECT title, author` tells the next person reading it precisely which columns the surrounding code depends on. A query that says `SELECT *` hides that; the reader has to go find the table definition to know what comes back.
+
+The second reason is stability, and it bites harder. A named list keeps returning the same shape no matter how the table changes. The star does not. If someone adds a column to the books table next month, say a page_count, then `SELECT *` silently starts returning six columns instead of five. Any code that expected exactly five values now receives an extra one it never planned for.
+
+There is a smaller, quieter cost too. The star pulls every column across from the database to whatever asked for it, including large columns that the task did not need, like a full book description or a cover image stored in the row. On a big table, dragging columns nobody uses wastes both time and memory. Naming the two or three columns a task actually needs keeps the result set lean, and that matters more as tables grow wide and rows grow numerous.
+
+<Callout type="warning" title="SELECT * breaks code that counts on a fixed shape">
+Suppose Python code reads a row and unpacks it by position: `id, title, author, year, rating = row`. That line demands exactly five values. While the query is `SELECT *` and the table has five columns, it works. Add a sixth column to the table and the same `SELECT *` now returns six values per row, and Python stops with `ValueError: too many values to unpack (expected 5)`. The query was never edited. The table changed underneath it. A named list, `SELECT id, title, author, year, rating`, would have kept returning five values and kept working.
+</Callout>
+
+The rule that falls out of this is short. Reach for `SELECT *` when poking at data by hand to learn its shape. Name the columns in any query that another piece of code, or another person, is going to rely on.
+
+<Quiz
+  id="select-star-tradeoff"
+  question="A report script runs SELECT * FROM books and expects five columns. A teammate later adds a language column to the table. What happens to the script, and what would have prevented it?"
+  answer={0}
+  options={[
+    "The query now returns six columns, so code assuming five can break; naming the exact columns in the query would have kept the shape fixed.",
+    "Nothing changes, because SELECT * is locked to whatever columns existed when the script was written.",
+    "The database refuses to add the new column while any SELECT * query exists.",
+    "The script keeps getting five columns, because SELECT * ignores columns added after a table is created.",
+  ]}
+  explanation="SELECT * means every column that exists at query time, so a newly added column starts flowing through automatically. That extra column can break code built around a fixed count. A named column list returns only the columns asked for, so adding a table column leaves those queries untouched."
+/>
+
+## Renaming the output with AS
+
+The headers in a result set default to the column names from the table. Those names are sometimes cryptic, and sometimes a result column has no natural name at all, like a value the query calculates on the fly. The AS keyword renames a column in the result set, and only in the result set. It never touches the stored table.
+
+```sql
+SELECT title AS book, author AS written_by
+FROM books;
+```
+
+The result set carries the friendlier headers while the underlying columns keep their real names.
+
+| book | written_by |
+|------|------------|
+| Dune | Frank Herbert |
+| Neuromancer | William Gibson |
+| Foundation | Isaac Asimov |
+| The Caves of Steel | Isaac Asimov |
+| The Left Hand of Darkness | Ursula K. Le Guin |
+
+A renamed column is called an alias. The word AS is optional in most databases; writing `title book` with just a space between them produces the same alias. Spelling out AS reads clearer, so it is the version worth defaulting to. One catch: an alias that contains a space or unusual characters has to be wrapped in double quotes, as in `AS "Written By"`, or the database will misread where the alias ends. Aliases earn their keep most once queries start computing values, averaging a rating or counting rows, where the result column would otherwise arrive with an ugly machine-generated header.
+
+## DISTINCT throws out duplicate rows
+
+Back to Isaac Asimov, who wrote two of the five books. A query that pulls just the author column returns one value per row, and since two rows share an author, that author shows up twice.
+
+```sql
+SELECT author
+FROM books;
+```
+
+The result set has one column and five rows, with Isaac Asimov appearing on two of them. That is correct: five books, five authors listed, even though only four different people wrote them. To collapse those repeats down to the distinct values, add the DISTINCT keyword right after SELECT.
+
+```sql
+SELECT DISTINCT author
+FROM books;
+```
+
+Now identical rows are folded together, and the result set has four rows instead of five.
+
+| author |
+|--------|
+| Frank Herbert |
+| William Gibson |
+| Isaac Asimov |
+| Ursula K. Le Guin |
+
+Here is the part that trips people up. DISTINCT looks at the entire selected row, not one favored column. It removes a row only when every value in it matches an earlier row exactly. So `SELECT DISTINCT author, year FROM books` returns all five rows, not four, because Asimov's two books have different years: 1951 and 1954. The author values repeat, but the full rows of author-plus-year are all different, so DISTINCT keeps every one of them. Widening the column list gives DISTINCT more values to compare, which generally means fewer rows get merged away.
+
+<Quiz
+  id="select-distinct-whole-row"
+  question="The books table has two Isaac Asimov books with years 1951 and 1954. What does SELECT DISTINCT author, year FROM books return?"
+  answer={1}
+  options={[
+    "Four rows, because DISTINCT always collapses repeated authors regardless of the other columns.",
+    "Five rows, because DISTINCT compares the whole selected row, and the two Asimov rows differ by year.",
+    "Two rows, one per distinct year value in the table.",
+    "One row, because DISTINCT reduces the result to a single unique record.",
+  ]}
+  explanation="DISTINCT removes a row only when every selected value matches another row exactly. The two Asimov books share an author but have different years, so the author-plus-year rows are all unique and all five survive. DISTINCT does not single out one column to deduplicate on."
+/>
+
+## Keywords shout, but the database does not care
+
+One last piece of plumbing makes reading real SQL less confusing. SQL keywords are case-insensitive. `SELECT`, `select`, and `SeLeCt` all mean the same thing to the database, and `select title from books;` runs identically to `SELECT title FROM books;`. The database treats the keyword the same no matter how it is capitalized.
+
+Since case does not change behavior, the common convention exists purely for human eyes: write keywords in UPPERCASE and write table and column names in lowercase. That contrast lets a reader spot the skeleton of a query at a glance, the SELECT and FROM standing out from the names of the actual data. Every query in this lesson follows that convention, and matching it makes SQL written by other people easier to scan.
+
+One caution sits next to this. While keywords ignore case, the names of tables and columns can be case-sensitive depending on the database engine and how the table was created. A safe habit is to write identifiers with the exact capitalization used when the table was defined, and to reserve the uppercase-versus-lowercase style choice for the keywords, where it is guaranteed not to matter.
+
+<Exercise title="Read three result sets back off the books table">
+Using the five-row books table from the top of this lesson, work out on paper what each of these queries returns before checking your answer against the tables above.
+
+1. Write the query that returns only the title and year of every book. How many columns and how many rows are in the result set?
+2. You want the result headers to read `name` and `stars` instead of `title` and `rating`. Write that query using AS.
+3. Predict the row count of `SELECT DISTINCT year FROM books`. All five years in the table are different, so how many rows come back, and would the count change if you wrote `SELECT DISTINCT author FROM books` instead?
+
+If a computer with SQLite is handy, create the table, insert the five rows, and run each query to confirm your predictions. When a result surprises you, read the columns you actually named against the columns you meant to name; a mismatch there explains most early SELECT confusion.
+</Exercise>
+
+Every query so far has returned all five rows, because nothing told the database to leave any out. Real questions are pickier than that: the science fiction published after 1980, the books rated above 4.5, the titles in alphabetical order. The next lesson, filtering and sorting, adds the two clauses that answer them, WHERE to keep only the rows that match a condition and ORDER BY to hand them back in a chosen order.
+
+<Notes />

@@ -1,0 +1,259 @@
+---
+title: Host Discovery
+module: recon-and-scanning
+moduleTitle: Recon and Scanning
+moduleOrder: 3
+moduleIcon: ScanSearch
+order: 2
+summary: "Turn a subnet full of empty addresses into the short list of machines that answer, and learn why a silent host is not a dead one."
+estimatedMinutes: 15
+prerequisites: ["recon-methodology"]
+objectives:
+  - Run an ICMP ping sweep and say what an echo reply actually proves
+  - Read the output of nmap -sn and name the probes it fires when run with privileges
+  - Use an ARP scan to find hosts on the local segment that drop ping
+  - Pick a TCP or UDP discovery probe when ICMP is filtered on a remote network
+  - Explain why a silent address is not the same as a dead one
+tags:
+  - recon
+  - host-discovery
+  - nmap
+---
+
+Recon-methodology put the steps in order: passive OSINT first, then host
+discovery, then the port scan, each rung narrowing the next. Host discovery is
+rung two, and it is the first one that sends anything at the target. Everything
+before it was quiet. This is the step a defender can start to see.
+
+The scope reads `10.10.14.0/24`. That is a <Term id="cidr">CIDR</Term> block of
+256 addresses, and on most networks the large majority of them are empty air.
+Throwing a full <Term id="port-scanning">port scan</Term> at all 256 wastes
+minutes and makes noise against addresses where nothing lives. Host discovery
+turns 256 maybes into the short list of machines that actually answer, so every
+later scan runs against real <Term id="host">host</Term>s instead of the void.
+
+## The quietest look: list the range
+
+Before sending a single probe, nmap can expand the range on paper. `nmap -sL`
+takes the CIDR block, works out every address it covers, does a reverse
+<Term id="dns">DNS</Term> lookup on each one, and prints the result. No packet
+reaches the targets themselves; only a DNS resolver gets asked. It is the
+closest thing to passive recon that nmap offers, and the names it prints often
+leak structure for free. A `mail01` or a `dc01` sitting in the list names what a
+box is before anything touches it.
+
+<CommandCard command="nmap -sL 10.10.14.0/24" explain="List the addresses in the range and their reverse-DNS names. Nothing is sent to the hosts; only the DNS server is queried." />
+
+Run it first when quiet matters. The output narrows where to aim once the real
+probing starts.
+
+## Ask every address if it is home
+
+The oldest form of host discovery is a ping sweep. The `ping` tool sends an
+<Term id="icmp">ICMP</Term> echo request to an <Term id="ip-address">IP
+address</Term> and waits for an echo reply. A reply means something is there and
+willing to answer. Do that for every address in the range, note the ones that
+respond, and that list is the set of live hosts.
+
+Written as a shell loop, one address at a time:
+
+<CommandCard command="for i in $(seq 1 254); do ping -c 1 -W 1 10.10.14.$i >/dev/null 2>&1 && echo 10.10.14.$i up; done" explain="One ICMP echo per address, a one second timeout, printing only the addresses that reply." />
+
+That works, and it needs nothing but a shell. It is also slow. Each ping waits
+out its full timeout before the loop moves to the next address, so sweeping a
+quiet range crawls while it sits through 250 non-answers one after another. And
+it asks exactly one question, ICMP echo, which plenty of hosts are set up never
+to answer.
+
+## nmap -sn, the real first move
+
+<Term id="nmap">nmap</Term> does the same sweep in parallel and asks more than
+one question. The `-sn` flag means no port scan: nmap runs host discovery and
+stops before it touches a single <Term id="port">port</Term>. Against a whole
+range, this is the standard first active step.
+
+<CommandCard command="nmap -sn 10.10.14.0/24" explain="-sn skips the port scan. nmap probes the range for live hosts and reports only which ones answered." />
+
+<ExpectedOutput label="nmap -sn against a 256-address range">
+```
+Nmap scan report for 10.10.14.1
+Host is up (0.012s latency).
+Nmap scan report for 10.10.14.23
+Host is up (0.0089s latency).
+Nmap scan report for 10.10.14.50
+Host is up (0.011s latency).
+Nmap done: 256 IP addresses (3 hosts up) scanned in 2.34s
+```
+</ExpectedOutput>
+
+Three live hosts out of 256. That is the real target list, and every later scan
+in this module runs against those three, not the whole block. The `latency`
+figure on each line is the round-trip time nmap measured to that host, useful as
+a rough sense of how close it sits. The last line sums the run up: 256 addresses
+probed, three up, in 2.34 seconds. The shell loop would still be grinding
+through timeouts.
+
+`-sn` is not a bare ping, and that is the point. Run with privileges against a
+network past the local segment, nmap sends four probes to each address at once:
+an ICMP echo request, a <Term id="tcp">TCP</Term> <Term id="syn">SYN</Term> to
+port 443, a TCP ACK to port 80, and an ICMP timestamp request. One reply from
+any of them marks the host up. A machine that drops ICMP but answers on 443
+still gets found, which is exactly the case a bare ping sweep misses.
+
+Those raw probes need privileges. Without <Term id="root">root</Term>, nmap
+falls back to a plain TCP connection attempt on ports 80 and 443, which is
+slower and easier to filter. Run host discovery with `sudo` when the machine
+allows it.
+
+<Quiz
+  id="what-sn-does"
+  question="Run against a /24, nmap -sn reports three hosts up. What has it NOT done?"
+  answer={0}
+  options={[
+    "Confirmed which TCP and UDP ports are open on those three hosts",
+    "Found which addresses in the range answered a discovery probe",
+    "Skipped the port scan stage entirely",
+    "Produced a shorter target list than the full 256-address range",
+  ]}
+  explanation="The 'n' in -sn is no port scan. It finds live hosts and stops. Which ports are open is the next step's job, so the one thing -sn has not done is confirm open ports."
+/>
+
+## A quiet address is not an empty one
+
+The trap in host discovery is reading silence as absence. A
+<Term id="firewall">firewall</Term> can drop the probe before the host ever sees
+it, and the scan looks identical to scanning dead air. Windows is the standard
+example: a default Windows install drops inbound ICMP echo, so a plain ping
+sweep of a subnet full of Windows machines can report almost nothing while every
+one of them is up and running.
+
+So "it did not answer" splits into two very different facts. Either the host is
+gone, or the host is filtering the exact question that got asked. Telling those
+apart is the whole skill, and the way to do it is to ask a different question.
+
+## On the local segment, ARP does not miss
+
+There is one network where silence cannot hide a host: the one the scanner is
+plugged into. Every machine on a local segment uses <Term id="arp">ARP</Term> to
+map an IP address to the <Term id="mac-address">MAC address</Term> of a network
+card, and it has to answer ARP to send or receive anything at all. A host can
+drop every ICMP packet thrown at it and still be forced to answer ARP, because a
+host that refuses ARP has effectively fallen off the network.
+
+<CommandCard command="sudo arp-scan --localnet" explain="Broadcasts ARP requests across the local subnet. Hosts that silently drop ping still answer ARP, because they have to." />
+
+<ExpectedOutput label="arp-scan on a local segment, trimmed to the results">
+```
+10.10.14.1    00:0c:29:1a:2b:3c   VMware, Inc.
+10.10.14.23   00:50:56:9d:4e:5f   VMware, Inc.
+10.10.14.50   08:00:27:0a:1b:2c   PCS Systemtechnik GmbH (VirtualBox)
+```
+</ExpectedOutput>
+
+nmap knows this too. Run `sudo nmap -sn` against the local range and it quietly
+drops the ICMP and TCP probes and uses ARP instead, because on the segment ARP
+is both faster and impossible to filter. The MAC address in each line is a
+bonus: the first half of the address names the network card's vendor, and a
+segment full of VMware and VirtualBox addresses is itself a clue that the hosts
+are virtual machines rather than physical hardware.
+
+<Callout type="tip" title="ARP stops at the first router">
+ARP is a local-segment protocol. It never crosses a
+<Term id="router">router</Term>, so an ARP scan only ever sees hosts on the same
+<Term id="subnet">subnet</Term>. The moment the target sits one network away,
+past the <Term id="gateway">gateway</Term>, ARP is off the table and the scan
+falls back to ICMP and TCP probes. On the segment, though, ARP is the most
+reliable host discovery there is.
+</Callout>
+
+<Quiz
+  id="arp-vs-ping"
+  question="A host on the same local subnet drops all ICMP. Which discovery method still reliably finds it?"
+  answer={1}
+  options={[
+    "A ping sweep with a longer timeout",
+    "An ARP scan, because any host on the segment must answer ARP to communicate at all",
+    "A UDP probe to port 53",
+    "Nothing, a host that drops ICMP is undiscoverable",
+  ]}
+  explanation="ARP sits below ICMP and below the firewall. Any host present on the local segment has to answer it, so an ARP scan sees the machine even when ping sees nothing."
+/>
+
+## When ICMP is filtered, change the question
+
+Off the local segment, against a host that ignores ICMP, the move is to knock
+with the protocols that real services speak. nmap calls these ping types, and
+each `-P` flag is a different question aimed at the same address.
+
+A TCP SYN ping (`-PS`) sends a SYN, the opening packet of the
+<Term id="three-way-handshake">three-way handshake</Term>, to the ports listed
+after the flag. A listening service answers, and even a closed port usually
+answers with a reset, which still proves the host is alive.
+
+<CommandCard command="sudo nmap -sn -PS22,80,443 10.10.14.0/24" explain="TCP SYN pings to ports 22, 80, and 443. Any answer, open or closed, means the host is up." />
+
+A TCP ACK ping (`-PA80`) sends a bare ACK instead. Some stateless filters that
+let ICMP through and block SYNs will still pass an ACK, so it catches hosts the
+SYN ping did not. A <Term id="udp">UDP</Term> ping (`-PU`) sends a UDP packet to
+a port, and a closed UDP port replies with an ICMP port-unreachable message,
+which is itself a sign of life.
+
+<CommandCard command="sudo nmap -sn -PU53,161 10.10.14.0/24" explain="UDP pings to ports 53 and 161. A port-unreachable reply from a closed port still proves the host exists." />
+
+nmap also carries two ICMP questions beyond echo: a timestamp request (`-PP`)
+and an address-mask request (`-PM`). A host tuned to drop echo sometimes still
+answers one of those, so firing all three ICMP types together covers more
+ground than echo alone.
+
+<CommandCard command="sudo nmap -sn -PE -PP -PM 10.10.14.0/24" explain="ICMP echo, timestamp, and address-mask requests together. A host that ignores one ICMP type may still answer another." />
+
+When discovery keeps coming back empty but a host is known to be there, `-Pn`
+tells nmap to skip host discovery entirely, treat the address as up, and scan it
+anyway.
+
+<CommandCard command="nmap -Pn 10.10.14.5" explain="Skip host discovery. Assume the address is up and scan it regardless. Right for one confirmed host, wrong for a whole range." />
+
+`-Pn` is the correct call against a single host already confirmed to exist by
+other means. It is the wrong call across a whole /24, where it turns a two-second
+sweep into 256 full port scans, most of them aimed at empty air.
+
+Every extra probe type is another packet in a defender's log. recon-methodology
+framed noise as a cost, and it lands here directly: firing ICMP, TCP SYN, TCP
+ACK, and UDP probes at once finds the most hosts and trips the most alerts. On a
+loud internal test that trade is fine. When staying quiet matters, one or two
+probe types is the place to start, with the rest held back until the quiet ones
+come back empty.
+
+<Callout type="warning" title="Do not confuse silent with dead">
+A host that does not answer a probe is not proven offline. It may be filtering
+the exact probe that got sent. Vary the probe type before crossing an address
+off the list. The box wrongly declared dead is the box that never gets scanned.
+</Callout>
+
+<Quiz
+  id="filtered-next-move"
+  question="A plain ICMP ping sweep of a remote /24 returns zero hosts up, but there is strong reason to believe machines are on it. What is the sound next move?"
+  answer={2}
+  options={[
+    "Declare the range empty and move on to another target",
+    "Re-send the same ICMP echo with a longer timeout",
+    "Send different probe types, such as TCP SYN and ACK pings to common ports, before crossing any address off",
+    "Run -Pn against all 256 addresses and treat the empty ICMP result as final",
+  ]}
+  explanation="ICMP silence usually means filtering, not absence. Asking a different question, a TCP or UDP probe, finds hosts that ignore echo. Repeating the same probe or trusting the zero count both keep asking the one question already known to fail."
+/>
+
+Host discovery ends with a list and nothing more: the addresses that proved they
+are alive. It says nothing about what they run or which ports stand open. That
+is the next rung. port-scanning-deep-dive takes the short list this step
+produced and probes the ports on each live host, turning "these machines exist"
+into "here is what each one is running."
+
+<Exercise id="discovery-vs-arp" prompt="On a network you own or are authorized to test, run a discovery-only sweep and compare it against an ARP scan of the same segment.">
+Run `sudo nmap -sn` against the local range and note how many hosts come back.
+Then run `sudo arp-scan --localnet` on the same segment. If the counts differ,
+the extra machines ARP found are hosts that stayed silent on ICMP and TCP. Those
+are exactly the boxes a lazy ping sweep would have written off as empty air.
+</Exercise>
+
+<Notes />

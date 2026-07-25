@@ -1,0 +1,63 @@
+---
+title: MFA Done Right
+module: identity-and-access-management
+moduleTitle: Identity and Access Management
+moduleOrder: 48
+moduleIcon: Fingerprint
+order: 3
+summary: "MFA stops the password dump. The wrong second factor still lets a decent phish walk straight through."
+estimatedMinutes: 17
+objectives:
+  - Rank the common second factors by how well they survive phishing
+  - Explain why origin-bound WebAuthn defeats a real-time phishing proxy
+  - Name the bypasses that beat SMS, TOTP, and push
+tags:
+  - iam
+  - mfa
+  - phishing
+  - webauthn
+  - fido2
+---
+
+In September 2022 an attacker had an Uber contractor's password from a dump and could not get past MFA. So they spammed push notifications for an hour, then sent a message pretending to be IT support. The contractor tapped approve. MFA was on the entire time. It still failed, because the factor was one a tired human could be talked through at 1am.
+
+Start with the categories, because real MFA means combining different ones. Something you know: password, PIN. Something you have: a phone, a hardware token. Something you are: fingerprint, face. Two passwords is not MFA. A password plus a code from an app is, because the code proves possession of the phone.
+
+Not all second factors are equal, and the gap between them is enormous. Ranked from weakest up:
+
+SMS one-time codes. Phishable and SIM-swappable. Port the victim's number or sweet-talk the carrier and the code arrives on your phone. NIST 800-63B has discouraged SMS as a factor for years.
+
+TOTP from an authenticator app. Better, no SIM to swap, still phishable in real time. A proxy phishing kit shows the victim a fake login, relays whatever six digits they type, and signs in inside the 30-second window.
+
+Push approval. Kills typing but adds fatigue. Bomb someone with prompts long enough and one gets tapped. Number matching, where the app makes you type a two-digit code shown on the real login screen, fixes the blind-tap problem and is the minimum acceptable bar for push today.
+
+Then the category that actually resists phishing: FIDO2 and WebAuthn. Hardware security keys like a YubiKey, and passkeys built on the same standard.
+
+## Why WebAuthn resists phishing
+
+The credential is bound to the origin. When you register a security key to `https://login.example.com`, the key ties that credential to that RP ID. At sign-in the browser signs a challenge that includes the real origin, and the key only answers for the domain the credential was registered under.
+
+That one design choice is the whole win. A phishing proxy sitting on `login-example-secure.com` asks the key to authenticate, the origin does not match, and the key produces nothing the real site will accept. There is no code to relay, because there is no code. The human cannot be tricked into approving the wrong domain, because the browser and the key check the domain, not the person's judgment.
+
+<CommandCard command="evilginx2 -> reverse proxy in the middle -> steals the session cookie after MFA" explain="Tools like evilginx2 and Modlishka do not crack MFA. They sit between the victim and the real site, pass the password and the OTP straight through, and capture the authenticated session cookie. TOTP and push both fall to this. An origin-bound WebAuthn key does not, because the phishing domain never matches the registered RP ID." />
+
+The bypasses map cleanly onto the weak factors. Real-time phishing proxies beat any code-based or push factor by stealing the post-authentication cookie, so the second factor happens and the attacker just walks off with the session. MFA fatigue beats plain push. And the quiet one is fallback: an account with a shiny security key that still allows SMS recovery is only as strong as that SMS. Attackers go straight for the weakest enrolled factor and the reset flow, so an MFA rollout that leaves SMS as a backup has mostly kept the hole open.
+
+<Callout type="security" title="Phish only what you are cleared to phish">
+Standing up evilginx2 or a phishlet against real users is a social engineering attack and needs explicit written authorization every time, even inside your own company. To learn the mechanics, target accounts you own on a test IdP, or try the demo at webauthn.io to feel the origin binding yourself. Pointing a phishing proxy at anyone without signed scope is illegal and career-ending.
+</Callout>
+
+<Quiz
+  id="mfa-phishing-resistant"
+  question="Why does a FIDO2 security key defeat a real-time phishing proxy that happily captures TOTP codes?"
+  answer={1}
+  options={[
+    "The key generates a longer code the proxy cannot relay in time",
+    "The credential is bound to the origin, so the key will not produce a valid assertion for the phishing domain",
+    "Security keys encrypt the entire session end to end",
+    "The proxy has no way to see traffic going to a hardware key",
+  ]}
+  explanation="WebAuthn ties each credential to the RP ID it was registered under, and the browser signs the real origin into every assertion. A proxy on a lookalike domain gets a signature scoped to the wrong origin, which the real site rejects. There is no reusable code to steal or replay."
+/>
+
+<Notes />

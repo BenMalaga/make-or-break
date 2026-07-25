@@ -1,0 +1,170 @@
+---
+title: Windows Permissions and Privileges
+module: windows-fundamentals
+moduleTitle: Windows Fundamentals
+moduleOrder: 12
+moduleIcon: AppWindow
+order: 3
+summary: "SIDs, tokens, security descriptors, and integrity levels are the four structures that decide what a process may touch, and how a weak account becomes SYSTEM."
+estimatedMinutes: 16
+prerequisites: ["windows-architecture", "the-windows-registry"]
+objectives:
+  - Read a SID, name its RID, and recognize the well-known accounts like SYSTEM and Administrator on sight
+  - Explain what an access token carries and why a privilege can override an ACL
+  - "Read a security descriptor: its owner, its DACL, and the ACEs inside"
+  - Tell administrator apart from SYSTEM and say why SYSTEM is usually the goal
+  - Explain how integrity levels and UAC sit above the DACL and what a UAC bypass really jumps
+tags:
+  - windows
+  - permissions
+  - privilege-escalation
+---
+
+The registry lesson leaned on a quiet assumption: that `reg add` would actually write the key. It often won't. Whether that write lands, whether a file opens, whether a service starts, comes down to a single check Windows runs on every object it owns. A registry key is only one kind of object. Files, folders, services, processes, and named pipes all pass through the same gate, and that gate compares exactly two things.
+
+On one side is the token the calling process carries. On the other is the security descriptor attached to the object. Understand those two structures and Windows access control stops being a wall of grey dialog boxes. It turns into a lookup with rules that fit on a page. Climbing from a weak account to full control of a machine is almost always a story about one of those two structures being sloppy.
+
+## SIDs name every principal
+
+Windows never identifies an account by its name internally. Names are for the people reading the screen. Underneath, every user, group, computer, and service account is a security identifier, or SID, written as numbers joined by hyphens: `S-1-5-21-1004336348-1177238915-682003330-1001`.
+
+The pieces have meaning. The leading `S` marks it as a SID and the `1` is the revision. The `5` is the authority that issued it, NT Authority. The long run `21-1004336348-1177238915-682003330` identifies one specific machine or domain, generated at install time so no two are alike. The final number is the RID, the relative identifier, and it names the account inside that machine or domain. Here the RID is `1001`, an ordinary local user.
+
+A few values are fixed everywhere and worth knowing on sight. RID `500` is the built-in Administrator, on every Windows install ever made. RID `501` is Guest. In a domain, RID `512` is Domain Admins. And a short list of SIDs skip the machine part entirely because they mean the same thing on every system: `S-1-5-18` is Local System, `S-1-5-19` is Local Service, `S-1-5-20` is Network Service, and `S-1-5-32-544` is the built-in Administrators group. Spotting `S-1-5-18` in a process listing says the process runs as SYSTEM, no further reading required.
+
+The reason Windows stores permissions against SIDs and not names is subtle and load-bearing. A SID is permanent for the life of the account. Rename `alice` to `alicia` and the SID never changes, so her access follows the rename. Delete `alice` and create a fresh account also named `alice`, and the new one gets a brand new RID, so it inherits none of the old account's permissions. This is also why a permissions dialog sometimes shows a raw SID labeled "Account Unknown": the account was deleted, and only the number it left behind remains.
+
+<CommandCard command="whoami /user" title="cmd" explain="Prints the current account's name and its SID. The tail of the SID is the RID, which is what identifies this specific account on this specific machine." />
+
+<Callout type="info" title="Administrator is not the top">
+Administrator (RID 500) is the most powerful user account, but SYSTEM (S-1-5-18) sits above it. SYSTEM is the operating system's own identity, the account that runs services and the kernel's housekeeping. It has no password, it cannot normally log in at the desktop, and it can reach things even Administrator cannot. On most Windows targets the goal of escalation is not "an admin account," it is SYSTEM.
+</Callout>
+
+<Quiz
+  id="win-perms-sid-recreate"
+  question="An admin deletes the account svc-backup, which had Modify on a shared folder, then creates a new account with the same name svc-backup. Does the new account keep the old one's access to the folder?"
+  answer={1}
+  options={[
+    "Yes. The folder's permission list matches on the account name, which is unchanged.",
+    "No. Permissions match on the SID, and a recreated account gets a fresh SID, so the old grant no longer applies.",
+    "Yes, but only if the SID authority stays the same.",
+    "No, because deleting an account also erases every permission entry that mentioned it.",
+  ]}
+  explanation="Permission entries reference SIDs, not names. A recreated account has a new RID and therefore a new SID, so any entry written against the old SID does not match it. The old grant becomes an Account Unknown entry pointing at a SID nothing owns."
+/>
+
+## Tokens carry identity into every process
+
+When an account logs in, LSASS checks the credentials against the SAM or a domain controller, and on success Windows builds an access token for the session. The token is a kernel object, and it is the whole of what the account "is" as far as the security system cares. It lists the user's SID, the SID of every group the account belongs to, the set of privileges granted, and the integrity level.
+
+Every process the account starts receives a copy of that token, and every child process inherits it in turn. When any of those processes tries to touch a securable object, the kernel checks the object's security descriptor against the token in hand. The token is the cached answer to "who is this," carried along so the question never has to be asked twice.
+
+Two different things live inside a token, and beginners run them together. Group SIDs answer object questions: does the token hold a SID that some entry on this file grants access to. Privileges are different. A privilege is a system-wide right that names no object at all, such as "shut down the machine," "load a kernel driver," or "back up any file." A privilege can override the object check completely.
+
+Most privileges sit Disabled or absent on an ordinary account. A handful are effectively the end of the game if a service account holds them:
+
+- `SeImpersonatePrivilege`: impersonate a client that connects to the process. This one line is the entire premise of the Potato family of exploits.
+- `SeAssignPrimaryTokenPrivilege`: hand a token to a freshly created process, another route to running as someone else.
+- `SeBackupPrivilege`: read any file on the volume regardless of its permissions, the SAM hive included.
+- `SeDebugPrivilege`: open any process on the system, which means reading the memory of `lsass.exe` and lifting the secrets inside it.
+
+`SeBackupPrivilege` is the clean illustration of why privileges are separate from permissions. It does not ask the file's permission list for anything. The access check honors the privilege at the token level, before it ever walks the list of entries, so a file that denies the account every form of access still opens for backup. No permission on the object has to change. That is what makes a stray privilege on a service account so much worse than a stray group membership.
+
+<CommandCard command="whoami /priv" title="cmd" explain="Lists every privilege the current token holds and whether each is Enabled or Disabled. On a service account, an Enabled SeImpersonatePrivilege is the first thing an attacker looks for." />
+
+<ExpectedOutput label="whoami /priv on a service account, trimmed">
+```
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State
+============================= ========================================= ========
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled
+SeImpersonatePrivilege        Impersonate a client after authentication Enabled
+SeCreateGlobalPrivilege       Create global objects                     Enabled
+```
+</ExpectedOutput>
+
+This is also where administrator and SYSTEM separate cleanly. An administrator's elevated token carries the Administrators group SID and can enable privileges like `SeDebugPrivilege`. A SYSTEM token carries more still and is the identity every service runs under. The two are related but not the same, and the usual bridge between them is exactly the privilege above: an admin enables `SeDebugPrivilege`, opens `lsass.exe`, and reads a credential or a token that lets a process become SYSTEM.
+
+<Quiz
+  id="win-perms-privilege-override"
+  question="A process runs with SeBackupPrivilege enabled and opens a file whose permission list explicitly denies its user any access. What happens?"
+  answer={1}
+  options={[
+    "The open fails, because an explicit Deny entry always wins over any privilege.",
+    "The file opens, because the privilege is honored at the token level before the permission list is checked.",
+    "The open succeeds only if the user also owns the file.",
+    "Windows prompts for elevation before allowing the read.",
+  ]}
+  explanation="Backup and restore privileges are checked ahead of the permission list and override it by design, which is how backup software reads files it was never granted on. A Deny entry cannot stop a token that holds the privilege."
+/>
+
+## Security descriptors hold the ACL
+
+The object side of the check is the security descriptor, a structure attached to every securable object: files, folders, registry keys, services, processes, named pipes, mutexes. It has four parts, and two of them do the real work. The owner SID records who owns the object, which matters because the owner can always rewrite permissions on it even after being locked out of every other right. The DACL, the discretionary access control list, is the actual list of who gets what. The SACL, the system access control list, holds auditing rules that log access rather than grant it. The fourth part, a legacy group SID, is mostly ignored on modern Windows.
+
+The DACL is an ordered list of ACEs, access control entries. Each ACE binds one SID to one verdict, Allow or Deny, over a specific set of rights. When a process opens an object and asks for some access, the kernel walks the DACL from the top, gathering Allow grants until the request is fully satisfied, and stopping at once if a Deny ACE matches the token first. Order is the whole game: Deny ACEs are placed ahead of Allow ACEs so they get the first word. Two edge cases catch people. A security descriptor with no DACL at all grants everyone everything. A security descriptor with an empty DACL grants nobody anything.
+
+On disk, `icacls` prints a file or folder's DACL as text. Each line pairs a SID, resolved to a name where possible, with a bracketed rights code: `(F)` full control, `(M)` modify, `(RX)` read and execute, `(R)` read, `(W)` write, `(D)` delete. An `(I)` marks a right inherited from the parent folder rather than set on the object itself.
+
+<CommandCard command="icacls &quot;C:\Program Files\SomeApp\service.exe&quot;" title="cmd" explain="Dumps the DACL of one file, one SID per line with its rights code. Run it on a service binary and on the folder holding it, because write access to either is a way in." />
+
+<ExpectedOutput label="icacls on a service binary that runs as SYSTEM">
+```
+C:\Program Files\SomeApp\service.exe NT AUTHORITY\SYSTEM:(I)(F)
+                                     BUILTIN\Administrators:(I)(F)
+                                     BUILTIN\Users:(I)(M)
+
+Successfully processed 1 files; Failed processing 0 files.
+```
+</ExpectedOutput>
+
+The question an attacker asks a DACL never changes: what can this account write that later runs as something more powerful. A service whose executable runs as SYSTEM but sits in a folder the `Users` group can write to is a direct path up. Replace the binary, wait for the service to restart, and the replacement runs as SYSTEM. That `BUILTIN\Users:(I)(M)` line in the output above is not a warning, it is the exploit: any user on the box can modify a file that SYSTEM executes.
+
+## Integrity levels sit above the DACL
+
+A correct DACL is still not the last word. Windows layers mandatory integrity control on top of it. Every process and every securable object carries an integrity label: Low, Medium, High, or System, backed by the SIDs `S-1-16-4096`, `S-1-16-8192`, `S-1-16-12288`, and `S-1-16-16384`. The rule is one sentence: a process at a lower integrity cannot write to an object at a higher integrity, whatever the DACL says. The integrity check runs first. A full-control ACE means nothing across that boundary.
+
+The labels map to familiar states. An ordinary user's processes run at Medium. A sandboxed process, like a browser tab rendering a hostile page, is deliberately dropped to Low so a compromise there can write almost nothing. An elevated administrator process, the kind launched after clicking through a prompt, runs at High. Services and SYSTEM run at System integrity, the top of the stack.
+
+User Account Control is built directly on this. When an administrator logs in, LSASS does something easy to miss: it mints two tokens. One is a filtered token at Medium integrity with the admin group powers switched off. The other is the full token at High integrity. Everything the admin launches by default runs with the filtered Medium token, which is why an administrator is not really administrating until something elevates. The consent prompt is the exact moment Windows swaps in the full High-integrity token to start one chosen process.
+
+That reframes what a UAC bypass actually is. The prompt is not the security boundary, the integrity jump behind it is. A bypass is any trick that gets code running at High integrity without the consent dialog, usually by abusing a Microsoft-signed program that Windows auto-elevates and coaxing it into launching attacker code. The DACL is never touched. The whole move is climbing from Medium to High.
+
+<CommandCard command="whoami /groups" title="cmd" explain="Lists the token's group SIDs and, near the bottom, a Mandatory Label line naming the process integrity level. A normal shell shows Medium; an elevated one shows High." />
+
+<ExpectedOutput label="whoami /groups, the integrity line only">
+```
+Group Name                              Type   SID           Attributes
+======================================= ====== ============= ==========
+Mandatory Label\Medium Mandatory Level  Label  S-1-16-8192
+```
+</ExpectedOutput>
+
+<Quiz
+  id="win-perms-integrity-block"
+  question="A Medium-integrity process holds a full-control (F) entry granting its user every right on a High-integrity file. It tries to write to the file. What happens?"
+  answer={1}
+  options={[
+    "The write succeeds, because a full-control entry grants every right, write included.",
+    "The write is blocked, because the integrity check runs before the DACL and forbids a Medium process writing a High object.",
+    "The write succeeds but is logged by the SACL.",
+    "Windows silently lowers the file to Medium integrity to allow it.",
+  ]}
+  explanation="Mandatory integrity control is checked ahead of the DACL. A lower-integrity process cannot write to a higher-integrity object no matter how generous the permission list is, which is the mechanism that makes UAC and browser sandboxes hold."
+/>
+
+<Callout type="security" title="Authorized targets only">
+Dumping tokens, reading ACLs, and checking integrity labels on a machine without written authorization is unauthorized access, full stop. Every command here belongs on a personal lab VM or inside a scoped engagement, never against a system outside the permission granted in writing.
+</Callout>
+
+<Exercise title="Read your own token and an ACL">
+On a Windows machine or VM, open cmd and run `whoami /all`. Find your own SID in the first block, then scroll to the privileges block. Note which privileges show as Enabled. On an ordinary account it is a short, boring list, and that is the point.
+
+Now pick any program under `C:\Program Files` and run `icacls` on its main `.exe` and on the folder that holds it. Read the rights codes. Ask the one question that matters: is there a `(W)` or `(M)` for `BUILTIN\Users`, or for your own account, on something that runs as SYSTEM. Write down what you found and whether it would let a normal user replace that file.
+</Exercise>
+
+Every check in this lesson was a command typed into cmd one at a time, its output read line by line: `whoami /all`, `icacls`, the integrity label buried in `whoami /groups`. That does not scale past a handful of objects. The next lesson, powershell-for-security, replaces the eyeballing with PowerShell, where commands like `Get-Acl` and `Get-Process` return objects with named fields to filter and sort instead of text to squint at. It is the reason PowerShell is the tool both administrators and attackers reach for first.
+
+<Notes />

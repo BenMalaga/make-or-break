@@ -1,0 +1,81 @@
+---
+title: Forensics Fundamentals and Chain of Custody
+module: digital-forensics
+moduleTitle: Digital Forensics
+moduleOrder: 22
+moduleIcon: FileSearch
+order: 1
+summary: Capture the volatile stuff first, image the disk, and prove nothing changed.
+estimatedMinutes: 16
+objectives:
+  - Order evidence collection by volatility so nothing perishable is lost
+  - Image a drive bit for bit without altering the source
+  - Prove evidence integrity with cryptographic hashing
+tags:
+  - forensics
+  - imaging
+  - chain-of-custody
+---
+
+A machine gets flagged for beaconing to a known bad IP, and you are handed the box. The moment you touch it, you start destroying evidence. Every command you run allocates memory, every second the power stays on overwrites something. Forensics is the discipline of collecting what matters before it disappears, in an order that loses the least, and proving afterward that you did not change a thing.
+
+## Order of volatility
+
+Not all evidence rots at the same speed. RFC 3227 gives you the collection order, most perishable first. Get this order wrong and you lose data you can never get back.
+
+The ranking, fastest to slowest to disappear: CPU registers and cache, then RAM and running process state, then network connections and ARP tables, then the disk itself, then remote logs, then physical configuration and archival media like backups. Registers are gone in nanoseconds. A pulled-and-imaged disk sitting in an evidence bag is stable for years.
+
+The practical rule: capture volatile memory and network state on the live machine before you ever consider pulling the plug. If you shut down first to "preserve the disk", you just threw away RAM, which is where a fileless malware sample or an encryption key often lives.
+
+## Image before you analyze
+
+You never work on the original. You make a bit-for-bit copy, an image, and you investigate the copy. `dd` is the classic tool, but `dc3dd` adds hashing and progress built in.
+
+<CommandBlock
+  title="analyst@workstation"
+  commands={[
+    { cmd: "sudo dc3dd if=/dev/sdb of=evidence.img hash=sha256 log=acquire.log", comment: "image /dev/sdb, hash as you go, log everything" },
+    { cmd: "sudo ewfacquire /dev/sdb", comment: "alternative: writes the EnCase E01 format with metadata" },
+    { cmd: "sudo mount -o ro,loop evidence.img /mnt/case", comment: "mount the COPY read-only to look inside" },
+  ]}
+/>
+
+The `if` is your input (the suspect disk), `of` is the output file. Read the direction carefully. Swap them and you overwrite the evidence with a blank file, which has ended real cases.
+
+Use a **write blocker**, a hardware device that sits between the suspect drive and your machine and physically refuses write commands. Software read-only mounts help, but a bad mount option or an eager OS can still touch the disk. Hardware is the guarantee.
+
+## Prove it did not change
+
+An image is worthless in a report if you cannot show it matches the original. You hash the source, hash the image, and the two match. Then you re-hash later to prove nothing drifted while in your custody.
+
+<CommandCard command="sha256sum evidence.img" explain="Produces a fixed fingerprint of the whole image. If one bit changes, the hash changes completely. Record it in your notes the moment you acquire, and again before you report." />
+
+Chain of custody is the paper trail: who collected the evidence, when, from where, who has held it since, and where it was stored. Every handoff is logged and signed. A defense attorney will attack the weakest link, so an unexplained gap of even an hour can get evidence thrown out.
+
+<Callout type="security" title="Only image systems you are authorized to touch">
+Acquiring a disk image is copying the entire contents of someone's machine. Do it only on systems you own or have explicit written authorization to examine. Unauthorized imaging is illegal in most places, and a signed engagement scope is what keeps you on the right side of it.
+</Callout>
+
+<Quiz
+  id="volatility-order"
+  question="You arrive at a powered-on suspect machine. Which do you collect first?"
+  answer={1}
+  options={[
+    "The hard disk image, because it holds the most data",
+    "The contents of RAM and running process state",
+    "The backup tapes in the server room",
+    "The BIOS configuration",
+  ]}
+  explanation="RAM is far more volatile than disk. It vanishes on shutdown, so you capture it while the machine is live, before imaging the disk or touching stable archival media."
+/>
+
+<Exercise
+  id="hash-verify"
+  prompt="You acquired evidence.img. Which command produces the fingerprint you record to prove it never changed?"
+  answer="sha256sum evidence.img"
+  placeholder="command here"
+>
+sha256sum outputs a cryptographic hash of the file. Recorded at acquisition and re-run before reporting, a matching hash proves the image is bit-for-bit identical to what you collected.
+</Exercise>
+
+<Notes />

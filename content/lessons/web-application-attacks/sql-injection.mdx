@@ -1,0 +1,162 @@
+---
+title: SQL Injection
+module: web-application-attacks
+moduleTitle: Web Application Attacks
+moduleOrder: 15
+moduleIcon: Crosshair
+order: 1
+summary: A login form that trusts raw input can hand an attacker the whole database.
+estimatedMinutes: 18
+objectives:
+  - Explain how string-concatenated input turns SQL data into executable code
+  - Bypass a login with authentication payloads like admin' -- and ' OR 1=1 --
+  - Read other tables with a UNION query and extract data blind when nothing prints
+  - Choose parameterized queries and least privilege as the defenses that actually hold
+prerequisites:
+  - owasp-top-10
+tags:
+  - web
+  - sqli
+  - injection
+  - database
+---
+
+The OWASP Top 10 lesson ranked injection at A03 and flagged it as the one class worth studying on its own. This is that study, and SQL injection is its canonical form. A single quote typed into a login field, and the application answers with a 500 error. That error is the whole tell. It means the quote broke the SQL statement the server was assembling, which means the typed input reached the query as code instead of as data. SQL injection is the name for that failure: an application builds a database query by gluing user input into a string, and an attacker supplies input that rewrites what the query means.
+
+## Data that becomes code
+
+A relational database speaks SQL, and a login check is one small query. The server asks the database whether a row exists for a given username and password, and the database answers.
+
+```sql
+SELECT * FROM users WHERE username = 'admin' AND password = 'hunter2';
+```
+
+The quotes carry the whole security model. Everything between a pair of single quotes is a string literal, plain data the database compares against. The keywords outside the quotes, SELECT, WHERE, AND, are code the database executes. That boundary between quoted data and unquoted code is what keeps input from becoming instructions, and string concatenation erases it.
+
+Consider how a careless application assembles that statement. It takes the username field, drops it between two quotes, and appends the rest.
+
+```
+query = "SELECT * FROM users WHERE username = '" + input + "' AND password = '" + pw + "'";
+```
+
+Whatever the input field holds lands inside those quotes. An ordinary name changes nothing. A name that contains its own quote closes the string early and spills into the code region, where the database reads it as SQL. At that point the attacker is no longer filling in a value. The attacker is writing part of the query.
+
+## Authentication bypass
+
+The first payload every tester reaches for is the comment. The characters `--` begin a comment in SQL, so the database ignores the rest of that line. A username of `admin'--` builds this:
+
+```sql
+SELECT * FROM users WHERE username = 'admin'--' AND password = '';
+```
+
+The injected quote closes the username string, and the comment swallows the password check whole. The database sees a query that asks only whether a user named admin exists, answers yes, and the application logs the attacker in as admin with no password at all.
+
+The second classic payload does not need a real username. `' OR 1=1 --` closes the string, adds a condition that is always true, and comments out everything after it. Because `1=1` holds for every row, the WHERE clause matches the entire users table, and a login routine that takes the first row returned usually hands back the administrator. Both payloads exploit the same crack: the quote in the input escapes the data region, and the SQL that follows runs.
+
+The login form below is genuinely vulnerable, running against a real database sandboxed inside the browser, and it prints the exact query it builds as each payload lands, so the break stays visible as it happens.
+
+<SqlInjectionLab />
+
+<Quiz
+  id="sqli-auth-bypass-comment"
+  question="Submitting admin'-- into a concatenated login query logs an attacker in as admin without a password. What does the -- accomplish?"
+  answer={1}
+  options={[
+    "It escapes the quote so the password is read as a literal string",
+    "It comments out the rest of the query, including the password check",
+    "It encrypts the password field before the comparison",
+    "It signals the database to skip authentication for admin",
+  ]}
+  explanation="In SQL, -- starts a comment. The injected quote closes the username string, and the comment discards the AND password clause, so the database only checks that a user named admin exists."
+/>
+
+## Confirm it first
+
+A tester confirms the injection point before spending time on payloads. The fastest tell is the single quote: a `'` placed in a parameter, followed by a database error, a broken page, or a changed response, shows the input is reaching the query. Boolean logic then proves it. A condition that is always true and one that is always false, sent through the same parameter, produce different responses only when the database is evaluating the input as logic.
+
+<CommandBlock
+  title="tests in the vulnerable parameter"
+  commands={[
+    { cmd: "id=1' OR '1'='1", comment: "always true, should return rows or a normal page" },
+    { cmd: "id=1' AND '1'='2", comment: "always false, should return nothing or a different page" },
+  ]}
+/>
+
+Different responses to those two inputs mean the database is acting on the injected logic. That is confirmation, and it is worth having before moving to extraction.
+
+## UNION: read tables the app never meant to show
+
+When the application prints query results on the page, UNION is the fastest path to the rest of the database. `UNION SELECT` staples a second query onto the first, so the attacker chooses which data comes back in place of the original row.
+
+Two conditions have to hold before a UNION works. The column count must match, and the data types have to line up. The column count is found with `ORDER BY`: the number climbs until the database errors, and the last number that did not error is the count.
+
+<CommandBlock
+  title="find the column count, then pull data"
+  commands={[
+    { cmd: "id=1 ORDER BY 3-- -", comment: "no error at 3, error at 4 means 3 columns" },
+    { cmd: "id=-1 UNION SELECT 1,2,3-- -", comment: "which numbers echo tells you the visible columns" },
+    { cmd: "id=-1 UNION SELECT 1,username,password FROM users-- -", comment: "read credentials into the visible columns" },
+  ]}
+/>
+
+Setting `id=-1` makes the original row return nothing, so only the injected rows appear on the page. `database()`, `version()`, and `@@version` are the orientation queries a tester runs once a working UNION exists, because they name the schema and the engine and decide which syntax the rest of the attack uses.
+
+<Quiz
+  id="sqli-union-columns"
+  question="Your UNION SELECT payload keeps returning a column-count error. What do you find first?"
+  answer={1}
+  options={[
+    "The database version",
+    "The number of columns in the original query, using ORDER BY",
+    "The admin password hash",
+    "Whether the site uses HTTPS",
+  ]}
+  explanation="UNION requires the injected query to return the same number of columns as the original. ORDER BY n, incremented until it errors, gives you that count so the UNION lines up."
+/>
+
+## When nothing prints: blind injection
+
+Plenty of applications run the injected query but never show its result. The attack still works, one bit at a time. Boolean-blind injection asks a yes or no question and reads the answer from whether the page changes. Time-blind injection makes the database sleep when a condition is true, and reads the answer from the clock.
+
+<CommandCard command="id=1' AND (SELECT SUBSTRING(version(),1,1))='8'-- -" explain="A page that loads normally means the first character of the version is 8. Repeating the probe across every character position extracts the value through a true or false oracle." />
+
+Time-based injection is the fallback for when even the true and false pages look identical. A payload like `id=1' AND SLEEP(5)-- -` makes a vulnerable MySQL backend hang for five seconds. A five-second delay that toggles on and off with the condition is proof, and the same delay is the channel the data leaks through. The method is slow by hand, which is why sqlmap exists: it automates the character-walking once a tester has confirmed the injection manually.
+
+## What the attacker actually walks away with
+
+The login bypass is the demo. The prize is the rest of the database. A working UNION or a blind oracle reads any table the database account can reach: password hashes, session tokens, email addresses, payment records. `information_schema` lists the name of every table and column, so an attacker maps the schema first, then drains whatever looks valuable.
+
+Some backends go past reading. Microsoft SQL Server historically exposed `xp_cmdshell`, which runs operating-system commands from inside a query and turns a data leak into code execution on the host. PostgreSQL can write files through its COPY command, and MySQL through INTO OUTFILE, which an attacker aims at a web-writable directory to drop a script the server will later run. Stacked queries, where a semicolon starts a second statement, let an attacker run INSERT, UPDATE, or DROP when the driver allows it. Injection that reaches those features stops being a database problem and becomes full server compromise.
+
+## The fix that actually holds
+
+Escaping and filtering are the tempting answer and the wrong one. A blocklist that strips quotes or the word SELECT looks reasonable until an attacker sends `SeLeCT`, or a numeric parameter with no quote to break, or a comment sequence the filter never anticipated. Double URL-encoding and engine-specific syntax defeat blocklists faster than anyone can extend them. Filtering treats the symptom and leaves the disease in place: input is still being interpreted as code.
+
+The real fix separates code from data so completely that input can never cross back. A parameterized query, also called a prepared statement, sends the SQL text and the values on separate channels. The database compiles the query with placeholders first, then binds the values as pure data that cannot change the query's structure. A quote inside a bound value is only a quote. `' OR 1=1 --` becomes a username the database searches for and fails to find. Every mainstream language ships this: `PreparedStatement` in Java, parameterized cursors in Python's DB-API, placeholders in Go's `database/sql`, bound parameters in any ORM. Concatenating input into SQL is the anti-pattern; binding it is the pattern.
+
+Least privilege is the second layer, for the day the first one slips. The application's database account rarely needs to read `information_schema`, drop tables, or write files to disk. An account scoped to the specific tables and operations the app uses turns a catastrophic dump into a contained one. The layers stack: parameterized queries stop the injection, least privilege limits the blast radius if one query is ever missed, and suppressing raw database errors slows an attacker without pretending to be a fix on its own.
+
+<Quiz
+  id="sqli-defense-parameterized"
+  question="An app concatenates user input into every SQL query and is riddled with injection. Which change actually removes the vulnerability?"
+  answer={1}
+  options={[
+    "Stripping single quotes and the word SELECT from all input",
+    "Rewriting the queries as parameterized statements that send code and data separately",
+    "Escaping input against a blocklist of dangerous characters",
+    "Hiding database errors so attackers never see a 500",
+  ]}
+  explanation="Parameterized statements compile the query first, then bind values as pure data that can never alter the query structure. Blocklists, escaping, and hidden errors all leave the data-as-code boundary broken."
+/>
+
+<Exercise title="Confirm and bypass on your own lab">
+Spin up DVWA in a local container, or open OWASP Juice Shop in your browser. Both are built to be attacked safely. On the DVWA SQL Injection page, set the security level to low, type a single quote into the ID field, and watch for the database error that confirms your input reaches the query. Then submit `' OR '1'='1` and read how the response changes once your condition is always true. Raise DVWA to medium and try again: note which of your payloads the added escaping blocks and which slip through, and write down why. Finish on PortSwigger's Web Security Academy SQL injection labs, which take you from a UNION column-count probe to a full data extraction against a target that is yours to break. Keep every payload on these lab targets.
+</Exercise>
+
+<Callout type="security" title="Authorized targets only">
+Every payload in this lesson belongs on systems the tester owns or has written permission to test: a local DVWA or Juice Shop container, a HackTheBox machine, a PortSwigger Academy lab. Sending these strings at a site without explicit authorization is a computer-crime offense in most countries, and a real 500 error on someone else's login form is not an invitation.
+</Callout>
+
+The database was the target here because the application trusted input as SQL. The next class of bug trusts input as HTML. Cross-site scripting takes the same broken boundary between data and code and moves it into the victim's browser, where the injected payload runs as JavaScript instead of a query.
+
+<Notes />

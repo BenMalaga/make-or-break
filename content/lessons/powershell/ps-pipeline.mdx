@@ -1,0 +1,223 @@
+---
+title: "The Pipeline and Objects"
+module: powershell
+moduleTitle: PowerShell
+moduleOrder: 1
+moduleIcon: Terminal
+order: 4
+summary: "The pipe character sends whole objects, not lines of text, from one cmdlet to the next, and Where-Object, ForEach-Object, Select-Object, Sort-Object, and Measure-Object are the five cmdlets that do most of the real work once those objects are flowing."
+estimatedMinutes: 15
+prerequisites: ["ps-variables"]
+objectives:
+  - Explain that a pipeline passes whole objects from one cmdlet to the next, and that $_ refers to whichever object is currently flowing through it
+  - Use Where-Object to filter a collection down to the objects that match a condition
+  - Use ForEach-Object, Select-Object, and Sort-Object to transform, narrow, and order the objects moving through a pipeline
+  - Use Measure-Object to calculate a sum, average, or maximum across a collection without writing a manual loop
+tags:
+  - powershell
+  - pipeline
+  - objects
+---
+
+The previous lesson put a single value into a variable and read it back by name, one value sitting under one label. Most real scripting work is not about one value. It is about a whole batch of things at once: every number in a range, every file in a folder, every process running on a machine. PowerShell's answer to "do something to all of these at once" is the pipeline, and it is the single idea that does the most work in the whole language.
+
+## The heart of PowerShell
+
+A pipeline connects one cmdlet's output straight into the next cmdlet's input, written with the pipe character, `|`. Whatever the first cmdlet produces becomes the raw material the second cmdlet works on, and a pipeline can chain several cmdlets in a row, each one refining what came before it.
+
+What actually moves through that pipe is an object, a chunk of data with named fields attached to it, never a printed line of text. A range of numbers is the simplest place to see this:
+
+```powershell
+1..5 | ForEach-Object { $_ * $_ }
+```
+
+<ExpectedOutput label="each number in the range squared">
+```
+1
+4
+9
+16
+25
+```
+</ExpectedOutput>
+
+`1..5` builds a range counting from one to five. The pipe hands each number, one at a time, to `ForEach-Object`, which runs the script block in curly braces once per number that arrives. Inside that block, `$_` stands for whatever object is currently passing through that stage. On the first pass `$_` is 1, and `$_ * $_` is 1. On the last pass `$_` is 5, and `$_ * $_` is 25. Nothing gets typed out five separate times. The same short block runs once per item, automatically, and the pipeline moves on to the next item without being told to.
+
+That `$_` variable is worth sitting with, because it shows up in nearly every pipeline a PowerShell script writes. It has no meaning sitting on its own outside a pipeline stage. Inside one, it always means "the object this stage is looking at right now," and a field on that object can be reached with a dot after it, the way `$_.CPU` would reach the CPU field of whatever process object happens to be flowing through at that moment.
+
+<Quiz
+  id="ps-pipeline-underscore"
+  question="In the pipeline 1..5 | ForEach-Object { $_ * $_ }, what does $_ refer to inside the script block?"
+  answer={1}
+  options={[
+    "The very first number in the range, 1, on every pass through the block.",
+    "The object currently flowing through that stage of the pipeline, changing value on each pass.",
+    "The total number of items the pipeline will process.",
+    "A fixed name that always refers to the ForEach-Object cmdlet itself.",
+  ]}
+  explanation="$_ always means the object the current pipeline stage is looking at right now, so its value changes on each pass, from 1 up to 5 across this range. It is not pinned to the first item, it does not count the items, and it is not a name for the cmdlet."
+/>
+
+## Where-Object: keeping only what matches
+
+Filtering, keeping some objects and dropping the rest, is `Where-Object`'s job. It runs a script block against every object arriving from upstream, and lets through only the ones where that block's condition comes out true:
+
+```powershell
+1..10 | Where-Object { $_ -gt 7 }
+```
+
+<ExpectedOutput label="only the numbers greater than 7 survive">
+```
+8
+9
+10
+```
+</ExpectedOutput>
+
+Ten numbers went in. `Where-Object` tested each one against `$_ -gt 7` and threw away every number that failed the test, so three numbers came out the other side. Nothing about the surviving numbers changed; they are the same 8, 9, and 10 that went in, untouched. `Where-Object` only decides what continues on, never what a surviving object looks like once it gets there.
+
+Real process data behaves the same way. `Get-Process` returns one process object for every running program on the machine, and each of those objects carries a `CPU` field showing how much processor time that program has used:
+
+```powershell
+Get-Process | Where-Object { $_.CPU -gt 10 } | Sort-Object CPU
+```
+
+That line reads almost like plain English once its pieces are named: get every process, keep only the ones whose CPU field is greater than 10, then put whatever is left in order by that same field. The exact processes that come back, and their CPU numbers, depend entirely on what happens to be running on the machine at that moment, so there is no single fixed answer to print here the way there was for a fixed range of numbers. That variability is normal for anything reading live system state rather than a value a script built itself.
+
+<Callout type="info" title="A practice shell, not a full machine">
+The Build tab's practice PowerShell runs a real subset of cmdlets, including Get-Process, Get-ChildItem, and Get-Date, entirely in the browser. It is a sandbox standing in for a full Windows or Linux install, so its process list will be smaller and steadier than a real desktop's, but the fields and behavior read the same way.
+</Callout>
+
+## ForEach-Object: doing something to each one
+
+`Where-Object` only filters. When each object needs to become something else, run through a calculation, or get folded into a new piece of text, `ForEach-Object` is the cmdlet built for that. It runs its script block once per incoming object and passes along whatever the block produces:
+
+```powershell
+1..3 | ForEach-Object { "Item number $_" }
+```
+
+<ExpectedOutput label="each number rewritten as a labeled string">
+```
+Item number 1
+Item number 2
+Item number 3
+```
+</ExpectedOutput>
+
+Three numbers went in, three strings came out. Each pass used `$_` inside a double-quoted string, so the string interpolation from the previous lesson picked up the current number and dropped it straight into the sentence. `ForEach-Object` is the general-purpose "run this on every item" cmdlet, and its output does not have to keep the same shape as its input. It can shrink an object down to a single number, expand a number into a full sentence, or run any calculation in between.
+
+Filtering and transforming together is one of the most common shapes a pipeline takes:
+
+```powershell
+1..10 | Where-Object { $_ -gt 5 } | ForEach-Object { $_ * $_ }
+```
+
+<ExpectedOutput label="numbers greater than 5, each one squared">
+```
+36
+49
+64
+81
+100
+```
+</ExpectedOutput>
+
+Ten numbers arrive. `Where-Object` keeps only 6 through 10. `ForEach-Object` then squares each of those five survivors. Running the two cmdlets in the other order would square every number from 1 through 10 first, then test the squared results against `-gt 5`, which throws away only 1 and 4 instead of the numbers 5 and under. Order matters, because each stage only ever sees what the stage before it decided to pass along.
+
+<Quiz
+  id="ps-pipeline-filter-vs-transform"
+  question="A pipeline needs to keep only the numbers greater than 5 out of 1 through 10, then square each one that is kept. Which pair of cmdlets does that, in that order?"
+  answer={2}
+  options={[
+    "Sort-Object, then Measure-Object",
+    "Select-Object, then Sort-Object",
+    "Where-Object, then ForEach-Object",
+    "ForEach-Object, then Where-Object",
+  ]}
+  explanation="Where-Object filters first, keeping only the objects that pass a condition, here the numbers greater than 5. ForEach-Object then runs a calculation on each surviving object, here squaring it. Doing it in the reverse order would square every number first and then test the squared values against the condition, changing which numbers show up. Sort-Object reorders objects and Measure-Object calculates a summary; neither one filters by a condition or transforms a value."
+/>
+
+## Select-Object: fewer fields, or fewer objects
+
+Not every field on an object is useful for the task at hand, and not every object in a long pipeline needs to be looked at. `Select-Object` trims a pipeline in either of those two directions. Given one or more property names, it keeps only those fields on each object flowing through:
+
+```powershell
+Get-Process | Select-Object -First 3 Name
+```
+
+<ExpectedOutput label="illustrative: the first three process objects, showing only their Name field (the actual names depend on what is running)">
+```
+Name
+----
+pwsh
+node
+Finder
+```
+</ExpectedOutput>
+
+Two things happen in that single line. `-First 3` cuts the pipeline down to the first three objects that reach it, regardless of how many process objects existed in total before that point. `Name` then narrows each of those three surviving objects down to just its Name field, dropping every other field the object was carrying, such as its process ID or its CPU time. The exact three names shown depend on what happens to be running when the line executes, but the shape of the result does not change: one column, three rows.
+
+`-First N` on its own, without naming any property, is worth reaching for often. A long list of files, processes, or results rarely needs to be read in full while a pipeline is still being worked out, and cutting it down to the first handful during testing saves scrolling past pages of objects that were never the point.
+
+## Sort-Object: putting objects in order
+
+Filtering decides what stays in a pipeline. Sorting decides what order it comes out in. `Sort-Object` takes a property name and reorders everything flowing through by that field, smallest value first by default:
+
+```powershell
+5, 2, 8, 1 | Sort-Object
+```
+
+<ExpectedOutput label="plain numbers sorted smallest to largest">
+```
+1
+2
+5
+8
+```
+</ExpectedOutput>
+
+With no property named, `Sort-Object` compares the objects directly, which works fine for plain numbers like these. Objects carrying several fields need to say which one to sort by, which is exactly what `Sort-Object CPU` did earlier: order the surviving process objects by their CPU field specifically, rather than by their name or their process ID. Adding `-Descending` after the property name flips the order to largest first, which is the more useful direction the moment the real question changes from "smallest first" to "which one is using the most."
+
+## Measure-Object: doing the arithmetic
+
+Once a pipeline holds the right objects in the right order, a common next step is a single number that summarizes all of them: a total, an average, the largest one seen. `Measure-Object` calculates exactly that, in one pass, without a hand-written loop or a running total variable to manage:
+
+```powershell
+1..10 | Measure-Object -Sum -Average -Maximum
+```
+
+<ExpectedOutput label="Measure-Object's summary of the numbers 1 through 10">
+```
+Count    : 10
+Average  : 5.5
+Sum      : 55
+Maximum  : 10
+Minimum  :
+Property :
+```
+</ExpectedOutput>
+
+`-Sum` adds every number in the pipeline together. `-Average` divides that total by how many numbers there were. `-Maximum` reports the largest single value seen. All three ran over the same single pass through the ten numbers, so one line of code produced a count, a sum, an average, and a maximum together. `-Minimum` is available the same way, it was simply left off this call, which is why that line comes back blank instead of showing a value.
+
+On a collection of full objects rather than plain numbers, `Measure-Object` needs to be told which field to measure, the same way `Sort-Object` needed a property name:
+
+```powershell
+Get-Process | Measure-Object CPU -Sum -Average
+```
+
+That adds up and averages the CPU field across every running process object, with results that shift depending on what is running at the time, exactly like the earlier `Get-Process` examples. What never shifts is why the calculation works at all: `Get-Process` handed over real objects with a CPU field already attached as a number, so `Measure-Object` could read that field by name and do arithmetic on it directly. Nothing had to be split out of a printed column or converted from text first. A traditional shell that only passed lines of text between commands would need a separate parsing step before any of that arithmetic could even begin.
+
+<Quiz
+  id="ps-pipeline-measure-object"
+  question="Why can Get-Process | Measure-Object CPU -Sum -Average add up and average the CPU values without any separate parsing step?"
+  answer={1}
+  options={[
+    "Because Measure-Object secretly reruns Get-Process in a text-only mode first.",
+    "Because each process object already carries a CPU field as a real value, which Measure-Object reads directly by name.",
+    "Because CPU usage is always a whole number, which makes the arithmetic simpler.",
+    "Because Get-Process only returns processes that are actively using the CPU.",
+  ]}
+  explanation="Get-Process returns full objects with named fields, including CPU, so Measure-Object can read that field directly and calculate with it without splitting or parsing any text. There is no hidden text-only mode, CPU values are not restricted to whole numbers, and Get-Process returns every running process regardless of how much CPU time it has used."
+/>
+
+The next lesson turns to arrays and collections directly: the plain lists that sit on either side of a pipeline before or after any of these five cmdlets touch them, and how to build, index, and grow one by hand.

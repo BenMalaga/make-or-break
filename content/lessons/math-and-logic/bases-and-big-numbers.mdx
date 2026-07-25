@@ -1,0 +1,255 @@
+---
+title: Bases and Big Numbers
+module: math-and-logic
+moduleTitle: Math and Logic
+moduleOrder: 5
+moduleIcon: Sigma
+order: 6
+summary: "Place value, binary and hex, and why Python holds 2^1000 and 100! exactly while floating point quietly drops digits."
+estimatedMinutes: 15
+objectives:
+  - Explain what a base is and read a number as digits times place values
+  - Convert between decimal, binary, and hexadecimal by hand and in Python
+  - Explain why one byte maps cleanly to exactly two hexadecimal digits
+  - Sum the digits of a giant number exactly with arbitrary-precision integers, and know when floats would corrupt it
+tags:
+  - python
+  - number-theory
+  - binary
+prerequisites: ["recursion-and-memoization"]
+---
+
+The factorial function from the recursion lesson climbs fast. factorial(5) is
+120, factorial(10) is already 3,628,800, and each step multiplies by the next
+whole number. Push it to factorial(100) and the result is a single whole number
+with 158 digits, longer than this sentence. Python computes it in a blink and
+gets every digit right. That is worth stopping on, because most calculators and
+plenty of programming languages would round it into a smear of approximate
+digits and lose the exact value. Understanding why Python keeps all 158, and how
+to pull them apart, starts with a plainer question: what does a number actually
+mean once it is written down?
+
+## What a base is
+
+Take the number 4096. Reading it left to right, the 4 is worth four thousand,
+the 0 is worth no hundreds, the 9 is worth ninety, and the 6 is worth six. Each
+digit gets multiplied by a place value, and each place value is ten times the one
+to its right: one thousand, one hundred, ten, one. Those are the powers of ten,
+written as 10 to the 3rd, 10 to the 2nd, 10 to the 1st, and 10 to the 0th, which
+is 1. That is what base ten means. The base is the factor each place is worth
+more than the last, and ten digits, 0 through 9, are enough to fill any place.
+
+Nothing forces the base to be ten. Ten is a habit tied to the count of fingers
+on two hands, not a law of arithmetic. A base can be any whole number above one,
+and computers run on base two.
+
+## Binary, base two
+
+Binary uses base two. Only two digits exist, 0 and 1, and each one is called a
+bit, short for binary digit. The place values are the powers of two instead of
+ten: 1, 2, 4, 8, 16, 32, and onward, each one double the last. Two digits is not
+an arbitrary choice. A wire inside a computer is either carrying voltage or it is
+not, on or off, and those two states map straight onto 1 and 0. Every number,
+letter, image, and instruction a machine touches is built from that single
+two-way switch repeated billions of times, which is why base two sits underneath
+everything else.
+
+Read the binary number 1101 the same way a decimal number gets read, digit times
+place value. The places, right to left, are 1, 2, 4, 8. The digits sitting in
+them are 1, 0, 1, 1. So 1101 is 8 + 4 + 0 + 1, which comes to 13.
+
+Going the other way, from decimal 13 back to binary, one reliable method is
+repeated division by two, writing down each remainder. 13 divided by 2 is 6
+remainder 1. 6 divided by 2 is 3 remainder 0. 3 divided by 2 is 1 remainder 1. 1
+divided by 2 is 0 remainder 1. Reading the remainders from last to first spells
+1101, the same value from the other direction.
+
+Python does both conversions with one built-in function each. The `bin` function
+takes an integer and hands back its binary form as text, and the `int` function
+can read text in any base back into a number:
+
+```python
+print(bin(13))          # 0b1101
+print(int("1101", 2))   # 13
+print(0b1101)           # 13
+```
+
+The `0b` at the front of `0b1101` is a label, not a value. It marks the text as
+binary, the way a dollar sign marks money. The second argument to `int`, the `2`,
+tells Python to read the string in base two rather than the usual base ten.
+Writing `0b1101` straight into code is a third option: Python reads any literal
+starting with `0b` as binary and stores the plain integer 13.
+
+<Quiz
+  id="bases-binary-to-decimal"
+  question="The binary number 10110 has place values 16, 8, 4, 2, 1 from left to right. What decimal number does it represent?"
+  answer={1}
+  options={[
+    "11",
+    "22",
+    "20",
+    "10110",
+  ]}
+  explanation="Multiply each digit by its place value and add: 1 times 16, 0 times 8, 1 times 4, 1 times 2, 0 times 1. That is 16 + 0 + 4 + 2 + 0, which comes to 22. The string 10110 is only the written form; its value in base ten is 22."
+/>
+
+## Hexadecimal and the byte
+
+Base sixteen, called hexadecimal or just hex, needs sixteen digits, more than the
+ten that 0 through 9 provide. The six extra digits come from letters: a stands
+for 10, b for 11, c for 12, d for 13, e for 14, and f for 15. The place values
+are the powers of sixteen: 1, 16, 256, and onward.
+
+The hex value 2f is 2 times 16 plus 15, which is 47. The hex value ff is 15 times
+16 plus 15, which is 255. Python converts hex the same way it handled binary,
+swapping the base:
+
+```python
+print(hex(255))             # 0xff
+print(int("2f", 16))        # 47
+print(format(255, "02x"))   # ff
+print(0xff)                 # 255
+```
+
+The `0x` prefix marks hex the way `0b` marked binary. The `format(255, "02x")`
+call is worth reading closely: `x` means format the number as hex, and `02` means
+pad it out to at least two digits with a leading zero if needed. That padding
+matters because of how hex pairs with the byte.
+
+A byte is a group of 8 bits, and 8 bits can hold 256 different patterns, the
+whole numbers from 0 to 255. Split those 8 bits down the middle into two groups
+of 4. A group of 4 bits is called a nibble, and 4 bits hold 16 patterns, 0
+through 15, which is exactly the range of a single hex digit. So one nibble is
+one hex digit, and one byte, being two nibbles, is always two hex digits. The
+byte 00000000 is hex 00, and the byte 11111111 is hex ff, which is 255. Every
+byte, whatever its pattern, lands on exactly two hex characters. That clean fit
+is why raw data, colors, memory addresses, and encoded messages are written in
+hex instead of long runs of ones and zeros: two readable characters stand in for
+eight bits with nothing lost and nothing ambiguous.
+
+<Quiz
+  id="bases-byte-to-hex"
+  question="Why does a single byte always map to exactly two hexadecimal digits?"
+  answer={2}
+  options={[
+    "Because hexadecimal is base 16 and a byte is 16 bits.",
+    "Because every byte is stored on disk as two text characters.",
+    "Because a byte is 8 bits and each hex digit encodes 4 bits, so two hex digits cover all 8.",
+    "Because 2 is the largest number of digits any value needs in base 16.",
+  ]}
+  explanation="A byte is 8 bits. One hex digit encodes 4 bits, a nibble, so it takes two hex digits to cover all 8 bits, spanning the full range 0 to 255. A byte is 8 bits, not 16, which rules out the base-16 answer."
+/>
+
+## Numbers that do not fit
+
+Back to factorial(100) and its 158 digits. A number that long does not fit in the
+fixed-size slots most languages hand out for whole numbers. A common slot is 64
+bits wide, which tops out near 9.2 times 10 to the 18th, a 19-digit ceiling. Ask
+many languages for factorial(100) in that kind of slot and the value silently
+wraps around or overflows into nonsense, with no warning that the answer is now
+garbage. Wrap-around behaves like an odometer rolling past its last mile: once
+the count exceeds the ceiling, it loops back to the bottom and keeps going, so a
+number that should be astronomically large can come back small, or even
+negative, and look perfectly ordinary. Nothing crashes, which is what makes the
+bug so dangerous. The program simply reports a confident wrong answer.
+
+Python takes a different route. Its integers are arbitrary-precision, meaning an
+integer grows to whatever size it needs and every digit stays exact. There is no
+ceiling short of running out of memory. 2 raised to the 1000th power is a
+302-digit integer, and Python holds all 302 of them:
+
+```python
+n = 2 ** 1000
+print(len(str(n)))   # 302
+```
+
+The `str` function turns the integer into text, and `len` counts the characters,
+which for a whole number is the digit count. Because the integer is exact, its
+digits can be pulled apart and added. Turning the number into a string gives one
+character per digit, and each character converts back to an int to be summed:
+
+```python
+n = 2 ** 1000
+digit_sum = sum(int(d) for d in str(n))
+print(digit_sum)   # 1366
+```
+
+The piece inside `sum(...)` walks the string one character at a time, converts
+each character `d` to the integer it names, and adds them all. The same three
+lines work on the factorial, no matter how long it runs:
+
+```python
+from math import factorial
+
+f = factorial(100)
+print(len(str(f)))                    # 158
+print(sum(int(d) for d in str(f)))    # 648
+```
+
+One trap can quietly undo all of this: the floating-point number. A float is
+Python's type for values with a decimal point, like 3.14 or 2.0, and it is stored
+in a fixed number of bits. That fixed size means a float can only hold about 15
+to 16 significant digits before it starts rounding the rest away. For an exact
+digit sum, rounding is fatal.
+
+```python
+a = 2 ** 53        # 9007199254740992, an exact integer
+b = a + 1          # 9007199254740993, a different exact integer
+print(a == b)      # False
+
+x = float(a)       # the same value, converted to a float
+print(x == x + 1)  # True: adding 1 changed nothing
+```
+
+The integers know that a and b differ. The float cannot tell them apart, because
+2 to the 53rd power is the last point where floats can still count by ones. Above
+it, the representable values spread apart and the extra 1 falls into the gap
+between them and vanishes.
+
+<Callout type="warning" title="Keep exact integer work in integers">
+Never route a big whole number through a float. Watch for two operators that hand
+back floats without asking: `2.0 ** 1000` uses a float base and returns a float,
+and the single-slash `/` division always returns a float even when both sides are
+whole numbers. Use an integer base with `**`, and use `//` for whole-number
+division. Once a giant value touches a float, its lower digits are already gone,
+and no later step can bring them back.
+</Callout>
+
+<Quiz
+  id="bases-exact-digit-sum"
+  question="A program needs the exact sum of the digits of 2 raised to the 1000th power. Which approach returns the correct total?"
+  answer={1}
+  options={[
+    "Compute 2.0 ** 1000 as a float, convert it to a string, and sum the digits.",
+    "Compute 2 ** 1000 as an integer, convert it to a string, and sum the digits.",
+    "There is no way, because no language can hold a number that large.",
+    "Round 2 ** 1000 to 15 significant digits first to keep it manageable.",
+  ]}
+  explanation="Only the integer path keeps every digit. An integer base with ** produces the exact 302-digit value, which str and sum can then read digit by digit. A float base rounds after about 16 digits and does not even print as a clean run of digits, and rounding on purpose throws the answer away."
+/>
+
+## Practice this now
+
+<Exercise title="Sum the digits of a huge power">
+Open the Build tab and start a Python file. Compute 2 raised to the 1000th power
+with `2 ** 1000`, turn it into a string, and add up its digits with
+`sum(int(d) for d in str(n))`. Print the total. Done in integers, you get 1366.
+
+Now break it on purpose. Change the base to a float by writing `2.0 ** 1000`
+instead, run the digit sum again, and watch it raise an error, because the float
+prints as `1.0715086071862673e+301` and the dot and the letter e are not digits.
+Switch back to the integer `2 ** 1000` and confirm 1366 returns. Feeling that
+difference once is the fastest way to remember that exact work stays in integers.
+</Exercise>
+
+The power-digit-sum and factorial-digit-sum challenges in the Challenges tab are
+this exact move on huge exact integers, ready to solve right now: one sums the
+digits of a big power, the other sums the digits of a big factorial, and both
+depend on the number staying exact from the first digit to the last. Past those,
+the whole Math and Logic module feeds the coding challenges, with primes, modular
+arithmetic, and counting problems that all lean on reading a number for what it
+is. Bases reach past arithmetic, too. Binary and hex are the alphabet the
+cryptography lessons write in, where every key, hash, and encoded message is just
+bytes shown two hex digits at a time.
+
+<Notes />

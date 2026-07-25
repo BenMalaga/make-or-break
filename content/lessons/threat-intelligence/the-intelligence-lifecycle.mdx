@@ -1,0 +1,68 @@
+---
+title: The Intelligence Lifecycle
+module: threat-intelligence
+moduleTitle: Cyber Threat Intelligence
+moduleOrder: 36
+moduleIcon: Radar
+order: 2
+summary: Skip the planning step and you collect everything, analyze nothing, and ship reports nobody reads.
+estimatedMinutes: 17
+objectives:
+  - Walk the six phases of the intelligence cycle in order
+  - Write a Priority Intelligence Requirement that scopes collection
+  - Explain why feedback is the phase most teams drop
+tags:
+  - threat-intelligence
+  - cti
+  - lifecycle
+  - requirements
+  - collection
+---
+
+A CTI team I watched had eleven paid feeds, three analysts, and a wiki full of reports. Their SOC ignored all of it. Nobody had asked them a question, so they collected everything, drowned in it, and produced tidy documents that answered nothing anyone needed. They were busy and useless at the same time. The fix was not more data. It was starting the cycle at the right end.
+
+The intelligence lifecycle is the loop that turns "we have feeds" into "we answered the question." Six phases, and the order is not optional.
+
+## Direction comes first, and it is where teams cheat
+
+Direction means deciding what you are trying to learn before you collect a byte. You capture it as Priority Intelligence Requirements, or PIRs. A PIR is a real question a decision-maker owns, scoped tight enough to know when you have answered it.
+
+"Tell me about ransomware" is not a PIR. "Which ransomware groups have hit healthcare providers our size in the last 90 days, and do any of their initial-access techniques bypass our current EDR" is a PIR. It names the subject, the scope, the time window, and the decision it feeds.
+
+Teams skip this step because collecting feels productive and asking feels slow. Skip it and every later phase inherits the mistake. You cannot analyze your way out of collecting the wrong thing.
+
+## Collection and processing
+
+Collection is gathering against the PIRs, not against everything that exists. Sources split into the usual buckets: OSINT from vendor blogs and abuse.ch, commercial feeds, ISAC sharing with your industry peers, your own internal telemetry, and closed sources like forum monitoring. Your own logs are the most underrated source in the room, because they tell you what is actually hitting you.
+
+Processing is the unglamorous middle: normalize formats, translate, deduplicate, enrich. A raw STIX bundle, a PDF report, and a firewall log are not comparable until you have parsed them into something a human or a tool can work across.
+
+<CommandBlock
+  title="processing raw indicators before analysis"
+  commands={[
+    { cmd: "curl -s https://threatfox-api.abuse.ch/api/v1/ -d '{\"query\":\"get_iocs\",\"days\":1}'", comment: "pull a day of indicators from a free feed" },
+    { cmd: "jq -r '.data[] | [.ioc, .malware_printable, .confidence_level] | @tsv'", comment: "flatten to fields you can actually correlate" },
+    { cmd: "sort -u | grep -Ff my_asset_ranges.txt", comment: "keep only what overlaps your environment" },
+  ]}
+/>
+
+## Analysis is the phase that earns the paycheck
+
+Analysis is where information becomes intelligence. You correlate across sources, weigh confidence, discard the noise, and answer the PIR. This is judgment work, and it is where structured techniques matter: the Diamond Model to frame an intrusion, ATT&CK to map behavior, Analysis of Competing Hypotheses to keep yourself honest. A report that lists indicators without a judgment is still processing, not analysis.
+
+## Dissemination and feedback close the loop
+
+Dissemination is delivery in the form the reader can use. Same finding, different package: a STIX bundle to the SIEM, a one-page brief to the CISO, a Slack alert to the on-call. Get the format wrong and good analysis dies unread.
+
+Feedback is the phase almost everyone drops, and dropping it is why teams stagnate. You go back to the requester and ask whether the product answered the question and what to sharpen next. That answer resets Direction, and the loop turns again. Without feedback you are guessing at relevance forever.
+
+<Callout type="security" title="Collect within your authorization">
+Collection is the phase where people wander out of bounds. Monitoring criminal forums, scraping adversary infrastructure, or running your own honeypots is fine when it is authorized and scoped, and a problem when it is not. Interact with attacker infrastructure only from systems you own or are cleared to use, keep source material inside its TLP marking, and do not go account-shopping in places your rules of engagement do not cover.
+</Callout>
+
+<Exercise
+  id="cti-write-a-pir"
+  prompt="Your CISO says: 'I'm worried about the vendor email compromise stories in the news.' Turn that vague worry into one Priority Intelligence Requirement. Make it name the subject, a scope, a time window, and the decision it informs, so an analyst knows exactly when they have answered it."
+/>
+
+<Notes />

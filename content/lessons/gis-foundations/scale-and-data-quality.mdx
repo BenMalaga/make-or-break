@@ -1,0 +1,121 @@
+---
+title: Scale, Resolution, and Trusting Your Data
+module: gis-foundations
+moduleTitle: GIS Foundations
+moduleOrder: 1
+moduleIcon: Compass
+order: 6
+summary: "A dataset's scale and resolution set a hard ceiling on what it can honestly answer, and the most detailed data available is not always the right data for the question."
+estimatedMinutes: 13
+prerequisites: ["attributes-and-joins"]
+objectives:
+  - Explain what a map scale ratio like 1:24000 implies about the real-world distance a map covers and the detail it can show
+  - Describe raster resolution as the grid based counterpart to map scale, and explain how cell size limits what a raster can represent
+  - Distinguish positional accuracy from attribute accuracy, and accuracy from precision, with concrete examples of each
+  - Judge whether a dataset fits a given question instead of assuming the most detailed dataset available is automatically the right one
+tags:
+  - gis
+  - scale
+  - data-quality
+---
+
+The last lesson joined a table of zoning codes to a layer of parcels through a shared ID column, and the join worked cleanly because both tables described the same parcels at the same level of detail. That assumption holds right up until two datasets were captured at different scales in the first place. A national forest boundary and a surveyed property line can both be polygons in a GIS, both look identical zoomed out to the whole country, and still disagree by forty meters the moment someone zooms into one parcel. That gap is not a bug in the software. It is scale, and every dataset carries one whether or not the file says so.
+
+## What a map scale ratio actually promises
+
+A paper topographic map labeled 1:24000 is making a specific claim: one unit of distance on the map equals 24,000 of that same unit on the ground. One inch on the paper covers 24,000 inches of real terrain, close to 2,000 feet. That ratio is called the map's scale, and it is the single most useful number printed on the sheet, because it tells a reader exactly how much the world has been shrunk to fit.
+
+A **large scale** map has a small ratio, like 1:1,000, and shows a small area in a lot of detail: individual buildings, driveways, fire hydrants. A **small scale** map has a large ratio, like 1:1,000,000, and shows a huge area with almost none of that detail, often just state lines and major highways. The words feel backwards the first time anyone hears them, because "large scale" sounds like it should mean a big area. It means the opposite: a large ratio number makes the scale small, a small ratio number makes the scale large. Getting this backwards is a common early mistake, so it helps to anchor on the ratio itself rather than the words.
+
+Scale is not just a label. It caps how much real detail a map can honestly carry. A 1:24,000 map was surveyed and drawn to show features down to roughly 10 to 20 meters of positional detail, which is fine for planning a hike but far too coarse for placing a fence line. A 1:1,000,000 map was never meant to show anything smaller than a city. Zooming into it on a screen does not create detail that was never captured. It just makes the same coarse lines bigger.
+
+## Cell size: the same question for a grid
+
+A **raster** stores the world as a grid of square cells, each one holding a single value, the way a satellite image or an elevation surface does. Rasters do not have a printed scale ratio, but they have a direct equivalent: **cell size** (also called spatial resolution), the ground distance covered by one edge of one cell.
+
+A Landsat scene with 30 meter cell size means every pixel represents a 30 by 30 meter patch of the Earth, roughly the footprint of a basketball court, collapsed into one number. Whatever mix of rooftop, driveway, and lawn actually sits in that patch, the raster stores one averaged or dominant value for the whole square. A Sentinel-2 scene at 10 meter resolution divides the same ground into far smaller squares and keeps more of that variation, at the cost of a much larger file for the same area.
+
+Finer cell size is not free. It multiplies the number of cells for the same coverage, which multiplies file size and processing time. Choosing a 30 meter product to map deforestation across a whole continent and a 10 centimeter drone orthophoto to inspect a single farm field are both correct choices for their own question. Reaching for the finest resolution available by habit, regardless of what the question needs, wastes storage and compute for no real gain.
+
+<Quiz
+  id="scale-cell-size-analogy"
+  question="A vector map is labeled 1:100,000. A raster elevation model has a 30 meter cell size. What do these two numbers have in common?"
+  answer={1}
+  options={[
+    "Nothing, since scale ratios only apply to vector data and cell size only applies to rasters.",
+    "Both describe the same underlying idea: how much ground one unit of the dataset represents, which caps how much real detail the dataset can carry.",
+    "Both numbers describe how the data is colored when displayed on a screen.",
+    "Both numbers must always match exactly before two datasets can be shown on the same map.",
+  ]}
+  explanation="Map scale and cell size are the same concept applied to two different data models. A scale ratio says how much ground one unit of map distance covers, and cell size says how much ground one grid cell covers. Both set a ceiling on real world detail. They do not need to match numerically to be displayed together, and neither one is about color."
+/>
+
+## Generalization: the map that got simpler on purpose
+
+Anyone who has compared a coastline on a world map to the same coastline on a nautical chart has seen **generalization** at work: the deliberate simplification of a feature's shape so it can be drawn legibly at a given scale. A coastline is not actually a smooth curve. It is an infinitely jagged boundary of inlets, rocks, and sandbars, and at a small enough scale a cartographer has no choice but to smooth it, drop the tiny inlets, and straighten the wiggle into something a reader can follow.
+
+Roads get the same treatment. A small scale highway map shows Interstate 95 as a clean line running up the coast. Zoom the same road in on a large scale survey and it curves around wetlands, jogs at interchanges, and splits into ramps that the small scale version never hinted at. Neither version is wrong. Each is generalized to the level its scale can support, and each is answering a different kind of question: "which highway gets me north" versus "where exactly does the exit ramp meet the shoulder."
+
+Generalization is why a coastline traced off a world atlas will never line up with a coastline traced off a nautical chart of the same bay, even though both are honest representations of the same coast. They generalized different amounts, because they were built for different scales.
+
+<Callout type="info" title="Generalization is not an error to fix">
+A generalized coastline is not a mistake waiting for a correction. It is the dataset doing its job at the scale it was built for. The mistake is expecting a small scale dataset to answer a large scale question, not the simplification itself.
+</Callout>
+
+## Accuracy and precision are not the same claim
+
+Two words get used almost interchangeably in casual speech and mean sharply different things in GIS.
+
+**Precision** is how finely a measurement is expressed, independent of whether it is correct. A coordinate written to six decimal places of latitude and longitude is precise, since six decimals of a degree work out to roughly 10 centimeters of ground distance. That coordinate can still be wrong. A GPS unit reporting a location as 40.712776, -74.005974 is being extremely precise. If the unit's antenna was actually standing 15 meters away from that spot, the reading is precise and wrong at the same time.
+
+**Accuracy** is how close a measurement sits to the true value, regardless of how many decimals it carries. A rough estimate of "somewhere near 40.71, -74.01" is imprecise, but if the true location really is inside that rough area, it counts as accurate at the level of detail it offers. The classic way to picture the split is a target: tight, closely bunched shots that all land far from the bullseye are precise but not accurate. Shots scattered loosely around the bullseye are accurate on average but not precise. A GIS record wants both, and a dataset with lots of decimal places is worth checking rather than trusting on sight, because precision alone says nothing about correctness.
+
+## Two kinds of accuracy live in every feature
+
+Every feature carries geometry and attributes, and each half has its own accuracy to check.
+
+**Positional accuracy** measures how close a feature's geometry sits to its true location on the ground. A parcel boundary digitized from an old aerial photo might be off by five meters from where a licensed surveyor would actually place the pins. That five meter gap is invisible on a screen zoomed out to a whole county and very visible the moment someone tries to settle a fence dispute with it.
+
+**Attribute accuracy** measures how correct the descriptive values are, entirely apart from where the feature sits. A parcel could be positioned perfectly and still carry the wrong owner name, a stale assessed value from three years ago, or a zoning code that was updated last month but never synced into the dataset. Positional accuracy and attribute accuracy fail independently. A layer can be spot-on in one and badly wrong in the other, so checking one never covers the other.
+
+<Quiz
+  id="scale-positional-attribute-accuracy"
+  question="A parcel layer places every boundary within 30 centimeters of its true surveyed location, but the owner name field has not been updated since a sale two years ago. What is going on?"
+  answer={0}
+  options={[
+    "The layer has strong positional accuracy but weak attribute accuracy, since the geometry is correct while a descriptive value is stale.",
+    "The layer has weak positional accuracy but strong attribute accuracy, since a stale name means the boundary itself must be wrong.",
+    "The layer is both inaccurate and imprecise, since any error at all makes a dataset fully untrustworthy.",
+    "The situation is impossible, because positional accuracy and attribute accuracy always rise and fall together.",
+  ]}
+  explanation="Positional accuracy is about where the geometry sits, and here it is excellent. Attribute accuracy is about whether the descriptive values are correct and current, and the stale owner name is a clear attribute error. The two are independent, so one being strong says nothing about the other, which is why the layer needs both kinds of accuracy checked separately."
+/>
+
+## The trap of mixing scales
+
+A dataset's scale and resolution travel with it silently. Nothing in a shapefile or GeoPackage stamps "built for 1:24,000 use only" across the geometry, so it is entirely possible to load a coarse, generalized layer next to a fine, surveyed one and never notice the mismatch until the analysis depends on the gap between them.
+
+Overlaying a generalized 1:100,000 river network on a 1:2,000 parcel layer to check which parcels touch the water will misclassify some. The river's generalized path can sit meters away from its true channel, close enough to fool a viewer at a country wide zoom and far enough to hand back a wrong answer at parcel scale. The two layers are not lying. They were built to different standards of detail, and combining them without checking that detail treats them as if they were not.
+
+## Fitness for purpose beats "the most detailed data available"
+
+The instinct to always grab the highest resolution, most precise dataset on offer feels safe, but it is not the right default. The right question is whether a dataset is fit for the specific question being asked, not whether it is the most detailed thing available.
+
+A regional planner mapping which counties are prone to drought does not need parcel-level soil moisture readings. A coarse, national scale climate grid answers that question perfectly well, loads fast, and is far easier to keep updated. Reaching for survey grade data here would waste effort without improving the answer at all.
+
+Flip the stakes and the same logic points the other way. Consider a homeowner trying to settle exactly where a backyard fence should sit relative to a neighbor's property line. Pulling up a national parcel boundary dataset, generalized for country wide mapping and built with positional accuracy measured in tens of meters, and treating its line as the legal boundary is a real and common mistake. That dataset was built to show approximately where parcels are for a nationwide map, not to settle a property dispute measured in inches. The fix is not a better GIS trick. It is going to the county recorder's office for the actual surveyed plat, built at a scale and accuracy meant for exactly that decision.
+
+<Quiz
+  id="scale-fitness-for-purpose"
+  question="A homeowner wants to know exactly where a property line sits to settle a fence placement with a neighbor. Which data source fits that question?"
+  answer={2}
+  options={[
+    "A national scale parcel boundary layer, since it already covers every property in the country.",
+    "A 1:1,000,000 reference map, since it is the most widely used base map for the whole country.",
+    "A surveyed plat from the county recorder, built at a scale and positional accuracy meant for exact boundary decisions.",
+    "Whichever dataset has the most decimal places in its coordinates, since more decimals always means a better answer.",
+  ]}
+  explanation="A property line dispute needs positional accuracy measured in centimeters, which only a surveyed plat provides. National and small scale reference layers are generalized for showing where parcels are on a wide map, not for settling an exact boundary, and extra decimal places on a coarse dataset add precision without adding real accuracy."
+/>
+
+Scale, resolution, and the two kinds of accuracy are the questions to ask before trusting any dataset at all: how much ground does one unit represent, and how close is that unit to the truth. The next lesson turns from judging existing data to building new data, walking through how a GIS captures a feature in the first place and what choices get baked in at the moment of collection.

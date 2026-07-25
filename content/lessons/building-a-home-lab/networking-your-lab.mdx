@@ -1,0 +1,300 @@
+---
+title: Networking Your Lab
+module: building-a-home-lab
+moduleTitle: Building a Home Lab
+moduleOrder: 42
+moduleIcon: FlaskConical
+order: 3
+summary: "The four virtual network modes, and how to wire an attacker box to targets that can never reach the internet or the house."
+estimatedMinutes: 16
+prerequisites: ["why-you-need-a-lab", "choosing-virtualization"]
+objectives:
+  - Explain what a virtual network adapter attaches to, and why the mode is the whole decision
+  - Tell bridged, NAT, host-only, and internal apart by what each one can reach
+  - Define NAT by what the hypervisor does to a packet on the way out and back
+  - Wire an attacker box and its targets so a fully compromised target still has no route off the lab
+  - Prove isolation with a ping that is supposed to fail
+tags:
+  - networking
+  - lab
+  - isolation
+  - nat
+---
+
+The last lesson, choosing-virtualization, left a hypervisor running two guest
+machines: an attacker box, and something built to be attacked. Two machines on
+the same host do nothing to each other until they can exchange packets. This
+lesson is about that wiring, and about one connection in particular that must
+never get made.
+
+A deliberately vulnerable machine is, by design, a box anyone can break into in
+minutes. That is the whole point of it. The only question worth caring about is
+who "anyone" is allowed to be. Leave that machine connected to the home network
+and the answer becomes: whoever breaks in gets the home network too. Every phone,
+laptop, and smart plug in the house is suddenly sitting one hop away from a box
+that was built to fall over. So the wiring is not a detail. It is the thing that
+keeps a practice lab from becoming an incident in the living room.
+
+## The adapter and the switch it plugs into
+
+Every guest the hypervisor runs gets a virtual network adapter: a piece of
+emulated hardware that behaves, from inside the guest, exactly like a real
+network card. The guest operating system sees a network interface, asks for an
+address, sends and receives packets, and never learns the card is software.
+Guest and host were the two words the previous lesson pinned down. The guest is
+the virtual machine. The host is the physical computer running the hypervisor.
+
+That virtual adapter has to plug into something. The something is a virtual
+switch: software inside the hypervisor that moves packets between adapters the
+same way a physical switch moves them between ports. A switch, from networking
+foundations, forwards data between machines on one local network and makes its
+decisions on MAC addresses. The hypervisor's virtual switch does the identical
+job for the guests attached to it. The guests do not know the switch is fake any
+more than they know the card is.
+
+Here is the whole idea in one sentence. The networking mode of a virtual machine
+is a single choice: which virtual switch its adapter plugs into, and whether that
+switch has a path out to the physical network. Everything else, every difference
+between the four modes below, follows from that one decision. Get the mental
+model right and the modes stop being a menu to memorize.
+
+<Quiz
+  id="net-lab-adapter-model"
+  question="A freshly booted VM reports a working network card, pulls an address, and starts sending packets. Where does that card actually exist?"
+  answer={1}
+  options={[
+    "On the host's motherboard; the VM borrows the physical one directly.",
+    "It is emulated by the hypervisor, and the guest OS cannot tell it from real hardware.",
+    "In the router, which assigns one virtual card per VM.",
+    "Nowhere; the VM writes packets straight to disk until the host reads them.",
+  ]}
+  explanation="The adapter is emulated hardware the hypervisor presents to the guest. The guest OS drives it like a real NIC. What that emulated card connects to, the virtual switch, is exactly what the networking mode selects."
+/>
+
+## The four modes, by what each one can reach
+
+Four modes cover almost every hypervisor. The names differ slightly between
+VirtualBox, VMware, and the rest, but the four behaviors are the same, and the
+only question that matters for each is: what can a guest on this mode reach, and
+what can reach it.
+
+**Bridged** joins the virtual switch to the host's physical adapter. The guest
+appears on the real local network as its own host, with its own address handed
+out by the real router, exactly as if a second laptop had been plugged into the
+wall. It reaches the internet and every device in the house, and every device in
+the house reaches it. For a trusted utility VM that is convenient. For a target
+it is the single setting that turns a lab into a liability. Bridged is the one
+connection from the opening that must never be made to a vulnerable box.
+
+**NAT** puts the guest behind the hypervisor on a small private network, and the
+hypervisor acts as its router. NAT is Network Address Translation, and it is
+worth understanding by what it actually does to a packet. When the guest sends a
+packet toward the internet, the hypervisor rewrites the source address from the
+guest's private address to the host's own address, forwards it, and remembers the
+swap. When the reply comes back to the host, the hypervisor looks up the swap and
+rewrites the destination back to the guest. This is precisely what the home
+router, the default gateway from networking foundations, does for every device in
+a house. The consequence is a one-way door. The guest can reach out, which is how
+an attacker box runs `apt update` and downloads tools, but nothing on the local
+network can reach in unless a port is deliberately forwarded. And by default, two
+plain-NAT guests cannot even see each other; each sits alone behind its own
+translation.
+
+**Host-only** cuts the cord. The virtual switch has no connection to the host's
+physical adapter at all. It is a private segment, a self-contained little
+network, shared by the host and whichever guests are attached to it. Those guests
+see each other and see the host. None of them can reach the internet, because
+there is no route to it. This is the backbone of a lab: a place where machines
+can talk freely and go nowhere.
+
+**Internal** is host-only with the host removed. The virtual switch connects the
+guests to each other and to nothing else, not even the physical machine running
+the hypervisor. It is the most sealed of the four. A target on an internal
+network is reachable only by other guests on that same internal network, and by
+absolutely nothing on the physical side.
+
+<Callout type="info" title="The direction of reach is the whole story">
+Bridged reaches everything and is reached by everything. NAT reaches out but is
+not reached in. Host-only reaches only the host and its fellow guests. Internal
+reaches only its fellow guests. Reading the four modes as a line from most exposed
+to most sealed makes the right choice for a target obvious: pick from the sealed
+end, never the exposed one.
+</Callout>
+
+<Quiz
+  id="net-lab-nat-behavior"
+  question="An attacker VM needs to download tools from the internet, but must stay unreachable from the home network and its devices. Which single mode fits?"
+  answer={2}
+  options={[
+    "Bridged, so it gets a real address on the LAN.",
+    "Internal, so it is fully sealed off.",
+    "NAT, which lets the guest reach out while translation keeps anything on the LAN from reaching in.",
+    "Host-only, so it can install packages from the host's neighbors.",
+  ]}
+  explanation="NAT is the one-way door. The guest reaches the internet through address translation, but nothing on the physical LAN can open a connection back in unless a port is explicitly forwarded. Host-only has no internet route at all, so package downloads would fail."
+/>
+
+## Why the isolated segment matters
+
+A deliberately vulnerable target is going to get fully compromised. That is not a
+risk to avoid, it is the assignment. And the moment a target is owned, it stops
+being a passive box and becomes a launch point. Whoever controls it can now send
+packets to everything that box can reach.
+
+That move, using one compromised machine to attack machines it can talk to but
+the attacker could not reach directly, is called pivoting. It is not a lab
+curiosity. It is a real, named stage of real intrusions: break one exposed
+machine, then ride it deeper into the network behind it. A vulnerable VM sitting
+on a bridged adapter, or on a NAT adapter with a route back to the house, is a
+pre-built pivot pointed straight at the home network. Break the target on purpose
+during practice, and the same route that let the practice happen now reaches the
+real devices.
+
+The isolated segment removes the route entirely. A target on host-only or
+internal has no path off its segment, before compromise or after it. There is
+nothing to pivot to, because the virtual switch it is plugged into does not
+connect anywhere else. Full compromise of that box gets an attacker exactly one
+box.
+
+Which raises the practical problem. The attacker machine needs two things that
+seem to pull against each other: it must reach the internet to pull down tools,
+and it must reach the targets to attack them. One adapter cannot safely do both,
+because an adapter that reaches the internet is an adapter the targets could ride
+to the internet. The standard answer is to give the attacker box two adapters at
+once, each doing one job.
+
+<Callout type="security" title="The dual-adapter recipe, memorized once">
+The attacker box gets two adapters: one NAT for pulling tools from the internet,
+one host-only for reaching the lab. Every target gets exactly one adapter,
+host-only or internal, and no NAT. The result: the attacker reaches each target
+over the shared host-only segment, and each target can answer the attacker but
+has no route to the internet or the house even after it is completely owned. Wire
+it this way before downloading a single vulnerable image.
+</Callout>
+
+## Prove it before breaking anything
+
+Wiring the adapters is half the job. The other half is confirming the wiring does
+what it should, because a lab that only looks isolated is worse than no lab: it
+invites exactly the behavior it fails to contain. Two checks settle it. The
+target can reach the attacker. The target cannot reach the internet.
+
+Run these from inside the target VM. The addresses below come from one specific
+VirtualBox setup, where the default host-only network is `192.168.56.0/24`; the
+attacker box is at `192.168.56.101` and the target at `192.168.56.102`. Any real
+lab will show its own numbers.
+
+<CommandCard
+  command="ip a"
+  title="linux (inside the target)"
+  explain="Lists the guest's network interfaces and their addresses. On a host-only-only target, expect a single interface on the lab subnet and no default route to anywhere else."
+/>
+
+<ExpectedOutput label="ip a on an isolated target">
+```
+2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:1a:2b:3c brd ff:ff:ff:ff:ff:ff
+    inet 192.168.56.102/24 brd 192.168.56.255 scope global dynamic enp0s3
+       valid_lft 578sec preferred_lft 578sec
+```
+</ExpectedOutput>
+
+One interface, `enp0s3`, on the host-only subnet, with a MAC that starts
+`08:00:27`, the prefix VirtualBox assigns to the adapters it emulates. There is
+no second interface with an internet route, which is the point. Now the two
+checks.
+
+<CommandCard
+  command="ping -c2 192.168.56.101"
+  title="linux (inside the target)"
+  explain="Sends two probes to the attacker box on the same host-only segment. On a correctly wired lab this succeeds, proving the two machines can see each other."
+/>
+
+<CommandCard
+  command="ping -c2 8.8.8.8"
+  title="linux (inside the target)"
+  explain="Tries to reach a public internet address. On a properly isolated target this must fail, because there is no route off the segment. Success here means the target is not isolated."
+/>
+
+<ExpectedOutput label="the two results that mean isolation is working">
+```
+64 bytes from 192.168.56.101: icmp_seq=1 ttl=64 time=0.412 ms
+64 bytes from 192.168.56.101: icmp_seq=2 ttl=64 time=0.389 ms
+
+ping: connect: Network is unreachable
+```
+</ExpectedOutput>
+
+The first result, replies from the attacker box, confirms the two VMs share a
+segment. The second result is the one that matters, and the one most people skip.
+`Network is unreachable` is not a failure to celebrate quietly and move past. It
+is the proof. A host-only-only target has no default gateway, so the kernel finds
+no route toward `8.8.8.8` and refuses to even send the packet. That refusal is
+the isolation working. If those pings had come back with replies instead, the
+target has a way off the lab, and that gets fixed before anything else happens to
+the box. A target that can call home is a target that can be used to reach
+further than intended.
+
+From the attacker side, one sweep confirms the shape of the segment: the target
+is up where it should be, and nothing from the real home network appears on it.
+
+<CommandCard
+  command="nmap -sn 192.168.56.0/24"
+  title="linux (inside the attacker box)"
+  explain="A ping sweep of the host-only subnet: it asks which addresses answer, without scanning ports. The live hosts should be the host, the attacker, and the target, and nothing else."
+/>
+
+<ExpectedOutput label="nmap -sn on the host-only subnet">
+```
+Nmap scan report for 192.168.56.1
+Host is up (0.00031s latency).
+Nmap scan report for 192.168.56.101
+Host is up (0.00018s latency).
+Nmap scan report for 192.168.56.102
+Host is up (0.00045s latency).
+Nmap done: 256 IP addresses (3 hosts up) scanned in 2.04 seconds
+```
+</ExpectedOutput>
+
+Three hosts, no strangers. `192.168.56.1` is the host's foot on the segment,
+`.101` is the attacker box itself, `.102` is the target. If a phone or a smart TV
+from the real house had shown up in that list, the attacker adapter would be
+touching the home network, and the dual-adapter recipe would be broken. The whole
+segment answered in three hits, which is what a clean, sealed lab looks like.
+
+<Quiz
+  id="net-lab-verify-isolation"
+  question="From a target assumed to be isolated, `ping -c2 8.8.8.8` comes back with replies instead of an error. What does that result indicate?"
+  answer={0}
+  options={[
+    "The target has a route off the lab and is not isolated, so the adapters get fixed before the box is booted for practice.",
+    "Isolation is confirmed, because the target proved it can send packets.",
+    "The attacker box is offline, so traffic is falling back to the internet.",
+    "Nothing useful; ping to 8.8.8.8 is expected to work from any machine.",
+  ]}
+  explanation="Replies from a public address mean the target found a route to the internet, which a host-only or internal target must not have. It points at a stray NAT or bridged adapter. That route is a pivot path out of the lab and gets removed before the target is booted for real practice."
+/>
+
+<Exercise title="Wire one target and confirm it is sealed">
+On a hypervisor running an attacker VM and one target VM, open the target's
+settings and confirm it has exactly one network adapter set to host-only (or
+internal), and no second adapter set to NAT or bridged. Give the attacker box two
+adapters if it does not have them: one NAT, one host-only on the same segment as
+the target.
+
+Boot the target. Inside it, run `ip a` and note the host-only address. Run
+`ping -c2` against the attacker box's host-only address; it should succeed. Then
+run `ping -c2 8.8.8.8`. That one must fail with `Network is unreachable`. If it
+succeeds, the target has an extra adapter with a route out. Shut the target down,
+remove that adapter, and repeat the two pings until the internet ping fails.
+</Exercise>
+
+The segment is sealed and proven sealed. What it does not have yet is anything
+worth attacking; a lab with one blank target teaches nothing. The next lesson,
+stocking-it-with-targets, covers where legitimate vulnerable machines come from,
+places like VulnHub and the deliberately vulnerable applications built for
+practice, how to verify what gets downloaded is what it claims to be, and how to
+line targets up from gentle to brutal so the difficulty climbs instead of
+spiking.
+
+<Notes />

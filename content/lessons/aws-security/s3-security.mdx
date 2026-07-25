@@ -1,0 +1,62 @@
+---
+title: S3 Security
+module: aws-security
+moduleTitle: AWS Security
+moduleOrder: 30
+moduleIcon: CloudCog
+order: 3
+summary: The bucket someone made public in 2019 is still leaking today.
+estimatedMinutes: 20
+objectives:
+  - Tell bucket policies, ACLs, and Block Public Access apart
+  - Test a bucket for public read, list, and write access
+  - Find a target's buckets by guessing and by permutation
+tags:
+  - aws
+  - s3
+  - buckets
+  - misconfiguration
+  - data-exposure
+---
+
+More real data has walked out of AWS through open S3 buckets than through any clever exploit. Capital One, Verizon, Accenture, the Pentagon's intelligence contractor: all S3, all misconfiguration, none of them a software bug. A bucket is just a container for objects, but it has four separate systems that can each make it public, and people fight all four at once.
+
+The four are ACLs, bucket policies, IAM policies, and Block Public Access. ACLs are the old way, an object-level grant list that AWS now discourages but that still exists everywhere. Bucket policies are JSON attached to the bucket, same shape as IAM policies. IAM policies grant access from the identity side. Block Public Access is the master switch that, when on, overrides the other three and refuses to serve anything public. Most modern leaks happen when someone turns that switch off "just to test" and forgets.
+
+## Test what a bucket actually allows
+
+Public read of an object and public listing of the bucket are different permissions. A bucket can let you download a file whose exact key you know while refusing to list its contents, or it can hand you the whole index. Check both, plus write, which is the worst of all.
+
+<CommandBlock
+  title="probe a bucket three ways"
+  commands={[
+    { cmd: "aws s3 ls s3://target-bucket --no-sign-request", comment: "list contents with no credentials; success means public list" },
+    { cmd: "aws s3 cp s3://target-bucket/backup.sql . --no-sign-request", comment: "pull a known object anonymously" },
+    { cmd: "echo test > t.txt && aws s3 cp t.txt s3://target-bucket/ --no-sign-request", comment: "public write, the rarest and most dangerous finding" },
+  ]}
+/>
+
+`--no-sign-request` is the flag that matters here. It tells the CLI to send the request with no credentials at all, so a success proves the bucket answers to anonymous callers, not just to you. Public write is a full compromise of whatever consumes that bucket: overwrite a JavaScript file a website loads and you have stored XSS on their site, or plant a malicious deployment artifact.
+
+You can also just hit the REST endpoint in a browser. `https://target-bucket.s3.amazonaws.com/` returns an XML listing if the bucket is publicly listable, and an AccessDenied XML body if it is not. That AccessDenied still confirms the bucket exists, which is useful.
+
+## Finding the buckets in the first place
+
+Bucket names are global and DNS-visible, which makes them guessable. Real names cluster around the company: `acme-backups`, `acme-prod-assets`, `acme-dev`, `acme-terraform-state`. Permutation tools automate the guessing against wordlists.
+
+<CommandCard command="python3 s3scanner.py scan --bucket-list names.txt" explain="s3scanner checks each candidate name for existence and open permissions in one pass. Feed it permutations of the target's name, product names, and common suffixes like -backup, -logs, -static." />
+
+The other tool worth knowing is `awscli` against a name list in a loop, but purpose-built scanners like S3Scanner and the classic `bucket_finder.rb` handle the existence-versus-access distinction for you and are faster. Grayhat Warfare indexes already-public buckets and their file listings, so search there before you scan anything, because the target's bucket may already be catalogued.
+
+<Callout type="security" title="Authorized targets only">
+Reading a bucket you were not authorized to test is data theft, even if AWS served it to you without a login. "It was public" has not held up as a defense. Scan and pull only from buckets inside your engagement scope or your own account. Grayhat Warfare browsing is passive, but downloading a specific company's data is not.
+</Callout>
+
+For defenders, the fix is boring and total: turn on Block Public Access at the account level, which forces it on for every bucket regardless of what individual policies say. Then use S3 Access Analyzer to flag any bucket policy that grants access outside your account. Do not audit bucket-by-bucket ACLs by hand. Let the account-level switch make public exposure impossible by default and treat any exception as an incident.
+
+<Exercise
+  id="s3-triage-a-finding"
+  prompt="You run aws s3 ls s3://acme-assets --no-sign-request and get a full file listing including database-dump-2024.sql. Before you download anything, write down: is this in scope, what does the file name suggest, and what is the single fastest remediation you would report? The point is to separate confirming exposure from exfiltrating data."
+/>
+
+<Notes />

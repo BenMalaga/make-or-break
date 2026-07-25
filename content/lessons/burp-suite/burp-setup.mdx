@@ -1,0 +1,87 @@
+---
+title: Setting Up Burp and the Proxy
+module: burp-suite
+moduleTitle: Burp Suite
+moduleOrder: 16
+moduleIcon: Bug
+order: 1
+summary: Get Burp between your browser and the target so you read every request.
+estimatedMinutes: 16
+objectives:
+  - Launch Burp and understand the default proxy listener
+  - Route a browser through Burp and trust its CA certificate
+  - Intercept, read, and forward a live request
+tags:
+  - web
+  - burp
+  - proxy
+---
+
+Almost every web finding you make will pass through Burp first. It sits between your browser and the target, catches each request mid-flight, and hands you the raw thing: method, headers, cookies, body, all of it, before the server ever sees it. Get this wiring right once and the rest of the module is just moves layered on top.
+
+Kali ships Burp Community. Start it:
+
+<CommandCard command="burpsuite &" title="attacker@kali" explain="On the startup screens pick 'Temporary project' then 'Use Burp defaults' for a throwaway session." />
+
+Community is free and covers Proxy, Repeater, Intruder (throttled), Decoder, and Comparer. Pro adds the automated scanner and an unthrottled Intruder. Everything in this module works on Community unless I flag otherwise.
+
+## The proxy listener
+
+Burp's proxy listens on `127.0.0.1:8080` out of the box. Confirm it under Proxy > Proxy settings, where you'll see one listener bound to that address.
+
+<ExpectedOutput label="Proxy settings, listener row">
+```
+Running   Interface           Invisible   Redirect
+[x]       127.0.0.1:8080      off         none
+```
+</ExpectedOutput>
+
+That port is where your browser sends traffic. Leave it at 8080 unless something else already owns the port.
+
+## The easy path: Burp's own browser
+
+The fastest start is the browser Burp bundles. Open Proxy > Intercept and click **Open Browser**. This is a Chromium instance already pointed at the proxy and already trusting Burp's CA, so HTTPS just works with zero certificate setup. For learning and for most engagements, use it.
+
+## The other path: your own browser plus the cert
+
+Sometimes you need your real browser for a saved session, an extension, or a specific profile. Point it at `127.0.0.1:8080`. In Firefox that lives under Settings > Network Settings > Manual proxy, or cleaner, a FoxyProxy entry so you can flip it on and off without digging through menus.
+
+Then handle HTTPS. Burp decrypts TLS with its own certificate, so without that cert installed every secure site throws a warning. With the browser proxied, visit `http://burp`, download **CA Certificate** (it saves as `cacert.der`), and import it into the browser's trusted authorities. In Firefox: Settings > Privacy & Security > Certificates > View Certificates > Import, then check "trust this CA to identify websites."
+
+<Callout type="warning" title="No cert, no HTTPS">
+Skip the CA import on an external browser and you get TLS errors on every site and no readable traffic. Burp's bundled browser sidesteps this entirely, which is why it's the default recommendation.
+</Callout>
+
+## Intercept, read, forward
+
+Go to Proxy > Intercept and make sure it reads "Intercept is on". Load a page. The request freezes in Burp instead of leaving. You're now staring at the real HTTP request: the method, the path, the Host header, the cookies, all the fields the UI hid from you. Click **Forward** to send it on, or **Drop** to kill it.
+
+That gets old fast, because interception halts every request including images and analytics beacons. For normal browsing, set "Intercept is off" and let everything flow into Proxy > HTTP history instead. That table is a searchable log of every request the browser made through Burp, and it's where you'll spend most of your time. Flip interception back on only when you want to catch and edit one specific request as it happens.
+
+<Callout type="security" title="Authorized targets only">
+An intercepting proxy captures and rewrites live traffic. Point Burp only at hosts and apps you have written permission to test. Running it against sites you do not own is noisy and, in most jurisdictions, illegal.
+</Callout>
+
+<Quiz
+  id="burp-bundled-cert"
+  question="Why don't you need to install the CA certificate manually when using Burp's bundled browser?"
+  answer={1}
+  options={[
+    "Burp's browser does not support HTTPS at all",
+    "The bundled browser already trusts Burp's CA, so decrypted HTTPS works out of the box",
+    "The certificate installs itself into your system Firefox automatically",
+    "Burp turns off TLS for every request that passes through it",
+  ]}
+  explanation="Burp's embedded Chromium is preconfigured to trust Burp's own CA, so HTTPS interception works with no cert import. You only install cacert.der when you route an external browser through the proxy."
+/>
+
+<Exercise
+  id="burp-listener"
+  prompt="What local address and port does Burp's proxy listen on by default?"
+  answer="127.0.0.1:8080"
+  placeholder="e.g. 0.0.0.0:80"
+>
+Loopback address, port 8080. Your browser must send traffic here.
+</Exercise>
+
+<Notes />

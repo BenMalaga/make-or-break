@@ -1,0 +1,69 @@
+---
+title: Alerts and Triage
+module: soc-analyst-fundamentals
+moduleTitle: SOC Analyst Fundamentals
+moduleOrder: 24
+moduleIcon: Headset
+order: 2
+summary: Ninety percent of the queue is noise. Triage is how you find the one alert that is the fire, fast.
+estimatedMinutes: 16
+objectives:
+  - Read an alert down to who, what, where, and how confident
+  - Separate a true positive from benign activity without over-investigating
+  - Enrich an indicator quickly before you commit real time to it
+tags:
+  - soc
+  - triage
+  - alerts
+  - detection
+---
+
+Your queue has 300 alerts on it and your shift is eight hours. Do the math and you have about ninety seconds per alert before you fall behind. Triage is the skill of spending those ninety seconds well: killing the obvious noise in ten seconds so you can spend twenty minutes on the one that matters.
+
+An alert is a detection rule firing because something matched a condition. "PowerShell with an encoded command." "Login from a new country." "100 failed logins in a minute." The rule fired. That is all it means. Whether it is an attack, a sysadmin doing their job, or a broken script is exactly what you are there to decide.
+
+## Read the alert before you react
+
+Every alert answers four questions, and your first job is to pull them out fast.
+
+Who is the identity: a user account, a service account, a host. What is the action that tripped the rule. Where is the source and destination, usually IPs and hostnames. And how confident is the detection, which the SIEM often hands you as a severity or risk score. Get those four and you have the shape of the thing.
+
+Then ask the question that kills most alerts: is there a boring explanation? A failed-login spike at 9am on a Monday is people fat-fingering passwords after the weekend. The same spike at 3am against one admin account from a residential IP in another country is not. Same alert, completely different verdict, and context is what separates them.
+
+## Enrich before you commit
+
+Before you sink twenty minutes into an alert, spend two enriching the indicators. Cheap lookups tell you whether this is worth your time.
+
+<CommandBlock
+  title="fast enrichment on an indicator"
+  commands={[
+    { cmd: "whois 203.0.113.45", comment: "who owns the IP, hosting provider or a residential ISP" },
+    { cmd: "dig -x 203.0.113.45", comment: "reverse DNS, does it resolve to something expected" },
+    { cmd: "curl -s 'https://ipinfo.io/203.0.113.45/json'", comment: "geolocation and ASN, no API key needed for light use" },
+  ]}
+/>
+
+Drop the hash or domain into your threat intel platform too. If VirusTotal shows a file hash flagged by 40 of 70 engines, you are not chasing a false positive, you are opening an incident. Reputation data turns a maybe into a decision.
+
+<Callout type="security" title="Detonate in a sandbox, not on your box">
+When an alert hands you a suspicious file or URL, do not open it on your workstation to see what it does. Submit the hash to intel first. If you must run it, use an isolated malware sandbox like a Cuckoo or ANY.RUN instance, on infrastructure and targets you are cleared to use. Running unknown samples on a production or personal machine is how the analyst becomes patient zero.
+</Callout>
+
+## The verdict: true positive, false positive, or benign
+
+Every alert closes as one of three things. True positive means malicious activity happened and it needs response. False positive means the rule fired but nothing bad occurred, and that alert probably needs tuning so it stops crying wolf. Benign true positive means the activity really did happen but it was authorized, like a pentester or a sanctioned admin script.
+
+Write the verdict and the one or two facts that drove it. "Closed benign: encoded PowerShell traced to the SCCM deployment account, matches the 2am patch window." That sentence saves the next analyst from re-investigating the same alert next Tuesday, and it is the record that proves you actually looked.
+
+Do not over-investigate. The trap for new analysts is spending forty minutes proving a false positive is really false. Once the boring explanation is confirmed, close it and move on. The queue does not wait.
+
+<Exercise
+  id="triage-first-move"
+  prompt="You get an alert for an encoded PowerShell command line and want to know instantly whether the file or URL involved is already known-bad, before spending real time on it. Name the enrichment step you take first."
+  answer="reputation lookup"
+  placeholder="what do you check"
+>
+Think about checking the indicator against known-bad data, like dropping a hash into a threat intel or reputation service, before you dig into logs.
+</Exercise>
+
+<Notes />

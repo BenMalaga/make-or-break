@@ -1,0 +1,222 @@
+---
+title: "Writing Functions"
+module: python-intro
+moduleTitle: Intro to Python
+moduleOrder: 2
+moduleIcon: Code2
+order: 9
+summary: "A function names a piece of logic once so a program can call it by that name instead of retyping the same lines everywhere they're needed."
+estimatedMinutes: 14
+prerequisites: ["python-lists"]
+objectives:
+  - Define a function with def, parameters, and a return value
+  - Tell the difference between a function that returns a value and one that only prints
+  - Call a function and use the value it returns in further code
+  - Write a function that makes a decision and returns the right answer for every input
+tags:
+  - python
+  - functions
+---
+
+A checklist that gets rewritten from scratch every time it's needed is a checklist waiting to drift out of sync with itself. One copy gets a fix, the other three don't, and now three different versions of "the same" logic are running around a program, each slightly wrong in its own way. The previous lesson worked with lists, collections that hold many values in order. This lesson covers the tool Python gives for holding onto a piece of *logic* once, under one name, so it never has to be retyped: the function.
+
+## Naming a block of code
+
+A function is a named, reusable block of code. It gets written once and can be run, or called, as many times as needed, from as many places as needed, and every call executes the exact same logic. Here is the smallest useful function:
+
+```python
+def greet(name):
+    print(f"Hello, {name}!")
+
+greet("Ada")
+greet("Grace")
+```
+
+<ExpectedOutput label="the same function body running twice with different input">
+```
+Hello, Ada!
+Hello, Grace!
+```
+</ExpectedOutput>
+
+The `def` keyword starts a function definition. Right after it comes the name the function will be called by, `greet`, then parentheses holding the function's parameters, and a colon. Everything indented underneath is the function's body, the code that runs each time the function is called. Defining a function does not run it. Python reads the `def` block, remembers the recipe, and moves on. Nothing prints until a line further down actually calls the function by name with parentheses after it, like `greet("Ada")` does.
+
+That line, `greet("Ada")`, is a function call. The word `name` inside the parentheses in the `def` line is a parameter: a placeholder variable that stands in for whatever value the function will be handed when it runs. The string `"Ada"` passed in the call is an argument: the actual value supplied for that parameter on this particular call. Parameters live in the definition. Arguments live in the call. On the first call, `name` holds `"Ada"` for the duration of that run. On the second call, a fresh run starts and `name` holds `"Grace"` instead. Same body, different argument, different output, because the body reads `name` instead of a fixed string.
+
+A function can take more than one parameter, separated by commas, and a call supplies one argument per parameter in the same order:
+
+```python
+def greet(name, greeting):
+    print(f"{greeting}, {name}!")
+
+greet("Katherine", "Good morning")
+```
+
+<ExpectedOutput label="two parameters, two arguments, matched by position">
+```
+Good morning, Katherine!
+```
+</ExpectedOutput>
+
+`name` gets `"Katherine"` and `greeting` gets `"Good morning"`, because arguments match parameters by position: first argument to first parameter, second to second. Get the order backwards in the call and the function still runs, it just prints something nonsensical, because Python has no way to know that the first argument was supposed to be a name and not a greeting. The function only knows positions.
+
+<Quiz
+  id="functions-def-vs-call"
+  question="A program has def greet(name): print(f\"Hi, {name}\") written near the top, and nothing else runs yet. What happens at that point?"
+  answer={2}
+  options={[
+    "Python prints \"Hi,\" immediately, followed by a blank name.",
+    "Python raises an error, because greet was never called with an argument.",
+    "Nothing prints. Python reads and remembers the function's recipe, but the body only runs once something later calls greet(...) with an argument.",
+    "Python runs the function once automatically with name set to an empty string.",
+  ]}
+  explanation="Defining a function with def only registers its recipe under a name; the body does not execute until a later line calls the function. Nothing prints yet, no error happens (an argument is only required at call time, and none has happened yet), and Python never auto-runs a function just because it was defined."
+/>
+
+## Printing is not the same as returning
+
+Every function above printed something, but printing and returning are two different things, and mixing them up is one of the most common mistakes a new Python programmer makes. Printing puts text on the screen for a person to read. It does not hand a value back to the rest of the program. A function that only prints cannot be used in a calculation, stored in a variable, or passed to another function, because as far as the code around it is concerned, that function produced nothing at all.
+
+The `return` keyword is what actually sends a value back out of a function to whatever called it. Compare these two:
+
+```python
+def add_printing(a, b):
+    print(a + b)
+
+def add_returning(a, b):
+    return a + b
+
+add_printing(2, 3)
+result = add_returning(2, 3)
+print("the result variable holds:", result)
+```
+
+<ExpectedOutput label="printing shows a value once; returning hands it back for reuse">
+```
+5
+the result variable holds: 5
+```
+</ExpectedOutput>
+
+Both functions computed the same sum, `2 + 3`, and both numbers on screen read `5`. But they got there in different ways, and that difference matters more than the matching digits suggest. `add_printing` displayed `5` on the screen and then was finished. It never sent `5` anywhere a variable could catch it, so trying to write `result = add_printing(2, 3)` would leave `result` holding `None`, Python's value for "nothing here," because a function with no `return` statement returns `None` by default. `add_returning` never displayed anything on its own. It handed `5` back to the line that called it, and that line chose to store it in `result` and print it from there.
+
+This is the real difference: printing is for showing a human something right now. Returning is for handing a value to more code that still needs to do something with it, whether that is storing it, combining it with other values, or feeding it into another function. A function that computes something useful should almost always return that something rather than just print it, because a returned value can be reused and a printed one can only be looked at.
+
+<Quiz
+  id="functions-print-vs-return"
+  question="A function named add_printing(a, b) has print(a + b) as its only line, with no return statement. What does result = add_printing(2, 3) store in result?"
+  answer={3}
+  options={[
+    "The number 5, the same value that got printed to the screen.",
+    "The string \"5\", since printing always converts a value to text first.",
+    "A KeyError, since add_printing never sent a value back.",
+    "None, because a function with no return statement returns None by default, regardless of what it printed.",
+  ]}
+  explanation="Printing shows a value on screen but does not send it back to the caller. Without an explicit return, Python hands back None no matter what the function printed along the way, so result ends up holding None, not the number 5, not a string version of it, and not an error either, since a missing return is not itself a crash."
+/>
+
+<Callout type="warning" title="A function with no return statement gives back None">
+Calling a function and expecting a usable result back only works if that function has a return line. A function that only prints its answer hands the caller `None` instead, and code that tries to do math or comparisons on that `None` will fail with a confusing error far from the real mistake. When a function's job is to produce a value for other code to use, give it a return statement instead of, or in addition to, any print statements used for debugging.
+</Callout>
+
+## Calling a function and using what comes back
+
+A function call is an expression, meaning it stands in for a value once it finishes running, the same way `2 + 3` stands in for `5`. That means a function call can appear anywhere a value can: assigned to a variable, printed directly, compared with `==`, or passed as an argument into another function.
+
+```python
+def square(number):
+    return number * number
+
+value = square(4)
+print(value)
+print(square(5) + square(12))
+```
+
+<ExpectedOutput label="a function call used three different ways">
+```
+16
+169
+```
+</ExpectedOutput>
+
+The first call, `square(4)`, runs the function body with `number` set to `4`, returns `16`, and that `16` gets stored in `value`. The second line prints `value`, which is just `16` by now, nothing new. The third line calls `square` twice in the same expression, `square(5)` becomes `25` and `square(12)` becomes `144`, and Python adds those two returned values together to get `169` before printing the sum. Neither `square(5)` nor `square(12)` ever printed anything on its own. Both handed a number back, and the surrounding line did the printing once, after combining them.
+
+This is what makes functions worth having beyond just tidiness. A function is not a magic trick that happens once, it is a value-producing tool that can be dropped into any expression, called with different arguments each time, and its answer folded straight into whatever computation needs it next.
+
+## Why bother: one name, one fix, everywhere
+
+Consider a program that needs to check whether a number is even in five different places. Without a function, that check, `number % 2 == 0`, gets typed out five times. If that logic ever needs to change, say the program later needs to treat negative numbers specially, all five copies need to be found and edited, and missing even one leaves a bug sitting in the code, invisible until the one skipped spot runs on the wrong input.
+
+With a function, the check gets written once:
+
+```python
+def is_even(number):
+    return number % 2 == 0
+```
+
+Every one of the five places that used to repeat the logic now just calls `is_even(x)` instead. Fix the logic once, inside the function, and every caller gets the fix automatically, because they were never running their own copy of the logic to begin with, only calling the one real copy. This is the whole case for functions: name an idea once, and every place that needs that idea refers to the name instead of re-deriving it. Fewer places for a bug to hide, and exactly one place to fix it when one turns up.
+
+<Quiz
+  id="functions-why-reuse"
+  question="A program checks 'is this number even' with number % 2 == 0 typed out in six different places, instead of one is_even function. What is the real cost of that?"
+  answer={0}
+  options={[
+    "If the even-check logic ever needs to change, every one of the six copies has to be found and updated by hand, and missing one leaves a silent bug.",
+    "Python runs slower every time the same expression appears more than once in a program.",
+    "Python will refuse to run the program, since the same expression cannot legally appear twice.",
+    "Nothing changes either way, since a function call and typing the expression directly do exactly the same amount of typing.",
+  ]}
+  explanation="The real cost of repeated logic is maintenance: six untracked copies mean six places to remember when the logic changes, and an easy way for one to drift out of sync. Python has no rule against repeating an expression and does not slow down meaningfully from it, and while a function call is often shorter to type, the bigger issue here is correctness over time, not keystrokes."
+/>
+
+## A worked example: telling primes from everything else
+
+A prime number is a whole number greater than 1 that has no divisors other than 1 and itself. 7 is prime, because nothing between 2 and 6 divides it evenly. 8 is not, because 2 divides it evenly. Writing a function for this question is a good test of everything covered so far: parameters, a loop, a decision, and a return value that the caller can actually use.
+
+```python
+def is_prime(number):
+    if number < 2:
+        return False
+    for divisor in range(2, number):
+        if number % divisor == 0:
+            return False
+    return True
+
+print(is_prime(7))
+print(is_prime(8))
+print(is_prime(2))
+```
+
+<ExpectedOutput label="the same function correctly judging three different numbers">
+```
+True
+False
+True
+```
+</ExpectedOutput>
+
+Read the function from the top. `if number < 2: return False` handles the numbers that can never be prime by definition, 0, 1, and every negative number, and it exits the function immediately with `False` the moment that case is spotted. That immediate exit matters: `return` does not just send a value back, it stops the function right there, so nothing below it runs for those numbers.
+
+The loop, `for divisor in range(2, number)`, tries every whole number from 2 up to, but not including, `number` itself as a possible divisor. Inside the loop, `if number % divisor == 0` checks whether `divisor` divides `number` evenly, using the remainder operator `%`, which gives the leftover from division. Any exact division found here is a witness that `number` is not prime, so the function returns `False` on the spot and never checks the remaining divisors, because one exact match is all it takes to disqualify a number.
+
+If the loop finishes without ever hitting that `return False`, no divisor between 2 and `number - 1` worked, which is exactly what it means for `number` to be prime. The line `return True` sitting after the loop only runs if the loop never returned early, and it is the function's way of saying "checked everything, found no divisor, this one is prime."
+
+Notice how each of the three calls got a different True or False back, all from one function body, because each call ran with a different value bound to `number`. This is the same pattern as `square` and `is_even` above, scaled up to a real decision with a loop inside it. The caller never needs to see the loop or the remainder math. It just calls `is_prime(x)` and gets back exactly the answer needed to make its own next decision, which is the entire point of writing the logic as a function in the first place.
+
+<Exercise title="Write a function that formats a greeting">
+Save this into a file named `greetings.py`:
+
+```python
+def make_greeting(name, time_of_day):
+    return f"Good {time_of_day}, {name}!"
+
+print(make_greeting("Alan", "morning"))
+print(make_greeting("Katherine", "evening"))
+```
+
+Run it with `python3 greetings.py` in the Build tab and check that both lines print a full sentence, not just a name. Then add a third parameter called `excited` that is either `True` or `False`, and change the return line so that when `excited` is `True` the greeting ends with an exclamation point and extra energy, like `"Good morning, Alan!!! Great to see you!"`, and when it is `False` it stays plain. Call the function once with `excited` set to `True` and once with it set to `False`, and confirm the two calls actually print differently.
+</Exercise>
+
+Functions take parameters and return values, but so far every one of them has run its full body from top to bottom on every single call, with no memory of anything that happened on a previous call. The next lesson covers loops in more depth than the `for` loop used inside `is_prime` here, including how a loop decides when to stop and what happens when that decision depends on a condition instead of a fixed range.
+
+<Notes />

@@ -1,0 +1,72 @@
+---
+title: Signing and Provenance
+module: supply-chain-security
+moduleTitle: Software Supply Chain Security
+moduleOrder: 52
+moduleIcon: Truck
+order: 5
+summary: A signature answers the one question that stops most supply chain attacks cold. Did this artifact come from the build I think it did?
+estimatedMinutes: 20
+objectives:
+  - Explain what artifact signing proves and what it does not
+  - Sign and verify a container image with cosign and keyless signing
+  - Read provenance and attestations to trace an artifact back to its build
+tags:
+  - signing
+  - provenance
+  - cosign
+  - sigstore
+---
+
+Everything in this module has been about attackers getting upstream of you and slipping something into what you ship. Signing is the counter. A valid signature on an artifact says one specific thing: these exact bytes came from an identity you trust, and nothing changed them in transit. Verify before you deploy and the swapped-artifact attack, where someone tampers with the tarball or image after the build, stops working.
+
+Be precise about what a signature proves, because people overreach here. It proves integrity and origin. It does not prove the code is safe. A backdoored artifact signed by a compromised build is still validly signed, which is exactly what happened at SolarWinds. Signing is necessary and not sufficient. It closes the "someone replaced the file after the build" gap, which is real and common, and it gives you a trustworthy identity to reason about.
+
+## Sign and verify with cosign
+
+The tool that made signing painless is `cosign`, part of the Sigstore project. Old signing meant managing private keys, and key management is where signing programs go to die. Sigstore's answer is keyless signing: you authenticate with an OIDC identity (a GitHub Actions workflow, a Google account), Sigstore issues a short-lived certificate bound to that identity, you sign, and the signing event lands in a public transparency log called Rekor. There is no long-lived key sitting around to steal.
+
+<CommandBlock
+  title="keyless sign and verify a container image"
+  commands={[
+    { cmd: "cosign sign myregistry.io/app@sha256:abc123", comment: "authenticate via OIDC, sign, record in Rekor" },
+    { cmd: "cosign verify myregistry.io/app@sha256:abc123 --certificate-identity=REL --certificate-oidc-issuer=ISS", comment: "verify the signer identity, not just that a signature exists" },
+  ]}
+/>
+
+<ExpectedOutput label="cosign verify, trimmed">
+Verification for myregistry.io/app@sha256:abc123 --
+  - The cosign claims were validated
+  - Existence of the claims in the transparency log was verified
+  - The signatures were verified against the certificate
+Certificate subject: https://github.com/acme/app/.github/workflows/release.yml@refs/tags/v2.1.0
+</ExpectedOutput>
+
+Read that last line, because it is the point. Verification did not just confirm a signature exists. It told you which workflow, in which repo, at which tag produced this image. Verifying that the signer identity matches the build you expect is the whole job. A signature from an identity you did not authorize is worth nothing, so always pass `--certificate-identity` and `--certificate-oidc-issuer`. A bare "it is signed" check is a check you can be fooled by.
+
+## Provenance goes further than a signature
+
+A signature says who signed. Provenance says how the artifact was built. The SLSA framework (Supply-chain Levels for Software Artifacts) defines provenance as a signed statement describing the build: the source commit, the builder, the build steps, the inputs. Under the hood it is an in-toto attestation, a signed document bound to the artifact's digest. With provenance you can enforce a policy like "only deploy images built by our official release workflow from a tagged commit," and reject anything else at admission time even if it carries a valid signature from somewhere.
+
+<CommandCard command="cosign verify-attestation --type slsaprovenance myregistry.io/app@sha256:abc123" explain="Pull and verify the SLSA provenance attestation attached to the image. This gives you the build's own account of where it came from, which you feed into a policy engine so an image that was not produced by your sanctioned pipeline never reaches production, signed or not." />
+
+<Callout type="security" title="Practice on artifacts you own">
+Sign, verify, and forge-test against registries and repos you control or are authorized to assess. A throwaway GitHub org, a local registry, and a spare image are all you need to run the full sign-verify-policy loop. Do not push signatures or attestations under an identity you were not given, and do not probe another organization's signing infrastructure without written scope. The transparency log is public and permanent, so every signing action you take is recorded. Learn the verification chain on your own artifacts so you can trust it on someone else's with permission.
+</Callout>
+
+Put it together as a gate, not a formality. Build produces the artifact, cosign signs it keylessly and attaches SLSA provenance, and deploy refuses anything whose signer identity and provenance do not match your policy. That chain is what turns "we trust the vendor" into "we verified this specific artifact came from this specific build," which is the difference the SolarWinds victims never had.
+
+<Quiz
+  id="signing-not-sufficient"
+  question="An image passes cosign verify with a valid signature. Why is that alone not proof the image is safe to deploy?"
+  answer={2}
+  options={[
+    "Signatures expire after 24 hours and must be renewed",
+    "cosign cannot verify container images, only tarballs",
+    "A signature proves origin and integrity, not that the build itself was uncompromised or that the signer is the identity you authorized",
+    "Valid signatures mean the code passed all security scans",
+  ]}
+  explanation="Signing proves the bytes came unchanged from some signer. A compromised build can still sign a backdoored artifact, as SolarWinds showed, and a signature from an unauthorized identity is worthless. You must also check the signer identity and the build provenance against policy."
+/>
+
+<Notes />

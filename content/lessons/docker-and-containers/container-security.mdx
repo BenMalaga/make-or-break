@@ -1,0 +1,272 @@
+---
+title: Container Security Basics
+module: docker-and-containers
+moduleTitle: Docker and Containers
+moduleOrder: 14
+moduleIcon: Container
+order: 5
+summary: "A container is a boundary made of kernel configuration, and configuration loosens. Here is how the wall between a container and its host actually breaks, and how to make it thicker."
+estimatedMinutes: 16
+prerequisites: ["what-containers-are", "images-and-dockerfiles", "docker-compose", "running-targets-in-docker"]
+objectives:
+  - Explain why a container shares the host kernel, and what that means for the root user inside it
+  - Identify the misconfigurations that turn a container into a direct path to the host, from privileged mode to a mounted Docker socket
+  - Recover a secret left behind in an image's earlier layers, and weigh where an image came from
+  - Shrink a container's blast radius with dropped capabilities, a non-root user, and a read-only filesystem
+tags:
+  - docker
+  - container-security
+  - escapes
+  - hardening
+---
+
+running-targets-in-docker ended on a comfortable note: stand up a deliberately
+vulnerable service in a container, map one port to reach it, and tear the whole
+thing down when the work is finished. The container kept the vulnerable service
+walled off from the rest of the machine. That success plants a dangerous idea,
+that the wall is solid.
+
+It is thinner than it looks. A container is an ordinary process that the host
+kernel has agreed to lie to about what it can see. The isolation is real, but it
+is assembled from configuration, and configuration gets loosened by people who
+are in a hurry. On an engagement, a shell inside a container is not the finish
+line. It is the start of one question that runs through this whole lesson: how
+much of the host is a single step away?
+
+## One kernel, shared by everything
+
+what-containers-are drew the hard line between a container and a virtual machine.
+A virtual machine boots its own kernel; a container borrows the host's.
+namespaces give a process its own view of the process table, the network, and
+the filesystem root, and cgroups cap how much CPU and memory it can take. But
+every system call that process makes still lands on the one kernel shared by
+every other process on the box.
+
+That shared kernel is the whole security story. A virtual machine that gets
+fully owned is still fenced off by a hypervisor with its own kernel underneath.
+A container that gets fully owned is a process sitting on the same kernel as
+everything else, held back only by the namespace walls and the capability limits
+the kernel was asked to enforce. Weaken those, and there is nothing else beneath
+them.
+
+### Root inside is root outside
+
+The root user inside a default container is not a lookalike. It is UID 0, the
+exact numeric identity that root has on the host. namespaces restrict where that
+UID 0 can reach, so container root cannot, by default, open the host's files or
+signal host processes. The limit lives in the namespace boundary, not in the
+identity. When a process crosses that boundary and touches a real host resource,
+through a bind mount, a shared namespace, or a kernel bug, it touches it as
+UID 0. No second permission check is waiting on the far side.
+
+Docker softens this by default. A new container does not get the full root
+toolkit. The daemon strips most Linux capabilities and keeps a limited set, so
+container root can bind a low port or change a file's owner but cannot, for
+instance, load a kernel module. The kept set is readable from inside the
+container in the process status file.
+
+<CommandCard
+  command="grep Cap /proc/self/status"
+  title="container shell"
+  explain="Prints the capability bitmasks for the current process. CapEff is the set of capabilities actually in force right now."
+/>
+
+<ExpectedOutput label="grep Cap /proc/self/status in a default Docker container">
+```
+CapInh: 0000000000000000
+CapPrm: 00000000a80425fb
+CapEff: 00000000a80425fb
+CapBnd: 00000000a80425fb
+CapAmb: 0000000000000000
+```
+</ExpectedOutput>
+
+The hex values are capability bitmasks, one bit per capability. `CapEff` is the
+effective set, the one in force. The value shown is what a default Docker
+container commonly holds, and the exact number moves with the Docker and kernel
+versions, so treat it as illustrative rather than a constant to memorize. The
+comparison is what matters. A container started with `--privileged` shows every
+bit set instead, a wall of `f`s, which means it carries the complete capability
+set that host root carries.
+
+<Quiz
+  id="dc-sec-root-identity"
+  question="A process running as root inside a default Docker container reads a file from a host directory that was bind-mounted into it. What identity does the kernel apply the read as?"
+  answer={1}
+  options={[
+    "A special limited container-root that the kernel always treats as unprivileged on the host.",
+    "root on the host, UID 0, because the container's root is the same numeric identity and the mount crosses the namespace boundary.",
+    "The user account that happened to run docker run.",
+    "Nobody. The kernel blocks every read of a host file from inside a container.",
+  ]}
+  explanation="By default there is no user-namespace remapping, so container root is UID 0, the same identity as host root. Namespaces limit what that UID can reach, not who it is. Once a real host resource is in reach, here a bind mount, the access happens as UID 0 with no second check."
+/>
+
+## The flags that open the door
+
+`docker run --privileged` was built for the rare case of running Docker inside
+Docker or driving hardware from a container. It hands over the full capability
+set, turns off the default seccomp and AppArmor filters that normally block
+dangerous system calls, and lets the container reach the host's devices,
+including the raw disk under `/dev`. A privileged container can mount the host's
+disk and read or rewrite any file on it. That is not an exploit. It is the
+documented behavior of a flag someone typed.
+
+The mount that shows up most in the wild is the Docker socket.
+`/var/run/docker.sock` is the Unix socket the Docker daemon listens on, and that
+daemon runs as root on the host. Some containers get the socket bind-mounted in
+so an app inside can manage other containers: a CI runner, a monitoring agent, a
+build tool. Any process that can reach that socket can issue commands to the root
+daemon.
+
+<CommandCard
+  command="ls -la /var/run/docker.sock"
+  title="container shell"
+  explain="Checks whether the host Docker daemon's socket is present inside the container. If this file exists here, the container can drive the host daemon."
+/>
+
+The move from there is short. A container holding the socket asks the daemon to
+start a brand new container, one that bind-mounts the host's `/` directory inside
+itself, then reads or writes the host filesystem through that mount as root. The
+first container never needed `--privileged` at all. It only needed a line to the
+daemon that does.
+
+The same shape repeats with other loosened settings. `--pid=host` drops the
+process-table namespace, so the container sees and can signal every process on
+the machine. A bind-mounted host path, `-v /:/host` at the extreme, is a direct
+window into host files. Sharing the network namespace exposes services meant to
+listen only on the host. Every one of these is a misconfiguration, and
+misconfiguration is the common case: most real escapes are a flag or a mount
+someone left open, not a clever exploit.
+
+The rarer path attacks the shared kernel or the container runtime itself.
+Because every container rides the same kernel, a bug reachable through a system
+call can carry a process out of its namespaces. This is not hypothetical.
+CVE-2019-5736 was a flaw in runc, the low-level runtime Docker uses to spawn
+containers, that let a process inside a container overwrite the runc binary on
+the host and run its own code as root the next time any container started. Bugs
+like that get patched fast and are far less common than a stray `--privileged`,
+but they are the reason a fully current, well-configured host still is not a hard
+security boundary.
+
+<Callout type="security" title="Escapes need an authorized target">
+Container escape techniques belong to boxes under ownership or explicit written
+authorization. An escape reaches the host and everything on it, which is exactly
+why it sits out of bounds without permission. A personal lab, an intentionally
+vulnerable practice target, or a client system inside a signed scope are the
+places to run them.
+</Callout>
+
+<Quiz
+  id="dc-sec-docker-sock"
+  question="An unprivileged container, started without --privileged, has /var/run/docker.sock bind-mounted inside it. Why is that close to a full host compromise?"
+  answer={2}
+  options={[
+    "The socket gives the container direct internet access it should not have.",
+    "The socket leaks the container's own logs to every other container.",
+    "The socket talks to the host's root Docker daemon, which can be told to start a new container that mounts the host's / directory, handing host files back as root.",
+    "It is not a problem, because the socket only functions when it is called from the host itself.",
+  ]}
+  explanation="The daemon behind docker.sock runs as root on the host. A container that can reach the socket can command it to launch a container mounting host root, which is a full escape without ever setting the --privileged flag on the first container."
+/>
+
+## The image is code from strangers
+
+images-and-dockerfiles covered pulling an image by name from a registry. That
+name hides a real question: who built it, and what is inside? `docker pull redis`
+with no tag quietly means `redis:latest` from Docker Hub, a tag that can point at
+a different image next month and is signed by whoever controls that repository.
+Unofficial images, and images whose names sit one typo away from a popular one,
+are a known way to get hostile code onto a host. Pinning an image to a content
+digest, the `name@sha256:...` form, nails it to one exact set of bytes, so a
+later push cannot swap the contents under a familiar tag.
+
+Provenance has a second edge that catches even careful teams. From
+images-and-dockerfiles: an image is a stack of layers, and layers are additive. A
+file added in one layer and deleted in a later one is gone from the final
+filesystem but fully intact in the earlier layer, which still ships inside the
+image. A developer who pastes an API key into a build step, uses it, and deletes
+it on the next line has not removed the key. They have buried it one layer down,
+where anyone who pulls the image can dig it back out.
+
+<CommandCard
+  command="docker history --no-trunc redis:7"
+  title="linux"
+  explain="Prints the build command recorded behind every layer of an image. Secrets pasted into a RUN or ENV instruction show up here in plain text."
+/>
+
+<ExpectedOutput label="docker history, trimmed and illustrative: the token in the build step survives even though .env is removed later">
+```
+CREATED BY                                                          SIZE
+RUN /bin/sh -c pip install -r req.txt \
+  --extra-index-url https://deploy:S3cr3tT0ken@pkgs.internal/simple  41.2MB
+COPY . /app # buildkit                                               3.1MB
+RUN /bin/sh -c rm -f /app/.env # buildkit                            0B
+```
+</ExpectedOutput>
+
+`docker history` reads the recorded build command behind each layer, so the token
+typed into that `pip install` line is preserved forever in the image metadata,
+and the `rm` of `.env` two layers later did nothing to the `.env` file already
+captured by the earlier `COPY`. For files copied in rather than typed, unpacking
+the image reaches them directly: `docker save someimage:tag -o img.tar` writes
+the image to a tar archive, and the extracted layers are ordinary files to grep
+through for `password`, `token`, `BEGIN PRIVATE KEY`, or a stray `.env`. Running
+that grep against any pulled image is a genuine recon step, and it turns up more
+than most teams would like.
+
+<Quiz
+  id="dc-sec-layer-secret"
+  question="A Dockerfile copies a private key into the image, uses it in a build step, then runs rm on the key in a later instruction. Someone pulls the finished image. Can they recover the key?"
+  answer={1}
+  options={[
+    "No. The rm instruction deletes the key from the image for good.",
+    "Yes. Layers are additive, so the earlier layer that added the key is still present in the image even though a later layer deletes the file.",
+    "Only if the image was pushed to the registry with an --insecure flag.",
+    "No, unless they also obtain the original Dockerfile.",
+  ]}
+  explanation="An image is a stack of layers and each one is kept. The layer that added the key ships inside the image regardless of a later rm, and unpacking the image with docker save exposes that earlier layer directly. Deleting a secret in a later instruction hides it from the final filesystem, not from the image."
+/>
+
+## Give the container less
+
+Hardening a container is mostly subtraction. A Dockerfile `USER` line runs the
+process as a non-root account, so a bug inside is not instantly UID 0.
+`--cap-drop=ALL` paired with a short `--cap-add` list hands back only the
+capabilities the app truly needs. `--read-only` mounts the root filesystem
+read-only, so an attacker who gets in cannot write tooling to disk.
+`--security-opt=no-new-privileges` stops a process from gaining capabilities
+through setuid binaries. Rootless Docker and user-namespace remapping go furthest,
+mapping container root to an unprivileged host UID so that even container UID 0 is
+nobody special on the host, which is the fix that finally breaks the
+root-inside-is-root-outside problem this lesson opened on.
+
+Secrets get handed in at run time instead of baked into the image. The
+environment keys and mounted volumes from docker-compose are one clean way to do
+it, and a dedicated secrets store is better still. Each of these choices turns a
+total compromise into a partial one, which is the whole game: not a perfect wall,
+a thicker one.
+
+<Exercise title="Read a container's privileges">
+On a host with Docker, start a throwaway container and look at what it holds. Run
+`docker run --rm -it alpine sh` to get a shell inside, then
+`grep CapEff /proc/self/status` to see its capability mask. Note the value. Exit
+with `exit`, start it again as `docker run --rm --privileged -it alpine sh`, and
+run the same grep. Compare the two masks: the second is a wall of `f`s, the full
+host capability set.
+
+While inside either container, check for the two escape signals from this lesson.
+Run `ls -la /var/run/docker.sock` to ask whether the daemon socket is mounted in,
+and `mount | grep -v overlay` to see what host paths were bind-mounted. On a clean
+throwaway container the socket is absent and no host paths are mounted, which is
+exactly what a safe container should look like.
+</Exercise>
+
+These are the checks that keep running the practice machines a controlled
+exercise instead of a reckless one: know what a container can reach before
+trusting it to hold something vulnerable. The same questions scale up when one
+host becomes a cluster. Kubernetes security asks them of pods and service
+accounts rather than single containers, where a mounted socket becomes a
+reachable API server and one over-permissioned workload can take the whole node.
+
+<Notes />

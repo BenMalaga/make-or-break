@@ -1,0 +1,265 @@
+---
+title: Putting It Online
+module: web-development
+moduleTitle: Web Development
+moduleOrder: 2
+moduleIcon: LayoutTemplate
+order: 5
+summary: "Three files on a laptop become a page anyone on earth can open: hosting, deploying, domains, and the padlock."
+estimatedMinutes: 15
+prerequisites: ["how-the-web-works", "html-structure", "styling-with-css", "making-it-interactive"]
+objectives:
+  - Describe what a website physically is, a folder of files a server hands back on request
+  - Explain what hosting is and why a laptop cannot be the server
+  - Walk the deploy loop that copies local files to a host and returns a live URL
+  - Explain what a domain name is and how DNS points it at the host
+  - Say what HTTPS protects and why every real site turns it on
+tags:
+  - web
+  - html
+---
+
+The making-it-interactive lesson ended with a page that worked. Double-click the
+file, a browser opens it, the heading shows, the button responds. Look at the
+address bar and it reads something like `file:///Users/sam/my-site/index.html`.
+That address is the whole problem. It points at one folder on one laptop. A
+friend across town cannot type it in and see anything. Close the laptop lid and
+the page is gone even for the person who wrote it.
+
+The how-the-web-works lesson described the loop the web runs on: a browser sends a
+request to a server, and the server sends the page back. Everything this module
+built skipped that loop entirely. The HTML, the CSS, the JavaScript, all of it
+lived and stayed on the machine it was written on. This lesson closes the gap. It
+gets the page onto a real server with a real web address, so the request-and-answer
+loop from lesson 1 finally runs for a page anyone can reach.
+
+## A site is just files
+
+Strip away the mystery and a website is a folder of files. The page built across
+this module is three of them sitting next to each other in one folder.
+
+<CommandCard
+  command="ls my-site"
+  title="terminal"
+  explain="Lists the files inside the site's folder, one line, alphabetical."
+/>
+
+<ExpectedOutput label="the three files that make up the page">
+```
+index.html  script.js  styles.css
+```
+</ExpectedOutput>
+
+Each file is one of the three things the module built. `index.html` is the HTML:
+the structure and content. `styles.css` is the CSS: the colors, spacing, and
+layout. `script.js` is the JavaScript: the behavior. The HTML file is the one the
+browser opens first, and it links the other two with relative paths, which is why
+the three have to travel together.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>My Page</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <h1>Hello from the internet</h1>
+    <script src="script.js"></script>
+  </body>
+</html>
+```
+
+The name `index.html` is not decorative. When a browser asks a server for a folder
+without naming a specific file, the server hands back `index.html` by default.
+That convention is why the home page of almost every site on earth is a file named
+`index.html`. Ask for the folder, get `index.html`.
+
+So putting a site online means one small, concrete thing: get that folder of files
+onto a machine that will hand them back when a browser asks. That machine is the
+piece the module has been missing.
+
+## Why a laptop is not a server
+
+Lesson 1 called the answering machine a server. A server is not special hardware.
+It is a computer running a program that waits for requests and sends files back. A
+laptop could run that program. The trouble is everything else a server needs.
+
+A server has to stay on. A request can arrive at 3 a.m. and the server has to be
+awake to answer it. A laptop sleeps, moves between coffee shops, and gets a new
+network address every time it joins a different Wi-Fi. A server also needs a fixed,
+public address that any browser anywhere can reach, and a home laptop usually sits
+behind a router that hides it from the open internet. Good machine to write a site
+on. Terrible machine to serve one from.
+
+Hosting is renting space on a machine that solves those problems for you: it stays
+on, it has a public address, and it runs the server program. Put the folder of
+files on the host, and the host answers every request for them, all day, from
+wherever the requests come.
+
+One more distinction sets up the free option. The three files never change once
+they are written. The server does not have to run a program to build the page each
+time; it just sends the files exactly as they sit on disk. A site like that is a
+static site, and a host built to serve one is a static host. Static hosting is the
+simplest kind there is, and several companies give it away free for small sites.
+That free static host is the target for the rest of this lesson.
+
+<Quiz
+  id="web-online-why-not-laptop"
+  question="A page works perfectly when opened from a file on a laptop. Why can a friend in another city still not reach it at that same address?"
+  answer={1}
+  options={[
+    "The friend's browser cannot read HTML that was written on a different computer.",
+    "A file:// address points at one folder on one machine, and nothing is serving those files to the internet.",
+    "The page has to be rewritten in a different language before other people can open it.",
+    "The laptop's battery is not strong enough to send the page that far.",
+  ]}
+  explanation="A page opened from a file never involves a server at all. Nobody outside that one machine can request it. Reaching it from anywhere means the files have to sit on a host that stays on and answers requests."
+/>
+
+## Deploying: getting the files onto the host
+
+Deploying is the act of copying the site's files onto the host and making them
+live. There are a few ways to do it, and the common modern one runs through git.
+
+Git is a tool that tracks versions of a project's files and can send a copy of them
+to another machine. A push is the command that sends the latest version up. Most
+free static hosts watch a git repository, a project's files plus their history
+stored on a service like GitHub, and redeploy the site every time a new push
+arrives.
+
+The setup happens once. Create a repository on GitHub, tell the local folder where
+that repository lives, and, on the host, pick that repository as the site to serve.
+After that the everyday loop is three short commands. Edit the files, then send the
+change.
+
+```bash
+git add .
+git commit -m "update the homepage"
+git push
+```
+
+`git add .` stages every changed file. `git commit -m` saves them as one labeled
+version. `git push` sends that version up.
+
+<CommandCard
+  command="git push"
+  title="terminal"
+  explain="Sends the latest committed version of the files to the repository the host is watching, which triggers a fresh deploy."
+/>
+
+Within a few seconds the host copies the files onto its server and the live page
+updates. No files get emailed, no server gets configured by hand. The push is the
+deploy.
+
+The host answers at a URL it assigns, something like `bright-sky-8830.netlify.app`
+or `sam.github.io/my-site`. That is a real, public web address. Anyone can open it.
+The request-and-answer loop from lesson 1 is now running against a machine that is
+actually on the internet, serving the exact files that used to sit unreachable on
+a laptop.
+
+## The address people actually type
+
+The URL the host assigns works, but it is long, it is hard to remember, and it
+belongs to the host rather than to the site. A domain name fixes all three. A
+domain name is the human-friendly address of a site, like `example.com`, rented
+from a registrar, a company that sells domains, for roughly ten to fifteen dollars
+a year.
+
+A domain does not hold the site. It points at the host that does. The pointing
+happens through DNS, the domain name system, which is the internet's lookup table.
+DNS turns a name a person can remember into the numeric address of the machine
+that answers. When a browser is handed `example.com`, it first asks DNS where that
+name lives, gets back an address, and only then sends its request there. Lesson 1
+covered the request; the DNS lookup is the step that happens right before it.
+
+Connecting a domain to a host is one configuration step, not a second upload. The
+registrar's dashboard holds DNS records, small entries that say where a name should
+point. Setting the record for the domain to the host's address is what ties
+`example.com` to the files already deployed on that host. From then on, a browser
+that types the domain lands on the host, and the host hands back `index.html`.
+
+<Quiz
+  id="web-online-domain-dns"
+  question="A site is already live at sam.github.io/my-site. The author buys the domain sammakes.com and wants it to show that same site. What actually makes the domain lead there?"
+  answer={1}
+  options={[
+    "Uploading the site's files a second time, to the domain registrar.",
+    "A DNS record at the registrar that points the domain at the host already serving the files.",
+    "Renaming index.html to sammakes.com inside the folder.",
+    "Nothing, because a domain automatically finds any site whose name matches it.",
+  ]}
+  explanation="A domain name holds no files. It is a pointer. A DNS record tells the internet which host answers for that name, and the host is where the files already live. The site is never uploaded twice."
+/>
+
+## The s in https
+
+A live URL starts with `https://`, not `http://`, and that one letter is worth
+understanding. Plain http sends every request and every page as readable text
+across the network. Anyone sitting between the browser and the server, on the same
+coffee-shop Wi-Fi or at an internet provider, can read that text and even change
+it before it arrives.
+
+HTTPS wraps the same traffic in encryption. The s stands for secure. The browser
+and the server agree on a secret key and scramble everything they send each other,
+so a watcher in the middle sees only noise and cannot quietly alter the page along
+the way. The proof that a server is who it claims to be comes from a TLS
+certificate, a signed file the server presents to show it really owns the domain.
+When the certificate checks out and the encryption is on, the browser draws a
+padlock next to the address.
+
+<Callout type="info" title="HTTPS is not optional in practice">
+Browsers now flag plain http pages as "Not secure," and any page that collects a
+password or a payment has to be served over https or the browser will warn the
+visitor away from it. For a beginner the good news is that free static hosts issue
+and renew a certificate automatically the moment a site goes up. The padlock
+appears without anyone configuring anything.
+</Callout>
+
+<Quiz
+  id="web-online-https"
+  question="What does the https in a site's address give that plain http does not?"
+  answer={1}
+  options={[
+    "It makes the page load faster by compressing the files before sending them.",
+    "It encrypts the traffic so someone between the browser and server cannot read or change it, and it proves the server owns the domain.",
+    "It stores the site's files in more than one country for backup.",
+    "It lets the site run JavaScript, which http blocks.",
+  ]}
+  explanation="HTTPS encrypts the request and the page while they cross the network and backs it with a certificate that proves the server's identity. Plain http sends everything as readable text that anyone in the middle can see or tamper with."
+/>
+
+## The page is live
+
+Four ideas cover the whole trip from a file to a page on the internet. A site is a
+folder of files. A host is a machine that stays on and hands those files back on
+request. Deploying is the push that copies the files to the host. A domain plus a
+DNS record gives the host a name people can type, and HTTPS locks the traffic
+between the browser and that host. Put together, they turn `index.html` on a laptop
+into a page any browser on earth can open.
+
+<Exercise title="Ship the page">
+Take the three files this module built, index.html, styles.css, and script.js, and
+put them in one folder named after the project. Open an account on any free static
+host (GitHub Pages, Netlify, Cloudflare Pages, and Vercel all have a no-cost tier),
+create a repository, and connect the folder to it.
+
+Make one small edit, change the text inside the `<h1>` in index.html, then run the
+deploy loop: `git add .`, then `git commit -m "first deploy"`, then `git push`.
+Wait a few seconds, open the URL the host assigned, and confirm the live page
+matches the one on the laptop. Check the address bar for the padlock.
+
+Now change the heading again and push a second time. Watching the live site update
+from a single `git push` is the point of the whole exercise. The page is no longer
+a file on one machine. It is a server that anyone can reach.
+</Exercise>
+
+The site is live, but it only ever hands back the same three files. It cannot
+remember a visitor, save what someone typed into a form, or answer a question that
+was not written into the files ahead of time. Doing any of that needs a program
+running on the server, not just files sitting on it. The rest of the Make track
+picks up there: backends and APIs, where the server builds an answer on the fly for
+each request, and building with AI, where that answer comes from a model.
+
+<Notes />

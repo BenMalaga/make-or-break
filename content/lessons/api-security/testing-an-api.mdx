@@ -1,0 +1,84 @@
+---
+title: Testing an API
+module: api-security
+moduleTitle: API Security
+moduleOrder: 32
+moduleIcon: Webhook
+order: 5
+summary: No UI to click, just endpoints. Here is how you find them and work them methodically.
+estimatedMinutes: 22
+objectives:
+  - Discover API endpoints from docs, traffic, and brute force
+  - Build a working request collection and replay it with tampered values
+  - Fuzz parameters and methods without missing the whole endpoints
+tags:
+  - api
+  - testing
+  - fuzzing
+  - discovery
+---
+
+An API gives you no page to explore, no buttons, no links to crawl. You get endpoints, and half of them are undocumented. So the job splits into two problems: find the endpoints, then work each one. Get the discovery half wrong and you will test the three routes the app told you about while missing the twelve it did not.
+
+Start with anything that documents the API for you, because developers hand you the map more often than you would think. Look for a Swagger or OpenAPI spec at the usual paths.
+
+<CommandBlock
+  title="check the standard doc and schema locations first"
+  commands={[
+    { cmd: "curl -s https://target.tld/openapi.json | jq '.paths | keys'", comment: "OpenAPI spec lists every documented path, dump the keys" },
+    { cmd: "curl -s https://target.tld/swagger/v1/swagger.json | jq .", comment: "Swagger UI backing file, same idea different path" },
+    { cmd: "curl -s https://target.tld/graphql -H 'Content-Type: application/json' -d '{\"query\":\"{__schema{types{name}}}\"}'", comment: "GraphQL introspection dumps the whole schema if it is left on" },
+  ]}
+/>
+
+A live OpenAPI spec is the best case: it hands you every path, method, and parameter. GraphQL introspection is the equivalent for GraphQL, and it is on by default in a lot of deployments. Pull it with a tool like `clairvoyance` if introspection is disabled but you still want the schema.
+
+## Capture real traffic
+
+Docs lie by omission. The truth is in the traffic, so proxy the app's own client through Burp or mitmproxy and use the app normally. Every request the mobile app or web front end makes gets logged, including the endpoints the docs never mentioned.
+
+<CommandCard command="mitmproxy --mode regular -p 8080" explain="Point the app's client at your proxy on 8080, click through every feature, and read the flow list. Real endpoints, real parameters, real tokens, captured exactly as the app sends them. This is the highest-signal discovery there is." />
+
+Once you have a request that works, turn it into something you can replay and mutate. Save it to a Burp collection or a Postman collection, keep a valid token in a variable, and now every tampering test is a one-line change. This is where the real work happens: same request, different id, different method, extra field.
+
+## Brute force the paths the app hid
+
+The app will not show you `/api/admin` or the leftover `/api/v1`. Brute force them. Use an API-aware wordlist and a fast fuzzer, and filter hard on status and size so you are not drowning in 404s.
+
+<CommandBlock
+  title="fuzz for hidden endpoints and versions"
+  commands={[
+    { cmd: "ffuf -u https://target.tld/api/FUZZ -w api-wordlist.txt -H \"Authorization: Bearer $TOKEN\" -mc 200,201,401,403", comment: "match interesting codes, a 403 means the route exists but is gated" },
+    { cmd: "kr scan https://target.tld -w routes-large.kite", comment: "kiterunner is built for APIs, it sends realistic method+path+body combos" },
+    { cmd: "ffuf -u https://target.tld/api/v1/FUZZ -w wordlist.txt -fc 404", comment: "hunt an older version that never got the current fixes" },
+  ]}
+/>
+
+`kiterunner` beats a plain directory buster here because it knows APIs answer to specific method and content-type combinations, not just GET on a path. A route that returns 404 to `GET` might return 200 to `POST` with a JSON body. Match on 401 and 403 too: those confirm a route exists even when you cannot reach it yet.
+
+## Work each endpoint methodically
+
+For every endpoint you find, run the same short battery instead of guessing. Tamper the object id for BOLA. Swap the method (`GET` to `DELETE`, `POST` to `PUT`) for broken function-level authorization. Add fields the response never showed you for mass assignment. Strip the token to see if auth is even enforced. Push a huge `?limit=` value or a nested filter for resource-consumption bugs.
+
+Fuzz the parameter values, but find the parameters first. `arjun` discovers hidden query and body parameters an endpoint accepts but never advertises, which is often where the injectable or trust-me field lives.
+
+<CommandCard command="arjun -u https://target.tld/api/v1/search -m GET" explain="Arjun throws a large parameter wordlist at the endpoint and reports which ones change the response. Hidden parameters like debug, admin, or internal_id are exactly the ones with no access control behind them." />
+
+<Callout type="security" title="Authorized targets only">
+Endpoint brute forcing and parameter fuzzing generate a lot of traffic and touch routes nobody meant to expose. Keep it inside a written scope: OWASP crAPI, VAmPI, PortSwigger's API labs, or an app you own. Rate-limit your own tooling so you are testing, not knocking the target over, which is its own offense.
+</Callout>
+
+<Quiz
+  id="api-testing-discovery"
+  question="You have valid credentials and want the fullest possible list of real endpoints, including undocumented ones. What gives you the most complete picture fastest?"
+  answer={2}
+  options={[
+    "Guessing common paths by hand",
+    "Reading only the public documentation page",
+    "Proxying the app's own client through Burp or mitmproxy while you use every feature, then adding path brute force for what the client never calls",
+    "Running nmap against the API host",
+  ]}
+  explanation="The app's own client calls the real endpoints with real parameters and tokens. Capturing that traffic is the highest-signal discovery, and brute forcing fills in admin and legacy routes the client never touches."
+/>
+
+<Notes />

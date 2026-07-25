@@ -1,0 +1,340 @@
+[
+  {
+    "domain": 3,
+    "question": "A company migrates an application to a public cloud provider using the Infrastructure as a Service (IaaS) model. Under the shared responsibility model, which of the following remains the CUSTOMER's responsibility?",
+    "options": [
+      "Physical security of the data center hosting the hypervisors",
+      "Patching the guest operating system and configuring the application firewall",
+      "Maintaining the underlying network switches and storage hardware",
+      "Replacing failed physical hard drives in the storage array"
+    ],
+    "correct": [1],
+    "explanation": "In IaaS, the provider manages the physical facility, hardware, and virtualization layer, while the customer is responsible for the guest OS, applications, data, and their configuration, including OS patching and application-level firewalls. The other options describe provider-managed physical and hardware duties.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A security architect is designing a zero trust environment. A subject requests access to a resource, and a component evaluates the request against policy and grants or denies access, but does not itself sit in the traffic path. Which zero trust component is being described?",
+    "options": [
+      "Policy Enforcement Point (PEP)",
+      "Policy Engine (PE)",
+      "Policy Administrator (PA)",
+      "Implicit trust zone"
+    ],
+    "correct": [1],
+    "explanation": "The Policy Engine makes the actual access decision (grant or deny) based on policy and signals; it is part of the control plane and does not sit inline. The Policy Enforcement Point is the inline component in the data plane that allows or blocks the connection, and the Policy Administrator establishes or tears down the session based on the engine's decision.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An organization wants to replace a value such as a credit card number with a non-sensitive substitute that has no mathematical relationship to the original, using a lookup table stored in a secure vault so the original can be retrieved only when authorized. Which data protection method is this?",
+    "options": [
+      "Hashing",
+      "Tokenization",
+      "Data masking",
+      "Symmetric encryption"
+    ],
+    "correct": [1],
+    "explanation": "Tokenization swaps sensitive data for a token with no algorithmic relationship to the original; the mapping lives in a secured token vault. Hashing is one-way and non-reversible, masking obscures data for display but does not use a reversible vault mapping, and encryption uses a key and a reversible algorithm rather than a lookup vault.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A DevOps team defines its entire cloud environment (networks, servers, and firewall rules) in declarative configuration files that are version-controlled and used to provision resources automatically. Which architectural approach does this describe, and what is its PRIMARY security benefit?",
+    "options": [
+      "Serverless computing, which removes the need to patch operating systems",
+      "Infrastructure as Code, which provides consistent, repeatable, and auditable deployments",
+      "Containerization, which isolates applications with a shared kernel",
+      "Microservices, which reduce the blast radius of a single compromised service"
+    ],
+    "correct": [1],
+    "explanation": "Defining infrastructure in version-controlled declarative files is Infrastructure as Code (IaC); its main security value is eliminating configuration drift by making deployments consistent, repeatable, and auditable. Serverless, containerization, and microservices are distinct architecture models and do not match the described provisioning-from-code behavior.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A hospital keeps two data centers 300 miles apart. The secondary site has hardware installed and data replicated near-real-time, but applications are not actively serving users until a failover occurs. Bringing it fully online takes about an hour. What type of recovery site is this?",
+    "options": [
+      "Cold site",
+      "Warm site",
+      "Hot site",
+      "Mobile site"
+    ],
+    "correct": [1],
+    "explanation": "A warm site has hardware and reasonably current data in place but requires some time and effort to become fully operational, matching the roughly one-hour activation. A hot site is fully operational and near-instant, while a cold site has only space and power with no equipment or data pre-staged.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A security engineer needs to place a device that inspects traffic between the internet-facing web servers and the internal network, and must be able to actively drop malicious packets in real time. Which placement and device type BEST meets this requirement?",
+    "options": [
+      "A passive IDS connected to a SPAN/mirror port",
+      "An inline IPS deployed between the security zones",
+      "A network tap feeding a monitoring sensor",
+      "A jump server in the screened subnet"
+    ],
+    "correct": [1],
+    "explanation": "Actively dropping malicious packets requires an inline intrusion prevention system, which sits directly in the traffic path and can block in real time. A passive IDS on a mirror port or a tap can only detect and alert, and a jump server is an administrative access host, not a traffic-inspection control.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A backup strategy calls for keeping three copies of data on two different media types with one copy stored offsite. This is commonly known as which rule?",
+    "options": [
+      "The 3-2-1 backup rule",
+      "The grandfather-father-son rotation",
+      "The RAID 5 parity rule",
+      "The tower of Hanoi scheme"
+    ],
+    "correct": [0],
+    "explanation": "The 3-2-1 rule specifies three copies of data, on two different media, with one copy offsite, providing resilience against single points of failure. Grandfather-father-son and tower of Hanoi are tape rotation schemes, and RAID 5 is a disk redundancy method, not a backup copy strategy.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "An organization deploys a device that combines firewall, antivirus, content filtering, and intrusion prevention into a single appliance to simplify management for a small branch office. Which appliance is described?",
+    "options": [
+      "Web Application Firewall (WAF)",
+      "Unified Threat Management (UTM)",
+      "Layer 4 stateful firewall",
+      "Forward proxy server"
+    ],
+    "correct": [1],
+    "explanation": "A Unified Threat Management appliance consolidates multiple security functions (firewall, antivirus, content filtering, IPS, and more) into one device, which is attractive for smaller sites. A WAF protects only web applications, a Layer 4 firewall only filters on ports and state, and a forward proxy handles outbound requests rather than bundling all these functions.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A financial firm must ensure that customer records physically stored in the European Union remain subject only to EU law and are not moved to servers in other countries. Which concept is the firm addressing?",
+    "options": [
+      "Data sovereignty",
+      "Data masking",
+      "Data in transit protection",
+      "Right to be forgotten"
+    ],
+    "correct": [0],
+    "explanation": "Data sovereignty is the principle that data is subject to the laws and regulations of the country in which it is physically located, which drives requirements to keep records within a jurisdiction. Masking obscures data values, in-transit protection secures data moving over networks, and right to be forgotten is a specific deletion right, not a residency constraint.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A company runs identical production workloads across Amazon Web Services and Microsoft Azure simultaneously so that a major outage or a security incident at one provider does not take the entire service offline. Which resilience strategy is this?",
+    "options": [
+      "Vertical scaling",
+      "Multi-cloud (platform diversity)",
+      "Single-tenancy isolation",
+      "Cold site standby"
+    ],
+    "correct": [1],
+    "explanation": "Running the same workloads across two different cloud providers is a multi-cloud strategy that provides platform diversity, reducing the impact of a single provider's outage or vulnerability. Vertical scaling adds resources to one host, single-tenancy is an isolation model, and a cold site is an unequipped standby facility.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A security team must decide how a network firewall should behave if it loses power or crashes. For a firewall protecting a highly sensitive database segment where confidentiality outweighs availability, which failure mode should be configured?",
+    "options": [
+      "Fail-open, so traffic continues to flow during the outage",
+      "Fail-closed, so traffic is blocked during the outage",
+      "Fail-safe passthrough, so packets are forwarded unfiltered",
+      "Load-balanced failover to a bypass switch"
+    ],
+    "correct": [1],
+    "explanation": "When confidentiality and security are paramount, a fail-closed (fail-secure) configuration blocks all traffic if the device fails, preventing unauthorized access even at the cost of availability. Fail-open and passthrough modes prioritize availability by letting traffic through unfiltered, which would expose the sensitive segment.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "An enterprise wants remote employees to reach cloud applications through a single service that combines SD-WAN networking with cloud-delivered security functions such as secure web gateway, CASB, and zero trust network access. Which model is this?",
+    "options": [
+      "Secure Access Service Edge (SASE)",
+      "Software-Defined Networking (SDN)",
+      "Virtual Private Cloud (VPC)",
+      "Network Access Control (NAC)"
+    ],
+    "correct": [0],
+    "explanation": "Secure Access Service Edge converges SD-WAN with cloud-delivered security services (secure web gateway, CASB, ZTNA, and firewall as a service) into a single, identity-driven edge model. SDN is a networking control architecture, a VPC is an isolated cloud network segment, and NAC enforces endpoint posture at network admission, none of which describe this converged edge.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A security administrator configures switch ports so that a device must authenticate to a RADIUS server using EAP before the port grants network access. Which standard and mechanism are being used? (Choose two.)",
+    "options": [
+      "IEEE 802.1X",
+      "IEEE 802.11ac",
+      "Port-based network access control",
+      "Spanning Tree Protocol"
+    ],
+    "correct": [0, 2],
+    "explanation": "IEEE 802.1X is the standard for port-based network access control, using EAP to authenticate a supplicant against an authentication server (often RADIUS) before opening the port. 802.11ac is a Wi-Fi throughput standard and Spanning Tree Protocol prevents switching loops; neither authenticates endpoints.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A database administrator needs a lower environment where developers can test against realistic data, but the production values such as Social Security numbers must be obscured (for example, replaced with XXX-XX-1234) while preserving format. Which technique is MOST appropriate?",
+    "options": [
+      "Full-disk encryption",
+      "Data masking",
+      "Cryptographic hashing",
+      "Digital signing"
+    ],
+    "correct": [1],
+    "explanation": "Data masking replaces or obscures sensitive values while preserving realistic format for use in non-production environments, exactly matching the partially hidden SSN requirement. Full-disk encryption protects data at rest but would render fields unusable for testing, hashing is one-way and changes the format, and digital signing provides integrity, not obfuscation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An architect is comparing high-availability approaches. Which statement correctly distinguishes clustering from load balancing?",
+    "options": [
+      "Load balancing links multiple servers to act as a single system with failover, while clustering only distributes requests",
+      "Clustering links multiple servers so they can fail over and act as one logical system, while load balancing distributes traffic across servers for performance and availability",
+      "Both terms are identical and refer to distributing traffic across cloud regions",
+      "Clustering is used only for storage, while load balancing is used only for firewalls"
+    ],
+    "correct": [1],
+    "explanation": "Clustering groups servers so they operate as one logical system and can take over for a failed node, whereas load balancing spreads incoming requests across multiple servers to improve performance and availability. The first option reverses the definitions, and the others are inaccurate generalizations.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A company hosts multiple applications on one physical server by running several isolated guest operating systems on a Type 1 hypervisor. A vulnerability that lets an attacker break out of a guest VM and gain access to the hypervisor or other guests is known as what?",
+    "options": [
+      "VM sprawl",
+      "VM escape",
+      "Container breakout",
+      "Side-channel timing attack"
+    ],
+    "correct": [1],
+    "explanation": "VM escape is the attack in which code running in a guest virtual machine breaks isolation to reach the hypervisor or other guests, a core virtualization risk. VM sprawl is the uncontrolled proliferation of unmanaged VMs, container breakout applies to shared-kernel containers rather than full hypervisor VMs, and a side-channel timing attack is a different class of leakage.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "During a disaster recovery test, the team walks through the recovery plan in a conference room, discussing roles and steps without touching any production or backup systems. Which type of test is this?",
+    "options": [
+      "Failover test",
+      "Parallel processing test",
+      "Tabletop exercise",
+      "Full-interruption test"
+    ],
+    "correct": [2],
+    "explanation": "A tabletop exercise is a discussion-based walkthrough of the plan where participants talk through their roles and decisions without activating any systems. A failover test actually switches to backup systems, parallel processing runs recovery systems alongside production, and a full-interruption test takes production offline.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A backup solution captures the state of a virtual machine or volume at a specific point in time, recording only the changes after that instant so it can be restored quickly. This describes which backup mechanism?",
+    "options": [
+      "Snapshot",
+      "Full backup",
+      "Journaling",
+      "Replication"
+    ],
+    "correct": [0],
+    "explanation": "A snapshot preserves the state of a system or volume at a point in time and typically tracks subsequent changes, enabling fast rollback. A full backup copies all data rather than a point-in-time state, journaling logs transactions for recovery, and replication continuously copies data to another location.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "An administrator wants to give remote engineers a single hardened host from which they must connect before they are allowed to administer servers inside a secured management network. Which network appliance provides this controlled pivot point?",
+    "options": [
+      "Reverse proxy",
+      "Jump server",
+      "Load balancer",
+      "Network tap"
+    ],
+    "correct": [1],
+    "explanation": "A jump server (jump box) is a hardened, monitored host that administrators must connect through to reach and manage systems in a protected segment, concentrating and controlling administrative access. A reverse proxy fronts inbound application traffic, a load balancer distributes traffic, and a tap passively copies traffic for monitoring.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A retailer classifies its data. Payment card data governed by PCI DSS and personal health information governed by HIPAA fall into which data type category?",
+    "options": [
+      "Public data",
+      "Regulated data",
+      "Trade secret",
+      "Intellectual property"
+    ],
+    "correct": [1],
+    "explanation": "Data whose handling is mandated by external laws or standards such as PCI DSS or HIPAA is regulated data. Public data has no such restrictions, trade secrets are confidential business information whose value comes from secrecy, and intellectual property covers creations like patents and copyrights rather than compliance-mandated categories.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 3,
+    "question": "A branch office needs a resilient power plan. It must keep servers running for a few minutes during brief outages long enough to fail over, and also survive multi-hour utility failures. Which combination BEST meets both needs?",
+    "options": [
+      "A surge protector for short outages and a PDU for long outages",
+      "A UPS for immediate battery bridging and a generator for extended runtime",
+      "Dual power supplies only, with no external backup",
+      "A generator alone, sized to start instantly on loss of power"
+    ],
+    "correct": [1],
+    "explanation": "An uninterruptible power supply provides instantaneous battery power to bridge short outages and the startup gap, while a generator supplies sustained power for extended failures; together they cover both timescales. A surge protector and PDU do not store energy, dual supplies alone do not survive a full utility loss, and generators take time to start, so one alone leaves a gap.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A manufacturer runs legacy industrial control systems (ICS/SCADA) that cannot be patched without vendor recertification and lengthy downtime. Which compensating control BEST reduces risk given the inability to patch?",
+    "options": [
+      "Exposing the systems directly to the internet for remote vendor patching",
+      "Network segmentation that isolates the ICS/SCADA environment from the corporate network",
+      "Installing consumer antivirus on each PLC",
+      "Enabling automatic OS updates on all controllers"
+    ],
+    "correct": [1],
+    "explanation": "When ICS/SCADA devices cannot be patched, isolating them through network segmentation limits exposure and contains any compromise, serving as an effective compensating control. Internet exposure increases risk, PLCs generally cannot run standard antivirus, and automatic updates are precisely what these fragile, recertification-bound systems cannot safely accept.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "A security team deploys a firewall that can identify and control traffic based on the specific application and user identity, not just port and protocol, and can perform deep packet inspection at Layer 7. Which firewall type is this?",
+    "options": [
+      "Packet-filtering (Layer 3) firewall",
+      "Next-generation firewall (NGFW)",
+      "Stateful (Layer 4) firewall",
+      "Screened host firewall"
+    ],
+    "correct": [1],
+    "explanation": "A next-generation firewall adds application awareness, user identity, and deep packet inspection at Layer 7 on top of traditional firewalling. A packet-filtering firewall works at Layer 3 on addresses, a stateful firewall tracks connection state at Layer 4, and a screened host is a topology, not an application-aware inspection engine.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A company must protect data while it is actively being processed in memory by an application, not just when stored or transmitted. Which data state and protective technology are correctly paired?",
+    "options": [
+      "Data at rest, protected by full-disk encryption",
+      "Data in transit, protected by TLS",
+      "Data in use, protected by a secure enclave or confidential computing",
+      "Data in use, protected by an offsite backup"
+    ],
+    "correct": [2],
+    "explanation": "Data in use refers to data being actively processed in memory, and technologies such as trusted execution environments, secure enclaves, or confidential computing protect it while in that state. Full-disk encryption protects data at rest, TLS protects data in transit, and offsite backups address recovery, not in-memory processing.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 3,
+    "question": "An architect designs a screened subnet (DMZ) to host public-facing web and email servers. What is the PRIMARY security purpose of placing these servers in a DMZ rather than on the internal LAN?",
+    "options": [
+      "To eliminate the need for a firewall between the internet and the servers",
+      "To provide a segmented zone that separates internet-accessible hosts from the trusted internal network, limiting the attack surface if they are compromised",
+      "To increase bandwidth available to public services",
+      "To allow internal users to bypass authentication when reaching those servers"
+    ],
+    "correct": [1],
+    "explanation": "A screened subnet places internet-facing servers in a buffer zone separated from the internal network so that a compromise of a public host does not directly expose trusted internal systems, reducing the attack surface. A DMZ relies on firewalls rather than removing them, and it is about isolation and containment, not bandwidth or bypassing authentication.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 3,
+    "question": "A serverless (Function as a Service) architecture shifts operational duties to the cloud provider. Which of the following is a genuine security consideration UNIQUE to or heightened by serverless compared to traditional VMs?",
+    "options": [
+      "The customer must manually patch the underlying operating system for each function",
+      "Reduced visibility and control over the execution environment, with security dependent on the provider and on function configuration/permissions",
+      "The customer must physically secure the servers running the functions",
+      "Functions cannot use any third-party libraries, eliminating dependency risk"
+    ],
+    "correct": [1],
+    "explanation": "In serverless, the provider handles the OS and runtime, so the customer trades hands-on control for reduced visibility and must focus on function permissions, configuration, and dependencies. The customer does not patch or physically secure the underlying hosts in FaaS, and functions can and do use third-party libraries, so dependency risk remains.",
+    "difficulty": "HARD"
+  }
+]

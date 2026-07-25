@@ -1,0 +1,83 @@
+---
+title: A Repeatable Windows Privesc Method
+module: windows-privilege-escalation
+moduleTitle: Windows Privilege Escalation
+moduleOrder: 19
+moduleIcon: ChevronsUp
+order: 1
+summary: The win is almost always in the first ten minutes of enumeration. Here is the order that finds it.
+estimatedMinutes: 16
+objectives:
+  - Enumerate a Windows host in the order that surfaces the fastest win
+  - Read whoami output for the privileges and groups that matter
+  - Decide when to run an automated script versus check by hand
+tags:
+  - windows
+  - privilege-escalation
+  - enumeration
+  - methodology
+---
+
+You landed a shell as a low-priv user on a Windows box. Maybe it's `iis apppool\web` from a web exploit, maybe a service account from a captured hash. The instinct is to run WinPEAS and scroll. Resist it. You get further, faster, by checking a handful of things in a fixed order, because the same five misconfigurations account for most Windows wins on real engagements.
+
+Start with who you are. Not "which user", but which privileges and groups that user carries. That single command decides your whole path.
+
+<CommandCard command="whoami /priv" explain="Lists the privileges on your token. SeImpersonatePrivilege or SeAssignPrimaryToken here means potato attacks are on the table before you check anything else." />
+
+If `SeImpersonatePrivilege` shows Enabled, stop reading and go to the token lesson. That's a near-guaranteed SYSTEM on most Windows Server boxes and it's faster than anything else you'll find. Service accounts and IIS pools have it by default.
+
+Next, your groups. Membership decides which files and services you can touch.
+
+<CommandCard command="whoami /groups" explain="Look for Administrators (you're already done), Backup Operators (SeBackup route), or a custom group that might own a service or directory." />
+
+Then the OS itself. Patch level tells you whether a kernel exploit is even worth trying, and it usually isn't the first move, but knowing the build saves you from chasing a patched bug.
+
+<CommandBlock
+  commands={[
+    { cmd: "systeminfo", comment: "OS version, build, and the hotfix list under Installed Hotfix(s)" },
+    { cmd: "wmic qfe get HotFixID", comment: "Just the KB numbers, faster to eyeball" },
+  ]}
+/>
+
+## The order that pays
+
+Work the cheap, high-hit checks before the slow ones. This is the sequence I run on every box:
+
+1. `whoami /priv` and `whoami /groups`. Impersonation or Backup Operators ends the hunt early.
+2. Services. Weak service permissions and unquoted paths are the most common real-world win. Next lesson.
+3. Registry autoruns and `AlwaysInstallElevated`. One registry pair can hand you a SYSTEM MSI.
+4. Stored credentials. Unattend files, `cmdkey`, saved RDP and browser creds.
+5. Scheduled tasks running as a higher user with a writable script or binary.
+6. Kernel and OS exploits, last. Loud, crash-prone, and usually patched.
+
+Only after those do I let an automated script confirm what I missed. WinPEAS is a checker, not a strategy. Run it to catch the thing you skipped, not to think for you.
+
+<CommandCard command=".\winPEASx64.exe quiet" explain="quiet drops the banner. Pipe to a file and grep offline: cleaner than scrolling a 4000-line terminal dump." />
+
+<Callout type="security" title="Authorized targets only">
+Every technique in this module gives you SYSTEM on a Windows host. Run it only on machines you own or have explicit written permission to test, like an HTB box or a lab VM. Escalating privileges on a system you were not authorized to touch is a crime in most jurisdictions.
+</Callout>
+
+<Callout type="info" title="Get your enumeration output off the box">
+Read WinPEAS or seatbelt output in your own editor, not the target's terminal. Redirect to a file, exfil it, and search it locally. You spot patterns in a text editor that scroll right past you in a shell.
+</Callout>
+
+<Quiz
+  id="privesc-first-check"
+  question="Your shell is an IIS application pool account. What is the single most valuable first command?"
+  answer={1}
+  options={[
+    "systeminfo, to find a kernel exploit",
+    "whoami /priv, to check for SeImpersonatePrivilege",
+    "net user, to list local accounts",
+    "ipconfig /all, to map the network",
+  ]}
+  explanation="IIS pool accounts almost always hold SeImpersonatePrivilege, which enables a potato attack for a fast, reliable SYSTEM. Check it before anything slower."
+/>
+
+<Exercise
+  id="privesc-triage"
+  prompt="On a lab Windows VM, run whoami /priv and whoami /groups. Write down every privilege marked Enabled and every non-default group. For each one, name which lesson in this module it points you toward."
+/>
+
+<Notes />

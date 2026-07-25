@@ -1,0 +1,289 @@
+---
+title: Building on the API
+module: building-with-ai
+moduleTitle: Building with AI
+moduleOrder: 3
+moduleIcon: Brain
+order: 3
+summary: "A prompt stops being a chat message and becomes a function call: the API, the messages list, and the one parameter that decides how wild the answer gets."
+estimatedMinutes: 17
+prerequisites: ["how-language-models-work", "prompt-engineering"]
+objectives:
+  - Explain what an API and an API key are, and why the key has to stay secret
+  - Build the system, user, and assistant messages list that a chat model reads
+  - Send a request to a language model from Python and read the reply out of the response
+  - Set temperature and describe how it reshapes the model's next-token choice
+  - Point the same code at a free local model so cost is never a barrier
+tags:
+  - ai
+  - llm
+---
+
+The prompt-engineering lesson built prompts by hand and dropped them into a chat
+window. That is fine for one question. It falls apart at ten thousand. Picture a
+folder of ten thousand support emails, each needing a single label: billing, bug,
+or feature. Nobody is going to paste them into a chat box one at a time. A program
+can send all ten thousand, one after another, and collect the answers while a
+person gets coffee.
+
+Doing that means calling the model from code instead of typing at it. This lesson
+is about that call: how a Python program hands a prompt to a language model and
+reads back what the model says. It assumes the basic Python from the Programming
+Foundations module, variables and functions, and nothing more.
+
+## A program asking another program
+
+An API, application programming interface, is a way for one program to ask another
+program to do something. The second program publishes a fixed set of requests it
+will accept and answers it will send back. Any program that follows that format
+can use it without knowing a thing about how it works inside. A weather app on a
+phone holds no weather data of its own. It sends a request to a weather company's
+API and gets back today's forecast.
+
+A language model works the same way. The model is enormous and runs on a company's
+servers, not on the laptop calling it. The Python code holds no model. It sends
+the prompt to the provider's API, the server runs the model, and the answer travels
+back across the network. What the server does in between is exactly what the
+how-language-models-work lesson described: it predicts the next token, then the
+next, building the reply one token at a time. A token is the small chunk of text,
+a word or a piece of one, that the model reads and writes in. The API is just the
+mail slot that carries the prompt in and the tokens back out.
+
+## Proving who is asking
+
+Running a model on that hardware costs the provider real money, so it has to know
+who sends each request. That is what an API key is: a long secret string, something
+shaped like `sk-proj-8fK2...t9A`, that a program includes with every request. The
+key names the account behind the request, which lets the provider bill it and cut
+it off if it misbehaves. Anyone holding the key can spend that account's money. So
+the key is a password, and it gets handled like one.
+
+The mistake that burns beginners is pasting the key straight into the code and
+pushing that code somewhere public, like a GitHub repository. Automated bots scan
+public repositories for keys and drain the account within minutes of the push. The
+fix is to keep the key out of the code entirely and read it from an environment
+variable, a named value the operating system holds outside any file.
+
+<Callout type="security" title="A key in the code is a key in the wild">
+Never write an API key as a literal string in a file that gets committed or shared.
+Set it once in the shell with `export OPENAI_API_KEY="sk-..."` and read it back at
+run time. Code that only references `os.environ["OPENAI_API_KEY"]` carries no secret,
+so it is safe to commit. If a key ever does land in a public repo, treat it as
+already stolen and revoke it from the provider's dashboard immediately.
+</Callout>
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+```
+
+`os.environ` is a dictionary of the environment variables the operating system is
+holding, so `os.environ["OPENAI_API_KEY"]` pulls the key out by name at run time.
+`OpenAI(...)` builds a client, an object that knows the provider's address and the
+key and does the network work on every later call. This library reads that same
+variable on its own if the key is left out, but naming it makes the source obvious.
+
+<Quiz
+  id="api-key-in-public-repo"
+  question="A developer hard-codes an API key into a script and pushes it to a public GitHub repository. Why is that dangerous?"
+  answer={1}
+  options={[
+    "GitHub deletes any file that contains a secret, so the script stops working.",
+    "Anyone who finds the key can send requests billed to the developer's account, and bots scan public repos for exactly this.",
+    "The key stops working the instant it is written into a file.",
+    "Public repositories cannot run Python, so the script never executes.",
+  ]}
+  explanation="An API key is a password that authorizes spending on an account. Committing it publicly hands that password to anyone, and automated scanners find exposed keys within minutes. Keep the key in an environment variable, never in committed code."
+/>
+
+## The conversation is a list of messages
+
+A chat model does not take one blob of text. It takes a list of messages, and every
+message carries a role that tells the model who is speaking. Three roles do the work.
+
+The system message sets the standing instructions: who the assistant is, how it
+should behave, what shape the answer should take. It is the same idea as the system
+prompt from the prompt-engineering lesson, now a field in the request. The user
+message is the actual question or task. The assistant message is a reply the model
+produced on an earlier turn. That third role exists so a program can feed the model's
+own past answers back in as part of a longer conversation.
+
+Here is the part that surprises people. The model remembers nothing between calls.
+Each request stands alone. The server keeps no thread open and stores nothing that
+was said a moment ago. For a conversation to continue, the calling program holds the
+growing list of messages itself and resends the whole history every time, with each
+past model reply included as an assistant message. The feeling of an ongoing chat is
+an illusion the calling code maintains by resending everything.
+
+```python
+messages = [
+    {"role": "system", "content": "You label a support email with one word: billing, bug, or feature."},
+    {"role": "user", "content": "I was charged twice this month for the same plan."},
+]
+```
+
+Each message is a small dictionary with two keys: `role` says who is speaking, and
+`content` holds the text. The list is read top to bottom, so the system message comes
+first and frames everything after it.
+
+<Quiz
+  id="api-stateless-calls"
+  question="A program sends one request asking the model to pick a number, then sends a second, separate request asking 'what number did you pick?' What does the model do on the second request?"
+  answer={2}
+  options={[
+    "It recalls the number from the first request, because the server keeps the conversation open.",
+    "It automatically resends the first request on its own.",
+    "It has no record of the first request and answers as if the question came from nowhere.",
+    "It refuses to answer until the two requests are merged.",
+  ]}
+  explanation="Each API call is independent. The model keeps no memory between requests. Continuing a conversation is the calling program's job: it stores the earlier messages and resends the whole history, including past replies as assistant messages."
+/>
+
+## Making the call
+
+With a client and a messages list, the request is one function call.
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": "You label a support email with one word: billing, bug, or feature."},
+        {"role": "user", "content": "I was charged twice this month for the same plan."},
+    ],
+)
+
+print(response.choices[0].message.content)
+```
+
+`client.chat.completions.create(...)` sends the request and waits for the server to
+answer. `model` names which model runs the prompt; `gpt-4o-mini` is a small, cheap
+one. What comes back is not plain text but a structured object, and the reply lives a
+few layers down. `response.choices` is a list, because the API can return more than
+one candidate reply; asking for the default of one, the answer sits at `choices[0]`.
+Inside it, `message` is the assistant's message and `content` is its text.
+
+<CommandCard
+  command="python3 label.py"
+  title="terminal"
+  explain="Runs the script. Python reads the key from the environment, sends the two messages to the model, and prints the text the model sends back."
+/>
+
+<ExpectedOutput label="one run of label.py (a model's exact wording varies)">
+```
+billing
+```
+</ExpectedOutput>
+
+The tight system message did its job: the model answered with the single word asked
+for and nothing else. A model's output is not fixed the way `print` output is, so the
+same call can word things slightly differently on another run. The next section is
+the knob that controls how much it drifts.
+
+## Temperature, the knob that matters most
+
+Every provider exposes a handful of parameters that change how the model answers.
+Temperature is the one worth understanding first, and it reaches straight back into
+how-language-models-work. At each step the model produces a probability for every
+possible next token. Temperature decides how strictly the model favors the
+high-probability ones when it picks.
+
+At temperature 0 the model takes its most likely next token almost every time, so the
+same prompt returns nearly the same answer on every run. Raise temperature toward 1,
+and lower-probability tokens get a real chance of being chosen, so answers vary and
+turn more inventive. Push it past 1 toward the maximum of 2, and the output keeps
+getting more surprising until it starts losing the thread and reading as nonsense.
+
+The rule of thumb falls out of that. Use a low temperature for tasks with a correct
+answer: labeling, pulling fields out of text, generating code. Use a higher one for
+tasks that want range: brainstorming names, drafting story openings, listing options.
+The default sits around 1, so setting it on purpose is the difference between a script
+that behaves and one that wanders.
+
+```python
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages,
+    temperature=0,
+)
+```
+
+One caution on accuracy: temperature 0 is nearly deterministic, not perfectly so.
+Other factors in how large models run on shared hardware can still nudge a token now
+and then, so two runs at temperature 0 come out almost always identical, not always
+bit for bit. A second parameter, `max_tokens`, caps how many tokens the reply may
+reach, which keeps a runaway answer from getting long and costly.
+
+<Quiz
+  id="api-temperature-for-labels"
+  question="A program labels emails and must return the same label for the same email every time it runs. Which temperature fits best, and why?"
+  answer={0}
+  options={[
+    "A temperature near 0, because the model then takes its most likely next token almost every time, so repeated runs come out nearly identical.",
+    "A high temperature, because it makes the model more confident in one answer.",
+    "The highest temperature available, because labeling needs creativity.",
+    "It makes no difference; temperature only changes how fast the reply arrives.",
+  ]}
+  explanation="Temperature controls how much the model favors its highest-probability tokens. Near 0, it almost always picks the top token, so the output is stable across runs, which is exactly what a repeatable labeling job needs. High temperature adds variety, the opposite of what is wanted here."
+/>
+
+## Free and local, so cost never blocks the build
+
+Every request so far went to a paid service. It does not have to. Ollama is a free
+program that downloads a language model and runs it on a local computer, and it answers
+requests in the same chat-completions format. So the same code works with two lines
+changed: point the client at the local address, and pass any string for the key, since
+a model running locally bills no one.
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:11434/v1",
+    api_key="ollama",
+)
+
+response = client.chat.completions.create(
+    model="llama3.2",
+    messages=[
+        {"role": "user", "content": "Name three primary colors."},
+    ],
+)
+
+print(response.choices[0].message.content)
+```
+
+`base_url` is the address the request travels to. `localhost:11434` is Ollama listening
+on the same machine, so nothing leaves the computer. After installing Ollama and running
+`ollama pull llama3.2` once to download the model, this call runs with no account, no
+key that means anything, and no network. A local model this size is slower and less
+capable than the big hosted ones, so it will phrase the three colors more loosely than a
+top model would. It is more than enough to practice every idea in this lesson, and it
+costs nothing to run as many times as it takes.
+
+<Exercise title="Send your first real request">
+Pick one path. If an Ollama install is within reach, run `ollama pull llama3.2` once,
+then save the local example above as `chat.py` and run `python3 chat.py`. If you have an
+API key instead, set it with `export OPENAI_API_KEY="sk-..."` and run the hosted version.
+
+Once a reply prints, change one thing at a time and watch what moves. Add a system
+message like `{"role": "system", "content": "Answer in exactly three words."}` and see
+the shape of the reply change. Then set `temperature=0` and run it three times, and set
+`temperature=1.5` and run it three more. Compare how much the wording drifts between the
+two settings. That drift is the whole point of the parameter.
+</Exercise>
+
+A model answers from two things and two things only: what it learned during training,
+and whatever sits in the messages list right now. It knows nothing about a private folder
+of documents, a company wiki, or yesterday's meeting notes. Cramming all of that into
+every message runs into size limits and cost fast. The next lesson, rag-and-embeddings,
+shows how to give a model access to your own documents by fetching just the relevant
+pieces and slipping them into the prompt.
+
+<Notes />

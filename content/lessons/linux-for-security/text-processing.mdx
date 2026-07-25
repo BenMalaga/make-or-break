@@ -1,0 +1,315 @@
+---
+title: "Text Processing: grep, awk, sed"
+module: linux-for-security
+moduleTitle: Linux for Security
+moduleOrder: 2
+moduleIcon: Terminal
+order: 3
+summary: "Every tool prints a wall of text. Streams, pipes, and a few small filters carve out the lines that matter."
+estimatedMinutes: 16
+prerequisites: ["filesystem-and-permissions", "processes-and-services"]
+objectives:
+  - Trace standard input, output, and error through a running command
+  - Redirect a stream to a file and pipe one command into the next
+  - Filter and reshape text with grep, cut, awk, sed, sort, uniq, and wc
+  - Pull usernames, hosts, and counts out of raw tool output
+tags:
+  - linux
+  - text-processing
+  - grep
+---
+
+The last lesson, processes and services, ended at a process table with a
+hundred lines in it, and exactly one of those lines was the root-owned script
+worth attacking. Finding it meant not reading the ninety-nine others. That is
+the whole job of text processing. A tool prints far more than anyone needs, and
+a second tool carves out the part that matters.
+
+Linux holds together on a convention almost every program obeys: speak in plain
+text, one record per line. `ps` prints text. A config file is text. A log is
+text. A saved scan is text. Because the format is shared, one small set of tools
+works on all of them, and the filter that trims an nmap scan is the same filter
+that trims a password dump. Learn the filters once and they apply to everything
+a terminal ever prints.
+
+## The three streams every program is handed
+
+When the shell starts a program, it hands that program three open channels for
+text. These are its standard streams, and every well-behaved command uses them
+the same way.
+
+Standard output, almost always shortened to stdout, is where a program writes
+its normal results. When `ps aux` prints the process table, those lines go to
+stdout. By default stdout is wired to the terminal, so the text lands on screen.
+
+Standard input, or stdin, is where a program reads from. By default it is wired
+to the keyboard, so a program waiting on stdin waits for someone to type. Most
+filter tools read from stdin when no filename is handed to them.
+
+Standard error, or stderr, is a second output channel, reserved for
+diagnostics: warnings, progress notes, and error messages. It also points at the
+terminal by default, which is why errors show up on screen mixed in with normal
+output even though they travel on a separate channel.
+
+The system refers to these three by number. Standard input is file descriptor
+0, standard output is 1, and standard error is 2. Those numbers are not trivia.
+The number is how a stream gets named on the command line the moment its output
+needs to be sent somewhere else.
+
+Keeping errors on their own channel is a real design choice, not decoration. It
+means a program's data and its complaints can be sent to two different places. A
+scan can write its findings into a file while its "permission denied" warnings
+still print to the screen, and neither one pollutes the other. A single combined
+channel would jam error text into the middle of the data and break every tool
+reading downstream.
+
+<Quiz
+  id="tp-why-stderr"
+  question="Why does a command write its error messages to standard error instead of standard output?"
+  answer={2}
+  options={[
+    "So the terminal can print the errors in red instead of white.",
+    "Because standard output can only hold one line at a time.",
+    "So a program's real results and its diagnostics can be routed separately, and errors don't get mixed into data that another command is about to read.",
+    "Because any message sent to standard error stops the program immediately.",
+  ]}
+  explanation="stdout and stderr are separate channels so results and diagnostics can go to different destinations. A pipeline reading a program's stdout stays clean because the 'permission denied' noise rode the error channel instead."
+/>
+
+## Redirection: sending a stream somewhere else
+
+By default stdout and stderr both land on the terminal. Redirection changes
+that, and the shell sets it up before the program even starts running. The
+program writes to its streams exactly as always and never knows the output is
+going to a file instead of the screen.
+
+The greater-than sign redirects stdout to a file. `ps aux > procs.txt` runs
+`ps`, but every line it would have printed goes into procs.txt instead. If the
+file already exists it is truncated first, wiped to empty, then written. Doubling
+it to `>>` appends instead, adding to the end and keeping what was already
+there. A single `<` runs the other direction, feeding a file into a program's
+stdin.
+
+Redirecting stderr needs its number. `2>` sends file descriptor 2, standard
+error, to a file. This is the piece lesson one left unexplained: the SUID hunt
+ended in `find / -perm -4000 -type f 2>/dev/null`, and that tail is doing real
+work. `find` walks the whole filesystem and keeps hitting directories it is not
+allowed to read, printing a "Permission denied" line to stderr for each one.
+`2>/dev/null` redirects that entire error stream into /dev/null, a special file
+that discards everything written to it. The findings still print on stdout. The
+noise is gone.
+
+<CommandCard
+  command="find / -perm -4000 -type f 2>/dev/null"
+  title="linux"
+  explain="Search the whole tree for SUID files. The 2>/dev/null throws away the permission-denied errors on the error stream so only the real hits print."
+/>
+
+One more combination shows up constantly. `2>&1` means "send standard error to
+wherever standard output is currently going." Written as
+`command > out.txt 2>&1`, it captures both streams into one file. The order is
+read left to right, so stdout is pointed at the file first, then stderr is
+pointed at the same place. Flip the order and stderr still goes to the terminal.
+
+## The pipe: one program's output becomes another's input
+
+Redirection connects a stream to a file. A pipe connects two programs directly.
+The vertical bar, `|`, tells the shell to wire the stdout of the command on its
+left into the stdin of the command on its right, with no file in between. The
+first program's output becomes the second program's input, in memory, as fast as
+it is produced.
+
+This is the idea the whole system is built on. Each tool does one narrow job and
+reads and writes plain text, so tools chain end to end into a filter shaped for
+the exact question at hand. `ps aux` lists every process. Piping it into
+`grep sshd` keeps only the lines about the SSH daemon. Neither tool knows the
+other exists. The shell connected them.
+
+One catch decides how a lot of pipelines behave. A pipe carries stdout and
+nothing else. Standard error is never piped; it still goes straight to the
+terminal. So in `find / -name '*.conf' | grep nginx`, the "permission denied"
+lines from `find` splash onto the screen instead of flowing into `grep`, because
+they rode the error stream the pipe never touches. Silencing them means adding
+`2>/dev/null` to the `find` before the bar.
+
+<Quiz
+  id="tp-pipe-stderr"
+  question="In the pipeline find / -name '*.conf' | grep nginx, where do find's 'Permission denied' messages go?"
+  answer={1}
+  options={[
+    "Into grep's input, alongside the filenames find prints.",
+    "To the terminal, because a pipe only carries standard output, not standard error.",
+    "Into a file named after the command.",
+    "Nowhere; a pipe discards them automatically.",
+  ]}
+  explanation="A pipe wires stdout to the next command's stdin and leaves stderr untouched, so error lines print straight to the screen. To keep them out of the way, redirect stderr with 2>/dev/null before the pipe."
+/>
+
+## The filters worth knowing cold
+
+Six tools cover most of the work. Each is small on its own and sharp in a
+pipeline.
+
+`grep` prints the lines of its input that match a pattern. It is the first
+filter most people reach for. The pattern is a regular expression, a small
+language for describing text where ordinary characters match themselves and a
+handful of punctuation marks carry special meaning. A plain word like `nologin`
+is a valid pattern that matches any line containing it. The flags do most of the
+steering:
+
+- `-i` matches regardless of case.
+- `-v` inverts the match, keeping the lines that do not match. `grep -v nologin` drops every disabled account and leaves the ones that can log in.
+- `-r` searches recursively through a whole directory tree.
+- `-n` prefixes each hit with its line number.
+- `-c` prints how many lines matched instead of the lines themselves.
+- `-E` turns on extended regular expressions, needed for alternation like `22|80|443` and grouping.
+
+<CommandCard
+  command="grep bash /etc/passwd"
+  title="linux"
+  explain="Keep only the account lines whose login shell is bash. On most systems that is a short list: real people and root, not the service accounts."
+/>
+
+<ExpectedOutput label="grep bash /etc/passwd on a typical host">
+```
+root:x:0:0:root:/root:/bin/bash
+alice:x:1000:1000:Alice:/home/alice:/bin/bash
+```
+</ExpectedOutput>
+
+Two accounts on this machine have a real login shell. Every other line in
+/etc/passwd points at /usr/sbin/nologin, meaning a service account that cannot
+sign in. The names and IDs here are illustrative and differ on any other host.
+
+`grep` gives back whole lines. Often only one column of a line is wanted, and
+`cut` slices a line into fields by a delimiter, the character that separates one
+field from the next. `/etc/passwd` puts a colon between fields, so
+`cut -d: -f1 /etc/passwd` sets the delimiter to a colon with `-d` and asks for
+field one with `-f`, which is the username.
+
+`awk` does what `cut` does and a great deal more. It splits each line into fields
+on its own, numbering them `$1`, `$2`, and so on, with `$0` meaning the entire
+line. On whitespace-separated text it needs no options; `-F` changes the
+separator the way `-d` does for `cut`. The reason to reach past `cut` is that the
+part in braces is a tiny program that can test conditions and do arithmetic.
+
+<CommandCard
+  command="awk -F: '$3 == 0 {print $1}' /etc/passwd"
+  title="linux"
+  explain="Split on the colon, then print the username only when the third field, the numeric user ID, is 0. UID 0 is root, so this lists every account with root-level power, not just the one named root."
+/>
+
+`sed` edits a stream as it flows past, most often to substitute text. The
+expression `s/old/new/` replaces the first match of `old` on each line with
+`new`, and a trailing `g` makes it replace every match on the line rather than
+just the first. `sed 's/http:/https:/g' urls.txt` rewrites every http prefix to
+https as the file streams through, with no temporary file and no editor opened.
+
+`sort` orders lines, alphabetically by default, numerically with `-n`, and
+reversed with `-r`. `uniq` collapses runs of identical lines into one, with a
+catch that trips up everyone once: it only compares lines that sit next to each
+other. Duplicates scattered through a file survive unless the file is sorted
+first, which is why `sort` and `uniq` almost always appear as a pair. `uniq -c`
+prefixes each line with the number of times it repeated, turning a sorted list
+into a frequency count.
+
+`wc` counts. `wc -l` counts lines, which answers "how many" directly:
+`grep 401 access.log | wc -l` reports how many requests in a web log came back
+with a 401 Unauthorized. `grep -c 401 access.log` gets the same number in one
+step, but `wc -l` counts the output of any pipeline, not just a `grep`.
+
+<Quiz
+  id="tp-uniq-sort"
+  question="A list of IP addresses is piped straight into uniq without sorting it first. What comes out?"
+  answer={1}
+  options={[
+    "Every duplicate anywhere in the list is removed.",
+    "Only duplicates that were already next to each other collapse; repeats spread through the list survive.",
+    "uniq sorts the list itself and then removes duplicates.",
+    "uniq errors out because the input was not sorted.",
+  ]}
+  explanation="uniq only compares adjacent lines. An address that appears at the top and again at the bottom stays twice unless sort brings the copies together first. That is why the pair sort | uniq is so common."
+/>
+
+## One pipeline, one finding
+
+Put a few of these together and a raw log turns into an answer. A web server's
+access log records one request per line, and the first field of each line is the
+client's IP address:
+
+<ExpectedOutput label="a few lines from an access log">
+```
+203.0.113.7 - - [16/Jul/2026:09:14:02 +0000] "GET /login HTTP/1.1" 200 1734
+203.0.113.7 - - [16/Jul/2026:09:14:03 +0000] "POST /login HTTP/1.1" 401 512
+198.51.100.23 - - [16/Jul/2026:09:14:05 +0000] "GET / HTTP/1.1" 200 8121
+203.0.113.7 - - [16/Jul/2026:09:14:06 +0000] "POST /login HTTP/1.1" 401 512
+```
+</ExpectedOutput>
+
+The question is which address is hammering the site hardest. Four stages answer
+it:
+
+<CommandCard
+  command="awk '{print $1}' access.log | sort | uniq -c | sort -rn"
+  title="linux"
+  explain="awk pulls field one, the IP, from every line. sort groups identical addresses together. uniq -c collapses each group to a single counted line. sort -rn reorders by that count, numerically, largest first."
+/>
+
+<ExpectedOutput label="the busiest clients, most requests first">
+```
+     47 203.0.113.7
+     12 198.51.100.23
+      3 192.0.2.15
+```
+</ExpectedOutput>
+
+One address made 47 requests, several times more than anyone else. Cross-checked
+against its stream of 401s on /login above, that shape is a brute-force attempt
+against the login form. The count came from four tools that each did one thing,
+wired together by three pipes. The addresses here sit in ranges reserved for
+documentation and stand in for whatever a real log would show.
+
+<Callout type="security" title="One grep finds most leaked secrets">
+Once text filtering is fluent, sweeping a captured filesystem for credentials
+takes seconds. `grep -rin password /var/www 2>/dev/null` searches every file
+under the web root, case-insensitively, for the word password and prints the
+file and line number of each hit. Config files, backup scripts, and source code
+leak secrets in exactly this way, and one recursive grep surfaces them faster
+than any manual read.
+</Callout>
+
+<Callout type="tip" title="Build the pipe one stage at a time">
+Do not write a ten-stage pipeline blind. Run the first command, read its output,
+add one pipe stage, read again. Each stage is easy to check on its own. A whole
+chain that returns nothing is a puzzle, and the fault is almost always one stage
+that changed the shape of the text in a way the next stage did not expect.
+</Callout>
+
+<Exercise title="Count the accounts that can log in">
+On any Linux or macOS host, open a terminal and build this pipeline one stage at
+a time so you can watch the text change shape.
+
+Start with `cat /etc/passwd` and look at the wall of account lines. Now narrow it
+with `grep bash /etc/passwd`, which keeps only accounts whose login shell is
+bash. Add a stage to pull just the usernames:
+`grep bash /etc/passwd | awk -F: '{print $1}'`. Finally count them with
+`grep bash /etc/passwd | awk -F: '{print $1}' | wc -l`.
+
+Read the number. It is how many accounts on that host have a real interactive
+shell, which is a far shorter list than the full file. Then try swapping the
+`grep bash` for `grep -v nologin` and see how the count changes, and think about
+why the two questions are not quite the same.
+</Exercise>
+
+These filters read whatever text a program prints, and the next lesson,
+cli-networking, is where the text comes from. It covers the commands that talk to
+the network directly: `ip` and `ifconfig` for a host's own addresses, `ping` to
+test whether another host answers, `curl` and `wget` to pull down web content,
+`dig` to ask DNS which name maps to which address, `ss` to list the sockets a
+host is listening on, and `netcat` to open a raw connection by hand. Every one
+prints its answer as text, and lifting the useful line out of that answer, the
+open port, the resolved address, the single header that matters, is the skill
+built here. It ties straight back to the Networking Foundations module: IP
+addresses, ports, TCP, and DNS.
+
+<Notes />

@@ -1,0 +1,218 @@
+[
+  {
+    "domain": 1,
+    "question": "A hospital installs bright warning signs and visible camera domes at every entrance to discourage tailgating, but the signs and dummy domes do not actually record anything. Which security control type best describes these signs and dome housings?",
+    "options": ["Preventive", "Deterrent", "Detective", "Compensating"],
+    "correct": [1],
+    "explanation": "A deterrent control discourages an attacker from attempting an action; warning signs and visible (even non-recording) camera housings work by discouraging the behavior. A preventive control would physically stop the action, and a detective control would record or alert on it after the fact. Since these do not record, they are not detective.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "An auditor is categorizing controls by CATEGORY (not type). The security team maintains an incident response plan, an acceptable use policy, and a risk assessment schedule. Under which control category do these documents fall?",
+    "options": ["Technical", "Operational", "Managerial", "Physical"],
+    "correct": [2],
+    "explanation": "Managerial controls are administrative controls implemented through policies, procedures, plans, and risk assessments that govern how security is run. Technical controls are implemented in hardware or software, operational controls are executed by people day to day, and physical controls protect tangible assets. Written policies and risk assessment schedules are managerial.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A legacy SCADA controller cannot support modern encryption or patching, but management accepts the risk to keep it running. To reduce exposure, the team places it on an isolated VLAN behind a dedicated firewall. What type of control is the isolation VLAN and firewall combination acting as?",
+    "options": ["Corrective", "Directive", "Compensating", "Detective"],
+    "correct": [2],
+    "explanation": "A compensating control is an alternative measure used when the primary or ideal control cannot be implemented; isolating an unpatchable legacy device satisfies the security objective a different way. Corrective controls remediate after an incident, directive controls instruct behavior, and detective controls identify events. The VLAN and firewall compensate for the missing native security.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which statement most accurately distinguishes integrity from confidentiality in the CIA triad?",
+    "options": ["Confidentiality ensures data is not altered, while integrity ensures data is available", "Integrity ensures data has not been modified without authorization, while confidentiality ensures data is disclosed only to authorized parties", "Both integrity and confidentiality are guaranteed solely by encryption at rest", "Integrity ensures uptime, while confidentiality ensures backups exist"],
+    "correct": [1],
+    "explanation": "Integrity protects data from unauthorized modification and is commonly verified with hashing; confidentiality restricts disclosure to authorized parties, typically via encryption and access control. The other options confuse the pillars or wrongly claim encryption alone guarantees both. Availability, not integrity, concerns uptime and backups.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A finance clerk digitally signs a wire transfer request. Later the clerk denies having authorized it. The signature, tied to the clerk's private key, proves otherwise. Which security concept does the digital signature primarily provide here?",
+    "options": ["Confidentiality", "Availability", "Non-repudiation", "Fault tolerance"],
+    "correct": [2],
+    "explanation": "Non-repudiation prevents a party from credibly denying an action; a digital signature created with the signer's private key binds the action to that individual. Confidentiality concerns secrecy, availability concerns access, and fault tolerance concerns resilience, none of which address the denial-of-action problem. The private key ownership is what establishes non-repudiation.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "In the AAA framework, a user enters valid credentials and is then granted access only to the specific file shares their role permits. Which AAA components are illustrated by validating the credentials and then limiting access to specific shares, respectively?",
+    "options": ["Authorization then authentication", "Authentication then authorization", "Accounting then authentication", "Authentication then accounting"],
+    "correct": [1],
+    "explanation": "Authentication verifies identity (validating the credentials), and authorization determines what the authenticated identity is permitted to access (limiting to specific shares). Accounting records what the user does afterward and is not shown here. The order is always authenticate first, then authorize.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A network engineer is designing a zero trust architecture. Which statement best describes the roles of the control plane and the data plane in this model?",
+    "options": ["The control plane forwards user packets while the data plane makes policy decisions", "The control plane defines and evaluates access policy while the data plane enforces it by forwarding or blocking traffic", "Both planes are merged so a single device makes and enforces every decision", "The data plane issues certificates while the control plane stores encrypted files"],
+    "correct": [1],
+    "explanation": "In zero trust, the control plane (policy engine, policy administrator, adaptive identity) decides whether access should be granted, and the data plane (policy enforcement point) carries out that decision on the actual traffic. Merging the planes contradicts the model's separation of decision from enforcement, and certificate issuance is not the data plane's job. Separating decision-making from enforcement is core to zero trust.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "A security team seeds a fake database record containing a bogus set of credentials that no legitimate process should ever use. An alert fires the moment anyone attempts to use them. What deception technology is being described?",
+    "options": ["Honeynet", "Honeypot", "Honeytoken", "Sinkhole"],
+    "correct": [2],
+    "explanation": "A honeytoken is a piece of fake data (such as decoy credentials or a bogus record) whose only purpose is to trigger an alert when accessed, since no legitimate use exists. A honeypot is a decoy system and a honeynet is a network of decoy systems, both larger in scope. A sinkhole redirects malicious traffic and is not a data-level lure.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An organization wants to study attacker techniques by deploying an entire fake network segment of decoy servers, services, and traffic, isolated from production, to lure and observe adversaries. Which deception construct fits this description?",
+    "options": ["Honeyfile", "Honeypot", "Honeynet", "Honeytoken"],
+    "correct": [2],
+    "explanation": "A honeynet is a network of interconnected honeypots designed to emulate a realistic environment so adversary behavior can be observed at scale. A single honeypot is one decoy host, a honeyfile is a single bait file, and a honeytoken is bait data. The key word is an entire fake network segment.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Which of the following is a PHYSICAL security control rather than a technical or managerial one? (Choose two.)",
+    "options": ["Access control vestibule (mantrap)", "Group Policy password complexity setting", "Bollards in front of a data center entrance", "Security awareness training policy"],
+    "correct": [0, 2],
+    "explanation": "An access control vestibule (mantrap) and bollards are tangible barriers that protect the facility, making them physical controls. A Group Policy password setting is a technical control enforced in software, and a training policy is a managerial or operational control. Physical controls guard the physical environment and assets.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A change is scheduled to upgrade a core switch. The change ticket lists who signed off, a documented rollback procedure, an approved time when users will be least affected, and an analysis of what other systems could be disrupted. Which required element of a formal change management process is the documented rollback procedure?",
+    "options": ["Maintenance window", "Backout plan", "Impact analysis", "Standard operating procedure"],
+    "correct": [1],
+    "explanation": "A backout plan (rollback procedure) documents how to restore the prior known-good state if the change fails. The maintenance window is the approved time, the impact analysis assesses effects on other systems, and the SOP is the standing procedure. The rollback specifically is the backout plan.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "During a change, an engineer must restart a service, which will cause brief downtime, and update a firewall allow list. The change board wants to know which existing systems depend on the affected service so nothing breaks unexpectedly. Which technical implication of change management is the board evaluating?",
+    "options": ["Legacy applications", "Dependencies", "Version control", "Service restart"],
+    "correct": [1],
+    "explanation": "Dependencies are the relationships where other systems or processes rely on the component being changed; identifying them prevents cascading outages. Legacy applications concern outdated software constraints, version control tracks configuration history, and service restart is the act itself, not the relationship analysis. Mapping what relies on the service is dependency analysis.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Why is version control an important part of a mature change management program from a security standpoint?",
+    "options": ["It encrypts configuration files so they cannot be read by attackers", "It records the history of changes so teams can audit, attribute, and revert configuration to a known-good state", "It automatically approves low-risk changes without human review", "It replaces the need for a backout plan entirely"],
+    "correct": [1],
+    "explanation": "Version control maintains an auditable history of who changed what and when, enabling reversion to a known-good state and supporting accountability. It does not encrypt files, auto-approve changes, or eliminate the need for a distinct backout plan. Its value is traceability and recoverability of configuration.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A developer needs to encrypt data such that anyone can encrypt a message to a recipient, but only the recipient can decrypt it. Which key is used to encrypt, and which is used to decrypt, in this asymmetric scheme?",
+    "options": ["Encrypt with the recipient's private key, decrypt with the recipient's public key", "Encrypt with the recipient's public key, decrypt with the recipient's private key", "Encrypt and decrypt both use the sender's private key", "Encrypt with a shared symmetric key, decrypt with the recipient's public key"],
+    "correct": [1],
+    "explanation": "In asymmetric encryption for confidentiality, the sender encrypts with the recipient's public key so that only the holder of the matching private key can decrypt. Using the private key to encrypt is how signatures work, not confidentiality. The public key is freely shared; the private key stays secret with the recipient.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An administrator wants to verify that a downloaded firmware file was not altered in transit, without needing any secret key. Which cryptographic primitive best provides this integrity check?",
+    "options": ["Symmetric encryption with AES-256", "A cryptographic hash such as SHA-256", "A Diffie-Hellman key exchange", "Base64 encoding"],
+    "correct": [1],
+    "explanation": "A cryptographic hash such as SHA-256 produces a fixed-length digest that changes if even one bit of the file changes, letting anyone verify integrity by comparing digests, with no secret required. Symmetric encryption provides confidentiality, Diffie-Hellman establishes keys, and Base64 is reversible encoding offering no integrity assurance. Hashing is the integrity primitive.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "Two systems that have never shared a secret need to agree on a symmetric session key over an untrusted network without transmitting the key itself. Which mechanism accomplishes this?",
+    "options": ["A pre-shared key stored on both hosts", "Diffie-Hellman key exchange", "A SHA-512 hash of both hostnames", "AES in CBC mode"],
+    "correct": [1],
+    "explanation": "Diffie-Hellman key exchange lets two parties derive a shared secret over an insecure channel without ever transmitting the secret, even if they have never communicated before. A pre-shared key requires prior secret sharing, hashing does not create a shared secret usable for encryption, and AES is a cipher, not a key-agreement protocol. Diffie-Hellman is the key exchange method.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A company stores each user password by concatenating it with a unique random value before hashing, so that identical passwords produce different stored digests and precomputed rainbow tables are ineffective. What is the unique random value called?",
+    "options": ["Nonce", "Salt", "Initialization vector", "Pepper"],
+    "correct": [1],
+    "explanation": "A salt is a unique random value added to each password before hashing so identical passwords hash differently and rainbow tables cannot be reused. A nonce is a number used once in protocols, an IV randomizes block cipher encryption, and a pepper is a separate secret typically kept apart from the database. The per-user random hashing value is the salt.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "To slow down brute-force attacks against stored passwords, a team deliberately uses an algorithm that applies thousands of hashing iterations, making each guess computationally expensive. What is this technique called?",
+    "options": ["Key stretching", "Key escrow", "Steganography", "Tokenization"],
+    "correct": [0],
+    "explanation": "Key stretching (as in PBKDF2, bcrypt, or scrypt) intentionally increases the work factor of deriving a key or verifying a password, slowing brute-force attacks. Key escrow stores keys for recovery, steganography hides data within other data, and tokenization substitutes sensitive values with tokens. Deliberately expensive iterative hashing is key stretching.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A payment processor replaces stored credit card numbers with randomly generated surrogate values, keeping the mapping in a separate secure vault, so that the systems handling transactions never store real card numbers. Which obfuscation method is this?",
+    "options": ["Data masking", "Tokenization", "Hashing", "Steganography"],
+    "correct": [1],
+    "explanation": "Tokenization substitutes a sensitive value with a non-sensitive surrogate token, with the real value stored separately in a secure vault, so downstream systems never handle the original data. Data masking obscures parts of data for display, hashing is one-way and non-reversible, and steganography hides data inside other files. The reversible surrogate-with-vault approach is tokenization.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A customer service tool displays credit card numbers as ****-****-****-1234 so agents can confirm the last four digits but never see the full number. Which technique is being used?",
+    "options": ["Tokenization", "Data masking", "Full-disk encryption", "Salting"],
+    "correct": [1],
+    "explanation": "Data masking hides portions of a data value (showing only the last four digits) so the full sensitive value is not exposed to the viewer, while the underlying data may remain intact. Tokenization replaces the value entirely with a stored surrogate, full-disk encryption protects data at rest on a drive, and salting relates to hashing. Partially obscuring displayed digits is data masking.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A laptop fleet must protect all data at rest so that a stolen drive reveals nothing without the boot credential, and the encryption key is bound to hardware that verifies boot integrity. Which combination correctly pairs the encryption scope with the hardware component?",
+    "options": ["File-level encryption stored in an HSM", "Full-disk encryption with keys protected by a TPM", "Database encryption anchored to a secure enclave", "Partition encryption managed by a CRL"],
+    "correct": [1],
+    "explanation": "Full-disk encryption protects the entire drive's data at rest, and a TPM (Trusted Platform Module) is the on-board chip that stores keys and attests to boot integrity, the standard laptop pairing. An HSM is a dedicated appliance for servers, a secure enclave is a processor feature more common on mobile devices, and a CRL lists revoked certificates, not a key manager. FDE plus TPM is the fleet-laptop answer.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "In a public key infrastructure, an organization wants a trusted third party to vouch for the binding between a public key and an identity by issuing signed certificates. Which PKI entity performs this function?",
+    "options": ["Registration authority", "Certificate authority", "Online Certificate Status Protocol responder", "Key escrow agent"],
+    "correct": [1],
+    "explanation": "The certificate authority (CA) is the trusted entity that issues and digitally signs certificates, binding a public key to a verified identity. A registration authority verifies identity but does not sign certificates, an OCSP responder answers revocation-status queries, and a key escrow agent stores keys for recovery. Issuing signed certificates is the CA's role.",
+    "difficulty": "EASY"
+  },
+  {
+    "domain": 1,
+    "question": "A browser needs to check in real time whether a specific certificate has been revoked, rather than downloading a large periodically published list of all revoked certificates. Which mechanism provides the real-time single-certificate status check?",
+    "options": ["Certificate revocation list (CRL)", "Online Certificate Status Protocol (OCSP)", "Certificate signing request (CSR)", "Root of trust"],
+    "correct": [1],
+    "explanation": "OCSP lets a client query the status of a single certificate in real time, avoiding the overhead of downloading a full CRL. A CRL is the periodically published list of all revoked certificates, a CSR is the request to issue a certificate, and a root of trust is the anchor CA. Real-time per-certificate status is OCSP.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "An administrator needs a single certificate that secures www.example.com, mail.example.com, and shop.example.com under the same domain without buying three separate certificates. Which certificate type meets this need most efficiently?",
+    "options": ["Self-signed certificate", "Wildcard certificate", "Root certificate", "Code-signing certificate"],
+    "correct": [1],
+    "explanation": "A wildcard certificate (such as *.example.com) secures unlimited subdomains of a single domain with one certificate, matching the requirement. A self-signed certificate is not trusted by third parties, a root certificate anchors a CA hierarchy, and a code-signing certificate signs software. The multi-subdomain, single-domain use case is exactly what a wildcard certificate covers.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "Before a certificate authority can issue a certificate, the requesting server generates a block of data containing its public key and identifying information, then submits it to the CA. What is this submitted block called?",
+    "options": ["Certificate revocation list", "Certificate signing request (CSR)", "Key escrow record", "OCSP staple"],
+    "correct": [1],
+    "explanation": "A certificate signing request (CSR) contains the applicant's public key and identity details and is submitted to a CA to request a signed certificate; the corresponding private key stays on the server. A CRL lists revoked certificates, key escrow stores keys for recovery, and OCSP stapling attaches a status response during the handshake. The issuance request document is the CSR.",
+    "difficulty": "MEDIUM"
+  },
+  {
+    "domain": 1,
+    "question": "A blockchain-based supply chain ledger records every transaction across many nodes so that no single party can secretly alter a past entry, and anyone can verify the chain. Which two properties of an open public ledger make tampering evident? (Choose two.)",
+    "options": ["Each block cryptographically references the hash of the prior block", "The ledger is centrally stored on one trusted server", "The ledger is distributed and independently replicated across many nodes", "Entries are encrypted so no one can read them"],
+    "correct": [0, 2],
+    "explanation": "An open public ledger resists tampering because each block includes the prior block's hash (so altering one block breaks the chain) and because the ledger is distributed across many nodes that must agree, making covert changes detectable. Central storage on one server would remove that resilience, and public ledgers are typically transparent rather than fully encrypted from all readers. Hash-chaining plus distribution provide tamper evidence.",
+    "difficulty": "HARD"
+  },
+  {
+    "domain": 1,
+    "question": "A CISO argues that longer cryptographic key lengths, such as moving from 1024-bit to 2048-bit RSA, improve security. What is the primary trade-off of increasing key length?",
+    "options": ["Longer keys are easier to brute-force but faster to compute", "Longer keys increase resistance to brute-force attacks but require more computational resources", "Longer keys eliminate the need for certificate revocation", "Longer keys reduce security because more bits leak information"],
+    "correct": [1],
+    "explanation": "Increasing key length expands the keyspace, making brute-force attacks exponentially harder, at the cost of greater computational and performance overhead. Longer keys are not easier to brute-force, do not remove the need for revocation, and do not reduce security. The genuine trade-off is stronger resistance versus higher compute cost.",
+    "difficulty": "MEDIUM"
+  }
+]

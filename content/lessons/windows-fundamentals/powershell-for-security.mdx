@@ -1,0 +1,251 @@
+---
+title: PowerShell for Security
+module: windows-fundamentals
+moduleTitle: Windows Fundamentals
+moduleOrder: 12
+moduleIcon: AppWindow
+order: 4
+summary: "PowerShell pipes typed objects, not text, which makes it the sharpest way to read a Windows host and the reason attackers live inside it."
+estimatedMinutes: 15
+prerequisites: ["windows-architecture", "the-windows-registry", "windows-permissions"]
+objectives:
+  - Explain why a PowerShell pipeline carries objects, not text, and what that changes
+  - Read a live host with Get-Process and Get-Service and filter on real properties
+  - Say what execution policy does and does not stop
+  - Explain why one tool is a first choice for administrators and for attackers
+tags:
+  - windows
+  - powershell
+  - post-exploitation
+---
+
+windows-permissions ended with a token in hand: a process running as some
+account, at some integrity level, either an ordinary user or, if a check went
+the attacker's way, a local administrator. A token only decides what an action
+is permitted to do. It does nothing on its own. Something has to run, read the
+machine, and act on what it finds. On any Windows box built in the last decade,
+that something is almost always PowerShell.
+
+PowerShell ships with Windows. It is signed by Microsoft, trusted out of the
+box, and it reaches the process list, the registry, the network stack, and the
+domain without installing anything. Administrators automate with it: patching,
+user accounts, service configuration. Attackers reach for the same tool for the
+same reasons. One program, two intents. What makes it worth understanding, and
+what makes it dangerous, is a single feature: the pipeline carries objects
+instead of text.
+
+## A shell that passes objects, not text
+
+A shell is the program that reads typed commands and runs them. bash, the common
+Linux shell, has one currency: text. Every command prints characters, and every
+command that reads another command's output reads characters. `ps`, which lists
+running processes on Linux, prints a table of text. Pulling one column out of it
+means slicing that text by position with a tool like `awk` or `cut`, and the
+slice breaks the moment a name runs long or a column shifts.
+
+PowerShell works on a different currency. A cmdlet, the name for a built-in
+PowerShell command, does not print text and hope. It returns objects. An object
+is a bundle of named, typed fields, called properties, plus actions it can
+perform, called methods. `Get-Process` returns one object per running process,
+and each object carries the process id, the name, the CPU time, the memory in
+use, and more, all as real fields rather than columns in a string.
+
+<CommandCard
+  command="Get-Process"
+  title="powershell"
+  explain="Lists every running process as an object. The table on screen is PowerShell formatting those objects for a human at the last second. Underneath, each row is a whole object."
+/>
+
+<ExpectedOutput label="Get-Process on a Windows host (values differ per machine)">
+```
+Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
+-------  ------    -----      -----     ------     --  -- -----------
+    632      35    18240      52716       4.11   3860   1 explorer
+    288      17     3120       9784       0.22    712   0 lsass
+    145      10     1890       6420       0.05    504   0 services
+```
+</ExpectedOutput>
+
+That table is a convenience. Each row is really a `System.Diagnostics.Process`
+object, and `Get-Process | Get-Member` prints the object's type along with every
+property and method it exposes. The distinction drives everything that follows.
+
+The pipe character `|` sends the output of one command into the next. In bash the
+thing crossing the pipe is text. In PowerShell it is the objects themselves,
+intact, every property still attached. Three cmdlets do most of the filtering.
+`Where-Object` keeps only the objects matching a condition. `Select-Object` picks
+which properties to keep. `Sort-Object` orders them by a property. Inside a
+`Where-Object` condition, `$_` refers to the current object moving through the
+pipeline.
+
+<CommandCard
+  command="Get-Process | Where-Object { $_.Name -eq 'lsass' }"
+  title="powershell"
+  explain="Keeps only the process named lsass by reading the Name property directly. No column counting, no fragile text parsing."
+/>
+
+windows-architecture named LSASS as the process that holds credentials in memory.
+Finding it is one filter on a real property, `Name`, not a search through
+characters. The same filter written against `ps` output in bash would depend on
+exactly where the name sits in the line, and would break when the layout moved.
+
+<Quiz
+  id="powershell-object-pipeline"
+  question="A pipeline runs Get-Process | Where-Object { $_.Name -eq 'lsass' }. Why is this more reliable than doing the same filter on the text output of the Linux ps command?"
+  answer={1}
+  options={[
+    "PowerShell runs faster, so it finishes before the process list can change.",
+    "Where-Object reads the Name property of a real object, while filtering ps output means slicing text by position, which breaks when a column shifts.",
+    "The ps command cannot list processes by name at all.",
+    "Get-Process only ever returns one process, so there is nothing to parse.",
+  ]}
+  explanation="Cmdlets emit objects with typed properties. Where-Object reads the Name field directly, so the filter does not care about column layout. Text filtering on ps output depends on position and breaks the moment the layout changes."
+/>
+
+## Reading a live host
+
+Enumeration usually starts with the same question from both sides: what is
+running? `Get-Service` answers it, and every row it returns is a service object.
+
+<CommandCard
+  command="Get-Service | Where-Object Status -eq 'Running'"
+  title="powershell"
+  explain="Lists services and keeps only the running ones by filtering on the Status property. The simplified Where-Object form (no braces or $_) works in PowerShell 3 and later."
+/>
+
+<ExpectedOutput label="Get-Service output, trimmed to a few rows">
+```
+Status   Name               DisplayName
+------   ----               -----------
+Running  LanmanServer       Server
+Running  Spooler            Print Spooler
+Running  WinRM              Windows Remote Management (WS-Managem...
+Stopped  wuauserv           Windows Update
+```
+</ExpectedOutput>
+
+windows-architecture explained that many services run as SYSTEM, the most
+powerful account on the machine. An administrator reads this list to confirm the
+print spooler came back after a reboot. An attacker reads the same list for a
+service that runs as SYSTEM whose executable sits in a folder they can write to,
+because overwriting that file means code running as SYSTEM. The command is
+identical. Only the reason for reading the output changes.
+
+PowerShell reaches past processes and services. the-windows-registry covered
+where configuration and persistence live, and PowerShell mounts the registry as
+if it were a drive, so `HKLM:` is a path like any folder.
+
+<CommandCard
+  command="Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'"
+  title="powershell"
+  explain="Reads the Run key from lesson 2, which lists programs that launch at every login, as registry values."
+/>
+
+Reading that key is a one-line enumeration step for a defender auditing which
+programs autostart, and the same step for an attacker hunting persistence someone
+else left behind, or scouting a place to add their own. The tool is neutral. The
+motive is not.
+
+<Quiz
+  id="powershell-enumeration-intent"
+  question="An administrator and an attacker both run Get-Service | Where-Object Status -eq 'Running' on the same host. What actually differs between the two runs?"
+  answer={2}
+  options={[
+    "The attacker's run returns hidden services the administrator cannot see.",
+    "The command fails for the attacker unless execution policy is disabled first.",
+    "Nothing about the command or its output differs; only the reason for reading the list does, such as hunting a SYSTEM service with a writable binary.",
+    "PowerShell logs the administrator's run but silently skips the attacker's.",
+  ]}
+  explanation="The cmdlet, the pipeline, and the output are the same. Enumeration is neutral. The difference lives entirely in what the reader does with the running-service list, for example spotting a service running as SYSTEM whose executable can be overwritten."
+/>
+
+## Execution policy is not a security boundary
+
+A common belief is that a setting called execution policy locks scripts out. It
+is worth taking apart, because it is one of the first controls a beginner points
+at and one of the first an attacker ignores.
+
+<CommandCard
+  command="Get-ExecutionPolicy"
+  title="powershell"
+  explain="Prints the current execution policy. It defaults to Restricted on Windows client editions and RemoteSigned on Windows Server."
+/>
+
+Restricted sounds like it blocks scripts. It blocks one narrow thing: running a
+`.ps1` script file through the normal path, for instance double-clicking a file
+that arrived by email. It does nothing to commands typed at the prompt or piped
+in, and it is sidestepped in seconds. `powershell.exe -ExecutionPolicy Bypass
+-File payload.ps1` sets the policy aside for that one run. `Get-Content
+payload.ps1 | Invoke-Expression` reads the script as text and runs it through the
+pipeline, never invoking it as a file at all. Microsoft's own documentation
+describes execution policy as a safety feature that stops accidents, not a
+security control.
+
+<Callout type="warning" title="Execution policy stops mistakes, not attackers">
+Setting execution policy to Restricted keeps an ordinary user from double-clicking
+a hostile script by accident. It stops nothing that an operator with a live
+PowerShell prompt can do, because typed commands, piped input, and the Bypass
+flag all ignore it. Treat it as a guardrail, never as a wall.
+</Callout>
+
+## Loud by design
+
+Attackers favor PowerShell for a reason with a name: living off the land, meaning
+using software already installed on the target instead of uploading a binary that
+an antivirus engine might recognize and block. PowerShell is already there,
+already signed, already trusted. It can pull code from a URL and run it entirely
+in memory without writing a file to disk. It can reach a remote host over WinRM,
+the Windows Remote Management service on TCP port 5985, and run commands there
+with valid credentials. All of that from a tool no scanner flags as malware,
+because it ships with the operating system.
+
+The catch is that PowerShell is one of the most heavily watched programs on
+Windows. Since version 5, script block logging records the actual code that runs
+into the event log, and it records the decoded version even when the original was
+base64 or otherwise obfuscated. AMSI, the Antimalware Scan Interface, hands
+script content to the installed antivirus engine for inspection before it
+executes. The same reach that makes PowerShell powerful is the reach defenders
+instrument the hardest.
+
+<Callout type="security" title="Authorized targets only">
+Running enumeration or scripts against a machine without written authorization to
+test it is unauthorized access, whatever the intent. Build a small lab or use a
+licensed range, and keep every command inside an agreed scope.
+</Callout>
+
+<Quiz
+  id="powershell-execution-policy"
+  question="A host has execution policy set to Restricted, and an attacker already has an interactive PowerShell prompt on it. What does Restricted actually stop them from doing?"
+  answer={3}
+  options={[
+    "It blocks every command, locking the attacker out until an administrator changes it.",
+    "It blocks remote connections over WinRM.",
+    "It stops Get-Process from returning objects until a script is signed.",
+    "Almost nothing: typed and piped commands still run, and Bypass or piping a script into Invoke-Expression sidesteps it.",
+  ]}
+  explanation="Execution policy only gatekeeps running .ps1 files through the normal path. Interactive commands, piped input, and the Bypass flag all ignore it, which is why Microsoft calls it a safety feature against accidents rather than a security boundary."
+/>
+
+<Exercise title="Filter on a property, not a position">
+On a Windows host or a Windows VM, open PowerShell and run `Get-Process` on its
+own. Read the columns.
+
+Now run `Get-Process | Where-Object { $_.WorkingSet -gt 100MB } | Sort-Object
+WorkingSet -Descending`. It keeps only the processes using more than 100 MB of
+memory and sorts the heaviest first. Notice that `100MB` and `WorkingSet` are a
+number and a property PowerShell understands, not text you had to line up by hand.
+
+Then run `Get-Service | Where-Object Status -eq 'Running' | Measure-Object` and
+read the Count. That is how many services are running right now. Ask the question
+an attacker asks: which of them run as a high-privilege account, and could any of
+their executables be overwritten? You are not attacking anything. You are
+learning to read a host the way both sides do.
+</Exercise>
+
+The commands in this lesson generate traces, and those traces land somewhere.
+Script block logs and process-creation records become specific entries in the
+Windows event log. windows-event-logs covers that system next: the channels, the
+event IDs worth watching (4624, 4625, 4688, 4720), and Get-WinEvent, which is one
+more object pipeline pointed at exactly the activity PowerShell just produced.
+
+<Notes />

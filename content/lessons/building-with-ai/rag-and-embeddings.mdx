@@ -1,0 +1,261 @@
+---
+title: RAG and Embeddings
+module: building-with-ai
+moduleTitle: Building with AI
+moduleOrder: 3
+moduleIcon: Brain
+order: 4
+summary: "Give a model knowledge it was never trained on by finding the right passages and handing them to it at answer time."
+estimatedMinutes: 17
+prerequisites: ["how-language-models-work", "prompt-engineering", "building-on-the-api"]
+objectives:
+  - Explain why a model cannot answer questions about private or recent documents it never saw in training
+  - Define an embedding as text turned into a vector of numbers that encodes meaning
+  - Use cosine similarity to rank passages by how close their meaning is to a question
+  - Walk the full retrieval-augmented-generation pipeline from chunking documents to grounding the prompt
+  - Say why retrieving a few relevant passages beats pasting an entire knowledge base into the context window
+tags:
+  - ai
+  - llm
+---
+
+A support chatbot gets asked, "Can I return shoes I bought three weeks ago?"
+It answers, confidently, "Returns are accepted within 14 days of purchase."
+The real policy is 30 days. Nobody wrote 14 anywhere. The model made it up.
+
+This is not a bug in the usual sense. As how-language-models-work laid out, the
+model predicts the next token from patterns it absorbed during training, and it
+never read this company's handbook. The handbook is private, or it was written
+after the model's training cutoff, or both. Asked about it anyway, the model
+produces text that sounds like a return policy, because sounding right is the
+only thing it was trained to do. It has no way to know the real number.
+
+Retraining the model on the handbook is possible but slow, costly, and stale the
+day the policy changes. There is a cheaper move. Find the exact passage of the
+handbook that answers the question, and paste it into the prompt right before
+asking. The model reads the real policy and answers from it. That trick, done
+properly, is called retrieval-augmented generation, or RAG, and it is how most
+real AI products give a model knowledge it was never trained on.
+
+## Why not just paste everything in
+
+The obvious version of this idea is to skip the "find the passage" step and drop
+the whole handbook into the prompt. building-on-the-api showed how code sends a
+prompt to the model and gets a response, so pasting 200 pages of text ahead of
+the question is one string away. For a single short document, that is genuinely
+the right call, and it is simpler than everything below. The trouble starts when
+the knowledge is large.
+
+Every model reads a bounded amount of text at once, the context window from
+how-language-models-work, measured in tokens. A company wiki, a codebase, or a
+year of support tickets is far larger than any window, even the large ones that
+hold hundreds of thousands of tokens. It simply does not fit.
+
+Cost and speed are the next wall. The API charges per token on every single
+call, and a bigger prompt takes longer to process. Sending 200 pages with every
+question means paying for 200 pages every question, and waiting longer for each
+answer, to use one paragraph of it.
+
+The quiet problem is quality. A model does not attend evenly across a very long
+prompt. A relevant fact buried in the middle of 100,000 tokens of noise gets
+found less reliably than the same fact sitting alone at the top. Researchers call
+this the "lost in the middle" effect, and it means more context can make an
+answer worse, not better. So the better move is to send the model only the few
+passages that actually bear on the question. Everything in this lesson is
+machinery for finding those passages.
+
+<Quiz
+  id="rag-why-not-stuff"
+  question="A company has a 2,000-page internal wiki and wants a chatbot that answers from it. Why is retrieving a few relevant passages and sending only those better than pasting the whole wiki into every prompt?"
+  answer={1}
+  options={[
+    "A model cannot read text that comes from a database, only text a person typed by hand.",
+    "The wiki is far larger than any context window, sending it on every call is slow and expensive, and burying the answer in huge input makes the model attend to it less reliably.",
+    "Embeddings are the only input format a language model will accept.",
+    "Pasting the wiki into a prompt would permanently retrain the model on the private data.",
+  ]}
+  explanation="Three forces push toward retrieval: the knowledge base does not fit the window, per-token cost and latency scale with prompt size, and a fact lost in a huge prompt is found less reliably than one sent alone. A short single document is the exception, where pasting it in is fine."
+/>
+
+## An embedding turns meaning into numbers
+
+Finding "the passages that bear on the question" is the hard part, because the
+right passage often shares no words with the question. Someone asks "how do I get
+my money back," and the answer lives under a heading that says "Refunds." A plain
+keyword search, matching identical words, misses it. What is needed is a way to
+match on meaning.
+
+An embedding is how a machine measures meaning. An embedding model, a neural
+network that is a close cousin of the language model, reads a piece of text and
+outputs a fixed-length list of numbers called a vector. The same text always
+produces the same vector. "Refund policy" might come out as a list starting
+`[0.02, -0.19, 0.44, ...]`, and it is the same list every time.
+
+The point of those numbers is that they encode meaning. Two texts that mean
+similar things get vectors that sit close together, and two unrelated texts get
+vectors far apart. "How do I get my money back" and "Refunds are issued to the
+original card" land near each other even with no shared words, because the
+embedding model learned, from enormous amounts of text, that those phrases travel
+in the same company.
+
+A real embedding vector is not three numbers, it is a few hundred to a few
+thousand: common models output 384, 1,536, or 3,072 of them. Each number is one
+coordinate, so the vector is a single point in a space with that many dimensions.
+Nobody can picture 1,536 dimensions, and nobody needs to. The only thing that
+matters is a measure of how close two points are.
+
+The usual measure is cosine similarity. It compares the direction two vectors
+point, ignoring their length, and returns a number from 1 down to -1. A score of
+1 means the two texts point the same way, meaning nearly the same thing. A score
+near 0 means unrelated. Negative means opposite. Most retrieval systems rank
+passages by cosine similarity to the question and take the highest scorers.
+
+The whole mechanic fits in a few lines of Python. Real embeddings would come from
+a model, but shrinking each text to three hand-picked numbers keeps the math
+visible.
+
+```python
+import math
+
+def cosine(a, b):
+    dot = sum(x * y for x, y in zip(a, b))
+    mag_a = math.sqrt(sum(x * x for x in a))
+    mag_b = math.sqrt(sum(y * y for y in b))
+    return dot / (mag_a * mag_b)
+
+# Pretend an embedding model turned each sentence into 3 numbers.
+# Real embeddings use hundreds or thousands; 3 keeps it readable.
+question = [0.91, 0.10, 0.05]
+
+chunks = {
+    "Returns are accepted within 30 days of delivery.": [0.83, 0.22, 0.11],
+    "The office is closed on all federal holidays.":     [0.09, 0.90, 0.16],
+    "Refunds are issued to the original payment card.":  [0.62, 0.20, 0.55],
+}
+
+scored = sorted(chunks, key=lambda text: cosine(question, chunks[text]), reverse=True)
+for text in scored:
+    print(round(cosine(question, chunks[text]), 3), "|", text)
+```
+
+<ExpectedOutput label="ranking three passages against the question">
+```
+0.986 | Returns are accepted within 30 days of delivery.
+0.783 | Refunds are issued to the original payment card.
+0.214 | The office is closed on all federal holidays.
+```
+</ExpectedOutput>
+
+The returns passage scores highest, the refund passage is a close second, and the
+holidays passage sits far down where it belongs. That ranking is the entire job
+of vector search: turn the question into a vector, compare it against every stored
+vector, and hand back the closest. Swap in real embeddings with 1,536 numbers each
+and the code is the same, only the vectors get longer and the meanings get sharper.
+
+<Quiz
+  id="rag-embedding-meaning"
+  question="The question 'how do I get my money back' shares no words with the passage 'Returns are accepted within 30 days of delivery,' yet vector search ranks that passage near the top. Why?"
+  answer={1}
+  options={[
+    "Vector search finds the longest passage in the collection and returns it first.",
+    "An embedding turns each text into numbers that encode meaning, so passages with similar meaning get vectors close together even when the exact words differ.",
+    "The search returns whichever passages share the most identical words with the question.",
+    "The embedding model gives every text the same vector, so any comparison counts as a match.",
+  ]}
+  explanation="Embeddings capture meaning, not spelling. Similar meanings map to nearby vectors, which is exactly why semantic search beats keyword matching for questions phrased differently from the source. Matching identical words is what plain keyword search does, and it would miss this case."
+/>
+
+## The retrieval-augmented-generation pipeline
+
+RAG has two phases. One runs once, ahead of time, to build a searchable index of
+the documents. The other runs on every question. Keeping them separate is what
+makes the system fast at answer time.
+
+The build phase has three steps. First, chunk the documents. A whole document is
+too big to be a good unit of retrieval, and it mixes many topics, so it gets split
+into passages of a few hundred tokens each, roughly a paragraph or two. Chunks
+often overlap by a sentence or so, so an idea split across a boundary still lands
+whole inside one chunk. Second, embed every chunk by running it through the
+embedding model, producing one vector per chunk. Third, store the vectors,
+alongside the original text, in a vector store: a database built for nearest-
+neighbor search, such as pgvector, FAISS, or Chroma. It indexes the vectors so a
+search does not have to compare against every one by brute force.
+
+The query phase runs when a question arrives. The question goes through the same
+embedding model to become a vector. The vector store returns the top matches,
+usually the closest three to eight chunks, by cosine similarity. Those chunks get
+pasted into the prompt as context, above the question, with an instruction like
+"answer using only the context below." That full prompt goes to the model through
+the API, and the model writes an answer grounded in the retrieved text. Retrieval
+finds the facts, generation writes the reply. That is the name.
+
+In code, the query phase is short. The embedding model and the store are shown
+here as functions to keep the shape clear.
+
+```python
+# Sketch: embed_text() and store are provided by an embedding
+# model and a vector store, not shown here.
+
+def answer(question, store, client):
+    q_vector = embed_text(question)
+    top_chunks = store.search(q_vector, k=4)   # 4 closest passages
+
+    context = "\n\n".join(top_chunks)
+    prompt = (
+        "Answer using only the context below. "
+        "If the answer is not in it, say you do not know.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Question: {question}"
+    )
+    return client.generate(prompt)
+```
+
+Trace the support bot through it. The handbook gets chopped into 400 chunks, each
+embedded and stored, once. A user asks, "Can I return shoes I bought three weeks
+ago?" That question becomes a vector, the store returns the four nearest chunks,
+and the top one is "Returns are accepted within 30 days of delivery." The prompt
+now carries the real policy, so the model answers, "Yes, the window is 30 days
+and three weeks is inside it," and it can point at the passage it used. The model
+never memorized the policy. It read it at answer time.
+
+<Callout type="warning" title="Retrieval quality is the ceiling">
+RAG does not make a model honest. If the search returns the wrong chunks, or the
+answer is in no chunk at all, the model can still invent one. Grounding is only as
+good as retrieval, which is why the instruction above tells the model to say it
+does not know when the context does not cover the question. That one sentence
+turns many confident wrong answers into an honest "not in the documents."
+</Callout>
+
+<Quiz
+  id="rag-what-gets-sent"
+  question="In a working RAG system, what does the API actually send to the language model when a user asks a question?"
+  answer={2}
+  options={[
+    "The entire document collection, re-embedded fresh on every request.",
+    "Only the raw question, after the documents have been loaded into the model's training.",
+    "The user's question plus the handful of retrieved chunks that scored closest to it, pasted in as context.",
+    "A list of vector numbers, which the model reads directly as its answer.",
+  ]}
+  explanation="At query time the prompt is small: the question plus the top few retrieved chunks. The full collection was embedded and stored once during the build phase, never re-sent. The model reads text, not raw vectors, so the chunks go in as their original words."
+/>
+
+<Exercise title="Chunk a document you know">
+Pick a document you know well: a class syllabus, a game's rulebook, a product's
+FAQ. Split it in your head into passages of a paragraph or two, the way the build
+phase would. Count how many chunks you get.
+
+Now write down a question a real person would ask it, phrased in everyday words
+that do not match the document's headings. Which one chunk holds the answer? That
+chunk is what vector search has to surface, and your question is what gets
+embedded and compared against every chunk you just counted. If two chunks both
+look relevant, that is the case where retrieving the top three or four, instead of
+just one, saves the answer.
+</Exercise>
+
+RAG gives a model the right facts, but the model still only writes an answer. It
+does not check the order status, book the return, or run a search when the first
+retrieval comes up empty. The next lesson, ai-agents-and-tools, is about a model
+that does not just answer from what it is handed but decides what to do next and
+takes the action itself.
+
+<Notes />
