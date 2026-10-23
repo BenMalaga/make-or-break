@@ -1,0 +1,245 @@
+---
+title: Forces and Structures
+module: mechanical-foundations
+moduleTitle: Mechanical Foundations
+moduleOrder: 57
+moduleIcon: Factory
+order: 1
+summary: "Why nothing moves: equilibrium, tension and compression, torque, and the triangle that holds up every bridge."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - State the two conditions of static equilibrium and use them to find unknown support forces
+  - Compute torque as force times lever arm and balance a seesaw with it
+  - Distinguish tension, compression, and bending and name where each one shows up
+  - Explain why triangles make trusses rigid while square frames fold
+tags:
+  - mechanical
+  - statics
+  - structures
+---
+
+A 20 kg bag of feed sits in the middle of a plank laid across two sawhorses, and
+nothing happens. Slide the same bag toward one end and, before it gets halfway
+there, the far end lifts off its sawhorse. Nothing was added and nothing broke.
+The loads and the supports simply stopped balancing, and the plank began to
+rotate.
+
+That balance is what every standing structure maintains, from a bookshelf to a
+bridge. Statics is the study of things that stay still, and it runs on exactly
+two rules. This lesson covers the rules, the three ways a member carries a load,
+and the shape trick that keeps trusses standing. It ends with a question statics
+cannot answer on its own, which is where the next lesson picks up.
+
+## Two rules for standing still
+
+A structure at rest satisfies two conditions at once. First, the forces on it
+must sum to zero in every direction. If they did not, the structure would
+accelerate, which is exactly what standing still forbids. Second, the torques on
+it must sum to zero about any point. If they did not, it would start to spin
+even with every force balanced. Every statics problem is some version of
+enforcing these two rules with algebra.
+
+The first rule explains the book on the table. Gravity pulls a 2.5 kg book down
+with a force of 2.5 times 9.8, about 24.5 newtons. The table pushes back up with
+exactly 24.5 newtons, and the two cancel. That upward push from a support is
+called a reaction force, and finding the reactions is most of what statics asks
+for. A table under a heavier book pushes harder without being asked; the load
+sets the reaction.
+
+The second rule matters the moment a load sits off-center. A 4.0 m plank
+weighing 160 N rests on supports at its two ends, and a 600 N worker stands
+1.0 m from the left end. Take the sum of torques about the left support, where
+the left reaction creates no torque because its lever arm is zero. The plank's
+own weight acts at its center, 2.0 m out, and the worker acts at 1.0 m. Balance
+demands R_right times 4.0 = 160 times 2.0 plus 600 times 1.0, so R_right =
+(320 + 600) / 4.0 = 230 N. The remaining share of the total 760 N lands on the
+left support: 530 N.
+
+The near support carries more than twice the far one. Anyone who has steered a
+heavy couch through a doorway knows this by feel: the end nearest the pivot
+point does the real work. Structural engineers run this same calculation for
+every beam and column, because the reaction forces are what the bolts, welds,
+and foundations below must actually hold.
+
+Statics also needs one shared convention: where the weight of an extended object
+acts. Every bit of a plank has mass, but the math stays simple because the whole
+weight behaves as if it acted at a single point, the center of mass. For a
+uniform plank that point is the geometric center, which is why the plank's 160 N
+was placed at 2.0 m. A roof's snow load spreads across the whole surface instead
+of sitting in one spot; engineers sum such a distributed load into one equivalent
+force and then apply the same two rules unchanged.
+
+Torque, like force, bookkeeps with a sign: a torque that would turn the plank
+one way cancels one that would turn it the other. In the plank problem the
+worker and the plank's own weight both turned the plank the same direction about
+the left support, and the right support's reaction turned it back. Once every
+push has been converted into torque about a chosen point, the whole problem
+collapses into one line of arithmetic.
+
+<Quiz
+  id="mech-equilibrium-conditions"
+  question="A scaffold stands motionless all day under a steady load. What two conditions must its loads and supports satisfy?"
+  answer={2}
+  options={[
+    "Gravity must be switched off inside the scaffold, leaving only the support forces.",
+    "Every force must be equal in size to every other force, with torques free to add to anything.",
+    "The forces must cancel in every direction and the torques must cancel about every point.",
+    "The supports must each carry an equal share of the weight, or the scaffold would tip.",
+  ]}
+  explanation="Standing still requires both equilibrium conditions: forces sum to zero in every direction, or the scaffold would accelerate, and torques sum to zero, or it would rotate. Supports do not need equal shares; the plank example put 530 N on one end and 230 N on the other and still balanced."
+/>
+
+## Torque: force times lever arm
+
+Torque is the turning effect of a force, and it equals the force times the lever
+arm, the perpendicular distance from the pivot to the line along which the force
+pushes. Its unit is the newton-meter. Push with 200 N on a wrench held 0.30 m
+from the bolt and the bolt sees 200 times 0.30, or 60 N m of torque. Slide a
+0.60 m breaker bar over the handle and the same 200 N of hand delivers 120 N m.
+The force never changed. The lever arm did.
+
+Everyday design leans on this constantly. A door handle sits at the edge far
+from the hinges because torque about the hinge grows with distance; the same
+push near the hinge barely turns anything. A long screwdriver handle turns a
+stubborn screw more easily than a short one for the same grip. When a bolt will
+not move, the honest options are a longer bar or a bigger push, and the longer
+bar is cheaper.
+
+Torque is also the second equilibrium rule in everyday clothes. A seesaw
+balances when the torques match, not when the weights match. A 45 kg child can
+balance a 30 kg child by sitting closer to the pivot, because what has to cancel
+is weight times distance, not weight alone. The code below finds the balance
+point and then checks it:
+
+```python
+g = 9.8
+m1, d1 = 30.0, 1.6      # 30 kg child, 1.6 m left of the pivot
+m2 = 45.0               # 45 kg child, seat distance unknown
+d2 = m1 * d1 / m2       # torque balance: m1*d1 = m2*d2
+
+left = m1 * g * d1
+right = m2 * g * d2
+print(f"45 kg child sits {d2:.2f} m from the pivot")
+print(f"left torque {left:.1f} N*m, right torque {right:.1f} N*m")
+print(f"difference {abs(left - right):.1e} N*m, effectively zero")
+```
+
+The 45 kg child sits 1.07 m out, both torques come to 470.4 N m, and the
+difference prints as exactly zero. Notice that g dropped out of the balance
+entirely: both sides
+multiply by the same 9.8, so the balance condition m1 times d1 equals m2 times
+d2 never needed it.
+
+<Quiz
+  id="mech-wrench-lever-arm"
+  question="A bolt needs 60 N m of torque and a hand can push with at most 200 N. How long must the lever arm from the bolt to the hand be?"
+  answer={1}
+  options={[
+    "0.15 m, because torque grows with the square of the handle length.",
+    "0.30 m, because 200 N times 0.30 m gives 60 N m.",
+    "1.2 m, because 200 N times 1.2 m gives 240 N m and extra margin is free.",
+    "Any length works, because the hand simply pushes harder on a short handle.",
+  ]}
+  explanation="Torque equals force times lever arm, so the arm must reach 60 / 200 = 0.30 m. A 0.15 m handle delivers only 30 N m. The 1.2 m option overshoots on purpose: 240 N m is four times the spec and can stretch or snap the fastener, so extra length is not free."
+/>
+
+## Tension, compression, and bending
+
+Loads travel through members in three ways. Tension pulls a member apart from
+both ends: the cable of a crane hook is in tension, and rope is excellent at it,
+because a rope cannot be pushed. Compression squeezes a member end to end: the
+legs of a table are in compression, and stone, brick, and concrete handle it
+well, which is why ancient columns still stand. A member in pure tension or pure
+compression is the simple case, and well-designed trusses keep every bar in one
+of these two states.
+
+Bending is the complicated one. Load a horizontal member in the middle and its
+top surface squeezes together in compression while its bottom surface stretches
+in tension, with a nearly unstressed neutral layer between them. Material near
+the top and bottom faces does most of the work, which is why an I-beam concentrates
+its steel there and fills the middle with a thin web. Concrete makes the point
+brutally clear: it is strong in compression and weak in tension, so a concrete
+slab gets steel reinforcing bars cast into its bottom, exactly where the tension
+lives.
+
+Hollow shapes earn their place the same way. A round tube keeps its material far
+from the neutral center, where bending stress is highest, so scaffolding poles
+and bicycle frames are tubes rather than solid rods: a fraction of the material
+for nearly the same stiffness. The same logic makes a flat ruler easy to bend
+flatwise and almost impossible to bend edgewise. Shape, not just material,
+resists bending.
+
+## Why triangles hold and squares fold
+
+Pin four rigid sticks together at their corners to form a square and lean on it:
+the square folds into a parallelogram without any stick bending. Now pin three
+sticks into a triangle and lean on that. Nothing happens, and the reason is
+geometric: three bar lengths determine exactly one triangle shape. A pin-jointed
+triangle cannot change shape unless a bar bends or a joint breaks. That single
+property is the entire secret of the truss.
+
+A truss is a frame built from triangles, usually out of slender bars. Look at a
+roof truss or a railway bridge and count the triangles: each diagonal converts
+what would be a folding square into two rigid ones. The diagonals are not
+decoration. They are the difference between a structure and a mechanism, which is
+why every frame that must resist sideways load, from bicycle frames to crane
+booms, is full of them.
+
+In a loaded truss some bars stretch and carry tension while others squeeze and
+carry compression, and which is which depends on the geometry and the load.
+Designers care, because the two jobs suit different members: thin rods make fine
+tension ties, while compression members can bow sideways and fail early, so they
+need more girth. A bridge truss is a visible ledger of these alternating pulls
+and pushes.
+
+<Quiz
+  id="mech-triangle-rigidity"
+  question="A rectangular garden gate keeps sagging into a parallelogram. What does adding a corner diagonal do about it?"
+  answer={3}
+  options={[
+    "It carries the load in bending, which is the strongest mode for a member.",
+    "It stretches the two vertical sides so they cannot lean outward.",
+    "Nothing structural; it only exists to hold the mesh or boards flat.",
+    "It turns the square into two triangles, whose shapes three fixed side lengths lock in place.",
+  ]}
+  explanation="A four-bar square with pinned corners is a mechanism, not a structure: it folds under sideways load. A diagonal creates two pin-jointed triangles, and three fixed side lengths allow only one triangle shape. The diagonal itself works in tension or compression, the easy modes, not in bending."
+/>
+
+Every load also needs a continuous path to the ground, called the load path.
+Snow on a roof presses on the rafters, the rafters load the truss, the truss
+pushes down through the walls, and the walls deliver everything into the
+foundation. Break the path anywhere and everything above it comes down. Storm
+damage often starts when wind pressure reverses the load path and lifts the roof
+off walls that were never fastened to hold it down; the connections, not the
+beams, are frequently the weak link.
+
+The path is easy to follow on furniture. A chair seat passes a sitter's weight
+into the legs, the legs into the floor, and the floor into the building's
+foundation. A cracked leg does not merely look bad; it interrupts the path, and
+the chair fails at that link. Good design makes every link in the chain stronger
+than the loads it will ever see, and inspection hunts for exactly the links that
+rust, crack, or work loose.
+
+<Exercise title="Test a paper beam">
+Tear a sheet of office paper in half lengthwise. Lay one half flat across two
+stacks of books spaced 15 cm apart and stack coins in the middle until it folds
+through. Note the count.
+
+Curl the other half into a tube with a 2 cm slot running along its top, tape it,
+and set it on the same books with the slot facing up, which mimics an I-beam's
+layout. Load it the same way. The tube typically carries ten times the coins the
+flat strip did, from the same material.
+
+The flat strip failed in bending, tearing along its stretched bottom face. The
+tube turned that same bending into tension and compression spread around a
+shape, and the shape, not the material, did the work.
+</Exercise>
+
+Statics treats every member as strong enough and moves on. Whether a 10 mm rod
+actually survives 10,000 N, or stretches permanently, or snaps, is a question
+about the material inside the shape. The next lesson, Stress and Materials,
+brings the material in: stress, strain, stiffness, and the yield point where
+springing back stops being guaranteed.
+
+<Notes />

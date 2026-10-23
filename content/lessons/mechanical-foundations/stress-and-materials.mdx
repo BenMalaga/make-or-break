@@ -1,0 +1,216 @@
+---
+title: Stress and Materials
+module: mechanical-foundations
+moduleTitle: Mechanical Foundations
+moduleOrder: 57
+moduleIcon: Factory
+order: 2
+summary: "Stress, strain, and stiffness: how materials take a load, and how they give up."
+estimatedMinutes: 15
+prerequisites: ["forces-and-structures"]
+objectives:
+  - Compute stress as force over area and strain as fractional stretch with real numbers
+  - Use Young's modulus to predict how far a loaded part stretches
+  - Distinguish elastic from plastic deformation and ductile from brittle failure
+  - Choose a factor of safety and explain why engineers pick 2 or more
+tags:
+  - mechanical
+  - materials
+  - stress
+---
+
+The last lesson, Forces and Structures, balanced a worker on a plank and stopped
+there. Equilibrium said the supports push back with 530 N and 230 N. It said
+nothing about whether a pine plank 50 mm wide can actually take that, or whether
+it bends permanently and stays sagged the moment the worker steps off. Whether a
+member survives its load is a materials question, and it starts with a division.
+
+## Stress is force spread over area
+
+Hang 10,000 N, roughly a metric ton, from a steel rod, and the danger depends
+entirely on how thick the rod is. Stress is the force divided by the area
+carrying it, and its unit is the pascal: one newton per square meter. A pascal
+is a tiny amount, so real stresses are quoted in megapascals, abbreviated MPa,
+each worth a million pascals. Atmospheric pressure is about 101 kPa, which helps
+calibrate the scale.
+
+A 10 mm diameter rod has a cross-sectional area of pi times 0.005 squared, about
+7.85 times 10^-5 m^2. The stress in it is 10,000 / 7.85e-5, which is 1.27 times
+10^8 Pa, or 127 MPa. Shrink the rod to 5 mm and the area falls by a factor of
+four, because area scales with diameter squared, so the stress jumps to about
+508 MPa, past what mild steel can carry. Same load, same material, one diameter
+apart: one rod is fine and the other is in trouble. In a straight pull, area,
+not length, sets the stress.
+
+A felt comparison helps: 127 MPa means every square millimeter of the rod's cross
+section carries 127 newtons, the weight of a 13 kg mass pressing on each square
+millimeter. That is why stress numbers look enormous next to everyday weights.
+The same division works in compression. A table leg carrying 400 N on a 30 by
+30 mm cross section sees 400 / 0.0009, about 444 kPa, trivial for wood, which is
+why furniture legs stay slim. Slender compression members do have a second
+failure mode, though: they can bow sideways and collapse, a behavior called
+buckling, at loads far below the material's crush strength. A thin rod that
+would laugh at 10,000 N of tension can buckle under a few hundred newtons of
+compression, which is why the compression members of a truss are fatter than
+the tension ties doing comparable work.
+
+<Quiz
+  id="mech-stress-area"
+  question="Two steel rods hang from the same 10,000 N load. Rod B has twice the diameter of rod A. How does the stress in B compare with the stress in A?"
+  answer={0}
+  options={[
+    "One quarter of the stress in A, because area scales with diameter squared.",
+    "Half the stress in A, because stress scales directly with diameter.",
+    "The same stress, because the load is the same.",
+    "Four times the stress in A, because the bigger rod is stiffer.",
+  ]}
+  explanation="Stress is force divided by area, and doubling the diameter quadruples the area, so the stress falls to a quarter. This is why a small increase in diameter buys a large drop in stress, and why thin parts fail first."
+/>
+
+## Strain and stiffness
+
+Stress says how hard a material is being pulled or squeezed. Strain says how
+much it deforms in response: the change in length divided by the original
+length, a plain fraction with no unit. Stretch a 2.0 m rod by 1.2 mm and the
+strain is 0.0012 / 2.0, or 0.0006. Engineers say six hundred microstrain.
+
+Over a wide range of everyday loads, strain is proportional to stress: double
+the pull, double the stretch. The ratio of stress to strain is Young's modulus,
+written E, and it is the stiffness of the material. It comes out in pascals like
+stress, because strain has no unit. Steel's E is about 200 GPa, aluminum about
+70 GPa, and wood along the grain about 10 GPa. GPa means gigapascals, a billion
+pascals.
+
+Run the numbers on the 10 mm steel rod from the last section, 2.0 m long and
+pulled with 10,000 N. Stress 127 MPa divided by E gives strain: 127 times 10^6 /
+200 times 10^9 = 6.4 times 10^-4. Multiply by the 2.0 m length and the rod
+stretches about 1.3 mm. Make the same rod out of aluminum and the strain is 127
+times 10^6 / 70 times 10^9 = 1.8 times 10^-3, so the stretch is about 3.6 mm,
+more than three times as much. Stiffness and
+strength are separate properties. Steel and a good aluminum alloy can have
+similar strength, yet steel is roughly three times stiffer, which is why
+precision machine frames are steel even when aluminum would carry the load.
+
+Stiffness differences are easy to feel in other materials. Common plastics run
+between 1 and 3 GPa, twenty to a hundred times floppier than steel, which is why
+a plastic clip springs back visibly while a steel bracket in the same shape
+barely moves. Rubber sits at the far bottom near 0.01 GPa, stretching by tens of
+percent instead of fractions of a percent. A material's modulus decides how much
+a part moves long before strength enters the conversation.
+
+<Quiz
+  id="mech-modulus-stretch"
+  question="Identical steel and aluminum rods are pulled with the same force. Steel's Young's modulus is about 200 GPa and aluminum's about 70 GPa. What happens?"
+  answer={1}
+  options={[
+    "They stretch the same amount, because the force is the same.",
+    "The aluminum stretches about three times as far, because its modulus is about three times lower.",
+    "The steel stretches about three times as far, because it is heavier.",
+    "Neither stretches measurably, because metals are rigid.",
+  ]}
+  explanation="Strain equals stress divided by Young's modulus, so the lower-modulus material strains more under equal stress. 200 / 70 is about 2.9, so aluminum stretches roughly three times as much as steel of the same size under the same pull."
+/>
+
+## How materials give up
+
+Below a certain stress, a stretched rod springs back to its original length when
+the load comes off. That region is elastic deformation, and it is the region
+everyday design lives in. Past a limit called the yield strength, part of the
+stretch stays after unloading: plastic deformation. Mild steel yields near
+250 MPa. Push further and it keeps stretching, actually getting a little stronger
+through strain hardening, until it reaches its ultimate strength somewhere
+between 400 and 550 MPa, then necks: one small region thins while the rest stops
+stretching, and the break happens there.
+
+Materials split into two failure personalities. Ductile materials such as steel,
+aluminum, and copper stretch visibly, neck down, and warn before they fail. A
+bent steel nail is ductile behavior on display. Brittle materials such as glass,
+cast iron, and concrete in tension snap with no warning at all: a crack forms and
+crosses the whole part in microseconds. Glass fails in practice at perhaps
+50 MPa even though its theoretical limit is far higher, because every scratch on
+its surface concentrates stress at its tip. Wood sits between the extremes,
+carrying 40 to 80 MPa along the grain depending on species, and splitting
+cheerfully along that same grain when pulled across it.
+
+Two more ideas finish the failure story. Stress concentrates at any abrupt
+change in shape: the material flowing around a hole or a sharp inside corner
+carries several times the average stress right at the edge, which is why cracks
+start at holes and notches instead of in the calm middle of a plate. Rounded
+fillets spread that concentration out, and a fillet in the right place is often
+the cheapest strength upgrade available. Fatigue, the slow growth of cracks
+under repeated loading, is the other quiet killer: a part that survives one
+million lifts is not guaranteed to survive two million. Steel has an approximate
+endurance limit below which it can last indefinitely, while aluminum has none
+and accumulates damage from any repeated stress, which is why aircraft aluminum
+lives under an inspection schedule.
+
+The yield strength, not the ultimate, is the number designers plan around for
+parts that must keep their shape. A bracket that has gone plastic is a bracket
+that no longer aligns anything, even if it is a long way from snapping.
+
+## Factor of safety
+
+No engineer runs a part right at its limit. The factor of safety is the ratio of
+the strength to the working stress: design a rod to run at 100 MPa in steel that
+yields at 250 MPa and the factor is 2.5. Why 2 or more? Because loads exceed
+their estimates whenever anything moves fast or lands hard, because material
+properties vary batch to batch, because hidden flaws and corrosion eat margin
+over the years, and because repeated loading can crack steel at stresses well
+below yield, a subject called fatigue. Each of those alone would justify margin;
+together they demand it.
+
+The factor is tuned to how well everything is known. Elevator cables work around
+a factor of 8, because a snapped cable is catastrophic and the loads repeat
+millions of times. Aircraft structures run factors near 1.5, which sounds
+reckless until the other half of the deal shows up: certified materials,
+inspections, and weight so expensive that every kilogram is fought over. A
+bracket holding a garden hose reel can sit comfortably at 3 or 4, because extra
+steel is cheaper than analysis there.
+
+Read the factor honestly in both directions. A factor of 1.2 on a carefully
+measured load is braver than a factor of 4 on a guess, because the factor only
+multiplies the number that was estimated; if the estimate is off by three, no
+factor rescues it. That is why good practice pins down the real load first and
+then picks a modest, justified margin, instead of sprinkling safety everywhere
+and shipping a heavy, expensive part that still fails where the guess was wrong.
+
+```python
+import math
+
+F = 10000.0           # 10,000 N hanging from a steel rod
+yield_stress = 250e6  # mild steel yield strength, Pa
+
+for d_mm in (4, 8, 12, 16):
+    r = d_mm / 2000.0              # radius in meters
+    area = math.pi * r * r
+    stress = F / area
+    print(f"d = {d_mm:2d} mm  stress = {stress/1e6:6.1f} MPa  "
+          f"safety factor = {yield_stress/stress:4.2f}")
+```
+
+The 4 mm rod runs at 795.8 MPa, a factor of 0.31: it yields the moment the load
+lands and keeps stretching. The 8 mm rod survives elastically at 198.9 MPa but
+with a factor of 1.26, one overloaded delivery away from a bent hanger. The
+12 mm rod at a factor of 2.83 is the sensible pick. The 16 mm rod is safe and
+heavy, paying for margin nobody asked for. That is the whole design conversation
+in four lines.
+
+<Quiz
+  id="mech-safety-factor"
+  question="A part carries a working stress of 100 MPa, made from steel that yields at 250 MPa. What is the factor of safety, and what does it mean?"
+  answer={2}
+  options={[
+    "0.4, meaning the part is 40 percent overstressed.",
+    "25, meaning the part can carry 25 times the working stress forever.",
+    "2.5, meaning the material yields at 2.5 times the working stress.",
+    "250, meaning there are 250 safety checks in the design.",
+  ]}
+  explanation="Factor of safety is strength divided by working stress: 250 / 100 = 2.5. It means the yield point sits 2.5 times above the expected working condition. Option one is the ratio inverted, a common slip, and option two confuses strength margin with a promise about fatigue or wear."
+/>
+
+Statics now has both halves: the geometry balances and the material holds. The
+plank stays a plank. The next lesson, Mechanisms and Motion, starts making parts
+move on purpose: levers, gears, and pulleys, the trades that turn a small force
+into a useful one.
+
+<Notes />

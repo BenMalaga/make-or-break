@@ -1,0 +1,130 @@
+---
+title: Work, Energy, and Power
+module: physics-foundations
+moduleTitle: Physics Foundations
+moduleOrder: 55
+moduleIcon: FlaskConical
+order: 3
+summary: "Work, kinetic and potential energy, conservation, and power, the rate of doing it."
+estimatedMinutes: 14
+prerequisites: ["forces-and-newtons-laws"]
+objectives:
+  - Compute work, kinetic energy, and gravitational potential energy with real numbers
+  - Use conservation of energy to find speed from height without tracking the path
+  - Explain why no machine multiplies energy and where the shortfall goes
+  - Compute power in watts from work and time for machines and people
+tags:
+  - physics
+  - energy
+---
+
+Forces and Newton's Laws ended with a crate sliding at 6.12 m/s and could account for every newton that got it there. What that lesson could not say is what the push was worth. Sixty newtons for two seconds: a lot or a little? Energy answers in a unit that has no direction and no memory of how it was spent, and it comes with a conservation rule so dependable that engineers design around it rather than re-test it.
+
+## Work: force times distance, in one direction
+
+Work is force times the distance moved in the direction of the force: W = F d, measured in joules. One joule is 1 newton pushing through 1 meter. Lifting a 2 kg book 2 meters at steady speed takes a 19.6 N upward force applied through 2 meters, so the lift does 39.2 J of work, and that energy now sits in the book's height.
+
+The direction clause bites harder than it looks. A force perpendicular to the motion does zero work no matter how large it is, which is why carrying a box across a room at constant height does no work against gravity: the upward force has no component along the motion. Holding a box motionless does no work at all, however much the arms complain, because the distance is zero. Muscles burn energy while holding still, but that is internal chemistry, not work done on the box.
+
+Work also comes in negative, when the force opposes the motion. Push the crate from the last lesson 6.12 m across the floor and friction, acting backward at 29.4 N, does 29.4 times 6.12 = 180 J of negative work: it removes energy from the crate and deposits it as heat. The 60 N push does +367 J, friction takes -180 J, and the net 187 J is exactly the kinetic energy the crate ends up carrying. Energy accounting reads signs carefully.
+
+## Kinetic energy: work that became motion
+
+Work changes an object's kinetic energy, the energy of motion: KE = 1/2 m v^2. Push the 10 kg crate from the last lesson with a net 30.6 N and it accelerates at 3.06 m/s^2 for 2 seconds, covering a distance of 1/2 times 3.06 times 4 = 6.12 m. The net work done is 30.6 times 6.12 = 187 J. Now compute the kinetic energy directly: 1/2 times 10 times 6.12^2 = 187 J. The same number from two completely different routes. That agreement is the work-energy theorem, and it is the first great shortcut in physics: track energy, and the details of the path stop mattering.
+
+The v^2 in the formula has teeth. A 1500 kg car at 25 m/s, about 90 km/h, carries 1/2 times 1500 times 625 = 469000 J of kinetic energy. Double the speed to 50 m/s and the energy quadruples to about 1.9 million J. Braking happens at roughly constant force, so stopping distance is proportional to energy, which is why speed bumps matter more than they look: 10 percent more speed means roughly 20 percent more distance used up stopping.
+
+<Quiz
+  id="phys-energy-ke"
+  question="A 70 kg cyclist and bicycle together move at 10 m/s. What is their kinetic energy?"
+  answer={1}
+  options={[
+    "700 J, from multiplying mass by speed.",
+    "3500 J, from 1/2 times 70 times 10^2.",
+    "7000 J, from mass times speed squared.",
+    "35000 J, ten times too big.",
+  ]}
+  explanation="KE = 1/2 m v^2 = 0.5 times 70 times 100 = 3500 J. The formula takes half the mass times the square of the speed, and forgetting the 1/2 or the square are the two classic slips. At 3500 J, the same energy would lift the cyclist about 5 meters."
+/>
+
+## Potential energy: work banked for later
+
+Lifting something stores the work instead of spending it. Gravitational potential energy is PE = mgh: mass times g times height above whatever reference point was chosen. The 2 kg book on the 2 meter shelf holds 39.2 J of it, exactly the work the lift deposited. The energy sits there, patient, until the book falls and gravity hands it back as motion.
+
+The reference height is a free choice, like the origin of position in Describing Motion. Only changes in potential energy matter, so pick the floor, the shelf, or sea level, whichever makes the arithmetic shortest, and stay consistent within one problem.
+
+A scale check keeps joules honest. Lifting that apple from the last lesson, 100 grams, by 1 meter takes about 1 J. Food labels count in Calories, and one food Calorie is 4184 J, so a 250 Calorie snack bar holds about a million joules of chemical energy. A million joules would lift the 70 kg reader nearly 1.5 km. Bodies burn through that account at a few hundred watts all day, which is why eating must keep up with spending.
+
+## Conservation: the ledger that always balances
+
+Energy is conserved: in a closed system the total never changes, it only changes form. A roller coaster car hauled to the top of a 50 m hill carries mgh of potential energy and almost no kinetic. Released, the trade runs one way during the drop and back the other on the next climb. Speed at the bottom depends only on the height: v = sqrt(2 g h) = sqrt(2 times 9.8 times 50) = 31.3 m/s, about 113 km/h. It does not matter whether the track drops straight down or swoops through a loop first, so long as friction stays out of the picture.
+
+A pole vaulter shows the same trade from the other side. Running down the runway at about 9 m/s, the vaulter's body carries kinetic energy that could lift it 9^2 / (2 times 9.8) = 4.1 m by itself. Records sit above 6 m. The difference comes from the pole, which bends to store energy like a spring during the plant and hands it back near the top, plus the work the arms do climbing the pole. No energy is created anywhere in the jump; everything was moved around and spent from accounts that existed before the run began.
+
+A pendulum swings on the same ledger. Height at the top of each swing, zero at the bottom, and the energy shuttling between the two forms twice per cycle. It is also the conservation law's clearest limit: the pendulum can never rise higher than it started, and a coaster can never climb a hill taller than the one it was released from, because there is no account to withdraw from. Every real pendulum and coaster falls a little short, and the shortfall is friction's cut.
+
+This is also why no machine multiplies energy. A lever trades distance for force, a block and tackle pulls 4 meters of rope to lift a load 1 meter, a gearbox trades speed for torque, and in every case the output energy is less than the input, with the shortfall paid to friction as heat. Perpetual motion machines fail on arithmetic, not on construction quality.
+
+<Quiz
+  id="phys-energy-drop-speed"
+  question="A stone drops from rest off a 5 meter ledge. Ignoring air resistance, how fast is it moving at the bottom?"
+  answer={2}
+  options={[
+    "4.9 m/s, the speed gained in the first half second.",
+    "49 m/s, from multiplying g by the height.",
+    "9.9 m/s, from v = sqrt(2 g h).",
+    "24.5 m/s, from multiplying g by half the height.",
+  ]}
+  explanation="Set kinetic energy equal to potential energy: 1/2 m v^2 = mgh. Mass cancels and v = sqrt(2 g h) = sqrt(98) = 9.9 m/s. The stone would reach the same speed after falling 5 meters by any frictionless path, straight or curved, because only the height matters."
+/>
+
+## Power: the rate of spending
+
+Power is the rate of doing work, P = W / t, measured in watts: 1 watt is 1 joule per second. The same 2000 J of work done in 2 seconds or in 20 seconds differs by a factor of ten in power, and power is usually the number that actually matters. A 2000 W electric kettle boils 1 liter of water from room temperature in about 3 minutes, because heating 1 kg of water by 80 degrees takes about 335000 J and 335000 / 2000 = 168 s.
+
+Household numbers give the scale. An LED bulb draws 9 W, a laptop charger 65 W, a microwave about 1000 W, a kettle 2000 to 3000 W. A person climbing a 3 m staircase in 5 seconds does 70 times 9.8 times 3 = 2058 J of work against gravity, a power of 412 W, and the same stairs in 2 seconds takes 1029 W. Humans sustain a few hundred watts and peak near a thousand for a few seconds, which is why sprinting stairs leaves anyone breathing hard: the lungs and muscles are the power plant, and it is running near capacity.
+
+Cars sit an order of magnitude above people. A modest car engine is rated near 100 kW, one hundred thousand watts, and the unit printed on older spec sheets, horsepower, is 746 W by definition. James Watt chose that figure in the 1770s by measuring draft horses turning a mine pump, so the number has always meant a specific amount of water lifted a specific height per minute, not a folk estimate. A 100 kW engine is about 134 horsepower, and it earns that rating only at high revs: at low engine speed the same machine delivers a fraction of it, which is why gears exist.
+
+<Callout type="info" title="Friction is where the energy goes">
+Conservation says the total never changes, not that motion never fades. A crate sliding to a stop converts exactly all of its kinetic energy into heat in the floor and the crate, which is why sliding surfaces warm up. The ledger stays balanced; the entry is simply filed under heat instead of motion.
+</Callout>
+
+## Back to the falling ball, the fast way
+
+The energy view settles the falling ball from Describing Motion without touching a single time step. Speed at the bottom of a drop of height h is v = sqrt(2 g h), found by setting 1/2 m v^2 equal to mgh and watching the mass cancel:
+
+```python
+import math
+g = 9.8
+for name, h in [("stairwell", 3), ("rope swing", 5), ("lesson one", 20)]:
+    v = math.sqrt(2 * g * h)
+    print(name, h, "m ->", round(v, 1), "m/s")
+```
+
+The rows print 7.7, 9.9, and 19.8 m/s. That last one is exactly the speed the Euler loop from Describing Motion reported when its ball hit the ground after a 20 meter fall. One method added up 202 tiny steps; the other asked a single question about height. Same answer, because energy audits only where the object started and ended, never the route between.
+
+The shortcut has an honest limit worth naming. The equality 1/2 m v^2 = mgh assumes nothing skimmed energy along the way. Real balls land a little slower than 19.8 m/s from 20 meters, because air drag taxes the trip, and the energy view handles that cleanly too: the missing kinetic energy reappears as heat in the air and in the ball. Conservation is never broken by friction. It just files the entry somewhere less useful.
+
+<Quiz
+  id="phys-energy-power"
+  question="A 60 kg person climbs 4 meters of stairs in 10 seconds. What power does that take?"
+  answer={0}
+  options={[
+    "About 235 W, from 60 times 9.8 times 4 divided by 10.",
+    "About 2352 W, from skipping the division by time.",
+    "About 24 W, from dividing the wrong way.",
+    "About 2.4 W, from slipping a factor of 100.",
+  ]}
+  explanation="The work against gravity is mgh = 60 times 9.8 times 4 = 2352 J. Dividing by the 10 seconds gives P = 235 W, a sustainable human pace. Forgetting the time division reports the work in joules as if it were watts, off by a factor of 10 here."
+/>
+
+<Exercise title="Measure a power output on a staircase">
+Find a staircase and work out the height of one flight, either from the stair count times the riser height or a tape measure, about 3 meters for a typical home flight. Time a climb at a normal pace, then compute P = m g h / t with body mass in kilograms.
+
+A 70 kg person taking 5 seconds does about 410 W. Time the same flight as fast as safety allows and recompute: the work is identical, only the rate changed, and watching the watts double is the fastest way to feel what power means. Repeat the sprint twice more and watch the number fall as fatigue arrives, which is the human version of a battery running down.
+</Exercise>
+
+Energy told this story for things that fall, slide, and climb in straight lines. The next lesson, Waves and Sound, follows energy into motion that repeats: a disturbance that travels through matter carrying every note and every echo, governed by one small equation relating speed, wavelength, and frequency.
+
+<Notes />

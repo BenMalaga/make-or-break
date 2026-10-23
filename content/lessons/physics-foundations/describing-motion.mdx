@@ -1,0 +1,135 @@
+---
+title: Describing Motion
+module: physics-foundations
+moduleTitle: Physics Foundations
+moduleOrder: 55
+moduleIcon: FlaskConical
+order: 1
+summary: "Position, velocity, and acceleration: the three numbers that describe any moving thing, and the graphs that tell their story."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - Define position, displacement, velocity, and acceleration and give the unit of each
+  - Separate average velocity from instantaneous velocity with worked numbers
+  - Read position-time and velocity-time graphs and pull acceleration from the slope
+  - Simulate a falling ball step by step with the Euler method real simulators use
+tags:
+  - physics
+  - motion
+---
+
+Film a falling ball and step through it frame by frame. At 240 frames per second, a phone camera catches the ball barely creeping between its first frames and smearing across a long gap between its later ones. Equal slices of time, wildly unequal slices of distance. Nothing pushed the ball after the fingers opened. It fell, and it kept falling faster, and those three numbers, position, velocity, and acceleration, exist to capture exactly that.
+
+Physics sorts every moving thing into the same short vocabulary. Where is it? How fast is that where changing? How fast is the how-fast changing? Every graph, equation, and simulator in the rest of this module speaks those three, and each one is defined as a rate of change of the one before it.
+
+One convention comes first. Numbers need directions here: up or down, left or right, forward or back. Pick a positive direction once at the start of a problem, stick to it, and let negative numbers carry the other way. A velocity of minus 3 m/s is not an error. It is 3 m/s in whichever direction was declared negative.
+
+## Position is measured against a chosen zero
+
+Position is where something is, stated as a distance and a direction from an origin, the agreed point that counts as zero. A ball sitting 2 meters above the floor has no position until the floor is declared the zero. Measure from the top of the bookshelf instead and the same ball gets a different number. The origin is a free choice, and physics stays consistent because the questions that matter survive the change untouched: the distance between two things, and how far anything moved, come out the same no matter where the zero was placed.
+
+A GPS receiver picks the center of the Earth as its zero. A highway picks a named milestone. A game engine picks a corner of the map. All three can describe the same delivery truck, and they will disagree on its position while agreeing perfectly on how far it moved between two moments. That agreement on changes rather than values is the thread to the next idea.
+
+## Displacement and distance disagree on purpose
+
+Displacement is the change in position, measured straight from start to finish with the direction attached. Distance is the total length of the path actually traveled. Walk 3 meters east and then 4 meters west: distance 7 meters, displacement 1 meter west. The two split apart whenever a path doubles back, and they split apart hard on anything that travels in circles.
+
+A runner finishing one lap of a 400 meter track makes the gap extreme. Distance traveled: exactly 400 meters. Displacement: exactly zero, because start and finish are the same point. Displacement answers where the runner ended up relative to the start; distance answers how much ground the shoes covered. Neither is the wrong number, but using one where a problem wants the other is a classic way to lose an answer that was otherwise correct.
+
+<Quiz
+  id="phys-motion-track-lap"
+  question="A runner jogs one full lap of a 400 meter track and finishes where they started. What is the displacement?"
+  answer={3}
+  options={[
+    "400 meters, because that is how far the runner ran.",
+    "800 meters, because a lap goes out and back.",
+    "200 meters, which is half the lap length.",
+    "Zero, because start and finish are the same point, so position never changed overall.",
+  ]}
+  explanation="Displacement is the net change in position from start to finish. A full lap returns to the starting point, so the displacement is zero even though the distance traveled is 400 meters. Distance counts the path; displacement counts the net change."
+/>
+
+## Velocity is how fast position changes
+
+Velocity is the rate of change of position, measured in meters per second. Speed is the same number with the direction stripped off: 60 km/h says how fast, while a velocity of 60 km/h north also says which way. The distinction sounds like hair-splitting until a path curves or a trip reverses, and then only velocity gives honest answers.
+
+An average velocity is total displacement divided by total time. Drive 120 kilometers of straight highway in 2 hours and the average is 60 km/h, even though the speedometer swung between 0 at every red light and 100 on the open stretches. The number the speedometer shows at one instant is the instantaneous velocity, and most physics questions want that one. An average smooths a whole trip into one number that may match no single moment of the trip.
+
+Real athletes show the gap between the two. Usain Bolt averaged 10.4 m/s over his 100 meter world record, 100 meters in 9.58 seconds, but his peak instantaneous speed was about 12.4 m/s near the 60 meter mark. Both numbers describe the same race, and neither is wrong. Instantaneous velocity is the average taken over an interval so short that nothing changes much inside it.
+
+Everyday speeds give the unit a feel. Walking runs about 1.4 m/s, city cycling about 5 m/s, a highway cruise about 28 m/s, and a passenger jet around 250 m/s. Sound at 343 m/s and light at 3.0 times 10^8 m/s sit far above all of them, which is why a jet is slower than its own voice: the cheering arrives at the grandstand before the plane does.
+
+## Acceleration is how fast velocity changes
+
+Acceleration is the rate of change of velocity, measured in meters per second per second, written m/s^2. A car covering 0 to 100 km/h, about 27.8 m/s, in 8 seconds accelerates at 27.8 / 8 = 3.5 m/s^2: every second it lives, it gains another 3.5 m/s of speed. Braking runs the same arithmetic backward. The same car stopping from 100 km/h in 4 seconds decelerates at 7 m/s^2, about 0.7 g, which is hard braking on dry asphalt and entirely survivable.
+
+One acceleration matters more than any other in this module. Near Earth's surface, gravity gives every falling object an acceleration of about 9.8 m/s^2 straight down, written g. Dropped stone, thrown wrench, high diver: while airborne and ignoring air resistance, each gains 9.8 m/s of downward speed every second it falls. A feather and a hammer fall differently in air because air fights the feather's broad shape, not because gravity plays favorites. On the airless Moon in 1971, an Apollo 15 astronaut dropped both at once and they hit the dust together.
+
+The sign of g follows the sign convention picked at the start. Declare down positive and a dropped ball's velocity reads 9.8, 19.6, 29.4, gaining 9.8 each second; declare up positive, the more common choice in projectile problems, and the same fall reads negative, and a ball thrown upward decelerates at 9.8 m/s^2 all the way up. The physics is identical either way, but a sign slip is the most common way to turn a correct setup into a wrong answer, so the convention gets written down first and honored throughout.
+
+## Reading the two graphs
+
+A position-time graph puts position on the vertical axis and time on the horizontal one. Its slope is velocity: steep means fast, flat means parked, downhill means heading back toward the origin. A straight rising line is constant velocity, and a curve that steepens as it goes is speeding up, which is exactly what the falling ball from the opening would draw.
+
+A velocity-time graph runs the same trick one level up: its slope is acceleration. Free fall draws a straight line with slope 9.8 m/s^2, starting from zero if the object began at rest. A flat stretch on a velocity graph means zero acceleration, motion at constant velocity. Between the two graphs sits a bookkeeping fact worth memorizing: the area under a velocity-time curve is the displacement. A steady 9.8 m/s held for 2 seconds sweeps out a rectangle 19.6 tall and 2 wide, and a ball dropped from rest has indeed fallen 19.6 meters in those 2 seconds.
+
+Reading a real trip makes the two graphs work as a team. A city bus between two stops draws a position-time graph of rising lines joined by flat plateaus, one plateau per stop, and steeper lines between them on faster segments. The same trip on a velocity-time graph is a row of rectangles at different heights separated by dives to zero at each stop, and the areas of those rectangles are the distances between stops. Anyone fluent in the pair can see speedups, stops, and total distance without a single number being printed on the axes.
+
+<Quiz
+  id="phys-motion-vt-slope"
+  question="On a velocity-time graph, a line runs flat at exactly 5 m/s for 4 seconds. What happened during those 4 seconds?"
+  answer={1}
+  options={[
+    "The object accelerated steadily at 5 m/s^2.",
+    "The object moved at a steady 5 m/s and covered 20 meters, with zero acceleration.",
+    "The object stood still, because the line has no slope.",
+    "The object reversed direction halfway through.",
+  ]}
+  explanation="A flat velocity-time line means constant velocity, so acceleration is zero. The displacement is the area under the line: 5 m/s times 4 s, which is 20 meters. A sloped line is the one that would show acceleration."
+/>
+
+## Free fall, computed
+
+Numbers first, then the machine that produces them. Drop a ball from 20 meters, starting at rest. After 1 second it has fallen 4.9 meters and moves at 9.8 m/s. After 2 seconds it has fallen 19.6 meters and moves at 19.6 m/s. The rule behind those numbers is distance = 1/2 g t^2 for anything released from rest, and it is nothing more than the steady pileup of 9.8 m/s of new speed each second.
+
+That pileup is all a motion simulator does. Choose a small time step, add g times the step to the velocity, then move the object by velocity times the step, and repeat until the ground arrives. This is the Euler method, the crudest useful integration scheme, and game engines and orbit simulators still run some version of it every frame:
+
+```python
+g, dt = 9.8, 0.01          # gravity in m/s^2, step of 0.01 s
+v, h, t = 0.0, 20.0, 0.0   # starts at rest, 20 m up
+while h > 0:
+    v = v + g * dt         # gravity adds downward speed
+    h = h - v * dt         # and the ball covers ground
+    t = round(t + dt, 2)
+    if t in (0.5, 1.0, 1.5, 2.0):
+        print(t, round(v, 2), round(h, 2))
+```
+
+The loop prints four rows and then keeps stepping until the height goes negative at t = 2.02, when the ball has landed. At t = 1.0 the loop reports a height of 15.05, meaning 4.95 meters fallen, within 5 centimeters of the exact 4.9. At t = 2.0 it reports 0.3 meters left. The exact time for a 20 meter drop, from distance = 1/2 g t^2 rearranged, is t = sqrt(2 times 20 / 9.8) = 2.02 s, which the loop finds on its own. Shrink dt and the agreement tightens: the step size is the single knob between this loop and exact physics, and real simulators trade smaller steps for more of them.
+
+<Callout type="info" title="What the loop leaves out">
+Air resistance is the big omission. At these speeds a ball barely notices it, but a skydiver stops accelerating around 55 m/s belly-down, once drag balances gravity, and the loop would never show that. The Euler step itself also adds a small error that shrinks as dt shrinks, which is why professional simulators use smarter step schemes: less error per unit of computing.
+</Callout>
+
+<Quiz
+  id="phys-motion-euler-step"
+  question="In the falling-ball loop, what does the line 'v = v + g * dt' accomplish?"
+  answer={2}
+  options={[
+    "It resets the velocity to zero at the start of every step.",
+    "It converts the velocity from m/s into meters of distance.",
+    "It adds the speed that gravity grants during one time step, g times dt.",
+    "It checks whether the ball has hit the ground yet.",
+  ]}
+  explanation="Each step, gravity adds g times dt to the velocity, which is exactly what 'gaining 9.8 m/s per second' means in small slices. The next line, h = h - v * dt, is what turns that velocity into distance. The ground check is the while condition."
+/>
+
+<Exercise title="Measure a reaction time with a falling ruler">
+Have a friend hold a ruler by its top end so it hangs straight down, with the zero centimeter mark lowest. Put a thumb and finger around the zero mark without touching the ruler, then have the friend release it without warning. Catch it and read the centimeter mark where the thumb landed.
+
+That mark is the drop distance d, and constant acceleration turns it into a time with t = sqrt(2 d / g). A catch at the 15 centimeter mark means t = sqrt(0.30 / 9.8) = 0.17 s, which is a normal human visual reaction time. Take three drops, convert each with the same formula, and compare the slowest to the fastest. The spread is real: reaction time is not a constant.
+</Exercise>
+
+Three numbers now describe any motion, but nothing so far has said why the ball gains speed steadily instead of drifting sideways or coasting to a stop. Forces and Newton's Laws supplies that missing half: what a force is, the three rules that connect forces to changes in velocity, and how to turn any pushing-and-pulling situation into a diagram that can be solved.
+
+<Notes />

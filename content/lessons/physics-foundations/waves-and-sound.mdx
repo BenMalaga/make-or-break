@@ -1,0 +1,130 @@
+---
+title: Waves and Sound
+module: physics-foundations
+moduleTitle: Physics Foundations
+moduleOrder: 55
+moduleIcon: FlaskConical
+order: 4
+summary: "Waves carry energy without carrying material: wavelength, frequency, speed, and what your ear actually hears."
+estimatedMinutes: 15
+prerequisites: ["work-energy-and-power"]
+objectives:
+  - Define wavelength and frequency and connect them with v = f lambda
+  - Distinguish transverse from longitudinal waves with everyday examples
+  - Predict interference, beats, and resonance from the way waves add
+  - Estimate lightning distance from the thunder gap using the speed of sound
+tags:
+  - physics
+  - waves
+  - sound
+---
+
+Work, Energy, and Power ended with energy as a number that moves between accounts. This lesson follows energy that travels: a wave, a disturbance that carries energy through a material without carrying the material along. Drop a stone into a pond and no water molecule reaches the far shore, yet every one of them bobs in place while the ring of bobbing crosses the whole pond. Every sound ever heard traveled that way, as air molecules shuffling back and forth around their resting spots.
+
+## Two shapes of wave
+
+A wave is a traveling disturbance in a medium, the material the disturbance travels through: a rope, air, water, steel. Transverse waves disturb their medium perpendicular to the direction of travel: shake a rope sideways and the hump races down the rope while each point of rope moves up and down only. Longitudinal waves disturb along the direction of travel: push and pull one end of a slinky and a band of compressed coils runs down its length. Sound is longitudinal. A speaker cone shoves air molecules closer together into a compression, then pulls back and leaves a gap called a rarefaction, and that alternating squeeze-and-release pattern marches through the air while each molecule stays within a sliver of its home position.
+
+Water waves refuse to pick a side, which makes them the least clean example, not the cleanest. A surface wave moves water in circles: up and forward at the crest, down and back in the trough, a mix of both types at once. Earthquakes split cleanly, though, and seismologists rely on the split. P waves are longitudinal and fast, S waves are transverse and slower, and every earthquake marks a point on the map where the two arrive at different times, the same lag trick thunder uses at smaller scale.
+
+## Wavelength, frequency, and one small equation
+
+Three numbers describe any steady wave. Wavelength, written lambda, is the distance from one compression to the next, or one crest to the next. Frequency, written f, counts how many pass a fixed point each second, measured in hertz: 440 Hz means 440 complete cycles per second, the pitch of the note orchestras tune to. Speed ties them together in one equation, v = f lambda, worth reading slowly: speed equals frequency times wavelength, so a wave crossing the same medium faster must either oscillate more often or stretch longer between crests.
+
+Sound in air at 20 C moves at about 343 m/s. Divide that speed by frequency and every pitch gets a wavelength. One more piece completes the set: the period, the time a single cycle takes, is 1 divided by f. A 440 Hz wave completes a cycle every 1/440 s, about 2.3 milliseconds, and 2.3 milliseconds times 0.78 meters per cycle gives back the 343 m/s the equation promised.
+
+```python
+v = 343.0    # m/s, speed of sound in air at 20 degrees C
+notes = [("A2", 110), ("A3", 220), ("A4", 440), ("A5", 880)]
+for name, f in notes:
+    print(name, f, "Hz ->", round(v / f, 2), "m")
+```
+
+The rows print 3.12, 1.56, 0.78, and 0.39 meters. Each step up one octave doubles the frequency and halves the wavelength, and the ear hears every doubling as the same letter raised one octave, which is why the A's stack so neatly in that table. The inverse seesaw also has hardware consequences: a subwoofer needs a big cone because it must push wavelengths meters long, while a tweeter handles wavelengths a few centimeters across.
+
+<Quiz
+  id="phys-waves-relation"
+  question="Concert A is 440 Hz and sound moves at about 343 m/s. Roughly how long is that note's wavelength?"
+  answer={0}
+  options={[
+    "About 0.78 m, from 343 divided by 440.",
+    "About 1.3 m, from dividing the wrong way by 262.",
+    "About 78 m, from forgetting to divide at all.",
+    "About 7.8 m, off by a factor of ten.",
+  ]}
+  explanation="Rearranging v = f lambda gives lambda = v / f = 343 / 440 = 0.78 m. A wavelength under a meter for the note that orchestras tune to. Doubling the pitch to 880 Hz would halve it to 0.39 m."
+/>
+
+## What the ear hears
+
+The ear maps the wave's two dials onto two sensations. Frequency becomes pitch: low frequencies rumble, high ones squeal. Healthy young ears hear from about 20 Hz up to about 20 kHz, and the top end slides down with age, which is why certain mosquito-repelling ringtones are audible to teenagers and not to their teachers. Amplitude, the size of the pressure swing, becomes loudness, and loudness is measured in decibels, a logarithmic ladder in which every step of 10 dB means ten times the sound power.
+
+Decibel reference points anchor the ladder. Hearing starts near 0 dB, a conversation runs around 60 dB, a chainsaw at the ear is about 100 dB, and 120 dB crosses into pain. Because the ladder is logarithmic, a chainsaw is not twice a conversation, it is ten thousand times the sound power. Loudness is still a pressure swing, though: the molecules oscillate farther from their resting spots, and they still end up where they started.
+
+At the edges of the hearing range the wavelengths turn dramatic. A 20 Hz rumble stretches 343 / 20 = 17 m from compression to compression; a 20 kHz squeal spans 343 / 20000 = 0.017 m, under 2 cm. The whole range of human hearing rides between a wave as long as a house and one as short as a fingernail.
+
+## Interference: waves add where they meet
+
+Two waves arriving in the same place add together, crest on crest or crest on trough. In phase, they reinforce: constructive interference, a louder sound. Shifted by half a cycle, crest meets trough and they erase: destructive interference. Walk across a room with two speakers playing one tone and bands of loud and near-silent alternate, because the two paths differ and the waves arrive shifted. Noise-canceling headphones exploit the erasing directly: a microphone hears the outside noise, the speaker plays its mirror image, and the two cancel inside the earcup.
+
+Play two tones a few hertz apart and their sum wobbles loud-soft-loud at the difference frequency. That is beats. A 440 Hz tuning fork sounded against a 442 Hz fork produces 2 beats per second, and the slow wah-wah is exactly what musicians listen for when tuning: as the notes approach each other the beats slow, and zero beats means the pitches have merged.
+
+<Quiz
+  id="phys-waves-beats"
+  question="A 440 Hz tuning fork and a 444 Hz fork are struck together. What is heard?"
+  answer={1}
+  options={[
+    "A single 884 Hz tone, from adding the two frequencies.",
+    "A tone near 442 Hz that wobbles 4 times per second, from the frequency difference.",
+    "Complete silence, since 440 and 444 are close enough to cancel.",
+    "Two separate steady tones, 440 Hz and 444 Hz, with no interaction.",
+  ]}
+  explanation="Close frequencies interfere alternately in and out of phase, producing beats at the difference: 444 - 440 = 4 beats per second, at an average pitch near 442 Hz. Far-apart frequencies stop sounding like beats and start sounding like a rough dissonance."
+/>
+
+## Standing waves: interference that settles down
+
+Confine a wave between two fixed ends, as on a guitar string pinned at both ends, and interference stops wandering and settles into standing waves, patterns that vibrate in place. Only wavelengths that fit the pinned ends survive: one half-wavelength for the lowest note the string can play, two for the next, three for the one after. The points that never move are called nodes, and they sit at the pins and in between.
+
+This is why a longer string plays lower. Double the vibrating length and the longest surviving wavelength doubles, so the lowest frequency halves. Guitar frets shorten the vibrating length one note at a time, which is the entire mechanism of the instrument, and the pitch shift of one fret is a known ratio, a factor of the twelfth root of 2, about 1.059, built into how frets are spaced.
+
+## Resonance: push at the rhythm the system likes
+
+Every elastic system has natural frequencies, the rhythms at which it prefers to swing. Push a playground swing once per pass, timed to its own rhythm, and small pushes stack into a large arc; push off-rhythm and the pushes fight the motion and fade. That stacking is resonance: energy pumped in at the natural frequency accumulates instead of scattering.
+
+Resonance runs from kitchens to radios. Slide a wet finger around a wineglass rim and the glass rings at its natural frequency, the same note it sings when tapped; a loud amplified tone at exactly that frequency can drive a thin glass hard enough to shatter it, because the glass keeps absorbing energy at the one rhythm it cannot refuse. A radio's tuned circuit is the same idea in electricity: a coil and a capacitor have a natural frequency, and the circuit resonates there, selecting one station's signal from the dozens raining on the antenna while ignoring the rest.
+
+Resonance also explains two standing orders that look superstitious until the physics shows up. Marching soldiers break step on bridges because thousands of small pushes at the bridge's natural frequency accumulate into sways no single soldier could produce. And a swing pushed slightly off-rhythm goes nowhere: the timing, not the strength, is what the system listens to.
+
+## Why thunder lags the lightning
+
+Light and sound leave the same flash at the same moment and arrive at very different times. Light crosses any everyday distance essentially instantly at 3.0 times 10^8 m/s, a kilometer in 3 microseconds. Sound crawls at 343 m/s and needs 2.9 s for the same kilometer, nearly a million times slower. Every kilometer of distance buys about 2.9 seconds of gap, which gives the storm-watcher's rule: count the seconds between flash and thunder and divide by 3 for kilometers. A 6 second gap puts the strike about 2 km away.
+
+The thunder itself is the lightning's doing. The discharge heats its channel to about 30000 K, several times the surface temperature of the sun, and the air in the channel expands explosively. That shock wave, stretched and rumbling as it travels through terrain, is what arrives as thunder.
+
+<Callout type="info" title="Sound speed is not one number">
+343 m/s is the value for dry air at 20 C. Sound moves faster in warmer air, about 331 m/s at freezing, about 1500 m/s in water, and faster still in solids. When a wave crosses from one medium into another, its frequency stays fixed, set by the source, while its speed and wavelength change together.
+</Callout>
+
+<Quiz
+  id="phys-waves-thunder"
+  question="Lightning flashes and thunder arrives 9 seconds later. Roughly how far away was the strike?"
+  answer={0}
+  options={[
+    "About 3 km, from 9 seconds divided by 3.",
+    "About 9 km, from counting seconds as kilometers.",
+    "About 0.3 km, from multiplying by 3 instead of dividing.",
+    "About 27 km, off by a factor of three twice.",
+  ]}
+  explanation="Sound covers one kilometer in about 2.9 seconds, so seconds divided by 3 gives kilometers: 9 / 3 = 3 km. A count under 3 means the strike is inside 1 km and it is time to get indoors."
+/>
+
+<Exercise title="Time the next thunderstorm">
+During the next thunderstorm, watch for a flash and start counting seconds at the pace of one-thousand-one, one-thousand-two, until the thunder arrives. Divide the count by 3 for the strike's distance in kilometers: a count of 9 means about 3 km, a count of 3 means the storm is close enough to go indoors.
+
+Count the gap again a few minutes later. A shrinking count means the storm is approaching; a growing one means it is leaving. The mental stopwatch is good to about a second, which is plenty when the answer scales at one kilometer per 3 seconds.
+</Exercise>
+
+Everything here behaved like a well-behaved wave in a material. Light does all of it with no material at all, and at quantum sizes even matter, electrons included, starts interfering like waves, a strangeness the Quantum Foundations module takes up in its own time. Closer to hand, the next lesson, Electricity and Magnetism, follows energy into the invisible fields around charge, where a moving charge makes magnetism, a changing magnetism makes electricity, and the two together run every motor on the planet.
+
+<Notes />

@@ -1,0 +1,243 @@
+---
+title: Sources and Thevenin Equivalents
+module: circuit-analysis
+moduleTitle: Circuit Analysis
+moduleOrder: 56
+moduleIcon: CircuitBoard
+order: 3
+summary: "Real sources sag under load, and Thevenin's trick replaces any network with one source and one resistor."
+estimatedMinutes: 16
+prerequisites: ["kirchhoffs-laws"]
+objectives:
+  - Model a real voltage source as an ideal source with internal resistance and predict its sag
+  - Reduce any resistive network to its Thevenin equivalent in two steps
+  - Predict how a load changes a divider's output before building it
+  - Decide when maximum power transfer matching applies and when it wastes energy
+tags:
+  - electronics
+  - circuits
+  - thevenin
+---
+
+A 9 volt battery reads a clean 9.0 volts across its terminals with nothing
+connected, then reads 8.0 the moment a motor starts spinning on it. Nothing
+broke. The source sagged, and the amount of sag is not a mystery: it is one
+resistor's worth of Ohm's law. Kirchhoff's laws can solve any circuit, but
+solving the entire network by hand to answer what one load sees at one pair
+of terminals is like mapping the whole city to plan one route. This lesson
+builds the shortcut practitioners actually use, and it starts with why
+sources behave the way they do.
+
+## Real sources sag
+
+An ideal voltage source holds its stated voltage no matter how much current
+is drawn. No physical source manages that, because the energy path inside
+every real source has its own resistance, called the internal resistance,
+which acts exactly like a small resistor in series with an ideal source. The
+terminal voltage is the ideal voltage minus whatever the load current drops
+across that hidden resistor.
+
+The numbers are real and worth memorizing in round form. A fresh 9 volt
+alkaline battery has an internal resistance of about 2 ohms, which grows as
+the battery ages. Draw 100 milliamps and the terminal voltage falls to 9
+minus 0.1 times 2, which is 8.8 volts. Draw half an amp and it falls to 8.0
+volts. A pair of AA cells does better, a fraction of an ohm each, which is
+why AAs power high-drain devices more gracefully than 9 volt batteries do.
+A car battery sits around a hundredth of an ohm, which is how it cranks a
+starter motor with hundreds of amps while barely sagging. The sag is not a
+defect to eliminate; it is physics every source carries, and circuit design
+either budgets for it or fights it with regulation.
+
+Internal resistance explains a debugging classic: a circuit that works on a
+bench supply, the adjustable lab power supply that feeds electronics on a
+workbench, and glitches on a battery is often drawing current pulses the
+battery's internal resistance turns into voltage dips. The supply has its
+own sag, but milliohms of it instead of ohms.
+
+Internal resistance is also measurable with nothing but a meter and one
+known load. Read the terminal voltage with nothing connected to get the
+ideal source's value, connect a load that draws a known current, read the
+sag, and divide the sag by the current: the result is the internal
+resistance. The same measurement tells a story about battery health, since
+a depleted cell keeps roughly its printed voltage while its internal
+resistance climbs to many times its fresh value. That is why a weak battery
+can still read 9 volts on a meter and still refuse to run anything that
+draws real current: the meter draws almost nothing, so it sees the ideal
+source and none of the sag.
+
+<Quiz
+  id="cir-source-sag"
+  question="A battery modeled as an ideal 9V source in series with 2 ohms of internal resistance is delivering 0.5 amps to a load. What does a voltmeter read across the battery's terminals?"
+  answer={2}
+  options={[
+    "9.0 volts, because internal resistance only affects how long the battery lasts.",
+    "8.5 volts, because the load takes half the battery's voltage.",
+    "8.0 volts, because 0.5 amps drops 1 volt across the internal resistance.",
+    "1.0 volt, because the internal resistance takes the full load voltage.",
+  ]}
+  explanation="The load current times the internal resistance sets the sag: 0.5 A times 2 ohms is 1 volt, so the terminals show 9 - 1 = 8.0 volts. The internal resistance sits in series with the ideal source, so the drop comes off the terminal voltage directly."
+/>
+
+## The other kind of source
+
+Voltage sources get all the attention, but the second ideal source pushes a
+set current no matter what voltage that requires. An ideal current source
+delivering 10 milliamps will raise its voltage as high as needed to keep 10
+milliamps flowing; open-circuit it and its voltage climbs without limit,
+which is why real current sources always operate within a voltage range.
+Real approximations are everywhere once the pattern has a name: a transistor
+circuit that holds 20 milliamps through an LED string while the supply
+wanders, a bench power supply running in constant-current mode, and a solar
+cell in bright light, which behaves far more like a current source than a
+voltage source. The reason this matters for analysis arrives in the next
+section: when a network gets reduced, a voltage source is zeroed by becoming
+plain wire, and a current source is zeroed by becoming an open circuit.
+
+## The Thevenin trick
+
+In 1883 Leon Charles Thevenin proved a statement that still feels slightly
+suspicious: any network of sources and resistors, no matter how tangled,
+behaves exactly like a single ideal voltage source in series with a single
+resistor, as seen from two terminals. The proof does not matter here; the
+recipe does, and it has two steps. First, measure or compute the voltage
+across the terminals with nothing connected, which is the Thevenin voltage.
+Second, compute the resistance looking into the terminals with every
+independent source zeroed: voltage sources become plain wire, current
+sources become breaks, and the resistors collapse by the series and
+parallel rules. Two numbers replace the whole schematic.
+
+The recipe already ran once without ceremony. The 9 volt battery of the
+last section, ideal source plus internal resistance, is its own Thevenin
+equivalent: open-circuit voltage 9 volts, Thevenin resistance 2 ohms.
+Thevenin's theorem says that statement stays true for any network, however
+many parts hide behind the terminals.
+
+Work it on the divider that series-and-parallel designed: a 9 volt source,
+a 10,000 ohm resistor on top, a 4,700 ohm resistor on the bottom, tap at the
+junction, bottom side tied to the circuit's 0 volt reference, ground. The
+tap's open-circuit voltage is the familiar 9 times 4700 / 14700, about 2.88
+volts. The Thevenin resistance seen looking into the tap is the two
+resistors in parallel, because with the 9 volt source zeroed to plain wire,
+the top resistor runs from the tap up to a wire that leads back down through
+the bottom resistor: product over sum, 10,000 times 4700 / 14700, about
+3,197 ohms. That parallel result is not a coincidence of this example; a
+divider's Thevenin resistance is always its two resistors in parallel, a
+pattern worth memorizing.
+
+Now the loading warning from two lessons ago becomes arithmetic. Attach a
+1,000 ohm sensor to the tap. Through Thevenin glasses the circuit is a 2.88
+volt source, 3,197 ohms, and 1,000 ohms in a plain series loop, so the
+sensor sees 2.88 times 1000 / 4197, about 0.69 volts. The divider that
+promised 2.88 volts delivers less than a quarter of it. No simultaneous
+equations were solved; the whole sag was one division.
+
+```python
+vin = 9.0
+r1 = 10000.0
+r2 = 4700.0
+vth = vin * r2 / (r1 + r2)
+rth = r1 * r2 / (r1 + r2)
+print("Vth", round(vth, 3), "Rth", round(rth, 1))
+
+rl = 1000.0
+v_loaded = vth * rl / (rth + rl)
+r_parallel = r2 * rl / (r2 + rl)
+v_direct = vin * r_parallel / (r1 + r_parallel)
+print("loaded", round(v_loaded, 3), "direct", round(v_direct, 3))
+```
+
+The first line prints the Thevenin equivalent, Vth 2.878 and Rth 3197.3. The
+second prints the loaded output computed two ways: once through the Thevenin
+model and once by collapsing R2 in parallel with the load and re-solving the
+divider from scratch. Both print 0.686, which is the point: Thevenin is not
+an approximation, it is the same circuit wearing fewer parts. Designers use
+it precisely because a whole family of load questions, 1,000 ohms, 10,000
+ohms, an input that comes and goes, each becomes one voltage-divider
+division against a fixed two-number model.
+
+<Callout type="warning" title="Zeroing is a thought experiment, not a workshop step">
+Turning sources off to find a Thevenin resistance happens on paper. Nobody
+replaces a 9 volt battery with a plain wire to measure anything: shorting a
+real source is the short-circuit mistake from what-electricity-is, and it
+heats wire instead of teaching circuit theory. Compute the zeroed network or,
+when the circuit is real and powered, deduce the resistance from two
+measurements, an open-circuit voltage and one loaded reading, never by
+deliberately shorting the output.
+</Callout>
+
+<Quiz
+  id="cir-thevenin-resistance"
+  question="To find the Thevenin resistance of a divider with a 10,000 ohm top resistor and a 4,700 ohm bottom resistor, with the 9V source zeroed, what resistance does the tap present?"
+  answer={2}
+  options={[
+    "14,700 ohms, because the two resistors sit in series inside the network.",
+    "4,700 ohms, because the bottom resistor is the one connected to the tap.",
+    "About 3,200 ohms, because the zeroed source ties the resistors together in parallel.",
+    "0 ohms, because a tap is a plain junction with no parts of its own.",
+  ]}
+  explanation="With the voltage source replaced by wire, current pushed into the tap can flow up through the top resistor to the wire and back down through the bottom one, so the two resistors are in parallel from the tap's point of view: about 3,197 ohms. The series figure answers a different question, the current the divider draws from the source."
+/>
+
+<Exercise title="Thevenin a divider by hand">
+Take a 12 volt source, a 1,000 ohm resistor on top, and a 330 ohm resistor on
+the bottom of a divider. Compute the open-circuit tap voltage and the
+Thevenin resistance at the tap with a pencil, then predict what a 100 ohm
+load would pull the tap down to.
+
+Check the arithmetic: the open-circuit voltage is 12 times 330 / 1330, about
+2.98 volts, and the Thevenin resistance is 1000 times 330 / 1330, about 248
+ohms. The 100 ohm load then sees 2.98 times 100 / 348, about 0.85 volts,
+which is a sag of nearly three quarters. If a breadboard and those three
+resistor values are within reach, build it and put a meter on the tap loaded
+and unloaded. The two measurements should land within a few percent of the
+pencil numbers.
+</Exercise>
+
+## Maximum power transfer
+
+One more question Thevenin answers at a glance: what load extracts the most
+power from a network? The answer is a resistance equal to the Thevenin
+resistance. A load much larger than Rth sees nearly the full Thevenin
+voltage but passes little current, so power, voltage times current, stays
+low. A load much smaller passes plenty of current but chokes the voltage
+down. The product peaks in the middle, at an exact match, where the load
+voltage is half the Thevenin voltage. For the divider above, a matched
+3,197 ohm load takes 0.65 milliwatts, and half of the network's power burns
+inside Rth on the way.
+
+Compare the matched load against one ten times larger, 31,970 ohms. The
+load now sees 2.62 of the 2.88 available volts and draws only 82
+microamps, so it receives 0.21 milliwatts, three times less power than the
+match, but the network wastes under 10 percent of its output instead of
+half. Power and efficiency pull in opposite directions, and the peak of
+one sits at the trough of the other.
+
+Match where it matters and skip it where it does not. Radio-frequency work
+lives by matching: an antenna and a receiver are designed around 50 ohms
+because a weak signal must be harvested with every microwatt accounted for.
+Audio amplifiers do the opposite, with output impedances near zero so the
+speakers see a voltage source and almost nothing is wasted in the amp. And
+nobody matches a wall charger to a phone: a matched charger would burn half
+the energy as heat inside itself. Maximum power transfer is a tool for
+signals, not for supplies.
+
+<Quiz
+  id="cir-max-power-fraction"
+  question="A load is chosen exactly equal to a network's Thevenin resistance, so the load receives the maximum possible power. What fraction of the total power produced by the Thevenin source reaches the load?"
+  answer={1}
+  options={[
+    "All of it, since the match wastes nothing.",
+    "Half; the other half burns in the Thevenin resistance.",
+    "About 63 percent, the same fraction that appears in charging curves.",
+    "A quarter, because the load and the source split the current four ways.",
+  ]}
+  explanation="With R_load equal to R_th, equal voltage drops appear across the two equal resistances, so equal power goes to each. Half the produced power reaches the load, which is exactly why matching is reserved for signals too small to waste and never for power delivery."
+/>
+
+Thevenin's model is built entirely from a source and a resistor, and that is
+also its limit: everything in it answers instantly, because resistors have no
+memory of what happened a moment ago. Two common parts do have memory, and
+they give circuits a sense of time. The next lesson, Capacitors and
+Inductors, adds them and turns instant circuits into circuits with a past.
+
+<Notes />

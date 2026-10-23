@@ -1,0 +1,245 @@
+---
+title: Exponents and Logarithms
+module: math-foundations
+moduleTitle: Mathematics Foundations
+moduleOrder: 54
+moduleIcon: Shapes
+order: 2
+summary: "Powers, scientific notation, exponential growth and decay, and the logarithm that runs the multiplication backward."
+estimatedMinutes: 15
+prerequisites: ["functions-and-graphs"]
+objectives:
+  - Apply exponent rules to multiply and divide powers that share a base
+  - Read and compute with scientific notation for very large and very small quantities
+  - Model doubling growth and half-life decay, and predict values from them
+  - Use logarithms as the inverse of powers, on scales like pH and decibels
+tags:
+  - math
+  - exponents
+  - logarithms
+---
+
+Functions and Graphs ended with a falling stone whose graph bent upward because
+each second added more distance than the one before. That growth was still
+addition, only faster and faster addition. Multiplying is a different animal. A
+story told to every first-year engineering student: take a job that pays one
+penny on day one, doubled every day for a month. By day 30 the single day's pay
+is 5,368,709 dollars, and the month's total lands at 10,737,418.23 dollars. No
+addition-based rule in the last lesson produces numbers like that from a
+starting point of one cent. Multiplying by the same factor every step does, and
+that pattern has a name, a notation, and an inverse, all covered here.
+
+## Powers are repeated multiplication
+
+An exponent records repeated multiplication. In 2^5, the base 2 is multiplied
+by itself 5 times: 2 times 2 times 2 times 2 times 2 = 32. The exponent counts
+the multiplications, not the factors, which is why 2^1 is just 2. The general
+form b^n means n copies of b multiplied together.
+
+The familiar rules are not arbitrary; each one falls out of what repeated
+multiplication means. Multiply two powers of the same base and the exponents
+add, because the factors pile up in one chain: 2^3 times 2^4 is (2 times 2
+times 2) times (2 times 2 times 2 times 2), which is 2^7. Divide powers of the
+same base and the exponents subtract, because factors cancel in pairs. Raise a
+power to a power and the exponents multiply: (2^3)^2 is 2^3 times 2^3, which is
+2^6. Zero and negative exponents follow from the subtraction rule rather than
+from intuition. Since 2^3 divided by 2^3 is 1, and the rule says the exponents
+subtract to give 2^0, it must be that 2^0 = 1. Any nonzero base to the zero
+power is 1. A negative exponent means division: 2^-3 = 1/(2^3) = 1/8. Nothing
+here needs memorizing as a list; every rule is the subtraction rule in
+disguise.
+
+<Quiz
+  id="mathf-exponent-rules"
+  question="What is (5^3 times 5^2) divided by 5^4?"
+  answer={0}
+  options={[
+    "5",
+    "25",
+    "5^9",
+    "1/5",
+  ]}
+  explanation="Multiplying powers with the same base adds exponents: 5^3 times 5^2 = 5^5. Dividing subtracts: 5^5 / 5^4 = 5^1 = 5. Adding the exponents instead of handling the division gives the wrong 5^9."
+/>
+
+## Scientific notation: engineering's shorthand
+
+The quantities engineers handle span absurd ranges. The mass of an electron is
+about 9.1 times 10^-31 kilograms. The distance from Earth to the sun is about
+1.5 times 10^11 meters. The number of molecules in a mole of gas is about 6.0
+times 10^23. Writing such numbers out digit by digit buries the useful part, a
+couple of significant figures, under a parade of placeholder zeros, and every
+extra zero is one more chance for a copy error.
+
+Scientific notation writes a number as a value between 1 and 10 multiplied by a
+power of ten. The speed of light is about 3.0 times 10^8 meters per second;
+electron mass is 9.1 times 10^-31 kilograms. The form makes the size obvious at
+a glance: the exponent is a rough order of magnitude, and the leading digits are
+the precision. Multiplying is two easy operations: multiply the leading values,
+add the exponents. (2 times 10^3) times (4 times 10^5) is 8 times 10^8.
+Dividing subtracts the exponents the same way.
+
+Python prints these numbers in e-notation, where 9.1e-31 reads as 9.1 times 10
+to the -31:
+
+```python
+electron = 9.1e-31        # mass of an electron, kilograms
+earth = 5.97e24           # mass of the Earth, kilograms
+print(earth / electron)   # electrons needed to equal Earth's mass
+print(2e3 * 4e5)          # leading values multiply, exponents add
+```
+
+The first line prints about 6.56e54, meaning roughly 6.6 times 10^54 electrons
+would weigh as much as the Earth. The second prints 800000000.0, which is 8
+times 10^8. The e-notation is not a different system, just Python's spelling of
+the same one.
+
+The notation also turns awkward divisions into quick ones. Light takes about
+500 seconds to reach Earth from the sun: 1.5 times 10^11 meters divided by 3.0
+times 10^8 meters per second gives 0.5 times 10^3, which is 500 seconds, a
+little over 8 minutes. The leading values divided to 0.5, the exponents
+subtracted to 3, and the answer carried the right units through the whole
+operation. That is the notation doing its job: keeping the arithmetic small
+enough to do mentally while the units keep it honest.
+
+## Exponential growth: multiplication as the rate
+
+Exponential growth is the pattern "multiply by the same factor every step."
+Written as a function, N = N0 times (growth factor)^t, where N0 is the starting
+amount and t counts the steps. With a doubling pattern the factor is 2, and the
+time a quantity needs to double is called the doubling time. Money at 7 percent
+annual growth doubles in about a decade; the handy rule of 70 says the doubling
+time in years is roughly 70 divided by the growth rate in percent.
+
+The e in the exponent rules is worth meeting properly. The number e, about
+2.71828, is the natural base for growth that compounds continuously, with no
+pauses between steps. Continuous growth at rate r follows A = P times e^(rt):
+1000 dollars at 5 percent for 10 years gives 1000 times e^0.5, about 1648.72.
+Discrete compounding and continuous compounding land within a few percent of
+each other over human timescales, but the continuous form shows up
+everywhere in engineering because so many physical processes, radioactive
+decay and capacitor charging among them, flow continuously rather than in
+yearly ticks.
+
+The reason exponential growth feels violent is that each doubling doubles the
+size of every future doubling. Ten doublings make about a thousand: 2^10 =
+1024. Twenty doublings make about a million. Thirty make about a billion. The
+penny story again, this time computed rather than promised:
+
+```python
+pay = 1        # pennies earned on day 1
+total = 0
+for day in range(1, 31):
+    total += pay
+    if day < 30:
+        pay *= 2
+
+print(pay / 100)     # day 30 pay alone, in dollars
+print(total / 100)   # the whole month, in dollars
+```
+
+Day 30 pays 5,368,709.12 dollars and the month totals 10,737,418.23. Push the
+same deal to 40 days and the total crosses 10 billion dollars, because 2^40 is
+1,099,511,627,776 and even pennies multiply into serious money. Nothing about
+the deal changed except the number of doublings, which is the whole character
+of exponential growth: the curve stays boring for a shockingly long time, then
+goes vertical.
+
+<Quiz
+  id="mathf-doubling-hours"
+  question="A bacterial culture doubles every hour and starts at 1 gram. About when does it first exceed 1000 grams?"
+  answer={1}
+  options={[
+    "After about 100 hours, since 1000 is 100 times 10.",
+    "After about 10 hours, since 2^10 is 1024.",
+    "After about 500 hours, since growth needs many doublings to matter.",
+    "Never, since doubling cannot cross a round number like 1000.",
+  ]}
+  explanation="Each hour multiplies the mass by 2, so the mass is 2^t grams after t hours. Since 2^10 = 1024, ten doublings take the culture past 1000 grams. Each additional ten doublings add three zeros: 2^20 is about a million, 2^30 about a billion."
+/>
+
+## Half-life: decay runs the same rule backward
+
+Exponential decay is the same pattern with a factor below 1. The standard
+measure is half-life, the time a decaying quantity takes to fall to half its
+value. Carbon-14, the isotope used to date organic remains, has a half-life of
+5730 years. Start with 100 grams: 50 grams remain after 5730 years, 25 after
+11,460, 12.5 after 17,190, and 6.25 after 22,920. Each half-life knocks the
+amount down by the same factor, so the absolute loss shrinks every round: the
+curve falls fast at first and then flattens, the mirror image of the penny
+curve's climb.
+
+Halving is multiplying by 1/2, which the exponent rules from the top of the
+lesson write as 2^-1. That is why decay formulas are full of negative exponents:
+N = N0 times (1/2)^(t/5730) and N = N0 times 2^(-t/5730) are the same sentence
+in two dialects. The curve never quite touches zero, which is why carbon-14
+dating still finds a signal tens of thousands of years later, though past about
+eight half-lives the remainder is small enough that measurement noise takes over.
+
+Archaeology runs the clock with this rule. A bone found holding one eighth of
+the carbon-14 that living tissue carries has stood through 3 halvings, and 3
+times 5730 is 17,190 years, so the animal died roughly 17,000 years ago. One
+measurement, one small multiplication, and a date falls out. The halvings also
+explain the honest limit of the method: past about 50,000 years too little
+carbon-14 remains for the ratio to be read with any confidence, and other
+isotopes with longer half-lives take over the job.
+
+## The logarithm runs multiplication backward
+
+A logarithm answers one question: what exponent produced this? The statement
+2^3 = 8, read backward, is log2(8) = 3. The logarithm is the inverse of the
+power: powers build 2, 4, 8, 16, and logarithms run the ladder down, asking at
+which rung a given number sits. log10(1000) = 3 because 10^3 = 1000, and the
+natural logarithm, written ln, is the same question with base e.
+
+Log scales exist because some ranges are too wide for any ruler. Sound, acidity,
+and earthquake size all span factors of millions or billions, so engineers mark
+the scale in exponents instead. The pH scale measures acidity as the negative
+logarithm of hydrogen ion concentration in moles per liter: a pH 3 solution
+sits at 0.001 mol/L and a pH 5 solution at 0.00001 mol/L, so pH 3 is 100 times
+more acidic than pH 5. The Richter scale works the same way on earthquake
+amplitude, one whole number meaning a factor of 10. Decibel arithmetic gives a
+factor of 10 in power for every 10 dB, so a 130 dB jet engine pushes about 10
+million times the acoustic power of a 60 dB conversation. On each of these
+scales, small-looking steps are enormous multiples, which is exactly the point.
+
+```python
+import math
+
+print(math.log2(1024))        # the exponent that makes 2 produce 1024
+print(-math.log10(1e-3))      # pH of a solution at 0.001 mol/L
+print(10 * math.log10(1e7))   # decibels for a 10-million-fold power ratio
+```
+
+The outputs are 10.0, 3.0, and 70.0. Each line is a real conversion a working
+engineer might need: a doubling count, a pH, a decibel level, and all three are
+just "solve b^x = n for x."
+
+<Quiz
+  id="mathf-richter-factor"
+  question="One earthquake measures magnitude 7 and another measures magnitude 5 on the Richter scale. How do their amplitudes compare?"
+  answer={2}
+  options={[
+    "The magnitude 7 quake has twice the amplitude.",
+    "The magnitude 7 quake has 10 times the amplitude.",
+    "The magnitude 7 quake has 100 times the amplitude.",
+    "The magnitude 7 quake has 1000 times the amplitude.",
+  ]}
+  explanation="The Richter scale is logarithmic with a factor of 10 per whole number. Magnitude 7 is two steps above magnitude 5, and 10 times 10 is 100. Reading a log scale means counting steps and multiplying, never reading the labels as plain quantities."
+/>
+
+<Callout type="info" title="Exponential curves expire">
+The math of doubling and halving is exact, but the assumptions behind it are
+not permanent. A bacterial culture hits the edge of its petri dish, a market
+saturates, an epidemic runs out of susceptible people. Engineers use
+exponential models inside a stated range and stop trusting them at the walls.
+If anyone extrapolates a doubling curve 50 steps past its data, the honest
+answer is that the model, not the number, is what broke.
+</Callout>
+
+Every tool in this lesson handles size: how large, how fast growing, how
+compressed a scale has to be to fit on one axis. None of it can say which way
+anything points. Trigonometry and Vectors adds direction, and direction turns
+out to need triangles.
+
+<Notes />

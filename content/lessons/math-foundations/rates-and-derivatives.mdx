@@ -1,0 +1,236 @@
+---
+title: Rates and Derivatives
+module: math-foundations
+moduleTitle: Mathematics Foundations
+moduleOrder: 54
+moduleIcon: Shapes
+order: 4
+summary: "The derivative: how fast something is changing right now, not on average, and what the slope of a curve really means."
+estimatedMinutes: 16
+prerequisites: ["trigonometry-and-vectors"]
+objectives:
+  - Compute an average rate of change between two points and state its units
+  - Explain how shrinking the interval turns an average rate into an instantaneous one
+  - Differentiate x^2 to 2x and follow the position, velocity, acceleration chain with real numbers
+  - Locate maxima and minima by finding where a rate hits zero
+tags:
+  - math
+  - calculus
+  - derivatives
+---
+
+Trigonometry and Vectors gave every quantity a size and a direction. One
+question is still wide open: how fast is a quantity changing at this exact
+moment? A trip computer that reports 240 kilometers covered in 4 hours
+describes the whole drive at once, and its flat average of 60 km/h is a lie
+anyone who has sat in traffic can disprove from memory. The speedometer needle
+describes one moment, and the two numbers can disagree by a wide margin because
+the average spreads a jerky trip into a smooth fiction. The tool that turns the
+first number into the second is the derivative, one of the two big ideas of
+calculus.
+
+## Average rate: the slope between two points
+
+The average rate of change over an interval is old friends with a new name:
+change in output divided by change in input, the slope from Functions and
+Graphs. Applied to position versus time, it is average velocity. A cart that
+sits at the 24 meter mark at t = 2 seconds and at the 48 meter mark at t = 6
+seconds covered 24 meters in 4 seconds, an average velocity of 6 meters per
+second. The units are doing the labeling: meters divided by seconds is a rate
+of position, which is what velocity means.
+
+The average is honest arithmetic that hides everything in between. A cart could
+have cruised smoothly at 6 m/s the whole time, or stood still for 3 seconds and
+blasted 24 meters in the fourth. Both produce the identical average, because an
+average over an interval throws away the interval's interior. To know what the
+cart was doing at one specific moment, the interval has to shrink.
+
+Real measurements arrive as tables, and the average rate between consecutive
+rows is the workhorse move. Say the cart's position reads 0, 6, 24, 54 meters
+at t = 0, 2, 4, 6 seconds. The average velocity over the first pair of rows is
+(6 - 0) / 2 = 3 m/s, over the next (24 - 6) / 2 = 9 m/s, and over the last
+(54 - 24) / 2 = 15 m/s. Three averages from one table, each a slope between two
+points, and the growing sequence says the cart is speeding up. Nothing that
+follows replaces this move; the rest of the lesson only shrinks the gap between
+the two points until the average becomes honest about a single moment.
+
+## Shrinking the interval to an instant
+
+Use the falling stone from the first lesson, whose distance is d = 4.9 t^2.
+Between t = 1 and t = 2 it falls from 4.9 to 19.6 meters, an average speed of
+14.7 m/s. Between t = 1 and t = 1.5 the average is (11.025 - 4.9) / 0.5 =
+12.25 m/s. Shrink further and a pattern locks in:
+
+```python
+def d(t):
+    return 4.9 * t ** 2           # meters fallen after t seconds
+
+for h in (1, 0.5, 0.1, 0.01, 0.001):
+    slope = (d(1 + h) - d(1)) / h
+    print(h, slope)
+```
+
+The printed slopes run 14.7, 12.25, 10.29, 9.849, then about 9.805. Each
+narrower interval reports a smaller average, and the values settle toward one
+number: 9.8. That number is the stone's speed exactly at the instant t = 1
+second, and it is no accident that it equals g, the gravitational acceleration
+in meters per second squared: one second of falling reaches exactly that speed.
+
+Geometrically the shrinking intervals are secant lines whose two anchor points
+slide together. In the limit the line touches the curve at a single point and
+just kisses it there; that line is the tangent, and its slope is the
+instantaneous rate. The derivative of a function at a point is the slope of its
+tangent there, defined honestly as the limit of average rates as the interval
+shrinks to nothing. Nothing mystical happens in that limit. The averages simply
+converge to a single value, as the table shows them doing, and that value is
+the answer.
+
+Real instruments never quite reach the instant. A speedometer averages wheel
+rotations over a fraction of a second; a GPS unit takes the difference of two
+positions a short interval apart. Every physical measurement of speed is an
+average over some window, and the derivative is the windowless ideal that those
+instruments approximate. When a datasheet claims an instantaneous velocity,
+read it as an average over an interval small enough that nobody can tell the
+difference, which is exactly the spirit of the table above.
+
+<Quiz
+  id="mathf-shrinking-interval"
+  question="In the table above, as h shrinks from 1 toward 0.001, the average slope settles toward 9.8. What does that limiting number represent?"
+  answer={1}
+  options={[
+    "The total distance the stone has fallen by t = 1 second.",
+    "The stone's speed at exactly t = 1 second, the slope of the tangent line.",
+    "The stone's average speed over the whole first second of falling.",
+    "The stone's acceleration, in meters per second squared.",
+  ]}
+  explanation="Each row is an average speed over an interval starting at t = 1. As the interval shrinks, the average closes in on the instantaneous speed at t = 1, which is the slope of the tangent to the curve there. The average over the full first second is the 14.7 in the first row, not the limit."
+/>
+
+## The derivative of x squared is 2x
+
+The limit can be taken with algebra instead of a table, and the stone's rule is
+simple enough to show it. The average slope of x^2 between x and x + h is
+((x + h)^2 - x^2) / h. Expand the top: x^2 + 2xh + h^2 - x^2 = 2xh + h^2.
+Divide by h: 2x + h. As h shrinks to nothing, the leftover h vanishes and the
+slope is 2x, at every x at once. The derivative of x^2 is the new function 2x.
+
+That result generalizes into the power rule, the workhorse of the whole
+subject: the derivative of x^n is n times x^(n-1). Bring the exponent down in
+front and knock the exponent down by one. Applied to the stone, the derivative
+of 4.9 t^2 is 9.8 t, a formula for the speed at any instant: 9.8 m/s at t = 1,
+19.6 at t = 2, 29.4 at t = 3. Check those against the differences in the first
+lesson's table, 4.9, 14.7, 24.5: those were average speeds over each full
+second, and each one sits neatly between the instantaneous speeds at the two
+ends of its second, 9.8 and 19.6 for the first row, and so on. The derivative
+is the sharp version of the difference table.
+
+Functions in practice carry several terms, and each term differentiates on its
+own, with the results added. Differentiating 20t - 4.9t^2 term by term gives 20
+and -9.8t, so the velocity formula for the thrown ball arrives with no extra
+work. The rule for n = 1 says the derivative of t is 1, which matches the
+constant slope every straight line in the first lesson promised. The
+derivative of a plain constant is 0, because a constant never changes and zero
+is the honest report of its rate; that fact also explains why the constant
+families arriving in the next lesson vanish under differentiation.
+
+Worth stating plainly: the derivative is a function, not a number. It assigns a
+slope to every point of the original curve, and it can itself be evaluated,
+graphed, and differentiated again. Two notations share the job, dy/dx and
+f-prime written f'(x), and they mean the same thing.
+
+## Position, velocity, acceleration
+
+Position, velocity, and acceleration form the chain this whole module has been
+climbing toward. Position is where something is, in meters. Velocity, the
+derivative of position, is how fast the position changes, in meters per
+second. Acceleration, the derivative of velocity, is how fast the velocity
+changes, in meters per second per second, written m/s^2. Each derivative peels
+one layer of "how fast is that changing" off the quantity beneath it.
+
+The falling stone runs the full chain: position s = 4.9 t^2, velocity v = 9.8
+t, acceleration a = 9.8, a constant, which is the entire content of the
+statement that gravity near Earth's surface pulls with a steady 9.8 m/s^2. The
+velocity curve is a straight line climbing at slope 9.8, and the acceleration
+curve is a flat line at 9.8, because the rate of the rate has no room left to
+change. Running the chain downward, from acceleration to velocity to position,
+means undoing derivatives, and that undoing is the integral, the subject of the
+next lesson.
+
+<Quiz
+  id="mathf-velocity-units"
+  question="Velocity is the derivative of position. What is the derivative of velocity, and in what units?"
+  answer={1}
+  options={[
+    "Speed, in meters per second.",
+    "Acceleration, in meters per second per second, written m/s^2.",
+    "Distance, in meters.",
+    "Jerk, in meters per second cubed.",
+  ]}
+  explanation="Taking the derivative of velocity gives the rate of change of velocity, which is acceleration, with units of (meters per second) per second, written m/s^2. For the falling stone it comes out a constant 9.8. Jerk is a real quantity, the derivative of acceleration, but it is one more layer down."
+/>
+
+## Where the slope hits zero
+
+Maxima and minima are where derivatives earn their salary. A ball thrown
+straight up at 20 m/s has a height above the throwing hand of h = 20t - 4.9t^2,
+where the negative term is gravity pulling the flight back down. Its vertical
+velocity is the derivative, v = 20 - 9.8t. At the top of the flight the ball
+stops rising for one instant before falling, and "stops changing" is exactly
+what a derivative of zero means. Setting 20 - 9.8t = 0 gives t = 2.041 seconds,
+and evaluating the height there:
+
+```python
+def h(t):
+    return 20 * t - 4.9 * t ** 2    # meters above the hand
+
+def v(t):
+    return 20 - 9.8 * t             # vertical speed, m/s
+
+t_top = 20 / 9.8
+print(round(t_top, 3), round(h(t_top), 2))
+```
+
+The print shows 2.041 and 20.41: the ball peaks about 2.04 seconds after
+release, 20.4 meters up. Notice what the method did not need: any knowledge of
+where the peak was in advance. Find where the rate is zero, and the peak
+announces itself. That trick is not a physics curiosity; every optimization
+problem in engineering, maximum power transfer, minimum material for a beam,
+fastest route, ends with setting a derivative to zero, which is why derivatives
+run half of engineering design.
+
+The same zero-slope test finds minima, not just maxima: at the bottom of a
+skateboard ramp the height stops falling and starts rising, and the rate passes
+through zero on the way. The ball's full flight also falls out of the same
+equation. Setting h = 0 gives landing times of 0 and about 4.08 seconds, and
+the peak sits exactly halfway between them, because gravity undoes on the way
+down exactly what it did on the way up. One formula, three facts: launch time,
+peak height, landing time.
+
+<Callout type="warning" title="A flat spot is not automatically a peak">
+A zero derivative means the curve is momentarily level, not that it sits at a
+top or a bottom. The curve y = t^3 has zero slope at t = 0 and keeps climbing
+straight through; the level spot is an inflection, a change in the direction of
+bending. Telling the cases apart needs the second derivative: negative means
+the curve is bending downward, so a peak; positive means bending upward, so a
+valley. Check before celebrating an optimum.
+</Callout>
+
+<Quiz
+  id="mathf-zero-slope-peak"
+  question="A ball's height is h(t) = 20t - 4.9t^2 and its velocity is v(t) = 20 - 9.8t. What is happening at the moment v(t) equals zero?"
+  answer={1}
+  options={[
+    "The ball hits the ground.",
+    "The ball reaches its highest point, about 20.4 meters up.",
+    "The ball's acceleration drops to zero at the same moment.",
+    "The ball runs out of upward motion and stops moving permanently.",
+  ]}
+  explanation="Velocity is the rate of change of height. When it hits zero the height has stopped rising and is about to fall, which is the peak. The height there is h(2.041) = 20.4 meters. Gravity keeps pulling the whole time, so acceleration stays 9.8 m/s^2, never zero."
+/>
+
+The derivative chops a quantity into its moment-by-moment rates. The other
+half of calculus runs the other way: given the rates, rebuild the total.
+Integrals and Accumulation adds up infinitely many tiny slices of a rate, and
+it turns out to be the derivative's tool run in reverse.
+
+<Notes />

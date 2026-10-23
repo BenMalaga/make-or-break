@@ -1,0 +1,111 @@
+---
+title: Entanglement
+module: quantum-foundations
+moduleTitle: Quantum Foundations
+moduleOrder: 58
+moduleIcon: Microscope
+order: 4
+summary: "Two particles that share one description: measuring one instantly settles the other, no matter the distance."
+estimatedMinutes: 15
+prerequisites: ["superposition-and-qubits"]
+objectives:
+  - Predict the outcomes of a two-qubit entangled state from its four amplitudes
+  - Explain in plain words how Bell's inequality rules out pre-agreed local answers
+  - State exactly what entanglement cannot do, namely carry messages faster than light
+  - Describe teleportation, superdense coding, and decoherence in operational terms
+tags:
+  - quantum
+  - entanglement
+  - physics
+---
+
+Superposition and Qubits built a state as a set of amplitudes over outcomes and left one honest warning: the amplitudes are the whole description. Give two qubits a single shared set of amplitudes, amplitudes that no separate description of qubit A plus a separate description of qubit B can reproduce, and the pair stops having individual descriptions at all. That shared state is entanglement. Einstein objected to it from 1935 until his death and nicknamed the effect spooky action at a distance. The experiments that settled whether his objection was right took another eighty years, earned the 2022 Nobel Prize, and this lesson walks through them.
+
+## One state, two particles
+
+The famous entangled state of two qubits is written with four amplitudes, one for each joint outcome:
+
+```python
+import math
+s = 1 / math.sqrt(2)
+state = {"00": s, "01": 0.0, "10": 0.0, "11": s}
+total = 0.0
+for label, amp in state.items():
+    p = amp * amp
+    total += p
+    print(label, round(amp, 3), "probability", round(p, 3))
+print("total probability:", round(total, 3))
+```
+
+Read it outcome by outcome. The amplitude on 00 is 0.707 and on 11 is 0.707, each squaring to a probability of 0.5, and the amplitudes on 01 and 10 are zero, so those two outcomes never occur. Measuring the first qubit gives 0 or 1 with even odds, pure noise, and the same is true of the second qubit measured on its own. But compare the two results and they match every single time: 00 or 11, never anything else. Each side alone is random; the correlation between the sides is perfect.
+
+The perfect correlation survives distance. The two qubits can be carried to labs on opposite sides of a planet, or one can be measured minutes after the other, and the moment one side's answer exists the other side's corresponding answer is settled. Nothing travels between them when this happens, and the 2017 Micius satellite experiment distributed entangled photons over 1200 kilometers of ground-and-space separation and still saw the correlations. The state was never two things with two descriptions. It was one description of two objects, and measuring any part of it resolves the whole.
+
+Two variations round out the picture. Flip the sign of one amplitude and the state becomes 0.707 on 00 and minus 0.707 on 11: the individual odds are unchanged, the outcomes still match, and the difference shows up only when the qubits are measured along a tilted axis, where the minus sign turns correlation into anticorrelation. Phase is real and hidden from any single-axis look, exactly as the last lesson warned. Entanglement is also not capped at two: three qubits can share the state that is a superposition of 000 and 111, and such multi-party states are what future quantum networks would distribute between many sites.
+
+<Quiz
+  id="quant-bell-correlations"
+  question="Two qubits share the state with amplitudes 0.707 on 00, 0.707 on 11, and zero on 01 and 10. What can the pair of measurement results be?"
+  answer={1}
+  options={[
+    "Any of the four combinations, each with probability one quarter.",
+    "Only 00 or 11, each with probability one half. The outcomes are individually random but always equal.",
+    "Always 11, since entanglement forces both qubits to the same definite value.",
+    "Always 01 or 10, since entangled qubits come out opposite.",
+  ]}
+  explanation="The Born rule applies to the joint state: 0.707 squared is 0.5, and the zero amplitudes rule out the other two strings entirely. Each qubit alone yields 0 or 1 at even odds, but the two answers always match. Individually random, jointly perfect: that combination is the signature of entanglement."
+/>
+
+## No cheat sheet survives Bell
+
+The obvious escape from the spookiness is that the answers were agreed in advance. Each pair of particles leaves the source carrying matching instruction sheets, the way two sealed envelopes both say heads: asked about orientation one, answer up; asked about orientation two, answer down. The outcomes look random, the correlation looks perfect, and nothing spooky happened, because the plan was written at the source. This is called a local hidden-variable theory, and it is not a straw man. It is the reasonable position Einstein defended, and in 1964 John Stewart Bell proved something remarkable about it: any instruction-sheet scheme, no matter how clever, puts a ceiling on how strongly the two sides' answers can correlate across a set of different measurement angles.
+
+The ceiling is a number, and a game makes it tangible. Imagine two players who cannot talk to each other, each asked one of two possible questions at random, each answering 0 or 1, with the pair winning when their answers satisfy a fixed rule. Coordinating in advance is allowed; communication during the game is not. The best any pre-agreed strategy achieves is winning three games out of four, a 75 percent success rate, and Bell's inequality is that statement written as an equation. Quantum mechanics lets two entangled qubits play the same game and win about 85 percent of the time, which is cos-squared of 22.5 degrees, and experiments measure the win rate. Alain Aspect's group in 1982 ran the test with the settings switched while the photons were in flight, and three loophole-free versions in 2015, in Delft, at NIST, and in Vienna, closed the last escapes simultaneously: settings chosen fast enough, detectors far enough apart, and detection rates high enough. The score lands past the classical ceiling, exactly where quantum mechanics says. The 2022 Nobel Prize went to Aspect, John Clauser, and Anton Zeilinger for this line of work.
+
+What the result rules out is worth stating precisely, because it is narrower and stranger than people expect. The correlations cannot come from instructions written into the particles at the source, and they cannot come from signals between the sides, since the settings are chosen too late for any signal to make the trip. Each side's own record, though, remains pure noise. Bell's theorem does not make the correlations useful for messaging; it makes them impossible to explain as shared classical information. The correlation exists only in the joint statistics of the two sides.
+
+<Quiz
+  id="quant-bell-violation"
+  question="A Bell test measures correlations between two distant detectors with randomly chosen settings and finds a score above the local bound of 2, close to the quantum prediction of 2.8. What does this rule out?"
+  answer={2}
+  options={[
+    "That quantum mechanics is probabilistic rather than deterministic.",
+    "That measurement outcomes are random at all.",
+    "That the outcomes were fixed in advance by instructions carried with the particles, and that signals between the sides coordinate them.",
+    "That entanglement survives over long distances.",
+  ]}
+  explanation="Bell's inequality is a ceiling that every pre-agreed local instruction scheme respects, and quantum correlations break it. The loophole-free 2015 experiments ruled out the remaining escape routes. What survives is the Born-rule description itself: one shared state, amplitudes, and no underlying answer sheet."
+/>
+
+## What it does not do
+
+Entanglement cannot carry a message faster than light, and the reason is already visible in the amplitudes above. Suppose the qubits are on opposite sides of the galaxy and one side decides, at the last second, whether to measure along one axis or another. From the receiving side's point of view, nothing changes: the outcomes arrive as 0 or 1 with even odds either way, a stream indistinguishable from static. The choice made remotely changes the correlation, not the local statistics, and a correlation is invisible until the two sides bring their records together over an ordinary channel, which moves at light speed or slower. The comparison can even happen years later, in either order, and the correlation is sitting in the recorded data all along; which measurement happened first is not even a well-defined question at relativistic distances, and it does not matter. Every proposed faster-than-light scheme dies on this exact rock, which is why relativity and quantum mechanics coexist without contradiction.
+
+What entanglement is good for is quieter and still remarkable. Teleportation transfers an unknown quantum state from one qubit to a distant qubit: the sender performs a joint measurement on the unknown state and half of a shared entangled pair, sends two ordinary classical bits describing the result, and the receiver applies a correction that makes the far qubit carry the original state exactly. The two classical bits are exactly enough because the joint measurement has four possible results, and each result maps to one fixed correction. The original is destroyed in the sender's measurement, which is required by the no-cloning theorem, so nothing is duplicated; the state moved, it was never copied. Superdense coding runs the trade in reverse: with a shared entangled pair prepared in advance, a single transmitted qubit delivers two full classical bits. Both protocols are demonstrated routinely in laboratories, and both are everywhere in the plans for quantum networks.
+
+Making entangled pairs is routine, which is why all of this is engineering and not philosophy. The workhorse for photons is spontaneous parametric down-conversion: a laser pumps a nonlinear crystal, and occasionally one incoming photon splits into two outgoing photons whose polarizations are entangled, with energy and momentum conserved between the pair. In superconducting circuits, two qubits coupled through a shared resonator develop entanglement whenever one gate is applied conditionally, which is how a conditional two-qubit gate entangles on purpose. The hard part was never making entanglement. The hard part is keeping it away from everything else.
+
+## Decoherence, the quiet killer
+
+Every quantum effect so far depends on amplitudes staying coherent, meaning able to add and cancel. Coherence is fragile in a specific way: any interaction between a qubit and something outside the calculation entangles the two, and entanglement with an uncontrolled environment is called decoherence. A stray photon bouncing off a qubit carries away information about its state. The photon does not measure the qubit on purpose; it simply becomes a third party that now holds which-state information, and once that information exists anywhere, the qubit's own amplitudes can no longer interfere. The superposition does not get destroyed in a dramatic sense. It leaks into the environment and stops being accessible.
+
+Decoherence explains why the everyday world looks classical without any new law of physics. A dust mote is battered by air molecules and light so continuously that its amplitudes decohere in less time than any clock can resolve, and interference among dust-mote paths never gets a chance to appear. The quantum rules never stopped applying; the interference just never survives long enough to see. The timescales span the whole engineering problem: a trapped ion, isolated in a vacuum better than interplanetary space, can hold coherence for minutes, while the same kind of superposition on a warm surface dies in femtoseconds. Decoherence rate, not some mystery, is what sets the price of every quantum technology.
+
+A quantum computer is therefore an engineering statement: a machine built to perform deliberate entanglement between chosen qubits while preventing every accidental entanglement with everything else.
+
+<Quiz
+  id="quant-decoherence"
+  question="A stray infrared photon from a warm wall bounces off a qubit that is holding a superposition. What does that single bounce do?"
+  answer={2}
+  options={[
+    "Nothing, since a photon carries no charge and cannot interact with the qubit's state.",
+    "It heats the qubit until the superposition melts into noise.",
+    "It entangles the qubit with the photon, handing which-state information to the environment, so the qubit's own amplitudes can no longer interfere.",
+    "It measures the qubit and forces it to read the opposite of its previous value.",
+  ]}
+  explanation="Decoherence is entanglement with an uncontrolled environment. The photon leaves carrying information about the qubit's state, and once that information exists anywhere, the amplitudes have lost the coherence interference needs. No dramatic destruction occurs; the state simply leaks and becomes inaccessible to the computation."
+/>
+
+The next lesson, quantum-computers-in-practice, walks through the machines that attempt exactly that, the algorithms that would run on them, and the honest distance between the demonstrations of today and the factoring machine of the headlines.
+
+<Notes />

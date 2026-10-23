@@ -1,0 +1,126 @@
+---
+title: Electricity and Magnetism
+module: physics-foundations
+moduleTitle: Physics Foundations
+moduleOrder: 55
+moduleIcon: FlaskConical
+order: 5
+summary: "Charge, fields, and the two-way marriage of electricity and magnetism that runs every motor and generator."
+estimatedMinutes: 16
+prerequisites: ["waves-and-sound"]
+objectives:
+  - Compute the force between charges with Coulomb's law and explain the electric field
+  - Interpret voltage as energy per charge and current as charge per second
+  - Apply the right-hand rule and induction to motors, generators, and transformers
+  - Explain why power grids transmit at high voltage using alternating current
+tags:
+  - physics
+  - electromagnetism
+---
+
+Waves and Sound left energy traveling through matter as a pressure shuffle. The energy that runs every charger, motor, and power grid travels without matter at all, through fields around electric charge. The electronics lessons treated voltage and current as givens on the surface of a circuit. This lesson goes underneath: what charge is, why voltage means energy, and how electricity and magnetism, discovered as separate subjects three centuries apart, turned out to be one thing.
+
+## Charge and the force between charges
+
+Charge is a built-in property of matter, like mass, and it comes in two signs, positive and negative. Electrons carry the minus, protons the plus, and the basic packet is tiny: e = 1.6 times 10^-19 coulombs, so one coulomb is about 6.24 times 10^18 electrons, the same number the electronics lessons quoted when defining the amp. Like charges repel, opposite charges attract, and the strength of that push or pull follows Coulomb's law: F = k q1 q2 / r^2, with k = 9.0 times 10^9 N m^2/C^2.
+
+The law has real teeth. Two charges of 2 microcoulombs each, the size of the zap a doorknob delivers on a dry winter day, feel this at three separations:
+
+```python
+k = 9.0e9                      # Coulomb's constant, N times m^2 / C^2
+q1 = q2 = 2e-6                 # two charges of 2 microcoulombs each
+for r in (0.1, 0.2, 0.3):
+    f = k * q1 * q2 / r ** 2
+    print(r, "m apart ->", round(f, 2), "N")
+```
+
+The rows print 3.6, 0.9, and 0.4 N. Three and a half newtons between two patches of static, the weight of a small apple, from charges too small to see. Triple the separation and the force drops to a ninth, because the r in Coulomb's law is squared: the inverse square law, the same fall-off shape gravity follows.
+
+Electric force dwarfs gravity by an absurd margin, and the comparison is worth one honest number. Between two electrons, the electric repulsion divided by the gravitational attraction comes to about 4 times 10^42. Electrons do have mass, so they do attract each other gravitationally, but that pull is lost in the noise by forty-two orders of magnitude. Gravity runs the universe only because matter comes in equal positive and negative amounts that cancel electrically, leaving mass alone to steer the planets.
+
+## The field: influence without contact
+
+Newton was bothered that gravity acts across empty space with nothing in between, and electric force raises the same puzzle. The field concept answers it. A charge does not reach out and grab other charges; it fills the space around itself with an electric field, measured in newtons per coulomb, and any second charge entering that space feels a force equal to its own charge times the field there. The field is real in the only sense that matters for prediction: place a test charge somewhere, get a definite force.
+
+For a point charge the field strength is E = k q / r^2, the same inverse square falloff. Picture field lines pointing away from positive charge and into negative, bunched where the field is strong and sparse where it is weak, and the standard cases become diagrams: nearly uniform between parallel metal plates, radial around a sphere. The electronics modules will redraw these as circuit behavior; the physics underneath never changed.
+
+The field picture also predicts when air stops being an insulator. Air breaks down, ripping electrons free and conducting suddenly, at a field strength of about 3 million volts per meter. Spark plugs, static zaps, and lightning all live at that threshold: a thundercloud's bottom sits kilometers above the ground, and only an enormous charge pileup can push the field past 3 MV/m across that gap. When it does, the result is a discharge moving tens of thousands of amps for a few microseconds.
+
+<Quiz
+  id="phys-em-inverse-square"
+  question="Two charged spheres attract each other with 3.6 N when 10 cm apart. What is the force at 30 cm?"
+  answer={0}
+  options={[
+    "0.4 N, since tripling the distance divides the force by 9.",
+    "1.2 N, since tripling the distance divides the force by 3.",
+    "10.8 N, since force grows with distance for attraction.",
+    "3.6 N, since charge, not distance, sets the force.",
+  ]}
+  explanation="Coulomb's law divides by r squared, so tripling r divides the force by 3^2 = 9: 3.6 / 9 = 0.4 N. Forgetting the square and dividing by 3 is the most common slip on this law, and it appears again in gravity."
+/>
+
+## Voltage and current, from the charge's point of view
+
+Voltage was introduced in the electronics lessons as push, and the precise meaning is energy per charge: a 1.5 V battery hands every coulomb that flows through it 1.5 joules of energy, converting chemical energy inside the battery as it does. Voltage is joules per coulomb, which is why a 9 V battery is more energetic per charge than a 1.5 V one, and why voltage can exist with no current flowing: it is a condition between two points, not a flow.
+
+Current is the flow side of the same story: 1 ampere means 1 coulomb passing a point each second, about 6.24 times 10^18 electrons. A phone charging at 2 A moves roughly 1.2 times 10^19 electrons per second past any point in its cable. Voltage and current together give power, P = V I in watts, the energy-per-second bill a circuit presents to its source. Those three sentences are the entire bridge from this lesson back to the electronics modules, where V, I, and R run the show.
+
+Voltage arithmetic follows from the meaning directly. Every coulomb gets the stated energy per volt, so stacking sources in series stacks the energies: two 1.5 V AA cells in series hand each coulomb 3.0 J, which is how most battery holders work. And voltage sets what a spark can do: air breaks down around 3 million volts per meter, so the few thousand volts on a doorknob zap can only jump a gap of a millimeter or so, however painful the result.
+
+## Moving charge makes magnetism
+
+Move a charge and a second kind of field appears wrapped around its path: a magnetic field, measured in tesla. Hans Christian Oersted stumbled onto it in 1820 during a lecture demonstration, when a compass needle near a current-carrying wire twitched. The magnetic field circles the wire, and the right-hand rule says which way: point the right thumb along the current, and the curled fingers show the direction the field circles.
+
+Coil the wire and the circles from every turn add together inside the coil, making an electromagnet; a hundred turns make the field about a hundred times stronger than one turn carrying the same current. Switch the current off and the field vanishes with it. Speakers, relays, door buzzers, scrapyard cranes, and MRI machines are all this one trick at different scales: current makes magnetism, on command.
+
+Tesla numbers give the scale of fields. Earth's own magnetic field at the surface is about 0.00005 T, a strong fridge magnet manages around 0.01 T, and an MRI machine runs 1.5 to 3 T, tens of thousands of times the field that turns a compass. The compass works at all because a pivoted needle needs almost nothing to rotate; the same reason a speaker's coil, with a permanent magnet behind it, turns audio current into motion the ear hears.
+
+<Quiz
+  id="phys-em-right-hand"
+  question="For a straight wire carrying a current, what does the right-hand rule describe?"
+  answer={2}
+  options={[
+    "The direction the electric field points inside the wire.",
+    "The direction the current itself flows.",
+    "The direction the magnetic field circles around the wire.",
+    "The direction a nearby compass would fall toward the wire.",
+  ]}
+  explanation="Thumb along the current, curled fingers trace the circular magnetic field around the wire. A nearby compass does respond, but by aligning with the local field direction at its location, which the rule predicts; the rule itself is about the field's circling shape."
+/>
+
+## Changing magnetism makes electricity
+
+Thirteen years after Oersted, Michael Faraday ran the trick backward and found the other half: a changing magnetic field through a coil of wire creates a voltage across it, a phenomenon called induction. Hold a magnet still near a coil and nothing happens. Move it, and a voltage appears for exactly as long as the motion lasts; move it faster, more voltage; reverse the motion, reverse the polarity. No motion, no voltage, which is why every generator on Earth is in the business of moving magnets or coils relative to each other.
+
+A motor and a generator are the same machine pointed in opposite directions. Feed current into the coils of a motor and magnetic forces spin the shaft. Spin the shaft by hand and the same machine generates voltage. That symmetry is how regenerative braking works in an electric car: the drive motor becomes a generator, converting the car's kinetic energy back into battery charge instead of heat in brake pads. Spin a coil steadily in a magnetic field and the voltage it generates reverses twice per rotation, once as each side of the coil sweeps past each pole.
+
+That reversal rate is a design number, not a curiosity. A two-pole generator producing 60 Hz must complete 60 reversals per second, which is 60 rotations per second, or 3600 rpm, the speed a steam turbine spins in a large power plant. Grid frequency and shaft speed are the same quantity counted two ways, which is why grid operators treat frequency as a health signal: if millions of customers start drawing more power than the turbines supply, the shafts physically slow down and the frequency sags with them.
+
+## Why the grid runs on AC
+
+That last sentence is the whole reason the power grid runs on alternating current. A generator spun by steam or water produces a voltage that rises, falls, and reverses smoothly, 50 times per second across most of the world and 60 times per second in North America. Making it direct current requires extra machinery, and alternating current buys something better: the transformer. A transformer is induction in a static package, two coils sharing an iron core, and it works only because the field must keep changing, which only happens with AC. It steps voltage up or down in exact proportion to the turns ratio, with no moving parts.
+
+Stepping up is the grid's economic trick. Delivering 1 MW at 240 V would push over 4000 A through the wires, and wire losses scale as I^2 R, so that current would cook the line. Deliver the same 1 MW at 400 kV and the current is 2.5 A, cutting resistive losses by a factor of over a million. Voltage goes up for the long trip, down at the neighborhood substation, and Faraday's induction does both direction changes without a single moving part.
+
+One honest footnote keeps the story straight: the electronics at the end of the wire mostly want direct current, and they get it. Phone chargers, laptops, and LED drivers all contain circuits that convert the wall's alternating supply into steady DC, because transistors and batteries are DC creatures. A few very long transmission lines even run high-voltage DC, paying for expensive converters to save the extra losses AC racks up over a thousand kilometers. AC won the grid, but it keeps a DC workshop at the edges.
+
+<Callout type="info" title="The unification, in one sentence">
+James Clerk Maxwell packed electricity, magnetism, and light into four equations in the 1860s and noticed that the wave speed they predicted was 3.0 times 10^8 m/s, the measured speed of light. Light is an electromagnetic wave, the wave from Waves and Sound needing no medium at all. The two halves of this lesson are one subject, and visible light is one of its ripples.
+</Callout>
+
+<Quiz
+  id="phys-em-generator"
+  question="An electric car slows using regenerative braking. What is happening inside the drive motor?"
+  answer={1}
+  options={[
+    "The motor switches off entirely and brake pads do all the slowing.",
+    "The motor runs as a generator, converting the car's kinetic energy into battery charge.",
+    "The battery discharges backward to push the car in reverse.",
+    "The motor spins faster to absorb the motion as extra speed.",
+  ]}
+  explanation="A motor fed current becomes a generator when the shaft is turned by something else: induction produces a voltage and charge flows back into the battery. Kinetic energy leaves the car as electrical energy instead of heat, which is why regenerative braking recovers energy that ordinary brakes waste."
+/>
+
+Charge, field, voltage, current, and the two-way marriage with magnetism: these are exactly the ideas the Electrical Engineering modules pick up and run with. The first lesson there, Series and Parallel, takes the single components behind this lesson and builds the networks that every real circuit is made of.
+
+<Notes />

@@ -1,0 +1,112 @@
+---
+title: Quantum Computers in Practice
+module: quantum-foundations
+moduleTitle: Quantum Foundations
+moduleOrder: 58
+moduleIcon: Microscope
+order: 5
+summary: "How a quantum computer is actually built, what it can genuinely do better, and the honest state of the field today."
+estimatedMinutes: 16
+prerequisites: ["entanglement"]
+objectives:
+  - Compare superconducting, trapped-ion, and photonic qubits on temperature, speed, and error rates
+  - Describe X, H, and CNOT gates and how sequences of them turn interference into algorithms
+  - State honestly what Grover and Shor would do to cryptography and why the machines that run them do not exist yet
+  - Explain why error correction costs hundreds of physical qubits per logical qubit
+tags:
+  - quantum
+  - computing
+  - cryptography
+---
+
+Entanglement ended on an engineering problem: hold amplitudes steady, and steer their interference, while every stray photon in the room is trying to entangle itself with the qubits. Three hardware families attack that problem, the gates they run are small in number, and the algorithms that matter are exactly two, one of which threatens the encryption the internet runs on. This lesson separates what is built, what is provable, and what is press release.
+
+## Three ways to build a qubit
+
+Superconducting circuits are the most common approach, and IBM and Google both build them. The qubit is a tiny circuit of superconducting metal interrupted by Josephson junctions, and its two states are two different patterns of oscillating current. The chip sits inside a dilution refrigerator at 10 to 20 millikelvin, colder than interstellar space, which sits at a balmy 2.7 kelvin. Microwave pulses flip and rotate the qubits, gates complete in tens of nanoseconds, and coherence lasts tens to a few hundred microseconds, so a computation must finish before the amplitudes leak away. Two-qubit gates on the best current chips err on roughly one operation in a thousand. IBM's Condor chip carried 1,121 such qubits in 2023, and Google's Willow, 105 qubits, showed in 2024 that a logical qubit can be built whose error rate falls as more physical qubits are added.
+
+Trapped ions take the opposite trade. IonQ and Quantinuum hold chains of atoms in electromagnetic traps inside vacuum chambers, use two internal energy levels of each atom as the qubit states, and drive gates with lasers. No dilution refrigerator is needed, and coherence runs for seconds to minutes, thousands of times longer than superconducting qubits manage. The price is speed: ion gates take microseconds to milliseconds, and the machines hold tens of qubits rather than hundreds or thousands. Photonics, pursued by PsiQuantum and Xanadu, uses single photons as qubits. Photons are happy at room temperature and travel naturally through optical fiber, which makes networking attractive, but photons vanish in transit and in detectors, so the approach lives or dies on manufacturing and error handling rather than on cooling.
+
+No platform has won. Superconducting machines lead on qubit count and gate speed; ion traps lead on quality and stability per qubit; photonics leads on temperature and networking. The wiring differs too: ions in a single trap can gate any pair of qubits, while superconducting chips usually gate only neighbors, which shapes how algorithms get compiled onto each machine. Each bet reflects a different guess about which problem, errors, scale, or loss, gets solved first.
+
+<Quiz
+  id="quant-hardware-tradeoffs"
+  question="Which statement about today's qubit platforms is accurate?"
+  answer={0}
+  options={[
+    "Superconducting qubits need a dilution refrigerator at 10 to 20 millikelvin and stay coherent for microseconds, while trapped-ion qubits hold coherence for seconds to minutes at room temperature but gate slowly.",
+    "Trapped-ion qubits need millikelvin cooling, and superconducting qubits work at room temperature.",
+    "Photonic qubits hold the record for qubit count, with thousands of photons entangled in a single machine.",
+    "All three platforms have converged on the same design, which is why qubit counts are directly comparable across companies.",
+  ]}
+  explanation="Superconducting circuits buy speed with a dilution refrigerator and microsecond coherence; trapped ions buy coherence and quality with slow laser-driven gates at room temperature; photonic machines stay at room temperature and fight photon loss. The platforms are genuinely different bets, and qubit counts across them are not directly comparable."
+/>
+
+## Gates, and the trick that makes them matter
+
+Gates are rotations of the amplitudes. The X gate swaps the amplitudes on 0 and 1, the quantum version of NOT. The H gate is the mixing operation from superposition-and-qubits: applied to a definite 0 it produces the 0.707, 0.707 superposition. The CNOT gate flips a target qubit only when a control qubit reads 1, and when the control sits in a superposition the target becomes entangled with it, which is how the four-amplitude states of entanglement get built on purpose. A quantum program is a sequence of these gates, and today's hardware runs sequences of dozens to hundreds before decoherence wins.
+
+The algorithmic trick is interference, and one honest paragraph covers it. Every gate moves amplitudes, and the art of a quantum algorithm is arranging the moves so that the paths leading to wrong answers arrive with opposite phases and cancel, while paths to the right answer reinforce. Deutsch's problem, deciding one property of a mystery function with a single use of the black box instead of two, is the textbook example: real, provable, and useless outside a classroom. Grover's search is the first algorithm with practical bite: it finds a marked item among N unsorted possibilities in about the square root of N steps instead of N.
+
+The scaling is easiest to feel in the case that matters for cryptography:
+
+```python
+import math
+for bits in [8, 16, 32, 64]:
+    n = 2 ** bits                    # keys a brute-force search must cover
+    classic = n // 2                 # average tries needed classically
+    grover = int(math.sqrt(n))       # Grover search steps
+    print(bits, "bits:", classic, "classic tries,", grover, "Grover steps")
+```
+
+At 64 bits the classical side needs about 9.2 times 10^18 tries on average while Grover needs about 4.3 times 10^9 steps. Push to a 128-bit key and the same pattern gives about 1.7 times 10^38 classical tries against about 1.8 times 10^19 Grover steps. Grover effectively halves the key length in bits, so AES-128 would offer roughly 64-bit security and AES-256 about 128. Symmetric cryptography survives by doubling key sizes, and even the reduced attack assumes a fault-tolerant machine running for months, since Grover parallelizes poorly. The genuine emergency is asymmetric cryptography, and that threat has a different engine.
+
+<Quiz
+  id="quant-grover-shor"
+  question="Grover's algorithm searches N unsorted possibilities in about the square root of N steps. What does that mean for a 128-bit symmetric key?"
+  answer={3}
+  options={[
+    "The key becomes instantly breakable, since a quantum computer tries all keys at once and reads out the answer.",
+    "Nothing changes, because symmetric keys are immune to quantum algorithms of every kind.",
+    "The key becomes breakable in 128 steps, one per bit.",
+    "The effective security drops to about 64 bits, which doubling the key size to 256 bits restores.",
+  ]}
+  explanation="Grover gives a quadratic speedup, so 2^128 possibilities fall to about 2^64 quantum steps. No readout of all answers exists; the algorithm still searches, just faster. The standard defense is a longer key, and that is why post-quantum guidance calls for 256-bit symmetric keys."
+/>
+
+## The threat, sized honestly
+
+Shor's algorithm, published by Peter Shor in 1994, factors large integers efficiently on a quantum computer. RSA encryption, which secures most key exchanges on the internet, rests on the fact that classical machines cannot factor numbers of a few thousand bits in any practical time. An RSA-2048 modulus is a number with 617 decimal digits, and no classical computer or network of them will factor one this century by known methods. A large error-corrected quantum computer running Shor's algorithm would factor it in hours to days, and every public key in use today would be open. This is not controversial physics. The arithmetic is published and checked.
+
+The machine that runs it does not exist. Engineering estimates for breaking RSA-2048 run from about twenty million noisy physical qubits, from a 2019 analysis by Gidney and Ekerå, down to under one million with the improved techniques published in 2025, and every one of those estimates assumes full error correction across millions of qubits held coherent for hours. Today's largest machines hold on the order of a thousand physical qubits with no error correction. Nothing encrypted today has been broken by a quantum computer, and nothing running today is at risk from the machines that exist. The risk with a clock on it is different: traffic encrypted with RSA today and stored by an adversary can be decrypted years from now, which is why standards bodies are migrating systems before the threat matures. NIST standardized the first post-quantum algorithms in 2024, and the cryptography track on this platform covers that migration in detail.
+
+## The price of getting it right
+
+Physical qubits err. The best two-qubit gates on the best chips fail on roughly one operation in a thousand, and a run of thousands of gates would almost surely accumulate a fatal error without help. Quantum error correction handles this by encoding one logical qubit across many physical qubits and periodically measuring cleverly chosen combinations that reveal whether an error happened without revealing, or disturbing, the encoded data. The dominant scheme, the surface code, arranges the physical qubits on a flat grid and checks only nearest neighbors, which suits the 2D wiring of a chip. At today's error rates it costs hundreds to a few thousand physical qubits per logical qubit. Fault tolerance means correcting errors faster than they occur, and that is the gate every headline about useful quantum computing must pass.
+
+There is real progress to report honestly. Google's Willow result in 2024 demonstrated below-threshold operation with surface-code patches growing from distance 3 to 5 to 7: each time the code grew, the logical error rate fell, by more than half per step, the first time the trade had gone the right way at scale. It is a proof of principle, not a computer. A useful factoring machine needs thousands of logical qubits, which at current costs means millions of physical ones, and logical error rates many orders of magnitude below today's.
+
+<Callout type="warning" title="How to read a quantum headline">
+Ignore raw qubit counts. A thousand noisy qubits that decohere in 100 microseconds and err once per thousand gates can run no algorithm a laptop cannot beat. The numbers that matter are two-qubit error rates, coherence times, and, above all, counts of error-corrected logical qubits, which remain small even in the best demonstrations and far short of the thousands a factoring machine would need. Claims that encryption has been broken or that classical computing is obsolete have never survived contact with the actual hardware.
+</Callout>
+
+What today's noisy machines are genuinely good at is narrow. The strongest case is quantum simulation: a molecule is itself a quantum system, so representing one takes the same amplitude arithmetic the hardware runs naturally, while a classical simulator pays the 2^n table price from superposition-and-qubits. Small simulations of candidate catalysts and battery materials are the most defensible near-term work. The most famous advantage claims, by contrast, have aged poorly. Google's 2019 Sycamore sampling experiment, 53 qubits finishing a random circuit in 200 seconds, was paired with an estimate that a classical supercomputer would need 10,000 years; classical teams reproduced the same task in days, then hours, as better classical algorithms kept arriving. The lesson generalizes: a quantum advantage claim is only as strong as the best classical method known at the time, and the classical baseline keeps improving.
+
+The honest position as of now is that quantum computers are real, important, and early, roughly where classical computing stood around 1955.
+
+<Quiz
+  id="quant-error-correction"
+  question="Today's two-qubit gates fail on roughly one operation in a thousand, and a real algorithm needs thousands of gates. What does quantum error correction do about this?"
+  answer={1}
+  options={[
+    "It makes the physical qubits perfect by cooling them closer to absolute zero.",
+    "It encodes each logical qubit across many physical qubits and detects errors without measuring the data, so a calculation can outlast the errors of its parts.",
+    "It slows every gate down until the error rate approaches zero.",
+    "It avoids the problem by keeping algorithms under a thousand gates.",
+  ]}
+  explanation="Error correction trades quantity for quality: one logical qubit is spread across hundreds to thousands of physical qubits, and syndrome measurements catch errors without collapsing the encoded state. Cooling helps coherence but cannot eliminate gate errors, and the whole point of the scheme is to allow arbitrarily long calculations despite imperfect parts."
+/>
+
+The cryptography modules on this platform pick up exactly where the threat is real, and the lesson Symmetric vs Asymmetric is where the public-key systems a future quantum computer would break are explained properly, along with the key-exchange machinery that keeps every HTTPS connection alive today. Reading that track after this one turns the abstract threat into a specific engineering checklist.
+
+<Notes />

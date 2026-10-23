@@ -1,0 +1,241 @@
+---
+title: Kirchhoff's Laws
+module: circuit-analysis
+moduleTitle: Circuit Analysis
+moduleOrder: 56
+moduleIcon: CircuitBoard
+order: 2
+summary: "The two conservation laws of circuits: charge in equals charge out at any junction, and voltage around any loop adds to zero."
+estimatedMinutes: 15
+prerequisites: ["series-and-parallel"]
+objectives:
+  - Apply the junction rule to account for every bit of current at a node
+  - Apply the loop rule with a consistent sign convention around any closed path
+  - Solve a two-loop circuit for every branch current, step by step
+  - Explain why the method is mechanical enough that software does it millions of times
+tags:
+  - electronics
+  - circuits
+  - kirchhoff
+---
+
+Series and Parallel ended at the edge of its own method: collapsing works
+while a circuit stays tidy, in clean blocks of one path or side-by-side
+branches. A circuit with two sources and a shared branch is not tidy, and no
+amount of equivalent resistance will crack it. Two rules crack it anyway, and
+they are not even new physics. They are bookkeeping for the two things this
+track already established: charge does not vanish, and energy does not appear
+from nowhere. Gustav Kirchhoff wrote them down in 1845 as a university
+student, and every circuit solved since then, by hand or by software, runs on
+them.
+
+## Charge never piles up
+
+The junction rule says that the current flowing into any node equals the
+current flowing out. A node where three or more paths meet is a junction, and
+the accounting has to balance there. If 12 milliamps arrives and one branch
+leaves with 5 milliamps, the remaining branches must carry the other 7. No
+amount of resistor cleverness changes the ledger.
+
+The reason is physical, not mathematical. Electrons repel each other, so a
+node cannot quietly accumulate extra charge: any surplus pushes back against
+more charge arriving within nanoseconds. Steady circuits have no charge
+warehouse at the junctions. What comes in has to leave, split among the
+branches in proportion to what each branch will pass. A branch is the path
+between two nodes, and a two-part circuit has one junction worth checking:
+the node between the resistor and the LED in the LED loop. One path in, one
+path out, so the two parts carry the same current, which is exactly the
+series rule from series-and-parallel. The junction rule is what that rule
+becomes when a third path joins.
+
+Written as one
+statement, currents into a junction sum to zero, with arrivals counted as
+positive and departures as negative. Sign conventions like this one are
+half of what the next section needs, so it is worth fixing the habit now:
+pick a direction, call it positive, and let the arithmetic keep the books.
+
+<Quiz
+  id="cir-kcl-junction"
+  question="A junction receives 12 milliamps from one wire and sends 5 milliamps down a first branch. What does the second branch carry while nothing else connects to the node?"
+  answer={2}
+  options={[
+    "17 milliamps, because currents add up at every node.",
+    "12 milliamps, because the incoming current sets the pace for each branch.",
+    "7 milliamps, because current in must equal current out.",
+    "2.4 milliamps, scaled down by the same ratio as the first branch.",
+  ]}
+  explanation="Charge cannot pile up at a node, so the two departing branches must together carry the arriving 12 milliamps. The first branch takes 5, which leaves 7 for the second. Nothing about the branch resistances changes the total, only how the current divides."
+/>
+
+## Voltage sums to zero around a loop
+
+The loop rule says that around any closed path, the voltage rises and drops
+add to zero. Walk a full lap and the walk ends where it started, at the same
+potential, so every climb must be paid for by every descent. A battery climb
+of 12 volts has to be balanced by 12 volts of drops somewhere along the same
+loop. That is energy conservation wearing circuit clothes: a coulomb of
+charge returns from its lap with exactly the energy it started with.
+
+your-first-circuit already measured this law without naming it. The meter
+read about 3 volts across the resistor and about 2 volts across the LED, and
+the two had to total the 5 volt supply. The lesson called that sum the fastest
+sanity check there is. Kirchhoff's loop rule is the reason the check works,
+and the reason it catches faults: if the measured drops refuse to sum to the
+source, some of the story is missing.
+
+The craft is in the sign discipline. Pick a direction to walk the loop,
+clockwise or counterclockwise, and count a voltage rise as positive and a
+drop as negative, or the reverse, as long as the choice holds
+for the whole loop. Traversing a battery from its minus terminal to its plus
+terminal is a rise. Traversing a resistor in the direction the current flows
+is a drop, sized by Ohm's law. Walking the loop the other way flips every
+sign and multiplies the whole equation by -1, which changes nothing. What
+ruins a solution is switching conventions halfway around the loop, so pick
+once and keep it.
+
+One full pass with numbers makes the bookkeeping concrete. Take a 9 volt
+battery feeding a 470 ohm resistor in series with a blue LED, which drops
+about 3.2 volts while conducting, as your-first-circuit noted for blue
+parts. The current is the leftover voltage over the resistance: 9 minus 3.2
+is 5.8, and 5.8 / 470 is about 12.3 milliamps. Now walk the loop clockwise,
+starting below the resistor: a rise of 9 at the battery, a drop of 12.3
+milliamps times 470 ohms, which is 5.8 volts, and a drop of 3.2 at the LED.
+The sum is 9 - 5.8 - 3.2 = 0. The loop rule closes the books, and any
+measured reading that refuses to close them points at a missing piece of
+the story.
+
+<Quiz
+  id="cir-kvl-loop-sum"
+  question="Walking one closed loop, a solver counts a 9V source rise and two resistor drops of 4V and 2V. What does the loop rule say about the rest of the loop?"
+  answer={3}
+  options={[
+    "Nothing, because the loop rule only applies to the source and the largest resistor.",
+    "The remaining drops must total 15 volts, so the loop has more energy than it started with.",
+    "The remaining drops must total 9 volts, because the source sets every drop directly.",
+    "The remaining drops must total 3 volts, because all rises and drops must sum to zero.",
+  ]}
+  explanation="Rises plus drops must cancel: 9 - 4 - 2 leaves 3 volts of drop still unaccounted for somewhere in the loop, perhaps across a third component or a meter. That cancellation is energy conservation applied to one coulomb of charge completing a lap."
+/>
+
+## Cracking a two-loop circuit
+
+Here is a circuit no divider can touch. Three resistors form an upside-down
+U: a 100 ohm resistor R1 along the top left, a 200 ohm resistor R3 along the
+top right, and a 100 ohm resistor R2 down the middle, shared by both halves.
+A 12 volt source stands on the left edge and a 6 volt source on the right
+edge, flipped so that both sources push current clockwise around their own
+loops. The bottom rail is common to everything.
+
+Assign a loop current to each loop: I1 clockwise around the left loop, I2
+clockwise around the right loop. The middle resistor carries both, in
+opposite directions, so its net downward current is I1 minus I2. Drawing an
+imagined current around a loop is the step that looks illegal, and the
+junction rule is what makes it legal: where two imagined loop currents share
+a branch, their contributions add to produce the real branch current, and
+everywhere else a loop current is the real one. The alternative method,
+nodal analysis, assigns an unknown voltage to each node instead and writes
+one junction equation per node; same two laws, different unknowns, and the
+choice is about which bookkeeping is shorter. Simulators prefer nodal
+analysis for exactly that reason. Now write the loop rule once per loop,
+drops matching rises:
+
+```text
+Loop 1:  12 = I1*100 + (I1 - I2)*100
+Loop 2:  (I2 - I1)*100 + I2*200 = 6
+```
+
+Loop 1 says the 12 volt source is spent across R1 and across the middle
+resistor. Loop 2 says the 200 ohm resistor is paid for by the 6 volt source
+plus whatever arrives, in reverse, through the middle. Simplify both and
+solve by substitution, the way any two simultaneous equations fall:
+
+```text
+Loop 1:  200*I1 - 100*I2 = 12
+Loop 2:  -100*I1 + 300*I2 = 6
+From loop 1:  I1 = (12 + 100*I2) / 200
+Substitute into loop 2:
+  -100*(12 + 100*I2)/200 + 300*I2 = 6
+  -6 - 50*I2 + 300*I2 = 6
+  250*I2 = 12
+```
+
+So I2 = 12 / 250 = 0.048 amps, and back-substituting gives I1 = (12 + 4.8) /
+200 = 0.084 amps. The middle resistor carries the difference, 36 milliamps
+downward. Check both loops with Ohm's law and the books balance: loop 1 spends
+8.4 volts on R1 and 3.6 on the middle resistor, totaling the source's 12.
+Loop 2 spends 9.6 volts across the 200 ohm resistor, covered by 6 from its
+own source and 3.6 arriving backward through the middle branch. One check
+more, from the nodes: the top of the middle branch sits 12 volts minus 8.4,
+that is 3.6 volts above the bottom rail, which is exactly the drop the
+middle resistor must show. Every number agrees with every other number,
+which is what a correct solution looks like.
+
+```python
+# Loop 1: 200*I1 - 100*I2 = 12
+# Loop 2: -100*I1 + 300*I2 = 6
+i2 = 12 / 250                    # from -6 - 50*I2 + 300*I2 = 6
+i1 = (12 + 100 * i2) / 200       # back-substitute into loop 1
+print(i1 * 1000, i2 * 1000, (i1 - i2) * 1000)
+```
+
+The print shows the three branch currents in milliamps: 84.0, 48.0, and 36.0.
+The same substitution would work for ten loops and a hundred resistors; the
+equations just stack higher, and nobody solves a hundred of them by hand.
+
+One sign convention deserves its own warning, because it alarms everyone the
+first time. If a solved current comes out negative, nothing failed. The minus
+sign means the actual current flows opposite the assumed direction.
+The magnitude is correct, the arrow was not, and flipping the arrow finishes
+the job. Negative results are information, not errors.
+
+<Quiz
+  id="cir-mesh-negative-current"
+  question="Solving a loop equation by substitution gives a current of -0.02 amps for a branch whose direction was assumed on the schematic. What does that result mean?"
+  answer={1}
+  options={[
+    "The source in that loop is dead and no current flows at all.",
+    "The current is 0.02 amps flowing opposite the assumed direction, and the magnitude is correct.",
+    "The resistors in that branch must be negative, which means the values were entered wrong.",
+    "An arithmetic error occurred, because a solved current can never come out negative.",
+  ]}
+  explanation="A negative solution simply means the assumed arrow pointed the wrong way, which happens whenever a source drives harder than the solver guessed. The size of the current is still right. Flip the arrow and every loop check will balance."
+/>
+
+## Why this is machine work
+
+Look at what the last section actually did. Label currents, write one loop
+equation per loop with a fixed sign convention, solve the stack of
+equations. Nothing in the recipe needs judgment, which makes it a job for a
+program. Circuit simulators do exactly that, at scale: SPICE, the
+Simulation Program with Integrated Circuit Emphasis first released from
+Berkeley in the early 1970s, reads a netlist, the machine-readable list of
+every part and connection, stamps out one equation per unknown using the
+nodal form, and solves the whole system numerically. Every simulator since,
+from LTspice on a laptop to the browser tools used in this track's
+projects, is running Kirchhoff's two laws thousands of times per analysis,
+with matrix algebra doing the substitution step at machine speed.
+
+<Callout type="tip" title="When the books refuse to balance">
+A hand solution that will not close, drops that miss the source by a couple
+of volts, is almost always a sign flipped somewhere in one loop equation,
+not a physics problem. Recheck the direction of every battery traversal
+before doubting the arithmetic. The second most common culprit is a resistor
+value typed from a color band read upside down, which turns a 4,700 ohm
+part into a 47,000 ohm one and still produces a plausible-looking wrong
+answer.
+</Callout>
+
+That mechanical nature is also the honest limit of hand analysis. Two loops
+solve on one page. Ten loops solve in a simulator in milliseconds and by
+hand in an afternoon nobody wants to spend. The skill worth building is
+knowing which three or four loops matter for a design decision, and letting
+software handle the rest.
+
+The two laws also set up the shortcut this course takes next. Most design
+questions do not involve a whole network; they involve what one load will
+see at one pair of terminals. Kirchhoff's laws guarantee that the entire
+mess behind those two terminals can be summarized completely, and Sources
+and Thevenin Equivalents shows the summary that makes a loaded divider a
+one-glance problem.
+
+<Notes />

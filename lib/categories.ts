@@ -195,8 +195,9 @@ const MAKE_CATEGORIES: BaseCategory[] = [
     slug: "make-math",
     label: "Math and Logic",
     icon: "Sigma",
-    blurb: "The problem-solving toolkit behind the challenges: primes, modular arithmetic, combinatorics, recursion.",
-    moduleSlugs: ["math-and-logic"],
+    blurb:
+      "From primes and modular arithmetic to functions, vectors, and calculus: the toolkit every other subject here runs on.",
+    moduleSlugs: ["math-and-logic", "math-foundations"],
   },
   {
     slug: "make-apps",
@@ -228,10 +229,31 @@ const MAKE_CATEGORIES: BaseCategory[] = [
   },
   {
     slug: "make-electronics",
-    label: "Electronics",
+    label: "Electrical Engineering",
     icon: "Cpu",
-    blurb: "From what a volt is to a breadboard that does something.",
-    moduleSlugs: ["electronics-foundations"],
+    blurb: "From what a volt is to op-amps: the circuits, components, and analysis every board is built from.",
+    moduleSlugs: ["electronics-foundations", "circuit-analysis"],
+  },
+  {
+    slug: "make-physics",
+    label: "Physics",
+    icon: "FlaskConical",
+    blurb: "How the physical world actually works: motion, forces, energy, waves, and fields.",
+    moduleSlugs: ["physics-foundations"],
+  },
+  {
+    slug: "make-mechanical",
+    label: "Mechanical Engineering",
+    icon: "Factory",
+    blurb: "Structures, materials, mechanisms, and machines: how things hold up, move, and get made.",
+    moduleSlugs: ["mechanical-foundations"],
+  },
+  {
+    slug: "make-quantum",
+    label: "Quantum",
+    icon: "Microscope",
+    blurb: "What the world is made of at the smallest scales, and how quantum computers actually work.",
+    moduleSlugs: ["quantum-foundations"],
   },
   {
     slug: "make-pcb",

@@ -1,0 +1,229 @@
+---
+title: Mechanisms and Motion
+module: mechanical-foundations
+moduleTitle: Mechanical Foundations
+moduleOrder: 57
+moduleIcon: Factory
+order: 3
+summary: "Levers, gears, and linkages: the parts that trade force for distance and turn motion into useful work."
+estimatedMinutes: 15
+prerequisites: ["stress-and-materials"]
+objectives:
+  - Compute mechanical advantage for levers, pulleys, and gears and state what is traded for it
+  - Sort real machines into the three lever classes and predict which ones multiply force
+  - Convert between revolutions, radians, and arc length for rotating parts
+  - Explain how cams and linkages convert rotary motion into other motion types
+tags:
+  - mechanical
+  - mechanisms
+  - gears
+---
+
+Stress and Materials left the plank standing, and a plank that holds is still
+not a machine. Machines begin the moment a scissor jack lifts one corner of a
+1,100 kg car: the handle turns with perhaps 150 N of hand force, and the jack
+head pushes up with thousands of newtons. Nothing created force out of nothing.
+The handle traveled a long distance so the lifting head could travel a few
+millimeters. That trade, force for distance, is the heart of this lesson.
+
+## The lever trade
+
+Mechanical advantage is the ratio of output force to input force, and for a
+frictionless lever it equals the input lever arm divided by the output lever
+arm. The trade is enforced by energy: the work in, force times distance, equals
+the work out. Triple the force and the input end must move three times as far.
+A lever never gives a free lunch, it gives a favorable exchange rate.
+
+The frictionless part is the ideal. Real hinges, gears, and sheaves shave a few
+percent off every machine, so the honest mechanical advantage sits just under
+the geometric number, and efficiency is the name for exactly how much of the
+ideal survived. Keeping that gap small is most of what lubrication and good
+bearings are for, a thread this lesson picks up two lessons from now.
+
+Levers come in three classes depending on what sits between what. In a
+first-class lever the fulcrum sits between effort and load, like a seesaw or a
+pair of scissors. In a second-class lever the load sits between fulcrum and
+effort, like a wheelbarrow or a nutcracker, and this class always multiplies
+force. In a third-class lever the effort sits between, like a human forearm,
+tweezers, or a fishing rod held mid-shaft; force is lost, but speed and reach
+are gained, which is exactly what a throwing arm wants.
+
+Worked numbers: a loaded wheelbarrow presses down with 800 N at 0.45 m from the
+wheel axle, and the handles sit 1.35 m out. The lifter needs 800 times 0.45 /
+1.35, about 267 N, a mechanical advantage of 3. The same load in a
+first-class arrangement with the fulcrum closer to the load could do better,
+which is why a pry bar wins arguments with nails.
+
+A crowbar shows the exchange rate at full strength. Press 250 N down on a bar
+0.90 m from the pivot with the nail tip 50 mm on the other side, and the nail
+sees 250 times 0.90 / 0.05 = 4,500 N. The bar tip sweeps a long arc; the nail
+lifts a hair. Long arm on the effort side, short arm on the load side, that is
+the whole recipe, and it is why handles, pedals, and crank radii are sized the
+way they are.
+
+The third class runs the trade backward on purpose. The human forearm is a
+third-class lever with the elbow as fulcrum, the biceps attaching roughly 0.05 m
+out, and a load hanging 0.35 m from the elbow. Holding 50 N, about 5 kg, in the
+hand demands 50 times 0.35 / 0.05 = 350 N of muscle force, seven times the load.
+The body pays in force to buy speed and range, the same bargain tweezers and
+fishing rods make: feeble at the tip, quick, and precise.
+
+<Quiz
+  id="mech-lever-classes"
+  question="A wheelbarrow carries its load between the wheel axle and the gardener's hands. Why does this arrangement always multiply force?"
+  answer={2}
+  options={[
+    "Because the wheel reduces friction to zero, so all the force reaches the load.",
+    "Because the load's weight acts as extra effort once the barrow starts moving.",
+    "Because the load sits between fulcrum and effort, so the effort arm is longer than the load arm.",
+    "Because second-class levers trade distance for force at better than a 1 to 1 exchange rate.",
+  ]}
+  explanation="A second-class lever puts the load between fulcrum and effort, so the effort always acts farther from the fulcrum than the load does, and mechanical advantage is always greater than 1. The trade is still honest: the hands move farther than the load rises."
+/>
+
+## Gears multiply by tooth count
+
+A gear is a lever that renews its grip continuously. Two meshed gears exert the
+same tooth force on each other at their rims, but a larger gear has a larger
+radius, so the same force wraps a bigger lever arm and produces more torque.
+Torque scales with tooth count, and speed scales inversely, exactly. A 12-tooth
+pinion driving a 48-tooth gear turns the big gear at one quarter of the pinion
+speed while multiplying its torque by 4, minus a few percent lost to friction.
+
+The same arithmetic runs every chain and belt drive. A bicycle in low gear puts
+the chain on a small front chainring and a large rear sprocket: speed drops,
+torque at the wheel rises, and a hill becomes climbable. Racers do the reverse.
+Bicycles are the fastest way to develop a feel for gear ratios, because the
+trade arrives through the pedals honestly and instantly.
+
+Details fill in the picture cheaply. An idler gear dropped between driver and
+driven flips the output direction without touching the ratio, because its tooth
+count cancels out of the product. Mesh type is a sound and bearing decision:
+spur gears with straight teeth are simple and loud at speed, helical teeth run
+quiet but push sideways on their shafts, and bevel gears pass rotation around a
+corner. All of them obey the same tooth-count arithmetic.
+
+Rotating parts also need a unit conversion that trips people: revolutions,
+radians, and distance. One revolution is 2 pi radians, and a point at radius r
+traveling through angle theta covers arc length r times theta. A road wheel of
+radius 0.34 m turning 100 revolutions covers 2 pi times 0.34 times 100, about
+214 m. This little chain of conversions is what turns a motor's rpm and a
+wheel's radius into the speed of a vehicle, and it shows up in the code below.
+
+```python
+def gear_train(rpm, teeth):
+    # teeth: list of (driver, driven) tooth counts per mesh
+    for driver, driven in teeth:
+        rpm = rpm * driver / driven
+        print(f"{driver} -> {driven} teeth: {rpm:.0f} rpm")
+    return rpm
+
+# 1800 rpm motor: 12-tooth pinion into 60-tooth gear,
+# then a 15-tooth pinion into a 45-tooth gear
+final = gear_train(1800.0, [(12, 60), (15, 45)])
+print(f"final speed: {final:.0f} rpm, torque ratio 1800 / {final:.0f}")
+```
+
+Two meshes take 1,800 rpm down to 360 and then to 120, an overall speed ratio of
+15 to 1. Torque climbs by the same factor 15, less friction, which is why a
+small motor through a proper gear train can sound quiet while doing real work.
+Gear trains multiply this way stage by stage, and the overall ratio is the
+product of the stage ratios.
+
+<Quiz
+  id="mech-gear-ratio"
+  question="A 12-tooth pinion drives a 48-tooth gear. What happens at the driven shaft?"
+  answer={1}
+  options={[
+    "Speed rises 4 times and torque falls to a quarter.",
+    "Speed falls to a quarter and torque rises 4 times, minus friction losses.",
+    "Speed and torque both stay the same, only the direction of rotation changes.",
+    "Speed falls to a quarter and torque falls to a quarter as well.",
+  ]}
+  explanation="Torque scales with tooth count and speed scales inversely, exactly. The 48-tooth gear turns at one quarter of the pinion speed and, because the meshing tooth force acts at four times the radius, delivers up to four times the torque. Friction takes a few percent of that."
+/>
+
+## Pulleys share the load
+
+A pulley on a fixed bracket changes the direction of a pull and does nothing
+else: the mechanical advantage is 1. The useful trick is the movable pulley.
+Hang a pulley from the load and run the rope up through it, and the load now
+hangs from two rope segments that share its weight. Count the rope segments
+supporting the moving part: that count is the mechanical advantage. A four-segment
+block and tackle lifting 800 N needs a 200 N pull, and to raise the load 1 m the
+puller must haul in 4 m of rope, one meter through each supporting segment.
+
+Real sheaves are not frictionless. Each one wastes a few percent, so the honest
+pull for that four-segment tackle is closer to 210 or 220 N, and heavily loaded
+systems with many sheaves lose more. Sailors and stage riggers learn to count
+segments and then add a margin for sheave friction, because the textbook number
+is a floor, not a promise.
+
+Cranes still hang their hooks from multi-sheave blocks, and the reason is not
+magic but procurement. Splitting a 50 tonne hook load across eight rope segments
+lets eight ordinary ropes share the job instead of one cable carrying it all,
+and each pulley sheave adds only a few percent of loss. The winch pays in rope
+speed: it must haul eight meters of rope for every meter the hook rises. Force
+for rope length, the same exchange as every lever, now done with cordage.
+
+## Cams and linkages
+
+Levers, gears, and pulleys pass rotation and force around. Two more parts change
+the type of motion itself. A cam is a rotating lump of shaped metal that pushes
+a follower: rotate the lobe and the follower rises and falls on a schedule the
+profile dictates. Every engine camshaft does exactly this, opening each intake
+and exhaust valve at the right moment and millimeter. A crank and connecting rod
+do the reverse trick, turning continuous rotation into a sliding stroke, which
+is what turns a piston's up-and-down into the spins that reach the wheels.
+
+A linkage is a set of rigid bars joined by pivots, and it steers motion along
+curves no single part could trace. A windshield wiper is a four-bar linkage
+turning one motor's rotation into a wide sweep. An excavator's arm is a stack of
+them. Designers of mechanisms think in exactly these pieces, primitives that
+trade force for distance or reshape motion, assembled like sentences.
+
+Two refinements make cams worth respecting. A cam profile can include dwell, a
+stretch of perfect circle that holds the follower still, which is how an engine
+valve stays shut for exactly the right slice of each revolution. And a cam can
+only push its follower, never pull, so a spring closes the gap or the profile
+stays gentle enough that gravity does the closing. The scotch yoke is the
+linkage twin of the cam: a pin riding in a slot turns rotation into a pure
+sinusoidal slide, a favorite inside vibration testers and reciprocating saws.
+
+<Quiz
+  id="mech-pulley-segments"
+  question="A block and tackle with four rope segments supporting the load lifts 800 N. Ignoring friction, what pull does the rope need, and what does the puller give up?"
+  answer={0}
+  options={[
+    "About 200 N, and the rope must be hauled 4 m for every 1 m of lift.",
+    "About 200 N, and the rope moves the same 1 m as the load.",
+    "About 800 N, because pulleys only change the direction of a force.",
+    "About 3200 N, because four segments multiply the required force by 4.",
+  ]}
+  explanation="Each of the four supporting segments carries an equal share, so the pull is 800 / 4 = 200 N, and the puller pays in distance: 4 m of rope per 1 m of rise. Real sheaves add a few percent of friction on top, so the honest pull is slightly higher."
+/>
+
+<Exercise title="Measure a doorknob">
+A doorknob is a wheel and axle, a lever class all its own, and it can be
+measured without opening anything. Measure the distance from the center of the
+knob to its outside edge, then measure the half-width of the spindle that
+actually turns the latch. On a common 55 mm knob driving a 6 mm spindle, that is
+27.5 mm against 3 mm.
+
+Divide the two: the mechanical advantage is about 9. Turning the knob edge with
+a modest 5 N of fingertip force delivers about 45 N at the spindle surface,
+which is why a spring-loaded latch yields to a hand and would laugh at the same
+force applied directly to the spindle.
+
+Now the trade: the knob edge travels 9 times farther than the spindle surface
+per turn of the wrist. Feel it on the next door, the wrist flick is small and
+the spindle barely twitches.
+</Exercise>
+
+Levers, gears, and pulleys trade force for distance all day long, but none of
+them says how fast the work gets done. Trading torque for speed and then asking
+how much power survives the trip is the next question. The next lesson, Power
+and Machines, follows the watts: torque times speed, motor curves, and where the
+losses go.
+
+<Notes />

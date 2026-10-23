@@ -1,0 +1,255 @@
+---
+title: Capacitors and Inductors
+module: circuit-analysis
+moduleTitle: Circuit Analysis
+moduleOrder: 56
+moduleIcon: CircuitBoard
+order: 4
+summary: "The two components that store energy and give circuits a memory of time: the charge reservoir and the current reservoir."
+estimatedMinutes: 16
+prerequisites: ["sources-and-thevenin"]
+objectives:
+  - Compute the charge and energy a capacitor stores at a given voltage
+  - Predict a capacitor's voltage during charging using the RC time constant
+  - Explain why capacitors block DC and pass AC, and what decoupling capacitors do
+  - Describe an inductor's opposition to current change and where its voltage spikes bite
+tags:
+  - electronics
+  - circuits
+  - capacitors
+  - inductors
+---
+
+A camera flash charges for a second with a rising whine, then dumps its whole
+store into the tube in a thousandth of that time. A relay clicks off and the
+transistor that drove it takes a voltage spike many times the supply it was
+running on. Both events come from the two components that Sources and
+Thevenin Equivalents left out, because both break the rule every source and
+resistor obeys: answering instantly. Resistors have no memory. A capacitor
+remembers its charge, an inductor remembers its current, and that memory is
+what lets a circuit have a sense of time at all.
+
+## A capacitor is a charge reservoir
+
+A capacitor is two conductive plates separated by an insulator. Nothing
+conducts through the insulator, so charge does not cross; instead it piles
+up on one plate and vacates the other, and that separation of charge is
+stored energy. The amount of charge held per volt applied is the
+capacitance, measured in farads: one farad holds one coulomb at one volt.
+Real capacitors come in microfarads and nanofarads, written uF and nF on
+the parts themselves, millionths and billionths of a farad.
+
+The arithmetic is direct. A 100 uF capacitor charged to 5 volts holds Q = C
+times V = 100 microfarads times 5 volts, which is 0.0005 coulombs, about 3.1
+times 10^15 electrons shifted from one plate to the other. The stored
+energy is E = one half C V squared: half of 0.0001 times 25, which works out
+to 0.00125 joules. That is a small number next to a AA battery's roughly ten
+thousand joules, and it captures the capacitor's personality in one
+comparison: a capacitor stores little energy but can release all of it in a
+microsecond, which is exactly what a camera flash needs and a battery,
+sluggish by comparison, cannot do alone.
+
+Capacitance itself is geometry: bigger plates facing each other hold more
+charge at the same voltage, and plates closer together hold more still,
+because the opposite charges attract across a shorter gap. That is why the
+part's size tracks its value. A thumbnail-sized electrolytic can of 470 uF
+rolls tiny ceramic discs of a few nanofarads, and the scale runs all the
+way up to supercapacitors measured in whole farads, which hold enough
+charge to back up a real-time clock for weeks without a battery.
+
+<Quiz
+  id="cir-cap-charge-stored"
+  question="A 100 uF capacitor sits charged to 5 volts. How much charge does it hold?"
+  answer={2}
+  options={[
+    "20 coulombs, one for every volt across five farads.",
+    "0.002 coulombs, which is 100 times 5 divided by 1000.",
+    "0.0005 coulombs, which is 100 microfarads times 5 volts.",
+    "500 coulombs, because charge scales with the square of voltage.",
+  ]}
+  explanation="Charge is capacitance times voltage: 100 uF is 0.0001 farads, and 0.0001 times 5 is 0.0005 coulombs. The energy is a different formula, one half C V squared, which gives 0.00125 joules here. Squaring the voltage is an energy mistake, not a charge mistake."
+/>
+
+## Charging has a speed limit
+
+Connect that capacitor to 5 volts through a 10,000 ohm resistor and the
+charge does not arrive at once. The resistor limits the current, the
+capacitor's voltage starts at zero, and as the capacitor fills, the voltage
+left to push current through the resistor shrinks, so the current shrinks,
+so the filling slows. The result is a curve that starts fast and flattens
+toward the supply voltage, and it has one number that describes its whole
+shape: the time constant, R times C. Ten thousand ohms times 100 uF is one
+second. After one time constant the capacitor sits at 63.2 percent of the
+supply voltage, and the pattern from there is fixed:
+
+```python
+import math
+v_supply = 5.0
+rc = 1.0                      # 10,000 ohms in series with 100 uF
+steps = [0.1, 0.2, 0.3, 0.4, 0.5, 1, 2, 3, 4, 5]
+for k in steps:
+    v = v_supply * (1 - math.exp(-k))
+    print(f"{k:4.1f} tau   {v:5.2f} V")
+```
+
+Each row is one point on the charging curve, at fractions and multiples of
+the time constant. The first tenth of a second reaches 0.48 volts, one full
+time constant reaches 3.16 volts, which is the famous 63 percent, and five
+time constants reach 4.97 volts, close enough to 5.00 that engineers
+declared five time constants the finish line. Discharging runs the same
+curve downhill: after one time constant, a charged capacitor has fallen to
+36.8 percent of its starting voltage, the mirror of 63.2. The rule of thumb
+that survives every practical circuit: count to five.
+
+The curve's shape comes from a feedback loop inside the arithmetic. The
+current depends on the voltage gap between supply and capacitor, and each
+moment of charging shrinks that gap, so the current shrinks by the same
+fraction at every step, and a quantity that shrinks by a fixed fraction per
+step is exponential by definition. The current does the same dance: it
+starts at V divided by R, here 0.5 milliamps, and decays toward zero with
+the very same curve, fast at first and crawling at the end. That is why a
+charging RC circuit draws a burst of current and then almost none, and why
+the last few percent of charge takes as long as everything before it.
+
+That single dial, RC, is a design lever. Choose the pair to set how long a
+circuit waits: a larger resistor starves the current, a larger capacitor
+demands more charge, and either one stretches the curve. Timing circuits,
+power-supply soft starts, and the debounce delay that stops a mechanical
+switch from reading five presses where a finger made one all come from
+picking R and C on purpose.
+
+<Quiz
+  id="cir-rc-one-tau"
+  question="A 5V supply charges an RC circuit whose time constant is exactly 1 second. Roughly what does the capacitor read 1 second after the switch closes?"
+  answer={3}
+  options={[
+    "5.00 volts, because charging finishes in one time constant.",
+    "2.50 volts, because half the supply always arrives first.",
+    "0.63 volts, because the percentage is used directly as a voltage.",
+    "3.16 volts, because one time constant reaches 63.2 percent of the supply.",
+  ]}
+  explanation="After one time constant a charging capacitor sits at 1 minus 1/e of the supply, about 63.2 percent: 5 volts gives 3.16. Full charging never quite arrives mathematically, which is why five time constants, here 5 seconds and 4.97 volts, is the practical finish."
+/>
+
+## Block DC, pass AC
+
+Once charged to the supply, a capacitor passes no steady current at all: the
+push is balanced, the plates are full, and the insulator in the middle
+sees to it. That is why a capacitor blocks DC, direct current, the steady
+one-way flow a battery provides. Feed it alternating current, AC, where the
+source keeps reversing direction, and the capacitor keeps charging,
+discharging, and recharging the other way each time. Current keeps sloshing
+around the circuit, never through the insulator but around it, plate to
+plate, and the faster the source reverses the more freely the charge
+sloshes. The opposition, called capacitive reactance, falls as frequency
+rises: X = 1 / (2 times pi times f times C). A 100 nF capacitor opposes
+about 26,500 ohms at 60 Hz and a mere 1.6 ohms at 1 MHz.
+
+That frequency split is the entire trick behind decoupling capacitors, the
+small capacitors parked directly across a chip's power pins. To the steady
+supply voltage they are invisible, but when a chip's logic switches and
+demands a slug of current in a nanosecond, the capacitor answers locally
+because at high frequency it looks like a near-perfect wire. Every circuit
+board has a constellation of them, and a design that forgets them fails in
+ways that look like ghosts: glitches that appear only when the clock runs
+fast.
+
+The split points the other way when a capacitor sits in series with a
+signal path, which is called coupling. An audio stage that should pass the
+music but not any steady DC offset puts a capacitor in the signal line,
+sized so that audible frequencies cross freely while any constant offset is
+blocked for good. The frequency where the two behaviors trade places, where
+the reactance equals the surrounding resistance, is the cutoff frequency
+every filter design starts from.
+
+## An inductor is a current reservoir
+
+An inductor is a coil of wire, and its behavior is the capacitor's mirror.
+Current through the coil builds a magnetic field, the field stores energy,
+and the inductor fights any change in the current that feeds it, because
+changing the current means collapsing or rebuilding the field. The voltage
+across an inductor is proportional to how fast the current changes, V = L
+times di/dt, with L the inductance in henries and a typical small inductor
+measured in millihenries (mH), thousandths of a henry. A steady current produces no
+voltage at all across an ideal inductor's own resistance; a changing one
+produces whatever it takes to defend the status quo.
+
+The numbers make the defense felt. Interrupt 0.5 amps flowing through a 100
+mH inductor in one millisecond and the inductor generates V = 0.1 times 0.5
+divided by 0.001, which is 50 volts, from a 12 volt circuit. That spike is
+why opening a switch in an inductive circuit draws an arc, and why every
+relay driver circuit pairs the coil with a flyback diode, a part whose only
+job is giving the collapsing field's current a safe place to circulate. The
+same violence, aimed on purpose, runs the car: an ignition coil passes 12
+volts through a primary winding wrapped around a secondary winding with far
+more turns, and when the primary current is interrupted the collapsing
+field induces the tens of kilovolts a spark plug needs.
+
+Inductors get their own time constant, L divided by R. A 100 mH inductor
+feeding a 10 ohm load has a time constant of 10 milliseconds, and current
+through it climbs the same shaped curve a capacitor's voltage does: 63
+percent of its final 0.5 amps after 10 milliseconds, 95 percent after 30.
+Where the capacitor holds voltage steady while current ramps, the inductor
+holds current steady while voltage takes the shock. One stores energy in an
+electric field, the other in a magnetic one, and every timing, filtering,
+and spike behavior in analog design traces back to that split.
+
+Inductors are less welcome guests on a circuit board than capacitors, and
+the reason is physical: a coil needs bulk to store energy in a magnetic
+field, so they show up where nothing smaller will do. Power converters
+switch current through inductors tens of thousands to millions of times per
+second to trade voltage for current efficiently, wireless chargers pass
+power across an air
+gap through coupled coils, and motors are inductors arranged to push. On a
+signal board they appear mostly as small filter chokes. The rest of the
+time, the inductor that shows up is one nobody designed in: every motor
+winding, relay coil, and long wire pair has stray inductance, and its
+spikes arrive uninvited.
+
+<Quiz
+  id="cir-inductor-interrupt"
+  question="A switch has been carrying 0.5 amps through a 100 mH inductor from a 12V supply. The switch opens and interrupts the current in about 1 millisecond. What happens?"
+  answer={2}
+  options={[
+    "The current stops instantly and nothing unusual occurs, because switches break circuits completely.",
+    "The inductor holds the 0.5 amps flowing forever, because current through an inductor cannot change.",
+    "The inductor generates roughly 50 volts to keep the current moving, enough to arc across the opening switch contacts.",
+    "The inductor reverses the current direction so it can keep circulating through the same switch.",
+  ]}
+  explanation="The inductor's voltage is L times the rate of change of current: 0.1 H times 0.5 A over 0.001 s is about 50 volts. It drives whatever voltage is needed to keep its current flowing for the moment the break lasts, which is why inductive loads arc switches and why flyback diodes exist. Current cannot change instantly, but it does not flow forever either."
+/>
+
+<Callout type="danger" title="Big capacitors bite after the power is off">
+A large electrolytic capacitor charged to a few hundred volts, the kind in a
+camera flash or inside mains-powered supplies, holds its charge for minutes
+or hours after everything is unplugged, with no battery in sight. Treat every
+big cap as charged until a meter says otherwise, and discharge it through a
+resistor, never a screwdriver. The screwdriver works and ruins the cap, the
+terminal, and occasionally the day.
+</Callout>
+
+<Exercise title="Time the curve with your own numbers">
+If a 10,000 ohm resistor, a 100 uF capacitor, and a 5V supply are within
+reach, predict the charging curve before touching a part: compute R times C,
+then list the expected voltage at 1, 2, 3, and 5 seconds using the 63, 86,
+95, and 99 percent milestones.
+
+Build it on a breadboard: supply to the resistor, resistor to the
+capacitor's plus leg, capacitor's minus leg back to the supply's negative
+side. Power up and read the capacitor with a multimeter every second for
+five seconds. The readings should track the prediction within a few percent;
+electrolytic capacitors have loose tolerances, often plus or minus 20
+percent, so a reading of 2.7 volts at the one-second mark on a nominally
+1-second time constant is the component being honest about its tolerance,
+not the math being wrong. Then swap the resistor for a smaller one, predict
+the new time constant first, and check.
+</Exercise>
+
+A circuit of sources and resistors answers instantly, and a circuit with
+capacitors and inductors has a memory of time. Add one more ingredient,
+feedback, and behavior stops being fixed forever and becomes something a
+designer chooses: amplification that obeys arithmetic instead of chip
+tolerances. The next lesson, Op-Amps and Feedback, is where that switch
+flips.
+
+<Notes />

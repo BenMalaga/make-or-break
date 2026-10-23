@@ -1,0 +1,117 @@
+---
+title: Wave-Particle Duality
+module: quantum-foundations
+moduleTitle: Quantum Foundations
+moduleOrder: 58
+moduleIcon: Microscope
+order: 2
+summary: "The double slit, de Broglie's matter waves, and the probability rules that replace trajectories."
+estimatedMinutes: 15
+prerequisites: ["when-classical-physics-breaks"]
+objectives:
+  - Explain how single photons build an interference pattern one detection at a time and what watching the slits does to it
+  - Compute a de Broglie wavelength from lambda = h over p for an electron and a baseball
+  - Apply the Born rule, probability equals amplitude squared, to predict measurement odds
+  - Say why quantum prediction is probabilistic by principle rather than by ignorance
+tags:
+  - physics
+  - quantum
+  - waves
+---
+
+When Classical Physics Breaks ended with light wearing two costumes at once. Planck and Einstein made light granular: energy arrives in indivisible photons of E = hf, and a photon too weak to free an electron frees nothing no matter how long it shines. Yet the same light bends around edges and produces the bright and dark bands of interference, and interference is something only waves do, since it requires crest meeting trough to cancel. Rather than pick a costume, this lesson follows the experiments that keep both running at the same time, and ends at the rule that replaced the trajectory, the old idea that a particle follows a definite path from here to there.
+
+## One photon at a time
+
+The double slit is the cleanest machine for seeing this. Shine light on a barrier with two narrow slits cut in it, and put a screen behind. Instead of two bright stripes behind the two slits, the screen shows a series of bands, bright, dark, bright, dark, called fringes. Thomas Young demonstrated this in 1801 and the wave explanation is straightforward: light spreading from the two slits overlaps, and where a crest of one wave meets a crest of the other the light adds to brightness, while where a crest meets a trough the two cancel and the screen stays dark. Bands of light and dark are the fingerprint of two paths interfering.
+
+Dim the light far enough and one photon arrives at a time. Each photon lands on the screen as a single dot, absorbed whole at one spot, never smeared across the pattern. Geoffrey Taylor ran this with a dimmed candle flame back in 1909, and true one-photon-at-a-time versions by Grangier, Roger, and Aspect in 1986 confirmed it cleanly. Where each dot lands looks random. Record thousands of them and the dots pile up into the very same fringes: dense in the bright bands, absent from the dark ones. Tonomura's team at Hitachi did the same with electrons in 1989, watching the pattern build one electron at a time, and the electrons drew fringes too.
+
+So each individual photon, arriving alone with no partner to interfere with, still lands as if it explored both slits. The pattern needs two open paths. Cover one slit and the fringes vanish, leaving a single dull blob. A dot that lands in a dark band is a dot that had both slits available and both amplitudes cancelling; block either path and the cancellation disappears.
+
+## Ask which slit and the pattern dies
+
+Put a detector at the slits to log which one each photon passes through, and the fringes are gone. The dots now form two plain bands, one behind each slit, exactly as particles passing through holes would. The photon was not caught or disturbed in any clumsy mechanical sense: detectors can be arranged so gently that the only thing they change is the information, and the pattern still dies. In delayed-choice experiments the decision to look can even be made after the photon has already passed the slits, and the outcome follows the same rule.
+
+The honest statement is not that light is sometimes a wave and sometimes a particle, switching costumes like a spy. The state of the photon is a spread of amplitude over both paths, and asking for the path is a measurement that partitions that spread. Once the state carries which-slit information, the two amplitudes can no longer cancel, because there is nothing left to cancel: each path has its own separate account. Interference and which-path knowledge are mutually exclusive, and no cleverness in the detector design has ever beaten that trade.
+
+<Quiz
+  id="quant-which-slit"
+  question="Photons are sent one at a time through a double slit and the screen slowly builds fringes. A which-path detector is added at the slits, so every dot on the screen can be labeled with its slit. What does the accumulated pattern look like now?"
+  answer={1}
+  options={[
+    "The same fringes, but each bright band is split into two thinner bands labeled by slit.",
+    "Two plain bands, one behind each slit. The fringes vanish because the amplitudes can no longer cancel.",
+    "Brighter fringes, since the detector adds energy to each photon.",
+    "Random noise with no structure at all, since detection scrambles the screen.",
+  ]}
+  explanation="Which-path knowledge and interference exclude each other. Once the state carries information about which slit, the two path amplitudes no longer combine and cancel, so the dark bands fill in and the pattern degrades to the two plain bands expected from particles going through holes."
+/>
+
+## Matter waves
+
+If waves behave like particles, Louis de Broglie proposed in his 1924 thesis, particles should behave like waves, and he wrote down the wavelength: lambda = h over p, Planck's constant divided by momentum. For an ordinary object moving at ordinary speed, momentum is just mass times velocity. The formula says every moving thing has a wavelength, and that the heavier or faster the thing, the smaller the wavelength.
+
+Run the numbers for an electron accelerated through 100 volts. Its kinetic energy is 100 electron-volts, or 1.6 times 10^-17 joules, so its momentum is p = sqrt of 2 times m times E, which comes to 5.4 times 10^-24 kilogram meters per second. The wavelength is 6.6 times 10^-34 divided by 5.4 times 10^-24, about 1.2 times 10^-10 meters, or 1.2 angstroms. Atomic spacings in a crystal run about 2 to 3 angstroms, so an electron wave is exactly the right size to diffract off rows of atoms. Clinton Davisson and Lester Germer bounced electrons off a nickel crystal in 1927 and got diffraction peaks at the predicted angles, the first direct proof that matter waves are real, and a share of the 1937 Nobel Prize. Every electron microscope since works by exploiting this wavelength.
+
+Run the same numbers for a baseball: 0.145 kilograms at 40 meters per second, momentum 5.8 kilogram meters per second, wavelength about 1.1 times 10^-34 meters. A proton, one of the smallest things there is, is about 1.7 times 10^-15 meters across, so the baseball's wavelength is roughly 10^19 times smaller than the smallest measurable object. No interference experiment could ever resolve it, which is why baseballs fly in straight lines and never split. The quantum rules apply to everything. They are simply invisible at momenta where the wavelength stops mattering.
+
+The electron case is worth grounding in hardware, because 1.2 angstroms sounds abstract until it becomes a fringe spacing. Pass those 100-volt electrons through slits spaced a micrometer apart and let them fall on a screen one meter away: the bright bands land about 0.12 millimeters apart, wide enough to see with a magnifying glass. The spacing is just the wavelength divided by the slit spacing, multiplied by the distance to the screen. That ratio, wavelength over slit spacing, is the single number that decides whether any wave shows its interference, and it is why gratings must be scaled to the wavelength: the same fringe size takes a grating a few thousand times finer for electrons than for visible light.
+
+Matter waves keep going up the mass scale, which is the sharpest test of the idea. In 1999 a Vienna group led by Markus Arndt and Anton Zeilinger diffracted buckyballs, soccer-ball molecules of 60 carbon atoms, through a grating and saw fringes. By 2019 the same line of work had pushed interference to molecules of more than 25,000 atomic mass units, a few thousand atoms bound into one object, still landing one molecule at a time and still building a wave pattern. There is no known boundary where wave behavior stops. It only becomes harder to isolate as objects gain ways to leak which-path information to the world around them, which is the trade the next section makes concrete.
+
+<Quiz
+  id="quant-debroglie-scale"
+  question="An electron at 100 volts has a de Broglie wavelength near 1.2 angstroms, while a 40 m/s baseball's is about 1.1 times 10^-34 meters. Why does the double slit work for the electron but never for the baseball?"
+  answer={2}
+  options={[
+    "Baseballs are too large to fit through a slit, so the experiment cannot even be set up.",
+    "Air resistance destroys wave behavior in macroscopic objects but not in electrons.",
+    "The baseball's wavelength is about 10^19 times smaller than anything measurable, so no experiment can resolve any interference it might have.",
+    "Baseball wave behavior cancels itself out because a baseball has vastly more particles than an electron.",
+  ]}
+  explanation="Interference needs wavelength comparable to the geometry it passes through. At 10^-34 meters, the baseball's wavelength is tens of orders of magnitude below any achievable slit spacing or detector resolution, so the wave character exists only on paper. The electron's 1.2 angstrom wavelength matches atomic spacings, which is why crystal diffraction revealed it."
+/>
+
+## Amplitudes and the Born rule
+
+The quantity that does the interfering needed a name and a rule, and both arrived with Max Born in 1926. The wavefunction assigns each possibility a number called the amplitude. For the photon, there is an amplitude for the path through the left slit and an amplitude for the path through the right slit. Amplitudes are not probabilities. They can be negative or complex, they add like waves, and they cancel.
+
+The rule for turning amplitude into odds is called the Born rule: probability equals amplitude squared. The crucial detail is the order of operations. First the amplitudes for all available paths add, then the total gets squared. A worked case shows why the order is everything. Suppose two paths each carry amplitude 0.5. If they arrive in phase, the amplitudes add to 1.0 and the probability is 1.0: the photon always lands there. If they arrive with opposite phase, they add to zero and the probability is zero: never. Treat the two paths as probabilities instead, 0.25 plus 0.25, and both cases would give the same answer, 0.5, losing the interference entirely. Where the two slit amplitudes have the same sign, the sum is large and the square is large: bright band. Where they have opposite signs, the sum is zero and the square is zero: dark band. Add first, square second. That one ordering is interference, and it is the engine behind every quantum effect in the rest of this module, from qubits to entanglement to quantum algorithms.
+
+The Born rule also states the strangeness plainly. With the state known perfectly, the fate of one photon is still not determined. The theory gives exact odds, 50 percent here, 4 percent there, and no more. One photon lands, and where it lands is not fixed by anything in the description. This is not a confession of ignorance about hidden gears that better instruments would reveal: experiments have tested the alternatives, and the odds are as exactly predictable as anything in science, even though single outcomes are not. Prediction in quantum mechanics means predicting statistics, and the statistics are exact.
+
+A quick check of the rule in action:
+
+```python
+import math
+h = 6.626e-34          # Planck's constant, joule seconds
+me = 9.11e-31          # electron mass, kg
+e = 1.6e-19            # electron charge, coulombs
+
+V = 100.0                                  # accelerating voltage
+p = math.sqrt(2 * me * e * V)              # momentum from kinetic energy
+print("electron:", round(h / p * 1e10, 2), "angstroms")
+
+m, v = 0.145, 40.0                         # baseball, kg and m/s
+print("baseball:", h / (m * v), "meters")
+```
+
+The electron through 100 volts comes out at 1.23 angstroms, right in the range of atomic spacings, which is the whole reason electron diffraction was discoverable in 1927 with the hardware of the day. The baseball comes out at about 1.1 times 10^-34 meters. The two numbers differ by a factor of 10^24, the ratio of the two momenta, and that single ratio is why one world of physics looks wavy and the other looks solid.
+
+<Quiz
+  id="quant-born-rule"
+  question="A state assigns an amplitude of 0.5 to one measurement outcome. What is the probability of that outcome?"
+  answer={1}
+  options={[
+    "0.5, since amplitude and probability are the same thing.",
+    "0.25, because probability is the amplitude squared.",
+    "0.707, the square root of the amplitude.",
+    "It cannot be determined without knowing the other amplitudes.",
+  ]}
+  explanation="The Born rule squares the amplitude after all amplitudes have been added, so an amplitude of 0.5 gives a probability of 0.25. Treating the amplitude itself as a probability is the classic first error, and it fails immediately because amplitudes can be negative and can cancel, while probabilities never can."
+/>
+
+Amplitudes that add, cancel, and square into odds are the raw material of everything quantum. The next lesson, superposition-and-qubits, builds the simplest possible quantum object out of that recipe, a system with only two states, and shows what measurement costs and what a billion amplitudes can hide.
+
+<Notes />

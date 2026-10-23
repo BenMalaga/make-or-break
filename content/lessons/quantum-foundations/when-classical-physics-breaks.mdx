@@ -1,0 +1,122 @@
+---
+title: When Classical Physics Breaks
+module: quantum-foundations
+moduleTitle: Quantum Foundations
+moduleOrder: 58
+moduleIcon: Microscope
+order: 1
+summary: "Two experiments from 1900 that no classical rule could explain, and the quantum of energy that fixed them."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - Explain the ultraviolet catastrophe and why classical physics predicted infinite energy inside every hot object
+  - Use E = hf to compute the energy carried by a single quantum of light at a real frequency
+  - Describe the photoelectric effect and the evidence that frequency, not brightness, frees electrons from metal
+  - Show with worked numbers why quantization goes unnoticed at everyday scales
+tags:
+  - physics
+  - quantum
+  - light
+---
+
+In Berlin on December 14, 1900, Max Planck stood before the German Physical Society and proposed a fix for a problem that should not have existed. Classical physics, the collection of rules that had predicted planetary orbits, tides, and pendulums with absurd precision, said that a warm object radiates energy at a rate approaching infinity as the light it emits gets bluer. Real furnaces, plainly, do not vaporize their surroundings. Something in the rules was wrong, and Planck's fix, that energy comes in packets, struck even him as a bookkeeping trick he hoped to remove later. It would not be removed. Within five years it explained a second impossible experiment, and within thirty it had rewired every corner of physics.
+
+This lesson walks through both of those experiments, because each one breaks a specific classical rule in a specific, checkable way. It also shows why the fix stayed invisible for so long: at everyday scales the packets are so small that the world looks perfectly smooth. The quantum world is not a different world. It is the same world, viewed where the grain of energy becomes the biggest thing in the room.
+
+## The glow that had no ceiling
+
+Every warm object glows, and the color of the glow tracks the temperature. A stove element at 700 degrees Celsius glows dull red. A kiln at 1400 degrees glows orange and then white. The sun, at about 5800 kelvin, glows yellow-white. Physicists in the 1800s wanted the exact rule connecting temperature to brightness at each color, and they had a clean test object for the job: the blackbody, an ideal object that absorbs all light falling on it and emits light purely because of its temperature. A closed box with a tiny hole in one wall makes a practical blackbody, since light entering the hole rattles around inside until what escapes carries only the temperature's signature.
+
+The classical prediction for that glow came from counting the wave patterns, or modes, that fit inside the box and letting every mode share the available thermal energy equally. Lord Rayleigh derived the law in 1900 and James Jeans corrected it in 1905, and it matches the measured glow at long wavelengths nicely. Then it keeps going. The predicted brightness grows as one over wavelength to the fourth power, so as the wavelength shrinks the brightness climbs without limit. A real oven at any temperature would pour out infinite energy, concentrated in ultraviolet and X-ray colors that no stove has ever emitted. Physicists named this failure the ultraviolet catastrophe, and the name is honest: the classical sum diverges.
+
+The measured truth looks nothing like that. The glow peaks at one wavelength and falls toward zero on both sides. Wilhelm Wien had already fit the peak from experiment: it sits at 2.9 times 10^-3 meters divided by the temperature in kelvin. The sun at 5800 K therefore peaks at 5.0 times 10^-7 meters, 500 nanometers, right in the green. A glowing coal at 1000 K peaks near 2900 nanometers, deep in the infrared, which is why a coal radiates heat and barely any visible light. Any replacement for the classical law had to produce that peak.
+
+## Planck's packets
+
+Planck's fix was to assume that the vibrating atoms in the wall can absorb or emit energy only in packets of a fixed size. The packet size is E = hf, where f is the frequency of the light and h is a constant he fitted to the data, now called Planck's constant, about 6.6 times 10^-34 joule seconds. A packet of green light at 5.5 times 10^14 hertz carries 6.6 times 10^-34 times 5.5 times 10^14, about 3.6 times 10^-19 joules. Small packets for red light, bigger ones for blue, enormous ones for X-rays.
+
+The packets kill the divergence, and the reason is worth seeing in one sentence: a hot wall shares its thermal energy in chunks of roughly kT, about 4 times 10^-21 joules at room temperature and 8 times 10^-20 joules at the sun's 5800 K, so any mode demanding a packet larger than that budget simply stays empty instead of soaking up infinite energy. At short wavelengths the required packet cost grows and grows, fewer and fewer modes can afford it, and the brightness collapses toward zero instead of diverging. The peak lands wherever a quantum costs a few kT, which for the sun is the 500 nanometer mark Wien had measured. Planck's constant was not derived from anything. He adjusted it until the curve matched, and it has never needed adjusting since.
+
+<Callout type="info" title="Planck did not believe it either">
+Planck called the move an act of desperation in a 1931 letter to the physicist R. W. Wood, and for years he treated the packets as a quirk of the vibrating wall atoms rather than a property of light itself. Five years later Einstein took the step Planck avoided and made the light itself granular, and that step is the second half of this lesson. There is a working lesson in the delay: the person who finds the equation is often not the person who believes it.
+</Callout>
+
+<Quiz
+  id="quant-uv-catastrophe"
+  question="Classical physics summed the energy of every wave mode inside a hot cavity, down to arbitrarily short wavelengths, and got infinity. What single change makes that sum come out finite?"
+  answer={1}
+  options={[
+    "Banning wavelengths shorter than the size of the cavity itself.",
+    "Requiring each mode to exchange energy in packets of hf, so the shortest-wavelength modes cannot afford to carry any energy.",
+    "Assuming the cavity walls reflect all short wavelengths perfectly.",
+    "Letting the modes share the thermal energy unevenly instead of equally.",
+  ]}
+  explanation="Each mode must trade energy in packets of size hf. At short wavelengths one packet costs more than the thermal energy available, so those modes stay empty and the sum collapses instead of diverging. That is exactly why the measured curve falls to zero at short wavelengths instead of climbing."
+/>
+
+## Light that kicks out electrons
+
+The second crack opened in 1887, when Heinrich Hertz was testing radio waves and noticed that ultraviolet light striking his spark gaps made them jump more easily. Light was knocking electrons out of metal, an effect later named the photoelectric effect. Philipp Lenard measured it carefully in 1902 and found rules the wave theory could not live with. Below a threshold frequency, no electrons leave the metal at all, no matter how intense the light. Above the threshold, electrons leave immediately, and brighter light sends more of them but never faster ones. Faster electrons appear only when the frequency goes up.
+
+The wave picture gets every one of those rules backwards. A wave delivers energy continuously and gently, so a brighter beam should hand each electron more energy and eject them faster, and enough of any color, left on long enough, should eventually work. The measurements say the energy an electron gains depends only on frequency, that some frequencies do nothing at any brightness, and that emission starts the instant good light arrives rather than after a warm-up.
+
+Einstein's 1905 explanation made the packets real: light travels as photons, each carrying E = hf, and one electron absorbs one photon whole or nothing at all. The electron escapes only if its single photon carries more energy than the work function, the binding energy holding it in the metal, usually written phi. Whatever the photon has left over becomes the electron's kinetic energy, giving a maximum electron energy of K = hf minus phi. Brightness controls how many photons arrive per second, never what each one carries.
+
+The numbers make the threshold concrete. Sodium's work function is about 2.3 electron-volts, which is 2.3 times 1.6 times 10^-19, or 3.7 times 10^-19 joules. The threshold frequency is phi divided by h: 3.7 times 10^-19 over 6.6 times 10^-34 gives 5.6 times 10^14 hertz, a wavelength of 540 nanometers, green light. Red light at 650 nanometers carries about 1.9 electron-volts per photon and frees nothing from sodium, no matter how bright the lamp. Ultraviolet at 200 nanometers carries about 6.2 electron-volts, so a freed electron leaves with about 6.2 minus 2.3, or 3.9 electron-volts, of kinetic energy. Robert Millikan spent a decade measuring this relationship and published in 1916 a value of Planck's constant good to about half a percent, and Einstein received the 1921 Nobel Prize for the photoelectric effect specifically, not for relativity.
+
+<Quiz
+  id="quant-photon-energy"
+  question="Sodium's work function is 2.3 electron-volts. A red lamp, whose photons each carry about 1.9 electron-volts, is made a million times brighter. What happens to the electrons in the sodium?"
+  answer={2}
+  options={[
+    "Electrons come off, but slowly, because the extra brightness eventually adds up per electron.",
+    "Electrons come off with 1.9 electron-volts of kinetic energy each.",
+    "Nothing comes off. One electron absorbs one photon, and no single photon carries enough energy to free it.",
+    "The metal heats up until electrons boil off thermally, which is the same effect.",
+  ]}
+  explanation="The photoelectric effect is a one-photon, one-electron transaction. Brightness changes how many photons arrive, not the energy of each one, so a million-fold brighter red lamp still hands each electron only 1.9 electron-volts against a 2.3 electron-volt bill. Thermal evaporation is a real but separate effect that takes seconds to minutes, while true photoemission starts instantly above the threshold."
+/>
+
+## Why nobody notices
+
+Quantization stayed hidden for two centuries because the rungs of the energy ladder are absurdly small compared with everyday energies. The rung spacing is hf for whatever frequency sets the scale. A pendulum with a one-second period has f = 1 hertz, so its energy ladder has rungs 6.6 times 10^-34 joules apart. A pendulum swinging with a hundredth of a joule sits about 1.5 times 10^31 rungs above its lowest state, since 0.01 divided by 6.6 times 10^-34 is about 1.5 times 10^31. Climbing one rung changes the swing by a part in 10^31, an effect no instrument can detect. The ladder is real, and its rungs are thirty-one orders of magnitude below anything measurable.
+
+The steps only matter when the entire energy budget is quantum-sized: one atom, one electron, one photon. Then hf is the only currency in circulation and the steps are the whole story, which is why chemistry, electronics at the atomic level, and the light from stars all demanded the new rules while billiards never did. At kiln and pendulum scales the steps blur into continuity the way pixels blur into a photograph seen from across the room.
+
+The same arithmetic runs the other way for light itself, where the numbers are the tools:
+
+```python
+import math
+h = 6.626e-34      # Planck's constant, joule seconds
+c = 3.0e8          # speed of light, m/s
+k = 1.38e-23       # Boltzmann constant, joules per kelvin
+T = 5800           # the sun's surface, kelvin
+
+def planck(wl):                    # brightness at wavelength wl (meters)
+    x = h * c / (wl * k * T)
+    return 1.0 / (wl**5 * (math.exp(x) - 1.0))
+
+for wl in [300e-9, 500e-9, 700e-9, 1000e-9, 2000e-9]:
+    p = planck(wl) / planck(500e-9)
+    classical = (500e-9 / wl) ** 4
+    print(f"{wl*1e9:5.0f} nm   Planck {p:6.3f}   classical {classical:6.3f}")
+```
+
+Both columns are normalized to 1 at 500 nanometers, where the real curve peaks. Read the mismatch. At 300 nanometers the classical law predicts 7.716, meaning nearly eight times brighter than the peak, while Planck's law says 0.466 and falling. Even at 700 nanometers, plain red light, the classical column is already off by a factor of three. On the long side, at 2000 nanometers, both columns collapse to a few hundredths of the peak, and there the classical law was never in trouble. The failure lives entirely on the short side, in the ultraviolet, where almost nobody was measuring around 1900, which is why the contradiction hid for decades. The output above is the shape of the argument that ended classical certainty.
+
+<Quiz
+  id="quant-quantization-scale"
+  question="A pendulum with a one-second period has energy rungs 6.6 times 10^-34 joules apart and swings with 0.01 joules of energy. Why does nobody ever see the pendulum jump between rungs?"
+  answer={0}
+  options={[
+    "There are about 10^31 rungs between stillness and this swing, so each rung changes the energy by an undetectably tiny fraction.",
+    "Pendulums are made of metal, and metal atoms absorb the quanta before the pendulum can step.",
+    "The rungs only exist for light, not for the motion of solid objects.",
+    "Rungs exist but merge at temperatures above absolute zero.",
+  ]}
+  explanation="The rung spacing is hf, and for a one-second pendulum that is 6.6 times 10^-34 joules against a swing of 0.01 joules, a relative step size near 10^-31. The ladder is astronomically fine-grained at this energy scale, so motion looks perfectly smooth. The same ladder dominates completely when the whole system, one atom or one electron, has only a few quanta of energy."
+/>
+
+Light now had two costumes. Planck and Einstein had made it granular, energy that arrives in indivisible packets with a hard frequency threshold, and yet the same light bends around edges and produces interference fringes, which is pure wave behavior. The next lesson, wave-particle-duality, takes that split head on with the double slit, with matter waves of its own for electrons and baseballs, and with the probability rule that replaced trajectories.
+
+<Notes />

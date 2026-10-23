@@ -1,0 +1,137 @@
+---
+title: Forces and Newton's Laws
+module: physics-foundations
+moduleTitle: Physics Foundations
+moduleOrder: 55
+moduleIcon: FlaskConical
+order: 2
+summary: "Force as a push or pull, the three laws that connect force to motion, and the free-body diagram that turns a problem into arrows."
+estimatedMinutes: 15
+prerequisites: ["describing-motion"]
+objectives:
+  - Define force in newtons and find the net force when several pushes and pulls combine
+  - Apply F = ma to predict acceleration from force and mass with worked numbers
+  - Identify Newton's third law pairs and explain why they never cancel on one object
+  - Draw a free-body diagram and include static and kinetic friction with real coefficients
+tags:
+  - physics
+  - forces
+  - motion
+---
+
+Describing Motion left a question hanging in the air its ball fell through. The ball gained 9.8 m/s of speed every second, steadily and endlessly, but that lesson never said what makes it do so, or why a pushed crate glides to a stop instead of coasting forever. Forces answer both. A force is a push or a pull, measured in newtons, and three rules published by Isaac Newton in 1687 connect every force to the motion it changes.
+
+## The newton and the idea of net force
+
+One newton is a small push: 1 newton accelerates a 1 kilogram mass at 1 m/s^2. An apple with a mass near 100 grams is pulled down by its own weight with about 1 N, so a newton is roughly the force of holding an apple. Real machines work at bigger scales: opening a heavy door takes a few newtons, and a car's brakes apply thousands.
+
+Forces add like arrows, which means with their directions attached. The net force is the single arrow left over after every push and pull on an object is added tip to tail. A 2 kg book resting on a table feels Earth pulling down with 19.6 N and the table pushing up with 19.6 N. Net force: zero. That zero is not a technicality. It is the entire content of Newton's first law.
+
+## The first law: no net force, no change
+
+Newton's first law says an object with zero net force keeps its velocity exactly as it is. At rest, it stays at rest. Moving, it keeps moving at the same speed in the same direction, indefinitely, until something applies a net force. The resistance to being changed is called inertia, and it belongs to mass: more mass, more stubbornness.
+
+Everyday life hides this law because friction and air drag are always standing by to change things. A hockey puck on fresh ice comes close to demonstrating it, gliding meter after meter with almost no loss. Space is where the law goes unmasked. The Voyager 1 probe, launched in 1977 and long out of fuel for steering, coasts through interstellar space at about 17 km/s and will hold that velocity for tens of thousands of years, because almost nothing is out there to push on it.
+
+Seat belts exist because of this law, not because of any force pushing a passenger forward in a crash. A car braking hard applies huge forces to the car, but nothing applies a force to a loose passenger until they meet the windshield or the belt. The passenger keeps the car's old velocity, exactly as the first law says, and the belt exists to be the object that supplies the stopping force gently instead of the dashboard supplying it suddenly.
+
+<Quiz
+  id="phys-forces-first-law"
+  question="A probe drifts through deep space, far from any star or planet, with its engines off. What is its acceleration?"
+  answer={3}
+  options={[
+    "It depends on the probe's mass, since heavier things resist acceleration.",
+    "A small constant deceleration, since moving objects slow down without fuel.",
+    "About 9.8 m/s^2, since gravity acts everywhere in the universe.",
+    "Zero. With no net force on it, the probe keeps its velocity exactly as it is.",
+  ]}
+  explanation="Newton's first law: zero net force means zero acceleration and unchanged velocity. The probe coasts at constant speed forever. Gravity from distant objects is too spread out to matter here, and mass affects how much force is needed to accelerate, not whether a force exists."
+/>
+
+## The second law: force converts to acceleration
+
+Newton's second law is the equation the whole subject leans on: F = ma, force equals mass times acceleration. Rearranged as a = F/m, every word of it can be felt. Push harder, accelerate more. Same push on more mass, accelerate less.
+
+Worked numbers make it concrete. A 1500 kg car driven by a net 3000 N accelerates at 3000 / 1500 = 2 m/s^2, so reaching 27.8 m/s, about 100 km/h, takes 27.8 / 2 = 13.9 seconds. Load the same car with 1500 kg of cargo, for 3000 kg total, and the same 3000 N now manages only 1 m/s^2, stretching the run to 27.8 seconds. Nothing about the engine changed. The mass did, and the second law charges mass for every bit of acceleration it buys.
+
+One units habit prevents the most common mistake with this equation. Mass goes in kilograms, always, because the newton was defined as kg times m/s^2. Push a 500 gram ball with 5 N and the acceleration is 5 / 0.5 = 10 m/s^2; enter 500 instead of 0.5 and the answer comes out a thousand times too small, and nothing in the arithmetic complains. Convert grams to kilograms before the equation sees them.
+
+## The third law: forces come in pairs
+
+Newton's third law says that when object A pushes object B, object B pushes back on A with equal strength in the opposite direction, at the same instant. A foot pushes the sidewalk backward, and the sidewalk pushes the foot forward; that forward push is what walks a person down the street. A rocket shoves exhaust gas downward and the exhaust shoves the rocket upward. Nothing needs ground or air to push against, which is why rockets work in the vacuum of space.
+
+The trap hiding in the phrase equal and opposite is assuming the pair cancels. It does not and cannot: the two forces act on different objects. The sidewalk's push moves the foot; the foot's push moves the planet by an immeasurably small amount. To predict one object's motion, add only the forces acting on that object, and every third law partner will be found sitting in somebody else's ledger.
+
+<Callout type="warning" title="Equal and opposite does not mean cancel">
+A horse pulls a cart, the cart pulls back equally, so why does anything move? Because the two forces act on different bodies. The cart's backward pull acts on the horse, and the horse's forward push acts on the cart; neither force appears twice on the same ledger. The horse accelerates because the ground pushes its hooves forward harder than the cart pulls it back. Always sort forces by which object they act on before adding anything.
+</Callout>
+
+<Quiz
+  id="phys-forces-third-law"
+  question="A book lies on a table. Which of these is a Newton's third law pair?"
+  answer={1}
+  options={[
+    "The book's weight downward and the table's normal force upward, because they are equal and opposite.",
+    "Earth's pull downward on the book, and the book's pull upward on Earth.",
+    "The book's weight downward and the book's inertia holding it still.",
+    "The table's normal force upward, and the table's friction holding the book in place.",
+  ]}
+  explanation="A third law pair is one interaction seen from both sides: Earth pulls the book down, so the book pulls Earth up, equal and opposite on different objects. The weight and the normal force both act on the book, so they are not a pair, even though they balance to zero. Friction is a separate interaction and not the partner of the normal force."
+/>
+
+## Weight, mass, and free-body diagrams
+
+Mass and weight get used interchangeably in speech and never in physics. Mass, in kilograms, measures the amount of matter and the inertia; it is the same on Earth, on the Moon, or drifting in deep space. Weight is a force, the gravitational pull on that mass, equal to mass times g. A 70 kg person weighs 70 times 9.8 = 686 N on Earth and 70 times 1.6 = 112 N on the Moon, where surface gravity is 1.6 m/s^2. Same person, same mass, one sixth the weight.
+
+A free-body diagram turns a messy situation into arrows. Isolate one object, draw every force acting on it as an arrow starting from a dot, and label each one. For a box resting on a floor: weight straight down, the floor's normal force straight up, and, if something pushes it, the push forward and friction backward. The normal force is simply the name for a surface pushing perpendicular to itself, and it grows or shrinks to whatever the situation demands.
+
+The elevator shows what a free-body diagram buys. At rest, the 70 kg rider feels 686 N up from the floor and 686 N down from gravity: net zero, no acceleration. The car then accelerates upward at 1 m/s^2. Now the net force must be ma = 70 N upward, so the floor pushes up with 686 + 70 = 756 N. A bathroom scale under the rider reads that floor push directly, 756 N instead of 686, which is why a rising elevator presses feet into the floor. When the car slows near the top of its climb, the arithmetic reverses and the scale reads 70 times 8.8 = 616 N, briefly lighter.
+
+## Friction: static holds, kinetic drags
+
+Friction is the force a surface applies parallel to itself, always opposing sliding. Its size comes from one multiplication: f = mu times N, the coefficient of friction for that pair of surfaces times the normal force pressing them together. Press surfaces together harder and friction grows in exact proportion, which is why a heavier crate is harder to drag across the same floor.
+
+Coefficients come in two flavors, and the difference runs the world. Static friction, for surfaces not yet sliding, adjusts itself up to a maximum. Kinetic friction, for surfaces already sliding, holds nearly constant and is usually lower. Typical published values: rubber on dry concrete, about 1.0 static and 0.8 kinetic, which is why tires grip so well until they skid; wood on wood, about 0.5 static and 0.3 kinetic; Teflon on steel, about 0.04, which is why nothing sticks to a nonstick pan.
+
+One property is missing from that list on purpose: contact area. In this model, and to a good approximation in reality for rigid objects, friction depends on the normal force and the surfaces, not on how much of them touches. Drag a brick flat and then on its end across the same floor and the forces differ by only a few percent. Wide tires grip no better in this model; what makes racing tires work is compound and temperature and, at speed, the shape of the contact patch pressing down. The simple f = mu times N formula earns its keep precisely by being nearly true.
+
+Apply the numbers to a 10 kg crate on a workshop floor. Its weight is 98 N, so the normal force is 98 N, and static friction can supply up to 0.5 times 98 = 49 N of holding. Push with 40 N and nothing happens: static friction quietly matches the push at 40 N, under its ceiling, and the crate stays put. That is the failure mode nobody warns about. Force is not the issue; the push must beat the static ceiling before anything moves.
+
+Push with 60 N instead. The crate breaks loose, and once sliding, kinetic friction takes over at 0.3 times 98 = 29.4 N. The net force is 60 - 29.4 = 30.6 N, so the second law gives a = 30.6 / 10 = 3.06 m/s^2. Velocity updates the same way the falling ball did, one small step at a time:
+
+```python
+m, g = 10.0, 9.8               # crate mass in kg, gravity
+F_push, mu = 60.0, 0.3         # steady push in N, kinetic friction coefficient
+friction = mu * m * g          # sliding friction, opposing the push
+a = (F_push - friction) / m    # Newton's second law, solved for a
+v, dt = 0.0, 0.01
+for step in range(200):        # two seconds of sliding, in 0.01 s steps
+    v = v + a * dt
+    if step in (99, 199):
+        print(round(v, 2), "m/s after", (step + 1) / 100, "s")
+```
+
+The loop prints 3.06 m/s after 1.0 s and 6.12 m/s after 2.0 s. With acceleration constant, those are exact, not approximations: the loop just adds the same small change 200 times. Drop the push to 40 N and the same loop never runs at all, because the crate never breaks loose. The physics lives or dies on one comparison, 60 N against 49 N, before any acceleration happens.
+
+<Quiz
+  id="phys-forces-friction"
+  question="The 10 kg crate sits still while a worker pushes horizontally with a steady 40 N. Static coefficient 0.5, kinetic coefficient 0.3, g = 9.8. What happens?"
+  answer={1}
+  options={[
+    "It slides with acceleration 0.08 m/s^2, since friction only resists motion.",
+    "It stays put, because static friction can hold up to 49 N, more than the 40 N push.",
+    "It slides, since any push however small eventually overcomes kinetic friction.",
+    "It stays put forever, since friction always equals the full weight of the crate.",
+  ]}
+  explanation="Static friction adjusts itself to match the push, up to a maximum of mu_s times N = 0.5 times 98 = 49 N. A 40 N push sits under that ceiling, so friction matches it at 40 N and the net force is zero. Kinetic friction never enters, because the crate never starts sliding."
+/>
+
+<Exercise title="Ride an elevator with a scale">
+Stand on a bathroom scale in an elevator and read it during three phases of the ride. At rest or at cruising speed it shows the true weight. During the first moments of accelerating upward, the reading climbs by m times a, exactly the extra push the floor must supply. Near the top, as the car decelerates, the reading dips below the true weight by the same amount.
+
+Do the arithmetic on a real ride. Suppose the scale jumps from 70 to 77 kg during startup, an increase of 7 kg equivalent, which is 7 times 9.8 = 68.6 N of extra force. Divide by the 70 kg mass and the elevator's upward acceleration was 68.6 / 70 = 0.98 m/s^2. Fast elevators in tall buildings pull around 1 m/s^2, so the numbers land right where the theory says they should.
+</Exercise>
+
+Forces explain every change in velocity, but they cannot say what a push was worth in a currency that survives the whole trip. That bookkeeping is energy: work in, kinetic and potential energy held, work out, under a rule that the total never changes. Work, Energy, and Power builds that ledger and answers with it the questions forces would take pages to reach.
+
+<Notes />

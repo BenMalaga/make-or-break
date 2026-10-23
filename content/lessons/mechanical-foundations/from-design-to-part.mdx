@@ -1,0 +1,227 @@
+---
+title: From Design to Part
+module: mechanical-foundations
+moduleTitle: Mechanical Foundations
+moduleOrder: 57
+moduleIcon: Factory
+order: 5
+summary: "Tolerances, fits, and process choice: how a drawing becomes a physical part that actually fits and works."
+estimatedMinutes: 14
+prerequisites: ["power-and-machines"]
+objectives:
+  - Specify a tolerance band and design for the worst case where two parts meet
+  - Classify a shaft-and-hole joint as clearance, transition, or interference fit
+  - Choose between 3D printing, machining, and injection molding for a given quantity
+  - Apply basic design-for-manufacture rules such as draft angles and stock sizes
+tags:
+  - mechanical
+  - manufacturing
+  - design
+---
+
+Power and Machines ended with a drivetrain that works beautifully in numbers.
+Then the part gets made, and the shop floor teaches its first lesson fast: the
+10 mm motor shaft does not slide into the bracket printed with a 10 mm hole,
+because the hole came out at 9.7 mm. Nothing failed. No process on earth
+repeats a size exactly, and a design that pretends otherwise fails in the hand,
+not on the spreadsheet.
+
+## No part is exact
+
+Every drawing dimension needs a tolerance, the allowed band above and below the
+nominal size. A shaft drawn at 10.0 mm with a tolerance of plus or minus 0.05 mm
+may legally arrive anywhere from 9.95 to 10.05 mm, and every one of those parts
+is a good part. Tolerances are not sloppiness. They are the honest statement of
+what the process can hold, and they are what lets two suppliers make mating
+parts in different cities that assemble on the first try.
+
+Process decides the band. A well-tuned hobby 3D printer holds about plus or
+minus 0.2 mm, and layer lines add their own waviness. CNC milling in a real shop
+routinely holds plus or minus 0.025 mm, and precision grinding goes tighter
+still. Injection molding lands around plus or minus 0.1 mm for a small part.
+Tolerance is bought, never given, and the price is the subject of a section
+below. Inspection closes the loop: digital calipers read to 0.01 mm and measure
+accurately to about plus or minus 0.02 mm, while a micrometer holds a real
+hundredth, which is why a bearing seat gets the micrometer and a bracket gets
+the calipers.
+
+Where two parts meet, design for the worst case, not the nominal. The code
+below checks a shaft and hole with realistic bands:
+
+```python
+shaft, shaft_tol = 10.00, 0.05   # mm
+hole, hole_tol = 10.20, 0.05     # mm
+
+tightest = (hole - hole_tol) - (shaft + shaft_tol)
+loosest = (hole + hole_tol) - (shaft - shaft_tol)
+print(f"worst-case tight fit: {tightest:.2f} mm clearance")
+print(f"worst-case loose fit: {loosest:.2f} mm clearance")
+```
+
+The worst tight fit is (10.15 - 10.05) = 0.10 mm of clearance and the loosest is
+0.30 mm. Both numbers, not the 0.20 mm the nominals suggest, describe the real
+product. A designer who checks only nominals is checking a part that will never
+exist.
+
+Real assemblies stack the problem up. A bracket bolted to a plate that sits in a
+housing inherits the tolerance of every layer between it and the reference
+surface, and each part's band adds to the worst case at the far end of the chain.
+Designers who care about a final gap count the links, tighten the one or two
+that dominate, and leave the rest generous. Checking nominals and hoping is how
+assemblies arrive needing a hammer.
+
+<Quiz
+  id="mech-tolerance-band"
+  question="A shaft is drawn at 10.00 mm with a tolerance of plus or minus 0.05 mm. What does that tolerance promise?"
+  answer={1}
+  options={[
+    "Every manufactured shaft will measure exactly 10.00 mm.",
+    "Every shaft will measure between 9.95 and 10.05 mm, and each is a good part.",
+    "The shaft will wear down to 10.00 mm over time.",
+    "The manufacturer guarantees 10.00 mm on average, with any spread allowed.",
+  ]}
+  explanation="A tolerance is the acceptance band: 9.95 to 10.05 mm, all of it good. No process hits a single exact size, which is exactly why the band exists. Without a stated band there is no definition of a good part at all."
+/>
+
+## Fits: shaft into hole
+
+Three families of fit cover every shaft-and-hole joint. A clearance fit always
+leaves a gap: the largest shaft is smaller than the smallest hole, so the parts
+slide, like a bolt through its holes or a shaft spinning in a plain bearing. An
+interference fit always overlaps: the shaft is bigger than the hole even at
+worst case, so the parts must be pressed or shrunk together and they grip
+permanently, like a bearing outer race pressed into its housing, where a few
+hundredths of a millimeter of interference at a 10 mm size does the holding. A
+transition fit straddles the line: the bands overlap both ways, so one part may
+slide and its twin may need a light press, which suits locating dowels that must
+not wobble but must come back out.
+
+The fit is chosen by function, and the function usually announces itself. Parts
+that must move need guaranteed gap. Parts that must never move need guaranteed
+overlap. Parts that must locate precisely and still disassemble live in the
+narrow middle, and pay for it in tighter tolerances than either neighbor.
+
+Standards make fits routine instead of bespoke. ISO 286 tabulates standard bands
+for shafts and holes by size, and a drawing that calls out a 10 mm running fit
+as H7/g6 has told the machine shop everything: both exact bands come straight
+off the standard's tables, in micrometers. Nobody derives a fit from first
+principles on the shop floor; the lookup is the professional move, the same way
+no one re-derives resistor color codes.
+
+<Quiz
+  id="mech-fit-type"
+  question="A bearing's outer race measures 10.02 mm and its housing bore measures 10.00 mm even in the best case. What kind of fit is this?"
+  answer={2}
+  options={[
+    "A clearance fit, because the two sizes are so close together.",
+    "A transition fit, because the parts might fit either way.",
+    "An interference fit, pressed together, because the race is always bigger than the bore.",
+    "No fit at all; the parts cannot be assembled without machining.",
+  ]}
+  explanation="The race is larger than the bore in every allowed combination, so the joint always overlaps: an interference fit. The parts press together and the elastic squeeze grips them permanently, which is exactly how bearings stay put in housings."
+/>
+
+## Tighter is not better
+
+Every step tighter on a tolerance costs real money, and the curve bends upward
+fast. A plus or minus 0.2 mm band on an milled bracket is nearly free, since any
+mill holds it while breathing. Demand plus or minus 0.01 mm on the same bracket
+and the shop reaches for a better machine, slower passes, temperature control,
+and inspection on every part, and the price multiplies several times over. Tight
+tolerances also raise scrap, because more parts fall outside a narrower band.
+
+The professional habit is to specify one generous general tolerance for the whole
+part and tighten only where function demands it: a bearing seat, a sliding way,
+a sealing surface. A hole that only ever meets a loose M4 screw does not care
+about a hundredth of a millimeter, and it should not be billed as if it did.
+ISO 2768, the general-tolerance standard, exists precisely so a drawing can say
+"all others per standard" and every shop knows what that means.
+
+Shops quote the cost curve in plain terms. Holding plus or minus 0.1 mm on a
+milled part is close to the price of the part itself. Halve the band and the
+price climbs on a slope, not a step; grind to plus or minus 0.005 mm and the
+part visits a machine that exists mostly for grinding, with inspection to match.
+Every halving gets paid for twice, once in setup and once in scrap.
+
+## Choosing how to make it
+
+Three processes cover most of what a small shop or product line needs, and each
+wins a different race. 3D printing builds parts in hours with almost no setup,
+and geometry is nearly free, which makes it unbeatable for one-offs and
+prototypes; the trade is strength that varies with print direction and that
+plus or minus 0.2 mm band. CNC machining carves strong, accurate parts from
+almost any material and holds plus or minus 0.025 mm without strain, but the
+machine time is billed by the hour, so the tenth part costs nearly what the
+first did. Injection molding turns out parts in seconds for pennies, but the
+mold tool costs five figures and weeks of lead time, so it only pays once the
+quantity reaches thousands.
+
+That tooling price is where design-for-manufacture earns its keep, because
+molded parts must obey rules a prototype never faced. Vertical walls need draft
+angles, one or two degrees of taper, or the part fights the mold on every
+ejection. Wall thickness wants to be uniform, because a thick region cools
+slower, shrinks more, and leaves a sink mark on the show surface. Sharp inside
+corners crack; fillets fix them. Designers who run cheap prototypes in the
+printed world get ambushed by these rules at molding time unless they design for
+the destination process from the start.
+
+Material follows the process. Printed parts arrive as PLA, PETG, or, on better
+machines, nylon and carbon-filled blends, with strength that depends on print
+direction because the layer interfaces are the weak planes. Machined parts take
+whatever the stock is: aluminum 6061, steel, titanium, whatever the job buys,
+at full bulk strength in every direction. Molded parts live in engineered
+thermoplastics picked for the part's entire service life, and the mold
+frequently outlives the product it makes.
+
+The same thinking covers assembly. Standard stock, 6 mm plate, M3 and M4
+fasteners, off-the-shelf extrusions, beats custom sizes that need special
+orders. Fewer parts beat more parts, and a part that can only go in one way
+beats one that can go in backwards.
+
+<Quiz
+  id="mech-process-volume"
+  question="A design will ship 100,000 identical plastic clips. Which process makes them, and why?"
+  answer={3}
+  options={[
+    "3D printing, because it needs no tooling and handles any geometry.",
+    "CNC machining, because it gives the strongest and most accurate clips.",
+    "3D printing for the first batch, then machining once demand is proven.",
+    "Injection molding, because the tooling cost amortizes to almost nothing per clip.",
+  ]}
+  explanation="At 100,000 units the five-figure mold is a rounding error: even at $40,000 of tooling that is 40 cents per clip, and each molded clip then costs pennies. Printing or machining 100,000 clips would cost more per unit forever, because both processes bill time on every part."
+/>
+
+Under all of it sits one source of truth: the CAD model. The model carries the
+geometry that every process downstream consumes, whether that is toolpaths for a
+mill or the STL a printer slices, and drawings carry the tolerances and critical
+dimensions the model cannot say. Mechanical drawings are almost always in
+millimeters, and a dimension without a tolerance is a suggestion, not a spec.
+When the model and the part disagree, the model wins the argument, which is why
+serious shops refuse to work from anything else.
+
+The first prototype teaches, the second one usually works, and the discipline is
+to make the cheap version first: print the bracket, find the interference, fix
+the model, print again. The progression is deliberate. Printed parts answer fit
+and geometry questions cheaply, machined parts answer strength questions in real
+material, and molded parts arrive only after both are settled. Asking a
+prototype a question its process cannot answer wastes the round. Iteration is
+not a sign of a bad designer; it is the process working as designed.
+
+<Exercise title="Price three ways to make one bracket">
+Sketch the same 100 mm L-bracket three times in a notebook and assign each
+version its realistic costs. The printed one: a few dollars of material and a
+night of printer time, plus or minus 0.2 mm. The machined one: shop time at a
+hundred or more per hour for setup and cutting. The molded one: five figures of
+tooling up front and roughly cents per part after that.
+
+Then write the quantity at which the molding bill crosses the machining bill for
+the whole run. The crossover lands in the thousands for a part this small, and
+finding that number honestly is the entire job of choosing a process.
+</Exercise>
+
+Mechanical parts never ship alone. Every real product bolts them next to
+electronics: the motor needs a driver circuit, the sensor needs a chip, the
+power needs a source. The Electronics Foundations module picks up exactly there,
+starting with what electricity is and why a complete loop decides everything.
+
+<Notes />

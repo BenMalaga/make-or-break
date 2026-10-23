@@ -1,0 +1,236 @@
+---
+title: Trigonometry and Vectors
+module: math-foundations
+moduleTitle: Mathematics Foundations
+moduleOrder: 54
+moduleIcon: Shapes
+order: 3
+summary: "Right triangles, sine and cosine, radians, and vectors: the arrows that carry both size and direction."
+estimatedMinutes: 15
+prerequisites: ["exponents-and-logarithms"]
+objectives:
+  - Define sine, cosine, and tangent as side ratios of a right triangle
+  - Explain what a radian measures and convert between radians and degrees
+  - Break a vector into components with cosine and sine
+  - Add vectors component by component and compute a resultant speed and heading
+tags:
+  - math
+  - trigonometry
+  - vectors
+---
+
+Exponents and Logarithms handled size: how large, how fast growing. Size alone
+cannot describe a wind. A weather station reports 30 km/h from the northwest,
+and those two numbers, speed and heading, do a job one number never could.
+Direction is everywhere in engineering: a plane fights a crosswind, a robot arm
+pushes along an axis, current flows around a loop. Direction needs geometry,
+and the right triangle is the tool that turns direction into arithmetic.
+
+## Similar triangles fix the ratios
+
+Two triangles are similar when they have the same angles, and similar triangles
+are scaled copies of each other. A triangle with sides 3, 4, and 5, and a
+triangle with sides 6, 8, and 10, hold the same three angles; the second is
+just the first photographed from twice as close. Every side of the big one is
+exactly twice the matching side of the small one.
+
+The consequence that powers all of trigonometry is about ratios, not lengths.
+In the 3-4-5 triangle the ratio of the shortest side to the longest is 3/5 =
+0.6, and in the 6-8-10 triangle it is 6/10 = 0.6, the same number. Every ratio
+of sides stays fixed when a triangle is scaled, because the scaling factor
+cancels between numerator and denominator. Ratios depend only on the angles.
+That single fact is the foundation: once an angle is fixed, all its side ratios
+are fixed with it, no matter how large or small the triangle is drawn.
+
+This is also how heights get measured without climbing anything. A 3 meter pole
+stuck in the ground casts a 4 meter shadow at some moment; at that same moment
+a flagpole casts a 40 meter shadow. Sunlight strikes both at the same angle, so
+the two shadow-triangles are similar, and the flagpole's height is 40 times
+3/4, which is 30 meters. Thales of Miletus is credited with exactly this trick
+on the Egyptian pyramids around 600 BC, and it needs nothing more than the
+fixed-ratio fact above.
+
+## Sine, cosine, and tangent
+
+Name the parts of a right triangle relative to one chosen acute angle. The
+hypotenuse is the longest side, opposite the right angle. The opposite side is
+the one across from the chosen angle, and the adjacent side is the one next to
+it that is not the hypotenuse. Which side is "opposite" changes when the chosen
+angle changes, so the labels belong to the angle, not to the triangle.
+
+Three ratios get names. The sine of the angle is opposite over hypotenuse. The
+cosine is adjacent over hypotenuse. The tangent is opposite over adjacent. For
+the 3-4-5 triangle with the angle chosen at the corner where the 3 side meets
+the hypotenuse, the opposite side is 4 and the adjacent side is 3, so sin of
+that angle is 4/5 = 0.8, cos is 3/5 = 0.6, and tan is 4/3, about 1.33. A few
+angles come out exact and are worth knowing cold: sin of 30 degrees is exactly
+0.5, cos of 60 degrees is 0.5, and tan of 45 degrees is 1, because a 45 degree
+right triangle has two equal legs.
+
+The tangent ratio connects straight back to the last lesson: for a line
+climbing at an angle, the tangent of that angle is the slope, rise over run
+once again. Trigonometry did not invent a new idea there; it named the slope of
+a hypotenuse.
+
+<Quiz
+  id="mathf-345-sine"
+  question="In a right triangle with sides 3, 4, and hypotenuse 5, take the angle at the corner where the side of length 3 meets the hypotenuse. What is the sine of that angle?"
+  answer={1}
+  options={[
+    "0.6, because sine is adjacent over hypotenuse.",
+    "0.8, because the opposite side is 4 and the hypotenuse is 5.",
+    "0.75, because sine is opposite over adjacent.",
+    "1.33, because sine is opposite over adjacent.",
+  ]}
+  explanation="Relative to that angle, the opposite side is 4, the adjacent side is 3, and the hypotenuse is 5. Sine is opposite over hypotenuse, so sin = 4/5 = 0.8. The value 0.6 is the cosine, 0.75 is 3/4, and 1.33 is the tangent, 4/3."
+/>
+
+## Radians beat degrees
+
+A degree is a historical accident: some ancient astronomer split the circle
+into 360 parts, and the convention stuck. A radian is a geometric definition:
+the angle that bends an arc of length equal to the radius around the edge of
+the circle. Since a full circle's edge has length 2 times pi times r, a full
+turn is 2 times pi radians, about 6.283. Half a turn is pi radians, so pi
+radians = 180 degrees, and a quarter turn is pi/2 radians, about 1.571.
+Converting is one multiplication: multiply degrees by pi/180 or radians by
+180/pi.
+
+Two things make radians the professional choice. First, arc length becomes
+trivial arithmetic: an angle of theta radians sweeps an arc of length r times
+theta, with no conversion constant in the way, which matters every time a wheel
+rolls or a motor turns. Second, and less obvious until the next lesson, the
+slope of the sine curve equals the cosine curve only when the angle is in
+radians; in degrees a nuisance factor of pi/180 attaches itself to every
+derivative. Working scientists write radians unless forced to do otherwise, and
+Python's math module agrees: math.sin takes radians, and math.radians converts
+when a degrees value arrives from elsewhere.
+
+<Quiz
+  id="mathf-quarter-turn-radians"
+  question="A wheel turns through a quarter of a full revolution. How many radians is that?"
+  answer={1}
+  options={[
+    "pi/4 radians, about 0.79.",
+    "pi/2 radians, about 1.57.",
+    "pi radians, about 3.14.",
+    "2 radians.",
+  ]}
+  explanation="A full turn is 2 times pi radians, so a quarter turn is 2 pi divided by 4, which is pi/2, about 1.57 radians. The same quarter turn is 90 degrees. Pi/4 would be an eighth of a turn."
+/>
+
+## The unit circle
+
+Draw a circle of radius 1 centered where the axes cross, start measuring the
+angle at due east, and sweep counterclockwise. The point where the angle's ray
+meets the circle has coordinates (cos of the angle, sin of the angle): cosine
+is the east-west coordinate and sine is the north-south coordinate. Every value
+of sine and cosine comes from this one picture. At 0 degrees the point sits at
+(1, 0), so cos is 1 and sin is 0. At 90 degrees it sits at (0, 1). Sweep past
+90 degrees and the east-west coordinate goes negative, because the point has
+crossed into the western half of the circle; a negative cosine is not an error,
+it is the arithmetic reporting direction. This one diagram is why sine and
+cosine are called circular functions, and it is the picture to summon whenever
+a sign comes out unexpected.
+
+## A vector carries size and direction
+
+A vector is a quantity that carries a magnitude and a direction together. A
+wind of 30 km/h from the northwest, a push of 50 newtons on a crate, a walk of
+5 kilometers due east: all vectors. A scalar is a bare quantity with no
+direction: mass, temperature, time, price. Adding scalars is ordinary
+arithmetic; adding vectors needs care, because 30 km/h of wind plus 400 km/h of
+plane does not produce 430 km/h unless both point the same way.
+
+On paper a vector is an arrow whose length shows the magnitude and whose
+orientation shows the direction. The picture is honest but hard to compute
+with. The fix is to store the arrow as two numbers, its reach along the
+east-west axis and its reach along the north-south axis, and those numbers are
+called components.
+
+## Components turn arrows into numbers
+
+Components fall out of the triangle ratios directly. For a vector of magnitude
+M pointing at an angle measured up from due east, the eastward component is M
+times cos of the angle and the northward component is M times sin of the
+angle. The hypotenuse is the vector itself, the adjacent side is its eastward
+reach, and the opposite side is its northward reach, so cosine and sine are
+just doing their original jobs.
+
+Take the 30 km/h wind at 30 degrees north of east. The eastward component is
+30 times cos 30, about 26.0 km/h. The northward component is 30 times sin 30,
+exactly 15.0 km/h, because sin 30 is exactly 0.5. Every part of that arrow now
+sits in ordinary numbers, and numbers add. Adding two vectors means adding
+their east components together and their north components together, two
+separate sums of ordinary arithmetic.
+
+The conversion also runs backward. Given components, the magnitude comes back
+out of the Pythagorean theorem, sqrt(x^2 + y^2), and the angle comes from the
+tangent: the tangent of the angle above due east is the north component
+divided by the east component, which is just the slope of the vector's line. A
+vector of 3 east and 4 north has magnitude 5 and an angle whose tan is 4/3:
+the 3-4-5 triangle wearing a compass rose. Every arrow is a triangle, and every
+triangle is a pair of numbers, so nothing in this section ever needs a drawing
+to be computed.
+
+A plane heads due east at 400 km/h while that 30 km/h wind pushes it. The east
+components add to 400 + 26.0 = 426.0, the north components to 0 + 15.0 = 15.0.
+The plane's actual path, called the resultant, has magnitude found by the
+Pythagorean theorem, sqrt(426.0^2 + 15.0^2), about 426.2 km/h, and a heading of
+a bit over 2 degrees north of east. The wind nudged a 400 km/h plane by only
+0.2 km/h of speed but visibly bent its heading, which is exactly the kind of
+insight components make obvious and arrow-drawing hides.
+
+```python
+import math
+
+def add(a, b):
+    return [a[0] + b[0], a[1] + b[1]]
+
+def components(speed, angle_deg):
+    r = math.radians(angle_deg)
+    return [speed * math.cos(r), speed * math.sin(r)]
+
+plane = [400.0, 0.0]                  # due east, km/h
+wind = components(30.0, 30)           # 30 km/h, 30 degrees north of east
+total = add(plane, wind)
+speed = math.hypot(total[0], total[1])
+heading = math.degrees(math.atan2(total[1], total[0]))
+print(round(speed, 1), round(heading, 1))
+```
+
+The print shows 426.2 and 2.0: the ground speed and the heading drift in
+degrees north of east. The function components is worth keeping; the same ten
+lines convert any magnitude-and-angle pair into machine-addable numbers, and
+atan2 reports the resultant's angle from its components. No protractor appears
+anywhere in the calculation, and that is the point: components reduce geometry
+to arithmetic, and arithmetic does not need a steady hand.
+
+<Quiz
+  id="mathf-push-east-component"
+  question="A crate is pushed with a force of 50 newtons aimed 60 degrees north of east. How much of that force pushes eastward?"
+  answer={0}
+  options={[
+    "25 newtons, from 50 times cos 60.",
+    "43.3 newtons, from 50 times sin 60.",
+    "50 newtons, since the whole force goes into the crate.",
+    "100 newtons, from 50 divided by cos 60.",
+  ]}
+  explanation="The eastward component is magnitude times cosine of the angle from east: 50 times cos 60 = 50 times 0.5 = 25 newtons. The 43.3 newton figure is the northward component, 50 times sin 60. The full 50 newtons acts along the diagonal direction, not along east."
+/>
+
+<Callout type="info" title="A negative component is a direction, not a mistake">
+Components go negative when a vector points west of north or south of east,
+because cosine and sine turn negative past 90 and 180 degrees. The sign is the
+arithmetic keeping track of direction for free: an eastward component of -8
+means 8 units of reach toward the west. Fight the urge to delete minus signs;
+adding vectors component by component works only if the signs stay honest.
+</Callout>
+
+Components give every quantity a size and a direction, both in plain numbers
+that add. What the arithmetic still cannot answer is how any of it changes from
+one moment to the next: speeds grow, headings swing, temperatures climb. Rates
+and Derivatives builds the tool for change itself, and it starts by shrinking a
+time interval down to nothing.
+
+<Notes />

@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s - Make or Break",
   },
   description:
-    "A free, open-source platform to learn how technology works, by building it (code, AI, hardware) and by taking it apart (security and networking). No experience assumed.",
+    "A free, open-source platform to learn how technology works, by building it (code, AI, hardware, science) and by taking it apart (security and networking). No experience assumed.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   applicationName: "Make or Break",
   appleWebApp: {

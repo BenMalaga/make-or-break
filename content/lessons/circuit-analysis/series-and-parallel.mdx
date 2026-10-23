@@ -1,0 +1,240 @@
+---
+title: Series and Parallel
+module: circuit-analysis
+moduleTitle: Circuit Analysis
+moduleOrder: 56
+moduleIcon: CircuitBoard
+order: 1
+summary: "Two ways any component can connect, the algebra for collapsing them, and the divider rules that predict every voltage and current."
+estimatedMinutes: 15
+prerequisites: ["your-first-circuit"]
+objectives:
+  - Tell series from parallel by asking what the parts share, current or voltage
+  - Collapse any series or parallel resistor network into one equivalent resistance
+  - Design a voltage divider with real resistor values and predict its output voltage
+  - Predict what one failed or added part does in each arrangement
+tags:
+  - electronics
+  - circuits
+  - resistors
+---
+
+A string of old holiday lights goes dark from one bad bulb. Fifty bulbs, one
+burned filament, and the whole strand dies, because the current lighting every
+bulb travels through each of them in a single line. A house, by contrast, keeps
+working when the lamp in one room is switched off; the fridge does not notice.
+The difference between those two behaviors is the difference between the two
+ways any component can connect, and it is the first question worth asking about
+any circuit more complicated than the one-resistor loop that your-first-circuit
+built.
+
+That lesson used exactly two parts: a resistor and an LED in one loop. Real
+circuits have more parts, and every pair of them relates in one of two ways.
+Get the two ways right and a page full of symbols collapses into a handful of
+numbers that work out on paper. Get them wrong and every prediction after that
+is wrong too.
+
+## One path or many
+
+Parts in series sit end to end on a single path, so one current flows through
+all of them in turn. There is nowhere else for the current to go. The LED loop
+made this concrete: the 20 milliamps leaving the resistor is exactly the 20
+milliamps entering the LED. What the parts share is current. What they divide
+among themselves is voltage, which is why the 5 volt supply split into 3 volts
+across the resistor and 2 volts across the LED.
+
+Parts in parallel sit side by side, both ends tied to the same two nodes. A
+node, from that lesson, is one electrical spot: every point joined by plain
+wire is the same node, at the same voltage. Because both ends of each part
+land on the same two nodes, parallel parts share one voltage. What they divide
+is the current. Two 100 ohm resistors in parallel across a 9 volt battery each
+see the full 9 volts, each draws its own 90 milliamps, and the battery
+delivers the sum, 180 milliamps.
+
+The test that sorts any two parts is one question: what do they share? If the
+same current has no choice but to pass through both, they are in series. If
+both sit across the same two nodes, they are in parallel. The drawings can
+lie, since two parts stacked vertically on a schematic may still be in series;
+the sharing is what counts, not the shape.
+
+<Quiz
+  id="cir-series-shared-current"
+  question="In the LED loop from your-first-circuit, a 150 ohm resistor and an LED sit in series across a 5V supply. What must be true about the current through each part?"
+  answer={0}
+  options={[
+    "Both parts carry the same current, and the supply voltage splits between them.",
+    "Each part gets the full 5 volts, and the current splits between them.",
+    "The LED carries more current than the resistor, because it is the part doing work.",
+    "The resistor carries more current, because current gets used up by the LED first.",
+  ]}
+  explanation="Series parts share one current because there is only one path, and the voltage divides among them: 3 volts across the resistor, 2 across the LED. Current is never used up by a component, and the resistor and LED cannot see different currents when nothing else is connected between them."
+/>
+
+## Collapsing the network
+
+A group of resistors can often be replaced by one resistor that behaves
+identically as far as the rest of the circuit can tell. That single value is
+the equivalent resistance, and finding it is the whole algebra of this
+section. Series is the easy case: resistances in series simply add, because
+the current fights each one after another. A 1,000 ohm resistor in series with
+a 2,200 ohm resistor is 3,200 ohms, always more than the largest part. Across
+a 9 volt battery that total draws I = 9 / 3200, about 2.8 milliamps.
+
+Parallel is the case people fumble, so it is worth earning properly. Adding a
+parallel path gives current another route, which lowers the total opposition,
+so parallel resistance always comes out smaller than the smallest branch,
+branch being the name for one parallel path. The rule is that the
+reciprocals add, a reciprocal being one divided by the value:
+
+```text
+1/R_total = 1/R1 + 1/R2 + ...      (parallel)
+R_total = R1 + R2 + ...            (series)
+```
+
+For two resistors the parallel rule shortens to the product over the sum.
+A 1,000 ohm and a 2,200 ohm pair give 1000 times 2200 divided by 3200, which
+is 687.5 ohms. Two identical resistors in parallel are always half the value
+of one, and three are a third. Check the worked pair against Ohm's law and the
+sharing makes sense: 9 volts across 687.5 ohms draws about 13.1 milliamps
+total, of which 9 milliamps goes through the 1,000 ohm branch and about 4.1
+through the 2,200 ohm branch. The sums agree because they must.
+
+Series addition also deserves its physical cross-check. The same 2.81
+milliamps that 9 volts forces through 3,200 ohms drops 2.81 volts across the
+1,000 ohm resistor and 6.19 volts across the 2,200 ohm one, and the two drops
+sum to the full 9 volts. That additivity is not luck: one current passing
+two oppositions loses energy at each, and the losses stack. It is also the
+seed of the divider coming up next.
+
+A short function does the arithmetic for any length of list:
+
+```python
+def equivalent(resistors, mode):
+    if mode == "series":
+        return sum(resistors)
+    inverse_sum = sum(1 / r for r in resistors)
+    return 1 / inverse_sum
+
+print(equivalent([1000, 2200, 470], "series"))    # 3670
+print(equivalent([1000, 2200, 470], "parallel"))  # 279.1576...
+```
+
+Three resistors of 1,000, 2,200, and 470 ohms come to 3,670 ohms in series and
+about 279 ohms in parallel, smaller than the smallest single resistor, exactly
+as the rule demands. The parallel branch of the function divides one by the
+sum of reciprocals, which is the general form of the product-over-sum
+shortcut. Same physics, no special cases.
+
+## The voltage divider
+
+Two resistors in series across a source, tapped at the point where they join,
+is the voltage divider, and it is the most reused pattern in electronics.
+Because one current flows through both resistors, the voltage at the tap is
+just the bottom resistor's share of the total drop. With R1 on top (from the
+supply to the tap) and R2 on the bottom (from the tap to the negative side of
+the supply), the tap voltage is:
+
+```text
+Vout = Vin * R2 / (R1 + R2)
+```
+
+Worked numbers: a 9 volt battery feeds a 10,000 ohm resistor on top and a
+4,700 ohm resistor on the bottom. The same current, 9 / 14700 or about 0.61
+milliamps, flows through both, so the tap sits at 0.61 milliamps times 4,700
+ohms, which is 2.88 volts. The formula gives the same answer in one step:
+9 times 4700 / 14700.
+
+Dividers show up everywhere a circuit needs a voltage smaller than its
+supply: scaling a sensor's output into a converter's range, setting a
+reference voltage, or turning a knob's position into a number, which is what
+a potentiometer is, a divider whose split moves with the knob. The
+design runs the formula backward. To turn a 5 volt supply into the 3.3
+volts many sensors want, pick a ratio of 0.66, and any pair with that
+fraction works: 10,000 ohms on top and 20,000 ohms on the bottom give 5
+times 20000 / 30000, which is 3.33 volts. Smaller resistor pairs waste more
+current through the divider itself; larger pairs waste less but present a
+higher resistance to anything connected at the tap. That is the catch, and it
+gets its full treatment two lessons from now: the tap only
+holds its predicted voltage while whatever is connected to it draws almost no
+current. A load that draws real current pulls the tap down, sometimes a long
+way.
+
+<Quiz
+  id="cir-divider-tap-voltage"
+  question="A 9V supply feeds a 10,000 ohm resistor on top and a 4,700 ohm resistor on the bottom of a divider, with the tap at their junction. What voltage appears at the tap while almost no current is drawn from it?"
+  answer={1}
+  options={[
+    "4.5 volts, because two resistors always split the supply evenly.",
+    "2.88 volts, because the bottom resistor takes its fraction of the total drop.",
+    "6.1 volts, because the larger resistor takes the larger share.",
+    "0.61 volts, which is the current in the chain.",
+  ]}
+  explanation="One current, about 0.61 milliamps, flows through both resistors, and the tap voltage is that current times the bottom resistor: 0.61 mA times 4,700 ohms is 2.88 volts. The bottom resistor's fraction of the total is 4700 / 14700. The 0.61 figure is the current in milliamps, not a voltage."
+/>
+
+## Splitting current the other way
+
+Parallel branches split an arriving current, and the split is worth one
+formula. The branch with less resistance takes more current, and the share of
+each branch is proportional to the OTHER branch's resistance: a branch of R1
+carries I_total times R2 / (R1 + R2). Say 27 milliamps arrives at a node, one
+electrical spot where paths meet, and splits into a 100 ohm and a 220 ohm
+branch. The 100 ohm branch takes 27 times 220 / 320, about 18.6 milliamps,
+and the 220 ohm branch takes about 8.4 milliamps. The two add back to 27,
+exactly as charge conservation demands, and the next lesson names that
+demand the junction rule. The classic slip is putting the branch's own resistance in the
+numerator, which predicts more current through more resistance and is
+backwards.
+
+## When one part dies
+
+Series punishes failure. In the LED loop, pull the LED out and the resistor's
+current drops to zero too: one open break stops everything, because the
+single path is gone. That is the holiday light effect, and it is why cheap
+series-wired strings came with the tedious game of hunting one dead bulb
+among fifty. In a series string the voltage also redistributes when a part
+changes; a bulb that fails short, conducting but not lighting, simply gives
+its share of the voltage to the rest.
+
+Parallel shrugs it off. Each branch connects directly across the supply, so
+one branch failing or being switched out changes nothing in the others: same
+voltage, same current, full brightness. This is why house outlets are wired
+in parallel. Every outlet sees the same line voltage, 120 volts in North
+America and 230 volts in much of the rest of the world, appliances switch on
+and off independently, and each draws exactly the current its own resistance
+asks for. The tradeoff is that total current adds up branch by branch, which
+is why a circuit breaker trips on the sum: too many parallel appliances, one
+hot wire.
+
+<Callout type="info" title="Parallel parts are not interchangeable">
+Two LEDs wired in parallel across one shared resistor do not split the current
+evenly. The LED with the slightly lower turn-on voltage hogs most of it, runs
+hotter, and degrades while its neighbor sits dim. your-first-circuit flagged
+this and the rule survives everything in this lesson: each LED needs its own
+resistor. Parts that share voltage happily, like the two outlets behind a
+wall plate, are a different story from parts that would have to share a
+single current.
+</Callout>
+
+<Quiz
+  id="cir-parallel-one-dies"
+  question="One bulb in a parallel-wired string of lights burns out with an open filament. What happens to the rest?"
+  answer={1}
+  options={[
+    "They all go dark, because the only path for current is broken.",
+    "They stay lit at full brightness, because every other branch still sees the full supply voltage.",
+    "They burn brighter, because the supply voltage rises when a branch is removed.",
+    "They dim slightly, because the supply current drops when a branch is removed.",
+  ]}
+  explanation="In parallel each bulb connects across the same two nodes, so an open branch removes only itself. The survivors keep the full supply voltage and their own current. In a series string the same failure kills everything, because the one shared path is gone."
+/>
+
+Equivalent resistance, the divider, and the current split cover a huge
+fraction of the circuits that get built, but only the tidy ones: circuits that
+are purely series, purely parallel, or cleanly built from blocks of each. A
+circuit with two sources and a shared branch is none of those, and no amount
+of collapsing cracks it. The next lesson, Kirchhoff's Laws, adds the two
+conservation rules that solve any circuit, including the ones that refuse to
+collapse.
+
+<Notes />

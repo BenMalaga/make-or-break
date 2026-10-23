@@ -1,0 +1,264 @@
+---
+title: Integrals and Accumulation
+module: math-foundations
+moduleTitle: Mathematics Foundations
+moduleOrder: 54
+moduleIcon: Shapes
+order: 5
+summary: "The integral: adding up infinitely many tiny slices to recover a total, and the tool that undoes the derivative."
+estimatedMinutes: 16
+prerequisites: ["rates-and-derivatives"]
+objectives:
+  - Interpret the area under a rate graph as an accumulated total, with the units to prove it
+  - Estimate a total with a Riemann sum and explain what narrower rectangles buy
+  - Reverse the power rule to find antiderivatives and apply them to motion, charge, and work
+  - Explain why practitioners integrate numerically on real data
+tags:
+  - math
+  - calculus
+  - integrals
+---
+
+Rates and Derivatives ended by promising the other half of calculus, and here
+it is: the integral, the tool that adds up infinitely many tiny slices into one
+total. A house's electricity meter performs the job physically, all day, without
+knowing any calculus. Power draw through the house jumps around every second,
+and the meter ignores the jumps: it multiplies each instant's watts by a sliver
+of time and accumulates the products into kilowatt-hours. One kilowatt-hour is
+1000 watts sustained for 3600 seconds, which is 3.6 million joules. That
+running accumulation is an integral, and by the end of this lesson the meter's
+arithmetic will look familiar rather than mysterious.
+
+## Area under a curve is an accumulated total
+
+Graph a rate, any rate: velocity against time, current against time, force
+against distance. The area trapped between the curve and the horizontal axis
+equals the accumulated total of that rate. The reason is slice-sized: over a
+thin slice of time, velocity is nearly constant, so distance covered in that
+slice is velocity times the slice's width, which is the area of a thin
+rectangle. Stack the slices and the rectangles fill the region under the curve;
+the sum of the rectangles is the total distance.
+
+The constant-rate case makes the claim checkable. A cart rolling at a steady 12
+m/s for 5 seconds covers 60 meters, and the graph is a rectangle 12 tall and 5
+wide: 12 times 5 = 60. Area and total agree. When the rate changes, the top of
+the region stops being flat and the answer stops being a one-line product, but
+the meaning of the area does not change at all.
+
+Two legs make the general case visible without any calculus. The cart rolls at
+12 m/s for 5 seconds, then settles to a steady 8 m/s for 5 more. The graph is
+two rectangles with areas 60 and 40, and the total distance is 100 meters.
+Every integral ever computed is this same move with more rectangles: chop a
+changing rate into pieces where it is nearly constant, total the pieces. The
+only question calculus answers rigorously is what happens when the chopping
+gets fine enough to stop being an approximation at all.
+
+The units confirm the meaning, and they always come from the axes. Velocity in
+m/s on the vertical axis and seconds on the horizontal axis give an area in m/s
+times s, which is meters. Current in amps times seconds gives coulombs. Force
+in newtons times meters gives joules. Any claimed integral answer with units
+that do not multiply out that way is wrong before a single calculation is
+checked.
+
+## Adding rectangles: the Riemann sum
+
+To total a changing rate, cut the interval into narrow slices, treat the rate
+as constant inside each one, and add the resulting rectangles. This is a Riemann
+sum, and sampling the function's value at the left edge of each slice is the
+simplest version. It has a known bias: on a rising curve every left-edge sample
+understates the slice, so the sum lands low; on a falling curve it lands high.
+Narrower slices shrink the error because there is less room inside each one for
+the rate to wander.
+
+Watch it converge on a rising speed v = t^2 between t = 0 and t = 3 seconds:
+
+```python
+def v(t):
+    return t ** 2                  # speed, m/s
+
+def left_sum(n):
+    total = 0.0
+    for i in range(n):
+        total += v(3 * i / n) * (3 / n)
+    return total
+
+print(left_sum(6))
+print(left_sum(60))
+print(left_sum(6000))
+```
+
+The three totals are 6.875, 8.77625, and 8.99775, climbing toward a value this
+section will prove is exactly 9. Going from 6 rectangles to 60 cut the error
+from about 2.13 to about 0.22; going to 6000 cut it to about 0.0022. Ten times
+more rectangles, roughly ten times less error, which is the standard behavior
+of this simple method. The estimate is honest, cheap, and improvable to any
+accuracy a problem demands, which is more than can be said for guessing.
+
+Sampling at the middle of each slice instead of the left edge kills most of
+that bias, because whatever the rectangle overshoots on one side of the
+midpoint it undershoots on the other. Midpoint sums and the closely related
+trapezoid rule converge much faster for the same effort: cut the slice width in
+half and a left-edge sum's error drops by about a factor of two, while a
+midpoint or trapezoid error drops by about four. Libraries that integrate
+numerically start from exactly these two ideas and add refinement on top.
+
+<Quiz
+  id="mathf-area-units"
+  question="On a velocity-time graph, velocity is in m/s on the vertical axis and time is in seconds on the horizontal axis. What units does the area under the curve carry?"
+  answer={0}
+  options={[
+    "Meters, because m/s multiplied by s is m.",
+    "Meters per second, because area inherits the vertical axis.",
+    "Meters per second squared, because area accumulates change.",
+    "The area has no units; it is a pure number.",
+  ]}
+  explanation="Area under a rate graph is rate multiplied by time, slice by slice, so its units are the product of the axis units: m/s times s gives meters. That unit check is the fastest way to catch a mislabeled integral."
+/>
+
+## The antiderivative: the power rule run backward
+
+The exact total under v = t^2 from 0 to 3 comes from noticing a pattern instead
+of adding 6000 rectangles. Differentiating t^3/3 gives 3t^2/3, which is t^2.
+So t^3/3 is a function whose derivative is the rate in question, and a function
+like that is called an antiderivative. Here is the claim that makes integrals
+computable: the exact accumulated total of a rate between two times is the
+antiderivative evaluated at the end time minus the antiderivative evaluated at
+the start time. For t^2 on [0, 3] that is (3^3)/3 - (0^3)/3 = 9 - 0 = 9, the
+number the rectangles were climbing toward.
+
+This is the power rule from the last lesson run in reverse. Differentiating
+x^n knocks the exponent down and pulls it out front; integrating x^n does the
+opposite, raising the exponent by one and dividing by the new exponent. The
+integral of t^2 is t^3/3, the integral of t is t^2/2, and the integral of a
+constant c is c times t. One honesty note belongs here: antiderivatives come in
+families, because adding a constant to one produces another, since constants
+differentiate to zero. The starting value of the problem picks the right
+family member. A position integral needs the position at t = 0 to pin down the
+constant, which is why every physics problem states where the object started.
+
+The applications are the reason physics and engineering speak in integrals
+constantly: their laws state rates, and totals require integration. Distance is
+the integral of velocity: integrating 9.8t gives 4.9t^2, recovering the stone's
+distance formula from the first lesson, now derived instead of asserted.
+Electric charge is the integral of current, since current is charge flow per
+second: a steady 2 amps for 10 seconds delivers Q = 2 times 10 = 20 coulombs.
+Work is the integral of force over distance: lifting a 100 newton load through
+3 meters transfers 300 joules. In each case a conservation law or a definition
+supplies a rate, and the integral converts the rate into the total that
+actually matters.
+
+A braking car shows the antiderivative doing safety-critical work. A car
+slowing from 20 m/s at a steady 4 m/s^2 has velocity v = 20 - 4t, and its
+antiderivative is position s = 20t - 2t^2, where the 2 is the deceleration
+divided by 2, the power rule dividing by the new exponent once more. The
+velocity reaches zero at t = 5 seconds, and the distance covered by then is
+s(5) = 100 - 50 = 50 meters. That is the braking distance from 72 km/h under a
+firm deceleration, and every yellow-light timing and following-distance rule of
+thumb descends from exactly this integral.
+
+<Quiz
+  id="mathf-charge-coulombs"
+  question="A steady current of 2 amps flows into a capacitor for 10 seconds. How much charge has accumulated on it?"
+  answer={2}
+  options={[
+    "5 coulombs",
+    "12 coulombs",
+    "20 coulombs",
+    "200 coulombs",
+  ]}
+  explanation="Charge is the integral of current over time. For a constant current the integral is just current times time: 2 amps times 10 seconds = 20 coulombs. An amp is one coulomb per second, so the units multiply out to coulombs exactly as the area rule demands."
+/>
+
+## Why practitioners integrate numerically
+
+Everything above assumed a clean formula, and real data rarely comes with one.
+A current probe reports a sample every millisecond. A weather station reports a
+temperature every minute. A strain gauge on a bridge reports load second by
+second. There is no formula to antidifferentiate, only a column of numbers, so
+the exact symbolic method has nothing to chew on. The Riemann sum, by contrast,
+eats any column of numbers: multiply each sample by the time between samples
+and add. That loop is numerical integration, and it is what practitioners
+actually run.
+
+Simulators work the same way one step at a time. At each tick they take the
+current rate, multiply by the timestep, add the result to the running total,
+and move on, which is exactly the meter at the opening and exactly how the
+physics lessons ahead predict a dropped ball. The method carries error, and the
+error shrinks as the timestep shrinks, at a compute cost that grows the same
+way. Take a capacitor charged by a current that decays as i = 2 times
+e^(-t/5) amps:
+
+```python
+import math
+
+def i(t):
+    return 2 * math.exp(-t / 5)    # amps flowing into the capacitor
+
+def charge(step):
+    total = 0.0
+    t = 0.0
+    while t < 10:
+        total += i(t) * step       # amps times seconds = coulombs
+        t += step
+    return total
+
+exact = 10 * (1 - math.exp(-2))
+print(round(charge(0.5), 3), round(charge(0.05), 3), round(exact, 3))
+```
+
+The exact charge in the first 10 seconds is 8.647 coulombs. The sum with a 0.5
+second step reports 9.086, oversetting by about 0.44 because the current is
+falling and every left-edge sample catches it at a higher value than its slice
+averages. Shrinking the step to 0.05 drops the error to about 0.04. Ten times
+finer, ten times better, the same convergence behavior as the rectangles. Skip
+the symbolic antiderivative hunt when data is sampled; reach for the sum, and
+shrink the step until the answer stops moving.
+
+The same accumulation runs inside hardware nobody calls a computer. A water
+meter totals flow rate times time into cubic meters. A battery management chip
+totals current over time into amp-hours to report remaining charge. An
+inertial navigation system integrates acceleration twice, once into velocity
+and once into position, which is why small sensor errors grow into large
+position errors the longer the system runs without a correction. Integration
+is not a chapter of a math course; it is running in every meter, gauge, and
+tracker nearby, in exactly the step-by-step form written above.
+
+<Quiz
+  id="mathf-why-numerical"
+  question="A sensor logs current once per millisecond for an hour. Why does a practitioner total the charge with a sum of samples rather than a symbolic antiderivative?"
+  answer={3}
+  options={[
+    "Symbolic antiderivatives are less accurate than sums.",
+    "Antiderivatives only exist for constant rates.",
+    "Sums run faster than evaluating an antiderivative.",
+    "There is no formula for the sampled data, and a sum works on any list of samples.",
+  ]}
+  explanation="The antiderivative method needs the rate as a formula, and sampled data is a column of numbers, not a formula. The Riemann-style sum accepts any samples whatever, multiplies each by its timestep, and adds. Accuracy then comes from the step size rather than from algebra."
+/>
+
+<Exercise title="Two rectangles, exactly right">
+Take the speed rule v = t over 0 to 3 seconds, whose exact total is 4.5 meters.
+
+Compute the left-edge sum with 6 rectangles by hand: each slice is 0.5 seconds
+wide, and the sample speeds are 0, 0.5, 1.0, 1.5, 2.0, and 2.5. Add them, get
+7.5, multiply by 0.5, and land on 3.75, which undershoots because the speed
+rises through every slice.
+
+Now recompute with right-edge samples, 0.5 through 3.0, which gives 5.25 and
+overshoots. Average the two sums: (3.75 + 5.25) / 2 = 4.5, exactly right. The
+average of left and right sampling is the trapezoid rule, and for any
+straight-line rate it is exact, because the rectangles' errors cancel in
+pairs. Confirm the three numbers with a five-line Python loop before moving on,
+and notice that a rate that curves, like t^2, breaks the exactness and leaves a
+small error behind.
+</Exercise>
+
+With this, the module's toolkit is complete: functions to state relationships,
+exponents and logarithms for multiplicative change, trigonometry and vectors
+for direction, and the two halves of calculus for change and accumulation. The
+Physics Foundations module puts all of it to work, starting with Describing
+Motion, which uses a function for position, a derivative for velocity, and a
+small numerical integral to predict where a dropped ball lands, one timestep at
+a time.
+
+<Notes />

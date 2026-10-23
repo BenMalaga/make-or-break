@@ -1,0 +1,113 @@
+---
+title: Superposition and Qubits
+module: quantum-foundations
+moduleTitle: Quantum Foundations
+moduleOrder: 58
+moduleIcon: Microscope
+order: 3
+summary: "A quantum bit can be both 0 and 1 at once, and measurement is what forces an answer."
+estimatedMinutes: 16
+prerequisites: ["wave-particle-duality"]
+objectives:
+  - Explain electron spin as a two-outcome measurement and why it is not literal spinning
+  - Write a qubit state as two amplitudes and predict measurement odds with the Born rule
+  - Demonstrate with amplitude arithmetic why a qubit is not a coin flip
+  - Compute the 2^n count of amplitudes describing n qubits and state what that scaling does and does not buy
+tags:
+  - quantum
+  - qubits
+  - physics
+---
+
+Wave-Particle Duality left behind a recipe: describe each possibility with an amplitude, add the amplitudes, square the total, and the result is the probability. That recipe applies to more than light in flight and electrons in crystals. It applies to anything with a two-way measurable choice, and the cleanest two-way choice in nature is the spin of an electron. Build a quantum object out of two states and something new appears: a state that is genuinely both at once, and a measurement that forces one answer out of two.
+
+## The electron that answers in halves
+
+In 1922 Otto Stern and Walther Gerlach shot a beam of silver atoms through a magnetic field that varied across the beam, expecting to sort the atoms by the orientation of their magnetic moment. Classical physics predicted a smear: atoms with every orientation from fully aligned to fully anti-aligned should fan out into a continuous band on the detector. The detector showed two sharp dots. Every atom went fully up or fully down the field, nothing in between, no matter how the apparatus was turned. The electron's spin, the source of that magnetic moment, takes exactly two values along any axis a physicist chooses to measure.
+
+The word spin is historical and misleading, and it is worth saying so once: the electron is not a little ball rotating. It has no known size at all, and the spin is an intrinsic amount of angular momentum it simply carries, like mass or charge. What matters for building things is the behavior: measured along any axis, an electron gives one of two answers, called spin up and spin down. Measure along a different axis and the old answer is gone, replaced by fresh odds for the new axis. A two-outcome system that forgets nothing and remembers the wrong things: that is the raw material of a quantum bit.
+
+A chain of Stern-Gerlach analyzers makes the forgetting concrete, and it is the standard demonstration for good reason. Send atoms through an up-down sorter along the vertical axis and keep only the up beam, which is now pure vertical-up: repeat the vertical measurement a thousand times and every atom comes out up. Now send that pure beam through a sorter tipped 90 degrees, measuring the horizontal axis. Two beams come out, half and half, since a vertically-up atom has even odds either way along a perpendicular axis. Keep the horizontal-up beam and measure vertically again: even odds again, the vertical purity is gone. The horizontal measurement did not nudge the atoms slightly. It replaced the vertical definite answer with a superposition of vertical states, because a state definite along one axis is necessarily indefinite along every perpendicular one.
+
+## Superposition, in numbers
+
+A two-state system in quantum mechanics is described by two amplitudes, call them a and b, one for up and one for down. The Born rule from the last lesson sets the odds: the chance of measuring up is a squared, the chance of down is b squared, and since one of the two must happen, the squared amplitudes always sum to 1. A state with a = 0.6 and b = 0.8 gives 0.36 and 0.64, which sums to 1 and means 36 percent odds of up. The phrase both at once means both amplitudes are nonzero. It does not mean half an electron is up and half is down, and it does not mean the electron is secretly one or the other and the description is vague. The amplitudes are the complete description, and they carry more structure than any single answer could.
+
+Measurement is where the structure gets spent. When the spin is measured, one outcome appears, up or down, with the Born-rule odds, and afterward the state is simply the answer that appeared. Measuring the same axis again returns the same result with certainty; the state has collapsed to it. The word collapse is a rule for calculating, and what physically happens in that instant is the one place where physicists genuinely disagree. The Copenhagen interpretation treats collapse as fundamental. The many-worlds interpretation drops collapse entirely and lets all outcomes occur in branches of one spreading wavefunction, with each branch holding its own observers. Hidden-variable theories try to restore definite answers underneath. All of them reproduce the same Born-rule odds for every experiment yet performed, and no measurement has ever distinguished them. The disagreement is about what the mathematics is, not about what it predicts, so this lesson and everything after uses the operational rules: amplitudes, the Born rule, and collapse as bookkeeping.
+
+<Quiz
+  id="quant-stern-gerlach"
+  question="Silver atoms pass through a magnetic field that varies across the beam, and land on a detector plate. What pattern appears, and what does it prove?"
+  answer={3}
+  options={[
+    "One wide band, because the atoms align with the field on average.",
+    "A continuous smear, exactly as classical physics predicts, since orientations vary continuously.",
+    "Three bands, corresponding to up, sideways, and down.",
+    "Two sharp dots, proving the electron's spin takes exactly two values along the measured axis.",
+  ]}
+  explanation="The 1922 Stern-Gerlach experiment found two separated spots, not the continuous smear classical physics predicted for arbitrarily oriented magnetic moments. That two-valued result is why spin along any axis is a natural two-state system, the physical basis of the qubit."
+/>
+
+## A qubit is not a coin
+
+Rename spin up to 0 and spin down to 1 and the two-state system becomes the qubit, the quantum bit. The contrast with an ordinary bit is sharp. A bit holds one number, 0 or 1. A qubit holds two amplitudes, a on 0 and b on 1, with the Born rule standing by. A classical coin mid-flip looks 50/50 too, but the similarity ends there, and the difference is the whole subject of quantum computing.
+
+A coin is 50/50 because of ignorance: the coin has a definite face at every instant, and only the observer lacks the information. A qubit at a = b = 0.707 is not hiding a definite face. Its amplitudes are the complete, exact description of the state, and they have two properties a coin cannot have. Each amplitude carries a phase, a direction in the complex plane, and amplitudes add before squaring, so the two paths to an outcome can reinforce or cancel. Those two properties are what interference needs, and a coin has neither.
+
+The cleanest demonstration takes one operation and runs it twice. The Hadamard-style operation maps amplitudes a and b to (a + b) times 0.707 and (a - b) times 0.707, in words: mix them together and mix one against the other:
+
+```python
+import math
+
+def hadamard(a, b):
+    s = math.sqrt(0.5)
+    return (a + b) * s, (a - b) * s
+
+a, b = 1.0, 0.0                    # qubit reads 0 with certainty
+a, b = hadamard(a, b)
+print("after one gate:", round(a, 4), round(b, 4))
+a, b = hadamard(a, b)
+print("after two gates:", round(a, 4), round(b, 4))
+```
+
+After one application the amplitudes are 0.7071 and 0.7071, a genuine 50/50 superposition, and measuring now gives 0 or 1 with even odds. After a second application the arithmetic returns 1.0 and 0.0: certainty of 0 again. A coin flipped twice does not return to heads with certainty. The second application works because the amplitude for reaching outcome 1 arrives by two routes, and the two routes carry opposite signs, so they cancel exactly, while the routes to 0 reinforce. Nothing about the middle state was ever a probability; it was amplitudes all the way, and amplitudes keep the phase information a probability would have thrown away.
+
+<Quiz
+  id="quant-not-a-coin"
+  question="A qubit sits in the 50/50 superposition with amplitudes 0.707 and 0.707. Why is applying the same mixing operation a second time different from flipping a coin a second time?"
+  answer={0}
+  options={[
+    "The two amplitudes carry phase, so the two routes back to outcome 0 reinforce while the routes to outcome 1 cancel, restoring certainty of 0.",
+    "The operation is randomized, so two applications average out to certainty.",
+    "The qubit was never really in the superposition; it was 0 all along and the first measurement was skipped.",
+    "Because 0.707 squared plus 0.707 squared equals 1, and the second operation uses that identity to reset the state.",
+  ]}
+  explanation="Amplitudes add before squaring, and they carry phase. The routes to outcome 1 arrive with opposite signs and cancel exactly, while the routes to 0 add up. A coin has no phases and no cancellation, so it cannot unmix itself. This two-gate sequence is the smallest possible demonstration that interference, not statistics, runs quantum systems."
+/>
+
+## Why the scaling matters
+
+One qubit is two amplitudes. Two qubits are four, one for each string: 00, 01, 10, 11. Each extra qubit doubles the count, so n qubits are described by 2^n amplitudes. Thirty qubits need 2^30 amplitudes, which is 1,073,741,824, about a billion complex numbers, to describe what a classical machine would store as 30 bits. Three hundred qubits need about 2 times 10^90 amplitudes, more than the estimated number of atoms in the observable universe. Writing the state down is not a storage inconvenience. It is the wall that stops ordinary computers from simulating large quantum systems directly, and it is why simulating even 30 clean qubits takes a gigabyte-scale table and real time.
+
+That scaling is easy to oversell, so here is the honest paragraph. The billion amplitudes are not a billion answers sitting in a drawer waiting to be read. Measurement returns n bits, one sample, and the amplitudes collapse to a single string. What quantum algorithms do with the scaling is steer it: gates move amplitudes around so that the paths leading to wrong answers cancel each other and the paths leading to the right answer reinforce, concentrating probability where it is wanted before the single measurement happens. Interference is the engine, exactly as in the two-gate demonstration above, and the art of quantum algorithm design is choreographing cancellations at scale. It is powerful and it is narrow, and its reach multiplies the moment amplitudes get shared between qubits instead of living on one.
+
+One more honesty check, because the billion-number comparison deserves precision. A classical probabilistic description of 30 coin flips also needs 2^30 entries, so the table size alone is not the miracle. Two things make the quantum table different. The amplitudes are signed and complex while probabilities are positive, which is what lets them cancel rather than merely pile up, and the quantum hardware holds all 2^30 amplitudes at once in thirty physical objects, while any classical device that wants exact odds about the same system must actually store and update the whole table. Push the count up and the classical side dies fast: 50 qubits need 2^50 amplitudes, and storing them as ordinary complex numbers takes about 18 petabytes of memory, more than most data centers care to dedicate to one state. That wall, not exotic hardware, is why chemistry and materials research care about quantum simulation first and quantum computing second.
+
+The connection between the amplitudes and the machine is worth keeping concrete. Thirty qubits of state live in thirty physical objects, but the billion-number table is what a classical simulator must carry to predict the odds, and it is also the amount of structure the quantum hardware exploits implicitly. The hardware never stores the table. The table is just what the amplitudes imply.
+
+<Quiz
+  id="quant-amplitude-count"
+  question="A quantum register holds 30 qubits. Roughly how many complex amplitudes describe its full state, and what does that mean for classical simulation?"
+  answer={2}
+  options={[
+    "60 amplitudes, since each qubit contributes two, and simulation is easy.",
+    "About 30 squared, or 900 amplitudes, which fits in a spreadsheet.",
+    "About 2^30, roughly a billion amplitudes, so a classical simulator must carry a billion-number table to predict the odds exactly.",
+    "Exactly 30 amplitudes, one per qubit, so simulation is trivial.",
+  ]}
+  explanation="Joint states multiply: n qubits carry 2^n amplitudes, one per possible bit string, and 2^30 is 1,073,741,824. The amplitudes are not separately readable, since measurement returns only 30 bits, but a classical simulator that wants exact odds has no choice except to store and update the whole table."
+/>
+
+Thirty clean qubits of amplitude structure are one thing. The next lesson, entanglement, shows what happens when two of those qubits share one state that no amount of separate description can reproduce, and why physicists spent decades arguing about whether that was even allowed.
+
+<Notes />

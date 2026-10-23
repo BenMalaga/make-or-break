@@ -1,0 +1,238 @@
+---
+title: Functions and Graphs
+module: math-foundations
+moduleTitle: Mathematics Foundations
+moduleOrder: 54
+moduleIcon: Shapes
+order: 1
+summary: "Input, rule, output: what a function is, slope as a rate, and how to read a line, a curve, and the story a graph tells."
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - Define a function as a rule that gives one output per input and read f(x) notation
+  - Compute slope as change divided by change and state the units that give it meaning
+  - Interpret y = mx + b as a rate plus a starting point and predict values with it
+  - Read graphs of motion and temperature and explain why a curve bends
+tags:
+  - math
+  - functions
+  - graphs
+---
+
+A taxi meter starts at 3.50 the second the doors close, then adds 1.20 for every
+kilometer the wheels turn. Ride 8 kilometers and the meter reads 3.50 + 1.20
+times 8, which is 13.10. Ride twice as far and nobody recomputes anything by
+hand: the rule does the work, the same way, every time. That pair of numbers, a
+starting point and a rate, is one of the most useful patterns in all of applied
+mathematics, and it appears in taxi fares, phone bills, motor speeds, and the
+voltage across a resistor.
+
+Mathematics is the discipline where rules like that get written down exactly,
+with no room for misreading. The vocabulary for writing them is the subject
+here: variables, functions, slope, and the graphs that turn all three into a
+single picture. Every later lesson in this track, from falling stones to
+charging capacitors, is a function with a different costume on.
+
+## Variables are names for quantities
+
+A variable is a name that stands in for a quantity, the way a pronoun stands in
+for a person. Instead of saying "the number of kilometers traveled" fourteen
+times in one sentence, give it a short name: k. The taxi rule becomes fare =
+3.50 + 1.20 times k, and that one line now covers every ride the cab will ever
+make. The letter carries no magic. t usually means time, d means distance, and
+any letter will do, but picking a name that hints at the quantity keeps the
+math readable.
+
+A variable holds a number, and numbers can be added, multiplied, and compared
+exactly like the values they stand in for. Writing 3.50 + 1.20k is not
+shorthand for an idea; it is the idea, stated once and for all cases. The
+moment a rule is written with variables instead of one worked example, it can
+be reused, checked, and handed to a computer.
+
+## A function is a machine with one output per input
+
+A function is a rule that takes an input and produces exactly one output. Feed
+it a number, it hands back a number, and the same input always produces the
+same output. A vending machine is the usual comparison: press B4, get the same
+bag of chips every time, because a machine that returned random items on
+different presses would be broken as a machine and useless as a model.
+
+The standard notation writes the rule as f(x), read aloud as "f of x". The f
+names the rule, the x in parentheses is the input, and f(x) is the output that
+the rule produces from that input. The taxi rule written this way is f(k) =
+3.50 + 1.20k. To ask what the meter shows after a 15 kilometer ride, evaluate
+the function at 15: f(15) = 3.50 + 1.20 times 15 = 21.50. The notation is
+compact to the point of terseness, but every part of it has a job: f is the
+machine, x is what goes in, f(x) is what comes out.
+
+Two informal words describe what a function accepts and what it can produce.
+The domain is the set of inputs the rule makes sense for: kilometers from 0 up
+to, say, 200 for the taxi, since negative distances do not happen. The range is
+the set of outputs it can produce: 3.50 and up, in steps of 1.20. Neither word
+needs to be feared; domain means what can go in, range means what can come out.
+
+<Quiz
+  id="mathf-fare-function"
+  question="A taxi fare is written f(k) = 3.50 + 1.20k, with k in kilometers. What does f(8) mean?"
+  answer={2}
+  options={[
+    "The whole rule f multiplied by 8, which would give 28 + 9.6k.",
+    "The fare of a ride that cost 8 dollars, converted back into kilometers.",
+    "The fare after 8 kilometers, which works out to 13.10.",
+    "The 8th ride of the shift, since f counts rides.",
+  ]}
+  explanation="f(8) means: evaluate the rule at input 8. Substitute 8 for k and compute 3.50 + 1.20 times 8 = 13.10. The f names the rule, the input goes where k sits, and the value f(8) is the output for that input."
+/>
+
+## Slope is a change divided by a change
+
+Slope answers the question "per what?" It is the change in output divided by
+the change in input between two points, and it carries units: dollars per
+kilometer, meters per second, degrees per hour. Take two rides from the meter:
+2 kilometers costs 5.90, and 6 kilometers costs 10.70. The slope between them
+is (10.70 - 5.90) / (6 - 2) = 4.80 / 4 = 1.20 dollars per kilometer. The rate
+hiding inside the rule falls out of two observations of the output.
+
+On a graph, slope is steepness. A gentle line gains output slowly as the input
+grows; a steep line gains it fast. The nickname "rise over run" describes the
+picture: rise is the vertical change, run is the horizontal change, and their
+ratio is the slope. What the nickname leaves out is the units, and the units
+are the meaning. A slope of 1.20 is meaningless; a slope of 1.20 dollars per
+kilometer is a taxi rate. Whenever a slope shows up, ask per what before doing
+anything else.
+
+Slope is also how a graph betrays its rate. On a distance-versus-time graph the
+slope is a speed, because meters divided by seconds is meters per second. On a
+cost-versus-quantity graph it is a price per unit. The slope always inherits
+the vertical axis units divided by the horizontal axis units, which is why the
+same picture can carry completely different meanings depending on what the axes
+say.
+
+## The line y = mx + b
+
+Every straight line is a rate plus a starting point. The standard way to write
+it is y = mx + b, where m is the slope and b is the value of y when x is zero,
+the starting point. The taxi rule fits the pattern exactly: y = 1.20x + 3.50,
+so m is 1.20 dollars per kilometer and b is 3.50, the charge that appears
+before the wheels turn at all. The b is where the line crosses the vertical
+axis, which is why graphs of real systems so often start partway up instead of
+at zero.
+
+Because the slope is the same between every pair of points on a straight line,
+the rule adds the same amount for every step. That is the whole reason the
+graph is straight. Predicting is then trivial arithmetic: a 15 kilometer ride
+costs 3.50 + 1.20 times 15 = 21.50, no matter which two known points on the
+line were used to discover m and b. Learn the pattern rather than the letters:
+any letter can play the role of m or b, but a rate plus a starting point is
+always what a straight line is saying.
+
+## Reading a graph like a sentence
+
+A graph is a picture of a function: the horizontal axis carries the input, the
+vertical axis carries the output, and each point on the curve is one input and
+its output sitting together. Reading one fluently means asking three questions
+in order. What is rising and what is falling? Where is it flat? And where is it
+steepest? The steepness is the rate, so the steepest stretch of a curve is
+where the change happens fastest.
+
+A distance-versus-time graph of a delivery scooter tells the whole trip at a
+glance. A flat segment means the scooter is parked, because time passes but
+distance does not grow. A steep segment means fast movement, and the steepest
+segment of the whole graph is the fastest leg of the ride. If the first half
+hour covers 10 kilometers and the second half hour covers 5, the slopes are 20
+kilometers per hour and then 10 kilometers per hour, and the graph shows the
+slowdown as a visible flattening without a single number being read.
+
+A temperature graph over a day behaves the same way with different units. The
+curve climbs through the morning, peaks in mid-afternoon, and slides overnight.
+The height of the curve says how hot it is; the steepness says how fast it is
+changing. The steepest stretch, often mid-morning, is not the hottest moment,
+it is the moment the temperature is rising fastest. Confusing height with
+steepness is the single most common mistake in reading graphs, and the two are
+different quantities with different units.
+
+<Quiz
+  id="mathf-cyclist-slope"
+  question="A cyclist is 400 meters from the start at 2 minutes and 1200 meters out at 6 minutes. What is the slope of her distance-time graph between those points?"
+  answer={1}
+  options={[
+    "200, with no units attached.",
+    "200 meters per minute.",
+    "800 meters.",
+    "0.005 minutes per meter.",
+  ]}
+  explanation="Slope is change in distance divided by change in time: (1200 - 400) / (6 - 2) = 800 / 4 = 200 meters per minute. The number 800 is only the rise; slope divides it by the run. The units, meters per minute, are what make it a speed."
+/>
+
+## Why curves bend
+
+A straight line has one slope everywhere, which is exactly why it stays straight.
+A curve has a different slope at every point, and the bending is what carries
+that information. Nothing in the natural world with a changing rate graphs as a
+straight line, so curves are not decorations; the bend is the data.
+
+Watch it happen in numbers. Any object in free fall near Earth's surface gains
+9.8 meters per second of downward speed each second, a fact stated here and
+used heavily in the physics lessons ahead. The distance it falls grows as the
+square of the time: d = 4.9 t^2, where the 4.9 is half of 9.8. Compare that
+with the taxi rule, one row of output at a time:
+
+```python
+def fare(km):
+    return 3.5 + 1.2 * km          # fare for a ride of km kilometers
+
+def drop(t):
+    return 4.9 * t ** 2            # meters fallen after t seconds
+
+for t in range(5):
+    print(t, fare(t), drop(t))
+```
+
+The fare column gains exactly 1.20 every row, so its graph is a straight line
+with slope 1.20. The drop column gains 4.9, then 14.7, then 24.5, then 34.3.
+Each gain is bigger than the last because the stone is moving faster with every
+second it has already spent falling. Plot those points and the curve bends
+upward, and the bend steepens row by row. A graph that bends downward tells the
+opposite story: a rate that is shrinking, like a cooling drink whose temperature
+drops quickly at first and then barely at all. Engineers learn to read the bend
+before they read any numbers off the graph, because the bend is where the
+physics is.
+
+<Quiz
+  id="mathf-falling-gap"
+  question="A falling stone is at 19.6 meters after 2 seconds and 44.1 meters after 3 seconds. The gap between successive one-second distances keeps growing. What does that tell you?"
+  answer={1}
+  options={[
+    "Gravity is getting stronger as the stone falls.",
+    "The stone is speeding up, so the slope of its distance-time graph is growing.",
+    "The stone covers the same distance every second, and the gaps are measurement error.",
+    "The distance graph must be a straight line with slope 24.5.",
+  ]}
+  explanation="Distance gained per second is average speed. A growing gap means growing speed, which means the slope of the distance-time graph is increasing and the graph bends upward. Gravity is not changing; the growing speed is its doing."
+/>
+
+<Exercise title="Rate-table a bill you can predict">
+Find any real bill with two parts: a fixed charge and a per-unit rate. Phone
+plans, electricity, water, and gym memberships all work. Pull two months of
+real numbers: usage and total cost.
+
+Treat the two months as two points on a graph and compute the slope between
+them: change in cost divided by change in usage. That slope is the effective
+per-unit rate, and it should land close to the advertised rate if one exists.
+
+Now write the line: cost = m times usage + b. Use one month's numbers to solve
+for b, which should come out near the fixed charge. Then predict a third month
+from its usage alone and check the prediction against the actual bill. If the
+prediction misses by a lot, look for the reason: taxes, a tiered rate that
+changes with volume, or a connection fee. Real bills are functions too, and
+they come with fine print that bends the line.
+</Exercise>
+
+Every rule so far has grown by adding: the same 1.20 each kilometer, or a gain
+that at least grows steadily. But some relationships multiply instead, doubling
+or halving at every step, and they produce numbers that addition-based rules
+can never reach in a reasonable number of steps. Exponents and Logarithms takes
+up those relationships, along with the logarithm that runs multiplication
+backward to ask "how many doublings was that?"
+
+<Notes />

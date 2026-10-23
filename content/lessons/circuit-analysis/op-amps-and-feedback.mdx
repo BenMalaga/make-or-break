@@ -1,0 +1,232 @@
+---
+title: Op-Amps and Feedback
+module: circuit-analysis
+moduleTitle: Circuit Analysis
+moduleOrder: 56
+moduleIcon: CircuitBoard
+order: 5
+summary: "The near-magical amplifier, its two golden rules, and why negative feedback trades gain for predictability."
+estimatedMinutes: 16
+prerequisites: ["capacitors-and-inductors"]
+objectives:
+  - Explain what an op-amp measures and why its enormous open-loop gain saturates the output
+  - Apply the two golden rules to solve feedback amplifier circuits with arithmetic
+  - Compute the gain of inverting and non-inverting amplifiers from resistor values
+  - Argue what negative feedback buys and what it costs
+tags:
+  - electronics
+  - circuits
+  - op-amps
+  - feedback
+---
+
+A type K thermocouple, the sensor in every kitchen thermometer and 3D
+printer hot end, produces about 41 microvolts per degree Celsius. Reading
+one degree of change means reading 41 millionths of a volt, a signal any
+analog-to-digital converter, the circuit that turns a voltage into a
+number, would drown in noise before noticing. The
+signal needs amplifying, by about a hundred, and it needs the amplification
+to be exact and identical tomorrow. Nothing built so far manages that: the
+resistors of Sources and Thevenin Equivalents scale voltages but only
+downward, and the capacitors and inductors of Capacitors and Inductors
+store and filter but never make anything bigger. The part that does is the
+most reused analog component in electronics: the operational amplifier,
+op-amp for short, and the story of how it works is really a story about
+what feedback buys.
+
+## One chip, enormous gain
+
+An op-amp is a differential amplifier packaged as an integrated circuit: it
+measures the voltage difference between two inputs and multiplies it by an
+enormous number called the open-loop gain. The classic LM358, a dual op-amp
+in an 8-pin package costing pennies, manages a typical open-loop gain around
+100,000. Its ancestor, the 741 of the early 1970s, taught a generation of
+engineers on the same 8-pin outline. The two inputs are labeled plus and
+minus, and the output swings toward whichever input is higher, amplified
+past all reason.
+
+"Past all reason" is the honest description. With a 9 volt supply and a gain
+of 100,000, an input difference of about 90 microvolts is enough to drive
+the output from one rail to the other, rail being the shorthand for the
+supply's positive and negative limits. Feed the chip a real signal, where
+millivolts are small, and the output spends its life pinned against one
+rail or the other, a flat line carrying no trace of the waveform it
+was handed. Raw, at open loop, an op-amp is nearly useless as an amplifier.
+Every real signal saturates it. That is not a flaw waiting to be fixed; it
+is the raw material the next section spends.
+
+<Quiz
+  id="cir-open-loop-saturates"
+  question="An op-amp with an open-loop gain of 100,000 runs from a 9V supply, and a signal swings between 2 and 5 millivolts of difference at its inputs. What does the output do?"
+  answer={0}
+  options={[
+    "It stays pinned against one supply rail the whole time, because even the smallest input difference demands far more output than the supply can give.",
+    "It copies the signal faithfully, amplified 100,000 times, between 200 and 500 volts.",
+    "It amplifies the signal cleanly up to the 9 volt rail and then tracks along it.",
+    "It outputs zero, because an op-amp cannot handle inputs that large.",
+  ]}
+  explanation="Needing 100,000 times 2 millivolts is already 200 volts, so the output saturates at the rail long before the input finishes rising. Nothing about the signal survives except which rail it pins to. Making that limitation useful instead of fatal is what feedback does."
+/>
+
+## Tame it with feedback
+
+The fix is to stop feeding the chip the raw signal and instead let it watch
+its own work. Negative feedback routes a fraction of the output back to the
+minus input. Now the chip amplifies not the signal but the difference
+between what it is being fed and what it is producing, and any overshoot it
+makes arrives at its own minus input as a correction. The behavior settles
+into the same loop a driver runs with a steering wheel: notice the drift,
+correct, notice the new drift, correct. The output glides where it is asked
+instead of slamming into the guardrail.
+
+With feedback in place, two rules make every op-amp circuit solvable by
+arithmetic, no 100,000-fold multiplications anywhere. First, the inputs draw
+no current to speak of: their input resistances are so high that real
+circuits ignore the nanoamps that leak. Second, the output does whatever the
+feedback network asks, which in practice means the output moves until the
+two inputs sit at the same voltage for every practical purpose. That second
+rule is the
+open-loop gain doing quiet, enormous labor: since any input difference
+multiplied by 100,000 would slam the output, the only stable output is the
+one where the difference is nearly zero.
+
+## Building amplifiers that obey arithmetic
+
+The non-inverting amplifier puts the signal on the plus input and feeds a
+resistor divider from the output back to the minus input: Rf from output to
+minus, Rg from minus to ground, the circuit's 0 volt reference. The output
+settles wherever it must to make the minus input equal the plus input, and
+the divider guarantees that happens when the output is the input times one
+plus Rf over Rg. With Rf = 10,000 ohms and Rg = 1,000 ohms the gain is 11,
+so a 0.4 volt input produces 4.4 volts. The gain comes from two resistors,
+and resistors come in 0.1 percent flavors that do not care about temperature
+nearly as much as a silicon chip does.
+
+The inverting amplifier turns the input through a resistor Rin into the
+minus input, feeds Rf from output to minus, and ties the plus input to
+ground. The minus input then sits at 0 volts for every practical purpose
+without being
+connected to ground, a spot called the virtual ground, and the gain comes
+out as minus Rf over Rin. With Rin = 10,000 ohms and Rf = 100,000 ohms, a
+0.2 volt input produces minus 2.0 volts, flipped upside down and ten times
+bigger. The minus sign means the supply must swing below ground, so
+inverting stages run from a dual supply, plus and minus rails around 0
+volts.
+
+How honest is the two-rules shortcut? Run the check:
+
+```python
+a_open = 100000.0        # the chip's open-loop gain
+rf, rg = 10000.0, 1000.0
+ideal = 1 + rf / rg               # the two-rules answer
+beta = rg / (rf + rg)             # fraction of output fed back
+actual = a_open / (1 + a_open * beta)
+print(ideal, round(actual, 6))    # 11.0 10.99879
+```
+
+The exact answer for the closed-loop gain, accounting for finite open-loop
+gain, is A divided by one plus A times beta. With A at 100,000 and beta at
+1/11, that prints 10.99879 against the ideal 11.0: an error near one
+hundredth of one percent. The two golden rules are not an approximation of
+the truth so much as the truth with the boring digits shaved off.
+
+Design the thermocouple amplifier from the opening with the same two rules.
+A gain near 100 turns 41 microvolts per degree into about 4.1 millivolts
+per degree, and the non-inverting circuit delivers it with Rf = 100,000 ohms
+and Rg = 1,000 ohms, a gain of 101. One honest limit belongs next to that
+plan: the golden rules assume the inputs sit at the same voltage, but a
+real chip has an input offset voltage, a small mismatch built into its
+input transistors. Cheap parts run a few millivolts of offset, which is a
+hundred times bigger than the signal being measured, so precision work
+specifies low-offset or self-correcting zero-drift parts instead. Knowing
+which rule is being stretched is most of analog design.
+
+<Quiz
+  id="cir-noninverting-gain"
+  question="A non-inverting amplifier uses Rf = 10,000 ohms from output to the minus input and Rg = 1,000 ohms from the minus input to ground, with a steady 0.4V on the plus input. Where does the output settle?"
+  answer={2}
+  options={[
+    "0.4 volts, because the output copies the plus input.",
+    "4.0 volts, from a gain of 10 set by the resistor ratio.",
+    "4.4 volts, from a gain of one plus Rf over Rg.",
+    "40 volts, from a gain of 100 set by the open-loop gain.",
+  ]}
+  explanation="The output rises until the divider across Rf and Rg presents 0.4 volts at the minus input, which happens when the output is 0.4 times (1 + 10000/1000) = 4.4 volts. The open-loop gain never multiplies the signal directly; it works behind the scenes to force the inputs equal."
+/>
+
+## Open loop on purpose, the comparator
+
+The saturation that feedback cures is itself a feature when the goal is a
+decision instead of a copy. Leave the feedback off and the circuit is a
+comparator: when the plus input sits above the minus input the output slams
+to the high rail, and when it drops below, the output slams low. Nothing in
+between, ever. Feed a slowly wandering sensor to one input and a fixed
+threshold to the other, and the output is a clean digital yes-or-no that a
+microcontroller can read. A battery monitor puts a divider's 4.0 volts on
+one input and the battery terminal on the other; the output rail tells the
+firmware whether to warn. Comparators sit inside analog-to-digital
+converters, inside
+oscillators that square themselves up, and inside every
+light that switches on by itself at dusk.
+
+## What the trade buys
+
+Negative feedback is a deal, and it is worth stating both sides. Handed
+over: almost all of the gain, from 100,000 down to whatever the resistors
+ask for, plus some speed. Gained: an amplifier whose gain is set by resistor
+ratios rather than by a chip parameter that varies several-fold between
+copies of the same part and drifts with temperature, along with lower
+distortion, because the loop corrects the chip's own nonlinearities the same
+way it corrects overshoot. Almost every analog design starts by throwing
+away the vast majority of the gain on purpose. Predictability is worth more
+than amplification, because gain is cheap and surprises are not.
+
+The speed cost has a number attached. An op-amp's gain and its usable
+bandwidth multiply out to a fixed figure called the gain-bandwidth product,
+about 1 megahertz for the LM358. A closed-loop gain of 11 leaves about
+90,000 Hz of honest bandwidth before the loop runs out of surplus gain and
+the response sags; a gain of 1,000 leaves a thousand hertz. Feedback cannot
+create speed that the chip does not have, it just spends what exists more
+honestly.
+
+The direction of the feedback matters as much as its existence. Feed a
+fraction of the output to the minus input and the loop self-corrects. Feed
+it to the plus input instead, positive feedback, and the loop self-reinforces:
+any move grows, and the circuit snaps hard to one state and stays there,
+which is exactly what a Schmitt trigger does to stop a noisy threshold from
+chattering. Same chip, opposite wiring, opposite personality.
+
+<Quiz
+  id="cir-feedback-trade"
+  question="Why does the gain of a feedback amplifier not depend on the chip's exact open-loop gain, which varies widely between copies of the same part?"
+  answer={3}
+  options={[
+    "Because the inputs draw no current, so the chip's gain never enters the circuit.",
+    "Because feedback cools the chip and stabilizes its internal gain against temperature.",
+    "Because open-loop gain only matters when the circuit runs without resistors.",
+    "Because the output settles where the two inputs match, and the resistors alone set what output voltage achieves that.",
+  ]}
+  explanation="With feedback, a stable output requires the fed-back fraction to equal the input, and that fraction is a resistor ratio. The chip's surplus gain only has to be large enough to keep the inputs nearly equal. A 100,000 gain and a 50,000 gain both leave the same resistor-set answer within a rounding error."
+/>
+
+## Where op-amps live
+
+Sensor front ends are the marquee application, and the thermocouple from the
+opening shows why: 41 microvolts per degree times a gain of about 100 is
+about 4.1
+millivolts per degree, a signal a converter can actually bite into. Audio
+preamps lift microphone-level signals a thousandfold with little added
+noise. Active filters pair op-amps with the capacitors from two lessons ago
+to shape frequency response with no big inductors at all. And every
+analog-to-digital converter worth its datasheet has an op-amp or a
+comparator somewhere in its front door, conditioning the real world before
+it becomes numbers.
+
+That closes the circuit-analysis arc: sources, resistors, the two
+conservation laws, equivalents that collapse whole networks, and the parts
+that give circuits memory and now controllable behavior. The natural next
+step is making these circuits physical: the PCB Design and Firmware modules
+turn a schematic that works on paper into a board that exists and a program
+that runs it.
+
+<Notes />

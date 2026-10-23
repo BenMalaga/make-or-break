@@ -1,0 +1,222 @@
+---
+title: Power and Machines
+module: mechanical-foundations
+moduleTitle: Mechanical Foundations
+moduleOrder: 57
+moduleIcon: Factory
+order: 4
+summary: "Torque, speed, and power: what a motor really sells, and where the watts go."
+estimatedMinutes: 15
+prerequisites: ["mechanisms-and-motion"]
+objectives:
+  - Compute power as torque times angular speed with correct units
+  - Read a motor torque-speed curve and find where peak power and danger live
+  - Match a motor to a load through a gearbox with worked numbers
+  - Multiply an efficiency chain and name where the losses go
+tags:
+  - mechanical
+  - motors
+  - power
+---
+
+The mechanisms lesson ended with gears trading torque for speed, and a gear train
+can multiply torque by 15 without breaking a sweat. What it cannot do is create
+power, and a motor's spec sheet makes that plain. A small 12 V motor lists two
+headline numbers: stall torque 0.6 N m and no-load speed 3,000 rpm. The two best
+numbers on the sheet are the two ends of one curve, and the motor never gets to
+be at both ends at once.
+
+## Power is torque times speed
+
+Power is the rate of doing work, measured in watts, and for anything spinning it
+equals torque times angular speed: P = tau times omega. The trap lives in omega.
+Angular speed must be in radians per second, and a spec sheet gives rpm. One rpm
+is 2 pi radians per 60 seconds, so multiply rpm by 2 pi / 60, about 0.105, to get
+rad/s.
+
+Worked example: a motor delivering 0.5 N m while spinning at 4,000 rpm. Omega is
+4,000 times 0.1047 = 418.9 rad/s, so P = 0.5 times 418.9 = 209 W. Skip the
+conversion and multiply 0.5 by 4,000 for 2,000 W, ten times too big, a mistake
+that has ended more than one student's drivetrain calculation. The units are the
+check: N m times rad/s gives joules per second, and joules per second are watts.
+
+The formula survives a change of clothes. One revolution costs work equal to
+torque times 2 pi, so a motor turning at r revolutions per second delivers tau
+times 2 pi times r watts, which is the same statement in different units. Spec
+sheets usually list a rated point too, the torque and speed the motor can hold
+continuously without overheating. A motor can often exceed its rating for short
+bursts, and that burst ability is real design currency for machines that start,
+lift, and rest.
+
+<Quiz
+  id="mech-power-calc"
+  question="A motor delivers 0.5 N m of torque at 4,000 rpm. What mechanical power does it produce?"
+  answer={1}
+  options={[
+    "About 2,000 W, from multiplying torque by speed directly.",
+    "About 209 W, after converting rpm to radians per second.",
+    "About 105 W, using pi over 60 as the conversion.",
+    "About 33 W, by dividing torque times speed by 60.",
+  ]}
+  explanation="P = tau times omega with omega in rad/s: 4,000 rpm times 2 pi / 60 is 418.9 rad/s, and 0.5 times 418.9 is 209 W. Multiplying by raw rpm gives 2,000 W, the classic unit slip. The pi over 60 slip drops a factor of 2, and dividing by 60 alone ignores the radians entirely."
+/>
+
+## The torque-speed curve
+
+A permanent-magnet DC motor under steady voltage runs on a nearly straight line
+between its two headline numbers. At zero speed the motor produces its full
+stall torque; at its no-load speed it produces no torque at all; everywhere
+between, torque falls linearly as speed rises. The reason is the motor working
+against itself: a spinning motor is also a generator, and the voltage it
+generates, called back-EMF, opposes the supply. High speed means high back-EMF
+means little current means little torque.
+
+Power along that line is torque times speed, zero at both ends and maximal in
+the middle. Halfway between stall and no-load, this motor delivers 0.3 N m at
+1,500 rpm: omega = 157.1 rad/s and P = 0.3 times 157.1, about 47 W. That peak
+sits at half the no-load speed for any linear DC motor, a fact worth memorizing.
+
+Designers rarely park a motor exactly on the peak. The peak is what the machine
+can do for a short push; for continuous work the sensible region sits below it,
+at higher speed and lower torque, where the motor runs cooler and lives longer.
+A drivetrain that spends its whole life at peak power is a drivetrain with a
+short life, and the curve is read with that in mind.
+
+The same matching logic reaches past brushed DC motors. Brushless motors,
+steppers, and servos all publish torque and speed limits and get matched to
+loads the same way. A stepper holds position at standstill but loses torque as
+steps per second climb, which is why a 3D printer axis skips steps when pushed
+too fast. The curve shapes differ; the conversation between motor and load does
+not.
+
+The stall end is also the dangerous end. At stall there is no back-EMF at all,
+so the only thing limiting current is the tiny resistance of the copper
+windings, and the motor turns that current into heat at a rate it cannot
+survive for long.
+
+<Callout type="warning" title="Stalling a motor is cooking it">
+A stalled motor draws the most current it will ever draw, because back-EMF has
+vanished and only winding resistance remains. The windings heat at many times
+their rated rate, insulation cooks, and the magic smoke follows within seconds
+to minutes depending on the motor. Any robot or winch design needs either a
+current limit or a mechanical design that keeps the load torque comfortably
+below stall torque.
+</Callout>
+
+<Quiz
+  id="mech-motor-peak-power"
+  question="On a linear torque-speed curve, where does a DC motor's mechanical power peak?"
+  answer={2}
+  options={[
+    "At stall, where torque is highest and the motor is working its hardest.",
+    "At the no-load speed, where speed is highest.",
+    "Halfway between stall and no-load speed, at half the stall torque.",
+    "Power is constant along the whole curve, so there is no peak.",
+  ]}
+  explanation="Power is torque times speed, and one factor is zero at each end, so power is zero at both ends and peaks in the middle: half the stall torque, half the no-load speed. At stall the torque is real but the speed is zero, so no mechanical power flows while the windings cook."
+/>
+
+## Matching motor to load
+
+Put the pieces together on a real job: a winch must lift 40 kg at a steady
+speed, winding rope onto a drum of radius 0.05 m. The drum needs torque equal to
+the weight times the radius: 40 times 9.8 times 0.05 = 19.6 N m. Direct drive is
+hopeless: the motor stalls at 0.6 N m, a factor of 33 short.
+
+A 100:1 gearbox fixes the torque. With 70 percent of the motor's work surviving
+the gearbox and drum, the motor must supply 19.6 / (100 times 0.7) = 0.28 N m.
+That point sits well clear of the 0.6 N m stall limit. Now read the curve for
+speed: 3,000 times (1 - 0.28 / 0.6) = 1,600 rpm. The drum follows at 16 rpm, and
+the lift speed is the drum's circumference times its rotation rate: 2 pi times
+0.05 times 16 / 60 = 0.084 m/s, a calm 8.4 cm per second. The motor happens to
+deliver 0.28 times 167.6 = 47 W, right near its peak, which is no accident: a
+well-matched motor works near the middle of its curve.
+
+Why not skip the gearbox and buy a motor that makes 19.6 N m directly? Motors
+that make big torque make it slowly and heavily: the copper, magnets, and steel
+needed for 19.6 N m at low speed cost far more than a small fast motor plus a
+stack of gears. The gearbox is not a luxury, it is the trick that turns cheap
+fast rotation into slow strong shafts. Weight, current draw, and cost all vote
+for the gear train, which is why nearly every real actuator, from a cordless
+drill to a car window lift, is a fast motor wearing a gearbox.
+
+A 100:1 ratio also has to be built, not bought in one piece. Spur gear stages
+top out near 5:1 each before the pinion gets silly, so 100:1 is three or four
+stages in series, each spending its own few percent of efficiency. Worm
+gearboxes reach huge ratios in one stage and can self-lock, holding position
+with power off, but they run hot at 40 to 70 percent efficiency. The 70 percent
+assumed above is what a few spur stages honestly deliver, and it was not pulled
+from the air.
+
+```python
+import math
+
+m, r = 40.0, 0.05        # 40 kg load, drum radius 0.05 m
+gear, eff = 100.0, 0.7   # 100:1 gearbox, 70 percent survives it
+stall = 0.6              # motor stall torque, N*m
+no_load = 3000.0         # motor no-load speed, rpm
+
+drum_torque = m * 9.8 * r
+motor_torque = drum_torque / (gear * eff)
+rpm = no_load * (1 - motor_torque / stall)
+lift = 2 * math.pi * r * rpm / gear / 60
+
+print(f"drum torque needed:  {drum_torque:.1f} N*m")
+print(f"motor torque needed: {motor_torque:.2f} N*m of {stall} stall")
+print(f"motor speed: {rpm:.0f} rpm, drum speed: {rpm/gear:.0f} rpm")
+print(f"lift speed: {lift*100:.1f} cm/s")
+```
+
+The script reproduces every number above. Change the load to 60 kg and the motor
+torque rises to 0.42 N m, the speed falls to 900 rpm, and the lift crawls at 4.7
+cm/s; that is the curve talking. A heavier load does not strain the motor
+dramatically, it just bargains with it for speed.
+
+## Efficiency is a chain
+
+Every stage between motor and load keeps only a fraction of what enters.
+Multipliers compound by multiplication, never addition: a 90 percent gearbox
+feeding a 95 percent chain drive feeding drum bearings at 98 percent delivers
+0.9 times 0.95 times 0.98 = 0.84, about 84 percent overall. String six stages
+together and even 95 percent each leaves 0.74 at the far end. The losses are not
+abstract; they leave as heat, which is why a gearbox that has been working hard
+is too hot to touch. The worked winch above loses 16 percent of 47 W, about
+7.5 W, warming its grease, and a stalled one turns the entire electrical input
+into heat in the motor windings.
+
+<Quiz
+  id="mech-efficiency-chain"
+  question="A drivetrain passes power through a gearbox that is 90 percent efficient and then a chain drive that is 80 percent efficient. What fraction of the motor's power reaches the load?"
+  answer={0}
+  options={[
+    "72 percent, because the efficiencies multiply.",
+    "85 percent, because the efficiencies average.",
+    "90 percent, because the better stage dominates the chain.",
+    "170 percent, because the stages add.",
+  ]}
+  explanation="Efficiencies multiply: 0.9 times 0.8 = 0.72. Averaging is the instinctive but wrong move, and no stage ever hands the next one more power than it received, so nothing in a passive chain can exceed the input."
+/>
+
+Friction deserves one honest paragraph, because it is both the enemy and the
+price of everything working at all. Dry metal on metal under load galls, tears
+microscopic chunks off both surfaces, and can seize entirely; a bearing run dry
+fails in minutes rather than years. Lubrication works by interposing a thin film
+that the surfaces ride on: oil is pumped or splashed where flow exists, grease is
+oil held in place by a thickener for spots that never see flow. Choosing the
+right one is not fussiness; it is the difference between a machine that ages and
+one that stops.
+
+Friction even has numbers worth memorizing. Steel sliding on steel without
+lubrication has a coefficient of friction near 0.6: 60 N of drag for every
+100 N pressing the surfaces together. Oiled, the same pair drops well below 0.2.
+Rolling replaces sliding, which is the entire idea of the ball bearing, and
+rolling resistance runs in the thousandths to low hundredths, an order of
+magnitude better. A cart on bearings outglides a slider by ten times, and that
+gap is bought with a few grams of grease and grade-five steel balls.
+
+The drivetrain above now exists in full: numbers on paper that balance, hold,
+spin, and lift. The next lesson, From Design to Part, takes the final step and
+turns a design into a physical object that actually fits together: tolerances,
+fits, and how the part gets made.
+
+<Notes />

@@ -45,7 +45,7 @@ export const TRACKS: Record<TrackId, Track> = {
     verb: "make things",
     tagline: "Build it to understand it.",
     description:
-      "Programming, apps, AI, and hardware. Learn how things work by building them, from your first line of code to a circuit board you designed.",
+      "Programming, apps, AI, hardware, and the science underneath: math, physics, circuits, machines, and quantum. Learn how things work by building them, from your first line of code to a circuit board you designed.",
     icon: "Wrench",
     accentText: "text-make",
     accentBg: "bg-make/10",
