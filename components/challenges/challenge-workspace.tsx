@@ -16,15 +16,12 @@ import {
   Trophy,
   XCircle,
   AlertTriangle,
-  FileText,
-  MessagesSquare,
 } from "lucide-react";
+import { toast } from "sonner";
 import { runCode, LANGUAGES, STARTERS, langSpec, type Language } from "@/lib/build/run";
-import type { ChallengeCommentDTO } from "@/lib/actions/challenges";
 import { downloadText } from "@/lib/download";
 import { useIsMobile } from "@/lib/hooks/use-is-mobile";
-import { VoteButton } from "@/components/challenges/vote-button";
-import { ChallengeDiscussion } from "@/components/challenges/challenge-discussion";
+import { useProgress, useProgressHydrated } from "@/lib/progress/store";
 import { CodeEditor } from "@/components/build/code-editor";
 import { Terminal, type TerminalHandle } from "@/components/mdx/terminal";
 import { LucideIcon } from "@/components/lucide-icon";
@@ -37,25 +34,24 @@ import {
 } from "@/lib/challenges/config";
 import { cn } from "@/lib/utils";
 
-type SolveState = "idle" | "wrong" | "solved";
-
 export function ChallengeWorkspace({
   challenge,
   description,
-  initialSolved,
-  initialVoted = false,
-  comments = [],
 }: {
   challenge: ChallengeMeta;
   description: React.ReactNode;
-  initialSolved: boolean;
-  initialVoted?: boolean;
-  comments?: ChallengeCommentDTO[];
 }) {
-  const [panelTab, setPanelTab] = useState<"problem" | "discussion">("problem");
   const isMobile = useIsMobile();
   const startLang = (LANGUAGES.find((l) => l.id === challenge.starterLang)?.id ??
     "python") as Language;
+
+  // Solve state, attempts, and points live in the browser's progress store;
+  // neutral (unsolved) until it hydrates so SSR markup matches.
+  const rec = useProgress((s) => s.challenges[challenge.slug]);
+  const solveChallenge = useProgress((s) => s.solveChallenge);
+  const bumpChallengeAttempts = useProgress((s) => s.bumpChallengeAttempts);
+  const hydrated = useProgressHydrated();
+  const solved = hydrated ? Boolean(rec?.solvedAt) : false;
 
   const [language, setLanguage] = useState<Language>(startLang);
   const [codeByLang, setCodeByLang] = useState<Record<Language, string>>(() => {
@@ -69,9 +65,8 @@ export function ChallengeWorkspace({
   const term = useRef<TerminalHandle>(null);
 
   const [answer, setAnswer] = useState("");
-  const [state, setState] = useState<SolveState>(initialSolved ? "solved" : "idle");
+  const [wrong, setWrong] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [awarded, setAwarded] = useState(0);
   const [revealed, setRevealed] = useState(0);
   // A failed submit (network error, 4xx/5xx) is distinct from a wrong answer:
   // never tell the user they were wrong when the server never judged them.
@@ -134,7 +129,7 @@ export function ChallengeWorkspace({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!answer.trim() || checking) return;
+    if (!answer.trim() || checking || solved) return;
     setChecking(true);
     setSubmitError(null);
     try {
@@ -147,12 +142,16 @@ export function ChallengeWorkspace({
         setSubmitError("Could not check your answer just now. Check your connection and try again.");
         return;
       }
-      const d = await r.json();
-      if (d.correct || d.solved) {
-        setState("solved");
-        setAwarded(d.pointsAwarded ?? 0);
+      const d = (await r.json()) as { correct: boolean; points: number };
+      if (d.correct) {
+        // The store owns the solve record (idempotent) and returns any newly
+        // earned badge codes.
+        const fresh = solveChallenge(challenge.slug, d.points);
+        toast.success(`Solved. +${d.points} pts.`);
+        if (fresh.length) toast.success(`Badge earned: ${fresh.length} new`);
       } else {
-        setState("wrong");
+        bumpChallengeAttempts(challenge.slug);
+        setWrong(true);
       }
     } catch {
       setSubmitError("Could not reach the server. Check your connection and try again.");
@@ -173,14 +172,7 @@ export function ChallengeWorkspace({
           <ArrowLeft className="size-3.5" /> Challenges
         </Link>
         <div className="ml-auto flex items-center gap-2">
-          {challenge.community ? (
-            <VoteButton
-              slug={challenge.slug}
-              initialUpvotes={challenge.upvotes ?? 0}
-              initialVoted={initialVoted}
-            />
-          ) : null}
-          {state === "solved" ? (
+          {solved ? (
             <span className="flex items-center gap-1 text-xs font-semibold text-success">
               <CheckCircle2 className="size-3.5" /> Solved
             </span>
@@ -188,36 +180,6 @@ export function ChallengeWorkspace({
         </div>
       </div>
 
-      {/* Problem / Discussion tabs */}
-      <div className="flex items-center gap-1 border-b px-2 py-1">
-        {(["problem", "discussion"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setPanelTab(t)}
-            className={cn(
-              "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors",
-              panelTab === t
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t === "problem" ? (
-              <FileText className="size-3.5" />
-            ) : (
-              <MessagesSquare className="size-3.5" />
-            )}
-            {t}
-            {t === "discussion" && comments.length ? ` (${comments.length})` : ""}
-          </button>
-        ))}
-      </div>
-
-      {panelTab === "discussion" ? (
-        <div className="min-h-0 flex-1 overflow-hidden p-4">
-          <ChallengeDiscussion slug={challenge.slug} initialComments={comments} />
-        </div>
-      ) : (
       <div className="scrollbar-thin flex-1 overflow-y-auto p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span
@@ -234,11 +196,6 @@ export function ChallengeWorkspace({
           <span className="flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
             <Trophy className="size-3" /> {challenge.points} pts
           </span>
-          {challenge.community ? (
-            <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-              by {challenge.author ?? "community"}
-            </span>
-          ) : null}
         </div>
 
         <h1 className="text-xl font-bold tracking-tight">{challenge.title}</h1>
@@ -269,15 +226,14 @@ export function ChallengeWorkspace({
           </div>
         ) : null}
       </div>
-      )}
 
       {/* Pinned answer submission */}
       <div className="border-t bg-muted/20 p-3">
-        {state === "solved" ? (
+        {solved ? (
           <div className="flex items-center gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
             <CheckCircle2 className="size-4 shrink-0" />
             <span className="font-medium">
-              Solved{awarded ? ` (+${awarded} pts)` : ""}. Nice work.
+              Solved{rec?.points ? ` (+${rec.points} pts)` : ""}. Nice work.
             </span>
           </div>
         ) : (
@@ -291,7 +247,7 @@ export function ChallengeWorkspace({
                 value={answer}
                 onChange={(e) => {
                   setAnswer(e.target.value);
-                  if (state === "wrong") setState("idle");
+                  if (wrong) setWrong(false);
                   if (submitError) setSubmitError(null);
                 }}
                 placeholder={answerPlaceholder(challenge.answerType)}
@@ -308,7 +264,7 @@ export function ChallengeWorkspace({
                 Submit
               </button>
             </div>
-            {state === "wrong" ? (
+            {wrong ? (
               <p className="flex items-center gap-1.5 text-xs text-destructive">
                 <XCircle className="size-3.5" /> Not quite. Use the editor to work it out, then try
                 again.

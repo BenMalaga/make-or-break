@@ -1,4 +1,4 @@
-import type { Machine } from "@prisma/client";
+import type { MachineFrontmatter } from "@/lib/content/types";
 import { Container, HardDrive, Cloud, Globe, Search } from "lucide-react";
 import { CommandCard } from "@/components/mdx/command-card";
 import { Callout } from "@/components/mdx/callout";
@@ -8,9 +8,9 @@ import { Callout } from "@/components/mdx/callout";
  * machine's targetType. Phase A = DOCKER + BYO_VM. Phase B (HOSTED) shows a
  * spawn placeholder until the orchestrator ships.
  */
-export function TargetSetup({ machine }: { machine: Machine }) {
+export function TargetSetup({ machine }: { machine: MachineFrontmatter }) {
   if (machine.targetType === "DOCKER") {
-    const url = `http://localhost:${machine.targetPort ?? 80}${machine.targetHttpPath ?? "/"}`;
+    const url = `http://localhost:${machine.docker?.port ?? 80}${machine.docker?.httpPath ?? "/"}`;
     return (
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -19,8 +19,8 @@ export function TargetSetup({ machine }: { machine: Machine }) {
         <p className="text-sm text-muted-foreground">
           Spin this up locally with Docker, then attack it from your Kali box.
         </p>
-        {machine.dockerRunCmd ? (
-          <CommandCard command={machine.dockerRunCmd} title="docker" explain="Run once. Ctrl-C or docker stop to tear it down." />
+        {machine.docker?.run ? (
+          <CommandCard command={machine.docker.run} title="docker" explain="Run once. Ctrl-C or docker stop to tear it down." />
         ) : null}
         <p className="text-sm">
           Then hit it at{" "}
@@ -46,28 +46,28 @@ export function TargetSetup({ machine }: { machine: Machine }) {
           <dl className="space-y-2">
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Image</dt>
-              <dd className="font-medium">{machine.byoVmName ?? machine.name}</dd>
+              <dd className="font-medium">{machine.byoVm?.name ?? machine.name}</dd>
             </div>
-            {machine.byoVmSourceUrl ? (
+            {machine.byoVm?.sourceUrl ? (
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Download</dt>
                 <dd>
-                  <a href={machine.byoVmSourceUrl} className="text-primary underline underline-offset-4" target="_blank" rel="noreferrer">
+                  <a href={machine.byoVm.sourceUrl} className="text-primary underline underline-offset-4" target="_blank" rel="noreferrer">
                     VulnHub entry
                   </a>
                 </dd>
               </div>
             ) : null}
-            {machine.byoVmSha256 ? (
+            {machine.byoVm?.sha256 ? (
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">SHA-256</dt>
-                <dd className="max-w-[60%] truncate font-mono text-xs">{machine.byoVmSha256}</dd>
+                <dd className="max-w-[60%] truncate font-mono text-xs">{machine.byoVm.sha256}</dd>
               </div>
             ) : null}
           </dl>
         </div>
-        {machine.byoVmImportNotes ? (
-          <Callout type="tip" title="Import notes">{machine.byoVmImportNotes}</Callout>
+        {machine.byoVm?.importNotes ? (
+          <Callout type="tip" title="Import notes">{machine.byoVm.importNotes}</Callout>
         ) : null}
         <div className="space-y-2">
           <p className="flex items-center gap-2 text-sm font-medium">

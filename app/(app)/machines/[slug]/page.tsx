@@ -1,17 +1,25 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, Server, Crown, Lock, BookLock } from "lucide-react";
-import { requireUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { readMachine, readMachineWalkthrough } from "@/lib/content/mdx";
+import { ArrowLeft, Server, BookLock } from "lucide-react";
+import { listMachineFiles, readMachineWalkthrough } from "@/lib/content/mdx";
 import { Mdx } from "@/lib/content/render";
 import { DifficultyBadge } from "@/components/machines/difficulty-badge";
 import { TargetSetup } from "@/components/machines/target-setup";
 import { TaskChecklist } from "@/components/machines/task-checklist";
 import { HintList } from "@/components/machines/hint-list";
 import { FlagSubmit } from "@/components/machines/flag-submit";
+import { RootedCrown } from "@/components/machines/rooted-crown";
+import { WalkthroughGate } from "@/components/machines/walkthrough-gate";
 import { OS_LABEL, TARGET_TYPE_LABEL } from "@/lib/constants";
+
+/**
+ * Everything on this page comes from the machine's MDX frontmatter plus the
+ * browser's progress store; there is no database row behind a machine.
+ */
+function findMachine(slug: string) {
+  return listMachineFiles().find((m) => m.slug === slug) ?? null;
+}
 
 export async function generateMetadata(
   props: {
@@ -19,45 +27,18 @@ export async function generateMetadata(
   }
 ): Promise<Metadata> {
   const params = await props.params;
-  const m = await prisma.machine.findUnique({ where: { slug: params.slug } });
-  return { title: m?.name ?? "Machine" };
+  const machine = findMachine(params.slug);
+  return { title: machine?.frontmatter.name ?? "Machine" };
 }
 
 export default async function MachinePage(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
-  const user = await requireUser();
-
-  const machine = await prisma.machine.findUnique({
-    where: { slug: params.slug },
-    include: {
-      tasks: { orderBy: { order: "asc" } },
-      hints: { orderBy: { order: "asc" } },
-      creator: { select: { username: true } },
-    },
-  });
+  const machine = findMachine(params.slug);
   if (!machine) notFound();
 
-  const [progress, taskDone, hintUnlocks] = await Promise.all([
-    prisma.machineProgress.findUnique({
-      where: { userId_machineId: { userId: user.id, machineId: machine.id } },
-    }),
-    prisma.machineTaskCompletion.findMany({
-      where: { userId: user.id, task: { machineId: machine.id } },
-      select: { taskId: true },
-    }),
-    prisma.hintUnlock.findMany({
-      where: { userId: user.id, hint: { machineId: machine.id } },
-      select: { hintId: true },
-    }),
-  ]);
-
-  const doneSet = new Set(taskDone.map((t) => t.taskId));
-  const unlockedSet = new Set(hintUnlocks.map((h) => h.hintId));
-  const rooted = progress?.rootOwned ?? false;
-  const canSeeWalkthrough = rooted || machine.retired;
-
-  const raw = readMachine(machine.contentRef);
-  const walkthrough = canSeeWalkthrough ? readMachineWalkthrough(machine.contentRef) : null;
+  const fm = machine.frontmatter;
+  const points = fm.flags.reduce((sum, f) => sum + (f.points ?? 0), 0);
+  const walkthrough = readMachineWalkthrough(machine.contentRef);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -71,86 +52,66 @@ export default async function MachinePage(props: { params: Promise<{ slug: strin
           </div>
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold">{machine.name}</h1>
-              {rooted ? <Crown className="size-5 text-success" /> : null}
-              <DifficultyBadge difficulty={machine.difficulty} />
+              <h1 className="text-2xl font-bold">{fm.name}</h1>
+              <RootedCrown machineSlug={machine.slug} />
+              <DifficultyBadge difficulty={fm.difficulty} />
             </div>
-            <p className="mt-1 text-muted-foreground">{machine.tagline ?? machine.description}</p>
+            <p className="mt-1 text-muted-foreground">{fm.tagline ?? fm.description}</p>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span>{OS_LABEL[machine.os]}</span>
+              <span>{OS_LABEL[fm.os ?? "OTHER"]}</span>
               <span>-</span>
-              <span>{TARGET_TYPE_LABEL[machine.targetType]}</span>
+              <span>{TARGET_TYPE_LABEL[fm.targetType]}</span>
               <span>-</span>
-              <span className="font-medium text-primary">{machine.points} pts</span>
-              {machine.creator ? (
-                <>
-                  <span>-</span>
-                  <span>by {machine.creator.username}</span>
-                </>
-              ) : null}
+              <span className="font-medium text-primary">{points} pts</span>
             </div>
           </div>
         </div>
       </div>
 
-      {raw ? (
-        <div className="text-[0.95rem]">
-          <Mdx source={raw.body} />
-        </div>
-      ) : null}
+      <div className="text-[0.95rem]">
+        <Mdx source={machine.body} />
+      </div>
 
-      <TargetSetup machine={machine} />
+      <TargetSetup machine={fm} />
 
-      {machine.tasks.length ? (
+      {fm.tasks?.length ? (
         <TaskChecklist
-          tasks={machine.tasks.map((t) => ({
-            id: t.id,
+          machineSlug={machine.slug}
+          tasks={fm.tasks.map((t) => ({
+            // Store key: the task title (titles are unique within a machine).
+            key: t.title,
             title: t.title,
             description: t.description,
-            done: doneSet.has(t.id),
           }))}
         />
       ) : null}
 
-      <FlagSubmit
-        machineId={machine.id}
-        userOwned={progress?.userOwned ?? false}
-        rootOwned={progress?.rootOwned ?? false}
-      />
+      <FlagSubmit machineSlug={machine.slug} />
 
-      {machine.hints.length ? (
+      {fm.hints?.length ? (
         <HintList
-          hints={machine.hints.map((h) => ({
-            id: h.id,
-            order: h.order,
+          machineSlug={machine.slug}
+          hints={fm.hints.map((h, i) => ({
+            // Store key: the hint's frontmatter index (titles are optional).
+            key: String(i),
             title: h.title,
-            pointCost: h.pointCost,
-            unlocked: unlockedSet.has(h.id),
-            body: unlockedSet.has(h.id) ? h.body : null,
+            cost: h.cost ?? 0,
           }))}
         />
       ) : null}
 
-      {/* Walkthrough - spoiler-gated server-side */}
+      {/* Walkthrough - spoiler-gated by the store's rooted state */}
       <section>
         <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
           <BookLock className="size-5 text-primary" /> Walkthrough
         </h2>
-        {canSeeWalkthrough ? (
-          walkthrough ? (
-            <div className="rounded-lg border bg-card p-5 text-[0.95rem]">
-              <Mdx source={walkthrough} />
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No walkthrough written for this machine yet.</p>
-          )
-        ) : (
-          <div className="flex items-center gap-3 rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-            <Lock className="size-5 shrink-0" />
-            The walkthrough unlocks once you capture root (or when the machine
-            retires). No spoilers before then - try the hints first.
-          </div>
-        )}
+        <WalkthroughGate
+          machineSlug={machine.slug}
+          retired={Boolean(fm.retired)}
+          hasWalkthrough={Boolean(walkthrough)}
+        >
+          {walkthrough ? <Mdx source={walkthrough} /> : null}
+        </WalkthroughGate>
       </section>
     </div>
   );

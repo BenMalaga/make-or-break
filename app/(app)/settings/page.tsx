@@ -1,75 +1,70 @@
-import Link from "next/link";
-import type { Metadata } from "next";
-import { Download, ShieldCheck } from "lucide-react";
-import { requireUser } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
+"use client";
+
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { useProgress } from "@/lib/progress/store";
 
-export const metadata: Metadata = { title: "Settings" };
+// Settings without accounts: appearance, a local data export, and the rules.
+// Everything the learner does lives in their browser; export is the backup path.
+export default function SettingsPage() {
+  const exportJSON = useProgress((s) => s.exportJSON);
 
-export default async function SettingsPage() {
-  const user = await requireUser();
-
-  const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
-  const roleLabel = user.role === "USER" ? "Member" : titleCase(user.role);
-
-  const rows: [string, string][] = [
-    ["Username", user.username],
-    // Guests have a synthetic guest-<uuid>@guest.local address that should never
-    // be shown as if it were a real email.
-    ["Email", user.isGuest ? "Guest session (no email)" : user.email],
-    ["Role", roleLabel],
-    ["Plan", titleCase(user.subscriptionTier)],
-  ];
+  function download() {
+    const blob = new Blob([exportJSON()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "make-or-break-progress.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <div className="mx-auto max-w-2xl space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          There are no accounts on this platform. Your progress saves itself in
+          this browser.
+        </p>
+      </div>
 
-      <section className="rounded-lg border bg-card">
-        <div className="border-b px-5 py-3">
-          <h2 className="text-sm font-semibold">Account</h2>
+      <section className="rounded-lg border bg-card p-5">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Appearance
+        </h2>
+        <div className="flex items-center justify-between">
+          <span className="text-sm">Theme</span>
+          <ThemeToggle />
         </div>
-        <dl className="divide-y divide-border/60">
-          {rows.map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between px-5 py-3">
-              <dt className="text-sm text-muted-foreground">{label}</dt>
-              <dd className="text-sm font-medium">{value}</dd>
-            </div>
-          ))}
-        </dl>
       </section>
 
-      <section className="flex items-center justify-between rounded-lg border bg-card px-5 py-4">
-        <div>
-          <h2 className="text-sm font-semibold">Appearance</h2>
-          <p className="text-xs text-muted-foreground">Catppuccin Mocha (dark) or Latte (light).</p>
-        </div>
-        <ThemeToggle />
+      <section className="rounded-lg border bg-card p-5">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Your data
+        </h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Download everything this browser holds: completed lessons, notes,
+          solves, points, and badges, as one JSON file.
+        </p>
+        <Button variant="outline" onClick={download}>
+          <Download className="size-4" /> Export progress
+        </Button>
       </section>
 
-      <section className="flex items-center justify-between rounded-lg border bg-card px-5 py-4">
-        <div>
-          <h2 className="text-sm font-semibold">Your data</h2>
-          <p className="text-xs text-muted-foreground">Export all your progress and writeups as JSON.</p>
-        </div>
-        <Button asChild variant="outline">
-          <a href="/api/me/export" download>
-            <Download className="size-4" /> Export
+      <section className="rounded-lg border bg-card p-5">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Rules
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Practice security only on systems you own or are authorized to test.
+          Read the{" "}
+          <a href="/rules" className="text-primary underline-offset-4 hover:underline">
+            rules of engagement
           </a>
-        </Button>
-      </section>
-
-      <section className="flex items-center justify-between rounded-lg border bg-card px-5 py-4">
-        <div>
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <ShieldCheck className="size-4 text-success" /> Rules of engagement
-          </h2>
-          <p className="text-xs text-muted-foreground">The ethics agreement you accepted.</p>
-        </div>
-        <Button asChild variant="ghost">
-          <Link href="/rules">View</Link>
-        </Button>
+          .
+        </p>
       </section>
     </div>
   );

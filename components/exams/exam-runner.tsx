@@ -7,13 +7,13 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { submitExam, type ExamResult } from "@/lib/actions/exams";
-import type { ClientQuestion } from "@/lib/exams";
+import { submitExam, type ExamResult, type ClientQuestion } from "@/lib/actions/exams";
+import { useProgress } from "@/lib/progress/store";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 export function ExamRunner({
-  certificationId,
+  certSlug,
   certName,
   mode,
   examMinutes,
@@ -21,7 +21,7 @@ export function ExamRunner({
   backHref,
   examHref,
 }: {
-  certificationId: string;
+  certSlug: string;
   certName: string;
   mode: "practice" | "timed" | "domain";
   examMinutes: number;
@@ -38,6 +38,7 @@ export function ExamRunner({
   const [result, setResult] = useState<ExamResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
+  const addExam = useProgress((s) => s.addExam);
 
   const q = questions[index];
   const answeredCount = questions.filter((x) => (answers[x.id]?.length ?? 0) > 0).length;
@@ -48,11 +49,23 @@ export function ExamRunner({
     setSubmitting(true);
     try {
       const r = await submitExam({
-        certificationId,
+        certSlug,
         mode,
         answers: questions.map((x) => ({ questionId: x.id, selected: answers[x.id] ?? [] })),
       });
+      // The attempt lives in the local store; the store awards no exam points.
+      const fresh = addExam({
+        cert: certSlug,
+        mode,
+        score: r.score,
+        passed: r.passed,
+        correctCount: r.correctCount,
+        totalCount: r.totalCount,
+        at: Date.now(),
+      });
       setResult(r);
+      toast.success(r.passed ? `Passed with ${r.score}%.` : `Scored ${r.score}%.`);
+      if (fresh.length) toast.success(`Badge earned: ${fresh.length} new`);
       window.scrollTo({ top: 0 });
     } catch {
       toast.error("Could not submit exam. Try again.");

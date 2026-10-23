@@ -1,49 +1,31 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { markLessonComplete, markLessonIncomplete } from "@/lib/actions/progress";
+import { POINTS } from "@/lib/gamification/points";
+import { useProgress, useProgressHydrated } from "@/lib/progress/store";
 
-export function LessonCompleteButton({
-  lessonId,
-  initialCompleted,
-}: {
-  lessonId: string;
-  initialCompleted: boolean;
-}) {
-  const router = useRouter();
-  const [completed, setCompleted] = useState(initialCompleted);
-  const [pending, startTransition] = useTransition();
+export function LessonCompleteButton({ lessonSlug }: { lessonSlug: string }) {
+  const hydrated = useProgressHydrated();
+  const lessons = useProgress((s) => s.lessons);
+  const completed = hydrated && Boolean(lessons[lessonSlug]?.completedAt);
 
   function toggle() {
-    startTransition(async () => {
-      if (completed) {
-        await markLessonIncomplete(lessonId);
-        setCompleted(false);
-      } else {
-        const res = await markLessonComplete(lessonId);
-        setCompleted(true);
-        if (res.awarded > 0) toast.success(`Lesson complete. +${res.awarded} points.`);
-        else toast.success("Lesson complete.");
-        if (res.badges?.length) toast.success(`Badge earned: ${res.badges.length} new`);
-      }
-      router.refresh();
-    });
+    if (completed) {
+      useProgress.getState().reopenLesson(lessonSlug);
+      return;
+    }
+    // completeLesson is idempotent, so the points toast only fires on the
+    // transition into completed.
+    const badges = useProgress.getState().completeLesson(lessonSlug);
+    toast.success(`Lesson complete. +${POINTS.LESSON_COMPLETE} points.`);
+    if (badges.length) toast.success(`Badge earned: ${badges.length} new`);
   }
 
   return (
-    <Button
-      onClick={toggle}
-      disabled={pending}
-      variant={completed ? "outline" : "default"}
-      size="lg"
-    >
-      {pending ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : completed ? (
+    <Button onClick={toggle} variant={completed ? "outline" : "default"} size="lg">
+      {completed ? (
         <CheckCircle2 className="size-4 text-success" />
       ) : (
         <Circle className="size-4" />

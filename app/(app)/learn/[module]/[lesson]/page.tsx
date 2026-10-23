@@ -4,80 +4,46 @@ import type { Metadata } from "next";
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
-  Circle,
   Clock,
-  GitBranch,
   Target,
   AlertTriangle,
 } from "lucide-react";
-import { requireUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { categoryForModule } from "@/lib/categories";
+import { catalogLesson, catalogModuleLessons } from "@/lib/content/catalog";
 import { readLesson } from "@/lib/content/mdx";
 import { Mdx } from "@/lib/content/render";
-import {
-  LessonInteractiveProvider,
-  type InteractiveState,
-} from "@/lib/content/lesson-context";
+import { LessonInteractiveProvider } from "@/lib/content/lesson-context";
 import { LessonCompleteButton } from "@/components/learn/lesson-complete-button";
+import { PrereqList } from "@/components/learn/prereq-list";
 import { FloatingNotes } from "@/components/notes/floating-notes";
 import { Button } from "@/components/ui/button";
 
 type Params = { module: string; lesson: string };
 
-export async function generateMetadata(
-  props: {
-    params: Promise<Params>;
-  }
-): Promise<Metadata> {
+export async function generateMetadata(props: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
   const params = await props.params;
-  const lesson = await prisma.lesson.findUnique({ where: { slug: params.lesson } });
-  return { title: lesson?.title ?? "Lesson" };
+  return { title: catalogLesson(params.lesson)?.title ?? "Lesson" };
 }
 
 export default async function LessonPage(props: { params: Promise<Params> }) {
   const params = await props.params;
-  const user = await requireUser();
+  const lesson = catalogLesson(params.lesson);
+  if (!lesson || lesson.moduleSlug !== params.module) notFound();
 
-  const lesson = await prisma.lesson.findUnique({
-    where: { slug: params.lesson },
-    include: { module: true },
-  });
-  if (!lesson || lesson.module.slug !== params.module) notFound();
-
-  const [progress, siblings, prereqs] = await Promise.all([
-    prisma.lessonProgress.findUnique({
-      where: { userId_lessonId: { userId: user.id, lessonId: lesson.id } },
-    }),
-    prisma.lesson.findMany({
-      where: { moduleId: lesson.moduleId, status: "PUBLISHED" },
-      orderBy: { order: "asc" },
-      select: { slug: true, title: true, order: true },
-    }),
-    // What this lesson builds on, and whether the reader has actually done it.
-    lesson.prerequisites.length
-      ? prisma.lesson.findMany({
-          where: { slug: { in: lesson.prerequisites }, status: "PUBLISHED" },
-          select: {
-            slug: true,
-            title: true,
-            module: { select: { slug: true } },
-            progress: {
-              where: { userId: user.id },
-              select: { completed: true },
-            },
-          },
-        })
-      : Promise.resolve([]),
-  ]);
-
+  const siblings = catalogModuleLessons(params.module);
   const raw = readLesson(lesson.contentRef);
   const idx = siblings.findIndex((s) => s.slug === lesson.slug);
   const prev = idx > 0 ? siblings[idx - 1] : null;
   const next = idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : null;
 
-  const interactive = (progress?.interactive as Partial<InteractiveState> | null) ?? null;
+  // What this lesson builds on. Whether the reader has done each one is store
+  // data, resolved client-side by PrereqList.
+  const prereqs = lesson.prerequisites
+    .map((slug) => catalogLesson(slug))
+    .filter((l) => l !== null)
+    .map((l) => ({ slug: l.slug, title: l.title, moduleSlug: l.moduleSlug }));
 
   return (
     <article className="mx-auto max-w-3xl">
@@ -86,7 +52,7 @@ export default async function LessonPage(props: { params: Promise<Params> }) {
           href={`/learn/${params.module}`}
           className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-4" /> {lesson.module.title}
+          <ArrowLeft className="size-4" /> {lesson.moduleTitle}
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">{lesson.title}</h1>
         {lesson.summary ? (
@@ -108,36 +74,7 @@ export default async function LessonPage(props: { params: Promise<Params> }) {
         </div>
       </div>
 
-      {prereqs.length ? (
-        <div className="mb-6 rounded-lg border bg-card p-4">
-          <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <GitBranch className="size-4 text-primary" /> Builds on
-          </p>
-          <ul className="space-y-1 text-sm">
-            {prereqs.map((p) => {
-              const done = p.progress[0]?.completed ?? false;
-              return (
-                <li key={p.slug}>
-                  <Link
-                    href={`/learn/${p.module.slug}/${p.slug}`}
-                    className="group flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                  >
-                    {done ? (
-                      <Check className="size-3.5 shrink-0 text-success" />
-                    ) : (
-                      <Circle className="size-3.5 shrink-0 text-muted-foreground/50" />
-                    )}
-                    <span className="underline-offset-4 group-hover:underline">{p.title}</span>
-                    {!done ? (
-                      <span className="text-xs text-muted-foreground/70">not done yet</span>
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
+      {prereqs.length ? <PrereqList prereqs={prereqs} /> : null}
 
       {lesson.objectives.length ? (
         <div className="mb-8 rounded-lg border bg-card p-4">
@@ -156,11 +93,7 @@ export default async function LessonPage(props: { params: Promise<Params> }) {
       ) : null}
 
       {raw ? (
-        <LessonInteractiveProvider
-          lessonId={lesson.id}
-          initialInteractive={interactive}
-          initialNotes={progress?.notes ?? ""}
-        >
+        <LessonInteractiveProvider key={lesson.slug} lessonSlug={lesson.slug}>
           <div className="text-[0.95rem]">
             <Mdx source={raw.body} autoWrapTerms={categoryForModule(params.module)?.track !== "make"} />
           </div>
@@ -174,7 +107,7 @@ export default async function LessonPage(props: { params: Promise<Params> }) {
       )}
 
       <div className="mt-10 flex flex-col gap-4 border-t pt-6">
-        <LessonCompleteButton lessonId={lesson.id} initialCompleted={progress?.completed ?? false} />
+        <LessonCompleteButton lessonSlug={lesson.slug} />
         <div className="flex items-center justify-between gap-4">
           {prev ? (
             <Button asChild variant="ghost" size="sm">

@@ -2,52 +2,84 @@
 
 import { useState, useTransition } from "react";
 import { Check, Flame, Lightbulb, Copy, Send, X } from "lucide-react";
-import { submitDailyDrop, type DailySubmitResult } from "@/lib/actions/daily";
+import { toast } from "sonner";
+import { submitDailyDrop } from "@/lib/actions/daily";
 import { answerPlaceholder, type AnswerType } from "@/lib/challenges/config";
+import { currentStreak } from "@/lib/daily/streak";
+import { POINTS } from "@/lib/gamification/points";
+import { useProgress, useProgressHydrated } from "@/lib/progress/store";
 import { cn } from "@/lib/utils";
 
+/** Attempt cap per drop. The store counts attempts, the client enforces the cap. */
+const MAX_ATTEMPTS = 100;
+
+/** The dateKeys of solved drops, in the shape currentStreak expects. */
+function solvedKeysOf(daily: Record<string, { solvedAt?: number }>): Set<string> {
+  return new Set(
+    Object.entries(daily)
+      .filter(([, r]) => r.solvedAt)
+      .map(([key]) => key),
+  );
+}
+
+/** Live streak chip for the page header. Renders nothing until the store hydrates. */
+export function DailyStreakBadge({ dateKey }: { dateKey: string }) {
+  const daily = useProgress((s) => s.daily);
+  const hydrated = useProgressHydrated();
+  if (!hydrated) return null;
+  const streak = currentStreak(solvedKeysOf(daily), dateKey);
+  if (streak <= 0) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-medium/30 bg-medium/10 px-3 py-1 text-sm font-medium text-medium">
+      <Flame className="size-4" /> {streak}-day streak
+    </span>
+  );
+}
+
 interface Props {
+  dateKey: string;
+  slug: string;
   dropNumber: number;
   answerType: AnswerType;
   hints: string[];
-  initialSolved: boolean;
-  initialAttempts: number;
-  initialStreak: number;
 }
 
-export function DailySolver({
-  dropNumber,
-  answerType,
-  hints,
-  initialSolved,
-  initialAttempts,
-  initialStreak,
-}: Props) {
+export function DailySolver({ dateKey, slug, dropNumber, answerType, hints }: Props) {
+  const daily = useProgress((s) => s.daily);
+  const recordDaily = useProgress((s) => s.recordDaily);
+  const hydrated = useProgressHydrated();
+
   const [answer, setAnswer] = useState("");
-  const [solved, setSolved] = useState(initialSolved);
-  const [attempts, setAttempts] = useState(initialAttempts);
-  const [streak, setStreak] = useState(initialStreak);
   const [wrong, setWrong] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hintsShown, setHintsShown] = useState(0);
   const [copied, setCopied] = useState(false);
   const [pending, start] = useTransition();
 
+  // Progress state comes from the store; neutral (0s, unsolved) until hydrated.
+  const rec = daily[dateKey];
+  const solved = hydrated ? Boolean(rec?.solvedAt) : false;
+  const attempts = hydrated ? (rec?.attempts ?? 0) : 0;
+  const streak = hydrated ? currentStreak(solvedKeysOf(daily), dateKey) : 0;
+  const capped = attempts >= MAX_ATTEMPTS;
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!answer.trim() || pending || solved) return;
+    if (!answer.trim() || pending || solved || capped) return;
     setWrong(false);
     setError(null);
     start(async () => {
-      const res: DailySubmitResult = await submitDailyDrop(answer);
+      const res = await submitDailyDrop(answer);
       if (res.error) {
         setError(res.error);
         return;
       }
-      setAttempts(res.attempts);
-      setStreak(res.streak);
-      if (res.solved) {
-        setSolved(true);
+      // recordDaily bumps attempts (no points) on a wrong answer and awards
+      // the points exactly once on the first correct one.
+      const fresh = recordDaily(dateKey, slug, res.correct, POINTS.DAILY);
+      if (res.correct) {
+        toast.success(`Daily Drop solved. +${POINTS.DAILY} pts.`);
+        if (fresh.length) toast.success(`Badge earned: ${fresh.length} new`);
       } else {
         setWrong(true);
       }
@@ -116,21 +148,26 @@ export function DailySolver({
           placeholder={answerPlaceholder(answerType)}
           autoComplete="off"
           spellCheck={false}
+          disabled={capped}
           className={cn(
-            "flex-1 rounded-md border bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-primary/40",
+            "flex-1 rounded-md border bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50",
             wrong && "border-destructive/60",
           )}
         />
         <button
           type="submit"
-          disabled={pending || !answer.trim()}
+          disabled={pending || capped || !answer.trim()}
           className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           <Send className="size-4" /> {pending ? "Checking" : "Submit"}
         </button>
       </div>
 
-      {wrong ? (
+      {capped ? (
+        <p className="text-sm text-destructive">
+          Too many attempts today. Come back for tomorrow's drop.
+        </p>
+      ) : wrong ? (
         <p className="inline-flex items-center gap-1.5 text-sm text-destructive">
           <X className="size-4" /> Not quite. {attempts} {attempts === 1 ? "try" : "tries"} so far.
         </p>

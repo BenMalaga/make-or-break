@@ -1,37 +1,69 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lightbulb, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { unlockHint } from "@/lib/actions/machines";
+import { unlockHint as fetchHintBody } from "@/lib/actions/machines";
+import { useProgress, useProgressHydrated } from "@/lib/progress/store";
 import { Button } from "@/components/ui/button";
 
 export interface HintItem {
-  id: string;
-  order: number;
-  title: string | null;
-  pointCost: number;
-  unlocked: boolean;
-  body: string | null; // present only if already unlocked
+  /** Stable store key: the hint's frontmatter index, as a string. */
+  key: string;
+  title?: string;
+  cost: number;
 }
 
-export function HintList({ hints }: { hints: HintItem[] }) {
-  const [items, setItems] = useState(hints);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+/**
+ * Progressive hints. Unlocked state lives in the progress store (key only);
+ * the client spends the points there first and only then fetches the body
+ * from the server, so locked hint text is never sent to the browser.
+ */
+export function HintList({
+  machineSlug,
+  hints,
+}: {
+  machineSlug: string;
+  hints: HintItem[];
+}) {
+  const unlockedKeys = useProgress((s) => s.machines[machineSlug]?.hints);
+  const unlockHint = useProgress((s) => s.unlockHint);
+  const hydrated = useProgressHydrated();
+  const [bodies, setBodies] = useState<Record<string, string>>({});
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const fetched = useRef(new Set<string>());
 
-  async function reveal(id: string, cost: number) {
-    if (cost > 0 && !window.confirm(`Reveal this hint for ${cost} points?`)) return;
-    setLoadingId(id);
-    const res = await unlockHint(id);
-    setLoadingId(null);
-    if (res.ok && "body" in res) {
-      setItems((prev) => prev.map((h) => (h.id === id ? { ...h, unlocked: true, body: res.body ?? "" } : h)));
-    } else {
-      toast.error("Could not unlock hint.");
+  // Hints unlocked in an earlier session are known to the store by key only;
+  // fetch their bodies once after hydration.
+  useEffect(() => {
+    if (!hydrated) return;
+    for (const key of unlockedKeys ?? []) {
+      if (fetched.current.has(key)) continue;
+      fetched.current.add(key);
+      void fetchHintBody(machineSlug, key).then((body) => {
+        if (body != null) setBodies((b) => ({ ...b, [key]: body }));
+      });
     }
+  }, [hydrated, unlockedKeys, machineSlug]);
+
+  async function reveal(key: string, cost: number) {
+    if (cost > 0 && !window.confirm(`Reveal this hint for ${cost} points?`)) return;
+    // The store checks the balance and deducts; only spend successes reach the server.
+    if (!unlockHint(machineSlug, key, cost)) {
+      toast.error("Not enough points for this hint.");
+      return;
+    }
+    setLoadingKey(key);
+    const body = await fetchHintBody(machineSlug, key);
+    setLoadingKey(null);
+    if (body == null) {
+      toast.error("Could not unlock hint.");
+      return;
+    }
+    setBodies((b) => ({ ...b, [key]: body }));
   }
 
-  if (items.length === 0) return null;
+  if (!hints.length) return null;
 
   return (
     <div className="rounded-lg border bg-card">
@@ -41,31 +73,35 @@ export function HintList({ hints }: { hints: HintItem[] }) {
         </h3>
       </div>
       <ul className="divide-y divide-border/60">
-        {items.map((h, i) => (
-          <li key={h.id} className="px-5 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium">{h.title ?? `Hint ${i + 1}`}</span>
-              {!h.unlocked ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => reveal(h.id, h.pointCost)}
-                  disabled={loadingId === h.id}
-                >
-                  {loadingId === h.id ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Lock className="size-3.5" />
-                  )}
-                  {h.pointCost > 0 ? `Reveal (-${h.pointCost} pts)` : "Reveal"}
-                </Button>
+        {hints.map((h, i) => {
+          const unlocked =
+            h.key in bodies || (hydrated && (unlockedKeys ?? []).includes(h.key));
+          return (
+            <li key={h.key} className="px-5 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium">{h.title ?? `Hint ${i + 1}`}</span>
+                {!unlocked ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => reveal(h.key, h.cost)}
+                    disabled={loadingKey === h.key}
+                  >
+                    {loadingKey === h.key ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Lock className="size-3.5" />
+                    )}
+                    {h.cost > 0 ? `Reveal (-${h.cost} pts)` : "Reveal"}
+                  </Button>
+                ) : null}
+              </div>
+              {unlocked && bodies[h.key] ? (
+                <p className="mt-2 text-sm text-muted-foreground">{bodies[h.key]}</p>
               ) : null}
-            </div>
-            {h.unlocked && h.body ? (
-              <p className="mt-2 text-sm text-muted-foreground">{h.body}</p>
-            ) : null}
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

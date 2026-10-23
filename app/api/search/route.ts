@@ -1,49 +1,53 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/db";
+import { catalogLessons, catalogModules } from "@/lib/content/catalog";
+import { listMachineFiles } from "@/lib/content/mdx";
+import { listCerts } from "@/lib/content/certs";
 
 /**
  * GET /api/search?q= - global search across lessons, machines, and certs for
- * the Cmd+K palette. Auth-gated; returns a small capped result set.
+ * the Cmd+K palette. Searches the on-disk catalog in memory; no database, no
+ * auth. Returns a small capped result set.
  */
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
-  if (q.length < 2) return NextResponse.json({ lessons: [], machines: [], certs: [] });
+  if (q.length < 2) {
+    return NextResponse.json({ lessons: [], machines: [], certs: [] });
+  }
+  const needle = q.toLowerCase();
 
-  const [lessons, machines, certs] = await Promise.all([
-    prisma.lesson.findMany({
-      where: { status: "PUBLISHED", title: { contains: q, mode: "insensitive" } },
-      select: { title: true, slug: true, module: { select: { slug: true, title: true } } },
-      take: 8,
-    }),
-    prisma.machine.findMany({
-      where: { status: "PUBLISHED", name: { contains: q, mode: "insensitive" } },
-      select: { name: true, slug: true },
-      take: 5,
-    }),
-    prisma.certification.findMany({
-      where: {
-        OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { code: { contains: q, mode: "insensitive" } },
-        ],
-      },
-      select: { name: true, slug: true },
-      take: 5,
-    }),
-  ]);
-
-  return NextResponse.json({
-    lessons: lessons.map((l) => ({
+  const moduleTitle = new Map(catalogModules().map((m) => [m.slug, m.title]));
+  const lessons = catalogLessons()
+    .filter(
+      (l) =>
+        l.title.toLowerCase().includes(needle) ||
+        l.summary.toLowerCase().includes(needle) ||
+        l.tags.some((t) => t.toLowerCase().includes(needle)),
+    )
+    .slice(0, 8)
+    .map((l) => ({
       title: l.title,
       slug: l.slug,
-      moduleSlug: l.module.slug,
-      moduleTitle: l.module.title,
-    })),
-    machines,
-    certs,
-  });
+      module: { slug: l.moduleSlug, title: moduleTitle.get(l.moduleSlug) ?? l.moduleSlug },
+    }));
+
+  const machines = listMachineFiles()
+    .filter(
+      (m) =>
+        m.frontmatter.name.toLowerCase().includes(needle) ||
+        (m.frontmatter.tagline ?? "").toLowerCase().includes(needle) ||
+        (m.frontmatter.tags ?? []).some((t) => t.toLowerCase().includes(needle)),
+    )
+    .slice(0, 5)
+    .map((m) => ({ name: m.frontmatter.name, slug: m.slug }));
+
+  const certs = listCerts()
+    .filter(
+      (c) =>
+        c.cert.name.toLowerCase().includes(needle) ||
+        c.cert.code.toLowerCase().includes(needle),
+    )
+    .slice(0, 5)
+    .map((c) => ({ name: c.cert.name, code: c.cert.code, slug: c.cert.slug }));
+
+  return NextResponse.json({ lessons, machines, certs });
 }

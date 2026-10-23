@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, CheckCircle2 } from "lucide-react";
 import { LucideIcon } from "@/components/lucide-icon";
 import { Progress } from "@/components/ui/progress";
+import { useProgress, useProgressHydrated } from "@/lib/progress/store";
 import { cn } from "@/lib/utils";
 
 export interface ModuleCard {
@@ -12,8 +13,7 @@ export interface ModuleCard {
   title: string;
   description: string;
   icon: string;
-  lessonCount: number;
-  doneCount: number;
+  lessonSlugs: string[];
 }
 
 export interface CategoryGroup {
@@ -28,6 +28,12 @@ export interface CategoryGroup {
 export function AcademyBrowser({ groups }: { groups: CategoryGroup[] }) {
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
+  const hydrated = useProgressHydrated();
+  const lessons = useProgress((s) => s.lessons);
+
+  // Progress is overlay data: zeroed until the persisted store has rehydrated.
+  const doneCount = (m: ModuleCard) =>
+    hydrated ? m.lessonSlugs.filter((s) => lessons[s]?.completedAt).length : 0;
 
   const filtered = useMemo(() => {
     if (!query) return groups;
@@ -92,8 +98,10 @@ export function AcademyBrowser({ groups }: { groups: CategoryGroup[] }) {
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {g.modules.map((m) => {
-                const pct = m.lessonCount ? Math.round((m.doneCount / m.lessonCount) * 100) : 0;
-                const complete = m.lessonCount > 0 && m.doneCount === m.lessonCount;
+                const done = doneCount(m);
+                const lessonCount = m.lessonSlugs.length;
+                const pct = lessonCount ? Math.round((done / lessonCount) * 100) : 0;
+                const complete = lessonCount > 0 && done === lessonCount;
                 return (
                   <Link
                     key={m.slug}
@@ -114,7 +122,7 @@ export function AcademyBrowser({ groups }: { groups: CategoryGroup[] }) {
                       {m.description}
                     </p>
                     <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
-                      <span>{m.doneCount}/{m.lessonCount} lessons</span>
+                      <span>{done}/{lessonCount} lessons</span>
                       <span>{pct}%</span>
                     </div>
                     <Progress value={pct} className="h-1.5" />

@@ -13,7 +13,7 @@ import {
 } from "@/lib/ai/engine";
 import { buildSystemPrompt } from "@/lib/ai/grounding";
 import { useBuildContext, useCopilotControl } from "@/lib/ai/store";
-import { PostBody } from "@/components/community/post-body";
+import { PostBody } from "@/components/mdx/post-body";
 import {
   Select,
   SelectContent,

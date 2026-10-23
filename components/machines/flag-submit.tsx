@@ -1,45 +1,42 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Flag, Loader2, Check, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { submitFlag } from "@/lib/actions/machines";
+import { useProgress, useProgressHydrated } from "@/lib/progress/store";
 import { cn } from "@/lib/utils";
 
-export function FlagSubmit({
-  machineId,
-  userOwned,
-  rootOwned,
-}: {
-  machineId: string;
-  userOwned: boolean;
-  rootOwned: boolean;
-}) {
-  const router = useRouter();
+export function FlagSubmit({ machineSlug }: { machineSlug: string }) {
+  const flags = useProgress((s) => s.machines[machineSlug]?.flags);
+  const recordFlag = useProgress((s) => s.recordFlag);
+  const hydrated = useProgressHydrated();
   const [value, setValue] = useState("");
   const [pending, start] = useTransition();
+
+  // Owned state comes from the store; nothing owned until it hydrates.
+  const owned = hydrated ? Object.values(flags ?? {}) : [];
+  const userOwned = owned.some((f) => f.kind === "USER");
+  const rootOwned = owned.some((f) => f.kind === "ROOT");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!value.trim()) return;
     start(async () => {
-      const res = await submitFlag(machineId, value);
+      // recordFlag is idempotent per flag, so points can never double-award.
+      const res = await submitFlag(machineSlug, value, Object.keys(flags ?? {}));
       switch (res.result) {
-        case "CORRECT":
-          toast.success(
-            `${res.flagLabel} captured. +${res.points} pts${res.firstBlood ? " - FIRST BLOOD!" : ""}`,
-          );
+        case "CORRECT": {
+          const fresh = recordFlag(machineSlug, res.flagLabel, res.kind, res.points);
+          toast.success(`${res.flagLabel} captured. +${res.points} pts`);
+          if (fresh.length) toast.success(`Badge earned: ${fresh.length} new`);
           setValue("");
-          router.refresh();
           break;
+        }
         case "DUPLICATE":
           toast.info(`You already own ${res.flagLabel}.`);
-          break;
-        case "RATE_LIMITED":
-          toast.error("Slow down - too many attempts. Try again shortly.");
           break;
         default:
           toast.error("Incorrect flag.");

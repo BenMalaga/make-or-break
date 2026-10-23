@@ -4,6 +4,7 @@ export const POINTS = {
   FIRST_BLOOD_BONUS: 15,
   WRITEUP_PUBLISHED: 20,
   PATH_COMPLETE: 50,
+  DAILY: 25,
 } as const;
 
 /** Categories used for the skill radar. Machine/lesson tags map onto these. */

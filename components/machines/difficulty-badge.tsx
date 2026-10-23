@@ -1,4 +1,4 @@
-import type { Difficulty } from "@prisma/client";
+import type { Difficulty } from "@/lib/content/types";
 import { cn } from "@/lib/utils";
 import { DIFFICULTY_META } from "@/lib/constants";
 

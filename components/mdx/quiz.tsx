@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, X, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLessonInteractive } from "@/lib/content/lesson-context";
@@ -29,11 +29,22 @@ export function Quiz({
   const ctx = useLessonInteractive();
   const prior = ctx?.interactive.quizzes[id];
   const [selected, setSelected] = useState<number | null>(prior?.selected ?? null);
+  const picked = useRef(false);
+  const adopted = useRef(false);
   const answered = selected !== null;
   const correct = selected === answer;
 
+  // The store rehydrates after mount, so a saved answer can arrive after the
+  // first render; adopt it once, unless the reader answered during this visit.
+  useEffect(() => {
+    if (adopted.current || !prior) return;
+    adopted.current = true;
+    if (!picked.current) setSelected(prior.selected);
+  }, [prior]);
+
   function choose(i: number) {
     if (answered) return;
+    picked.current = true;
     setSelected(i);
     ctx?.recordQuiz(id, { selected: i, correct: i === answer });
   }

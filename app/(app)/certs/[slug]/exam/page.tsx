@@ -2,9 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
-import { requireUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { selectExamQuestions, type ExamMode } from "@/lib/exams";
+import { listCerts } from "@/lib/content/certs";
+import { selectExamQuestions, type ExamMode } from "@/lib/actions/exams";
 import { ExamRunner } from "@/components/exams/exam-runner";
 import { Button } from "@/components/ui/button";
 
@@ -19,10 +18,10 @@ export default async function ExamPage(
 ) {
   const searchParams = await props.searchParams;
   const params = await props.params;
-  await requireUser();
 
-  const cert = await prisma.certification.findUnique({ where: { slug: params.slug } });
-  if (!cert) notFound();
+  const loaded = listCerts().find((c) => c.cert.slug === params.slug);
+  if (!loaded) notFound();
+  const cert = loaded.cert;
 
   const mode: ExamMode =
     searchParams.mode === "domain"
@@ -39,7 +38,7 @@ export default async function ExamPage(
         : 20;
 
   const questions = await selectExamQuestions({
-    certificationId: cert.id,
+    certSlug: cert.slug,
     mode,
     count,
     domainNumber,
@@ -66,7 +65,7 @@ export default async function ExamPage(
 
   return (
     <ExamRunner
-      certificationId={cert.id}
+      certSlug={cert.slug}
       certName={cert.name}
       mode={mode}
       examMinutes={cert.examMinutes}

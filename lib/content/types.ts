@@ -1,4 +1,9 @@
-import type { Difficulty, MachineOS, TargetType } from "@prisma/client";
+/**
+ * Difficulty tiers shared by lessons, machines, certs, and paths.
+ */
+export type Difficulty = "EASY" | "MEDIUM" | "HARD" | "INSANE";
+export type MachineOS = "LINUX" | "WINDOWS" | "ANDROID" | "OTHER";
+export type TargetType = "DOCKER" | "BYO_VM" | "HOSTED";
 
 /**
  * MDX frontmatter contracts.

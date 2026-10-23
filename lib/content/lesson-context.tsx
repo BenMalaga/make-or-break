@@ -1,14 +1,22 @@
 "use client";
 
-import { createContext, useContext, useRef, useState, type ReactNode } from "react";
-import { setLessonInteractive, setLessonNotes } from "@/lib/actions/progress";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { useProgress, useProgressHydrated } from "@/lib/progress/store";
 
 /**
- * Shares the current lesson id + interactive state with the client MDX
- * components (Quiz, Exercise, LessonNotes) rendered inside the server-compiled
- * MDX tree. Debounce-persists to the DB via server actions. When absent (a
- * component used outside a lesson), the components fall back to local-only
- * state.
+ * Shares the current lesson slug + interactive state with the client MDX
+ * components (Quiz, Exercise, FloatingNotes) rendered inside the server-compiled
+ * MDX tree. Local state is the source while mounted; it is seeded from the
+ * progress store once, after hydration, and written back through it debounced.
+ * When absent (a component used outside a lesson), the components fall back to
+ * local-only state.
  */
 
 export interface QuizRecord {
@@ -22,7 +30,7 @@ export interface InteractiveState {
 }
 
 interface LessonContextValue {
-  lessonId: string;
+  lessonSlug: string;
   interactive: InteractiveState;
   recordQuiz: (id: string, record: QuizRecord) => void;
   recordExercise: (id: string, done: boolean) => void;
@@ -41,68 +49,97 @@ export function useLessonInteractive(): LessonContextValue | null {
 const EMPTY: InteractiveState = { quizzes: {}, exercises: {} };
 
 export function LessonInteractiveProvider({
-  lessonId,
-  initialInteractive,
-  initialNotes,
+  lessonSlug,
   children,
 }: {
-  lessonId: string;
-  initialInteractive?: Partial<InteractiveState> | null;
-  initialNotes?: string | null;
+  lessonSlug: string;
   children: ReactNode;
 }) {
-  const [interactive, setInteractive] = useState<InteractiveState>({
-    quizzes: initialInteractive?.quizzes ?? {},
-    exercises: initialInteractive?.exercises ?? {},
-  });
-  const [notes, setNotes] = useState(initialNotes ?? "");
+  const hydrated = useProgressHydrated();
+  const [interactive, setInteractive] = useState<InteractiveState>(EMPTY);
+  const [notes, setNotes] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
-  const [notesError, setNotesError] = useState(false);
+  // Writes go to localStorage, so there is no failure path to report.
+  const notesError = false;
   const iTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notesRef = useRef(notes);
+  const iRef = useRef(interactive);
+  const loadedFor = useRef<string | null>(null);
+  // Keep the mirrors current for the unmount flush below.
+  notesRef.current = notes;
+  iRef.current = interactive;
 
-  const persist = (next: InteractiveState) => {
+  // Adopt the persisted state once per lesson, after the store has
+  // rehydrated, then keep local state authoritative so typing is never fought
+  // by the store. Keyed by slug because the provider instance survives
+  // navigation between lessons.
+  useEffect(() => {
+    if (!hydrated || loadedFor.current === lessonSlug) return;
+    loadedFor.current = lessonSlug;
+    const lp = useProgress.getState().lessons[lessonSlug];
+    setInteractive(
+      lp?.interactive
+        ? {
+            quizzes: { ...lp.interactive.quizzes },
+            exercises: { ...lp.interactive.exercises },
+          }
+        : EMPTY,
+    );
+    const storedNotes = lp?.notes ?? "";
+    notesRef.current = storedNotes;
+    setNotes(storedNotes);
+  }, [hydrated, lessonSlug]);
+
+  const persistInteractive = (next: InteractiveState) => {
     if (iTimer.current) clearTimeout(iTimer.current);
     iTimer.current = setTimeout(() => {
-      void setLessonInteractive(lessonId, next).catch(() => {});
+      useProgress.getState().setInteractive(lessonSlug, next);
     }, 400);
   };
 
   const recordQuiz = (id: string, record: QuizRecord) =>
     setInteractive((prev) => {
       const next = { ...prev, quizzes: { ...prev.quizzes, [id]: record } };
-      persist(next);
+      persistInteractive(next);
       return next;
     });
 
   const recordExercise = (id: string, done: boolean) =>
     setInteractive((prev) => {
       const next = { ...prev, exercises: { ...prev.exercises, [id]: done } };
-      persist(next);
+      persistInteractive(next);
       return next;
     });
 
   const updateNotes = (value: string) => {
     setNotes(value);
     setNotesSaving(true);
-    setNotesError(false);
     if (nTimer.current) clearTimeout(nTimer.current);
-    nTimer.current = setTimeout(async () => {
-      try {
-        await setLessonNotes(lessonId, value);
-        setNotesError(false);
-      } catch {
-        // Never report "Saved" when the write failed.
-        setNotesError(true);
-      } finally {
-        setNotesSaving(false);
-      }
+    nTimer.current = setTimeout(() => {
+      useProgress.getState().setNotes(lessonSlug, value);
+      setNotesSaving(false);
     }, 700);
   };
 
+  // Flush pending debounces so a quick navigate cannot drop a just-typed note.
+  useEffect(
+    () => () => {
+      if (iTimer.current) {
+        clearTimeout(iTimer.current);
+        useProgress.getState().setInteractive(lessonSlug, iRef.current);
+      }
+      if (nTimer.current) {
+        clearTimeout(nTimer.current);
+        useProgress.getState().setNotes(lessonSlug, notesRef.current);
+      }
+    },
+    [lessonSlug],
+  );
+
   return (
     <LessonContext.Provider
-      value={{ lessonId, interactive, recordQuiz, recordExercise, notes, updateNotes, notesSaving, notesError }}
+      value={{ lessonSlug, interactive, recordQuiz, recordExercise, notes, updateNotes, notesSaving, notesError }}
     >
       {children}
     </LessonContext.Provider>

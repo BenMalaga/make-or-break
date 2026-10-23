@@ -1,4 +1,4 @@
-import type { Difficulty } from "@prisma/client";
+import type { Difficulty } from "@/lib/content/types";
 
 export const APP_NAME = "Make or Break";
 export const APP_TAGLINE = "Learn offensive security by doing.";
@@ -11,9 +11,9 @@ export interface NavItem {
   phase?: number;
 }
 
-/** Primary sidebar navigation for the authenticated app. */
-// Challenges live inside Learn (a view alongside Paths/Modules/Certifications);
-// Leaderboard and Write-ups live inside Community. Kept lean on purpose.
+/** Primary sidebar navigation. No auth gate anywhere: the app has no accounts.
+ * Challenges live inside Learn (a view alongside Paths/Modules/Certifications).
+ */
 export const APP_NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard", phase: 1 },
   { label: "Learn", href: "/learn", icon: "GraduationCap", phase: 2 },
@@ -21,13 +21,11 @@ export const APP_NAV: NavItem[] = [
   { label: "Build", href: "/build", icon: "SquareTerminal", phase: 2 },
   { label: "Machines", href: "/machines", icon: "Server", phase: 3 },
   { label: "Glossary", href: "/glossary", icon: "BookOpen", phase: 2 },
-  { label: "Community", href: "/community", icon: "MessageSquare", phase: 5 },
 ];
 
 /** Secondary links (sidebar footer cluster). Also shown in the mobile menu so
  * these pages are reachable on phones, where the sidebar footer is hidden. */
 export const APP_SECONDARY_NAV: NavItem[] = [
-  { label: "Messages", href: "/messages", icon: "Mail" },
   { label: "My Notes", href: "/notes", icon: "NotebookPen" },
   { label: "Resources", href: "/resources", icon: "BookMarked" },
   { label: "Support us", href: "/support", icon: "Heart" },

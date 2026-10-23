@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft, Clock, Play, Timer, Layers, Route, ArrowRight } from "lucide-react";
-import { requireUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { listCerts } from "@/lib/content/certs";
+import { listPathFiles } from "@/lib/content/mdx";
+import { CERT_PATHS } from "@/lib/cert-paths";
 import { LucideIcon } from "@/components/lucide-icon";
 import { Button } from "@/components/ui/button";
-import { timeAgo } from "@/lib/utils";
+import { CertAttempts } from "@/components/exams/cert-attempts";
 
 export async function generateMetadata(
   props: {
@@ -14,39 +15,40 @@ export async function generateMetadata(
   }
 ): Promise<Metadata> {
   const params = await props.params;
-  const c = await prisma.certification.findUnique({ where: { slug: params.slug } });
-  return { title: c?.name ?? "Certification" };
+  const c = listCerts().find((x) => x.cert.slug === params.slug);
+  return { title: c?.cert.name ?? "Certification" };
+}
+
+/**
+ * The prep path for a cert: CERT_PATHS lists the lessons that cover the exam,
+ * and the closest published path file is the one worth following. Requires a
+ * real overlap (3+ lessons) so a cert is never linked to an unrelated path.
+ */
+function findPrepPath(certSlug: string): { slug: string; items: number } | null {
+  const certPath = CERT_PATHS.find((p) => p.certSlug === certSlug);
+  if (!certPath) return null;
+  const want = new Set(certPath.lessonSlugs);
+  let best: { slug: string; overlap: number; items: number } | null = null;
+  for (const f of listPathFiles()) {
+    const items = f.frontmatter.items ?? [];
+    const lessons = items.filter((i) => i.type === "LESSON").map((i) => i.slug);
+    const overlap = lessons.filter((s) => want.has(s)).length;
+    if (!best || overlap > best.overlap) {
+      best = { slug: f.slug, overlap, items: items.length };
+    }
+  }
+  return best && best.overlap >= 3 ? { slug: best.slug, items: best.items } : null;
 }
 
 export default async function CertDetailPage(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
-  const user = await requireUser();
-
-  const cert = await prisma.certification.findUnique({
-    where: { slug: params.slug },
-    include: {
-      domains: {
-        orderBy: { number: "asc" },
-        include: { _count: { select: { questions: true } } },
-      },
-      _count: { select: { questions: true } },
-    },
-  });
-  if (!cert) notFound();
-
-  const [attempts, path] = await Promise.all([
-    prisma.examAttempt.findMany({
-      where: { userId: user.id, certificationId: cert.id },
-      orderBy: { startedAt: "desc" },
-      take: 6,
-    }),
-    prisma.path.findFirst({
-      where: { certificationId: cert.id },
-      include: { _count: { select: { items: true } } },
-    }),
-  ]);
-
-  const hasQuestions = cert._count.questions > 0;
+  const loaded = listCerts().find((c) => c.cert.slug === params.slug);
+  if (!loaded) notFound();
+  const cert = loaded.cert;
+  const questions = loaded.questions;
+  const domains = [...cert.domains].sort((a, b) => a.number - b.number);
+  const path = findPrepPath(cert.slug);
+  const hasQuestions = questions.length > 0;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -69,11 +71,11 @@ export default async function CertDetailPage(props: { params: Promise<{ slug: st
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1"><Clock className="size-3.5" /> {cert.examMinutes} min</span>
           <span>Pass mark {cert.passScore}%</span>
-          <span>{cert._count.questions} questions in the bank</span>
+          <span>{questions.length} questions in the bank</span>
         </div>
       </div>
 
-      {path && path._count.items > 0 ? (
+      {path ? (
         <Link
           href={`/paths/${path.slug}`}
           className="flex items-center gap-4 rounded-lg border bg-card p-5 transition-colors hover:border-primary/50"
@@ -84,7 +86,7 @@ export default async function CertDetailPage(props: { params: Promise<{ slug: st
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold">Follow the learning path</h3>
             <p className="text-sm text-muted-foreground">
-              {path._count.items} lessons that cover this exam, in order. Learn it, do not just memorize it.
+              {path.items} lessons that cover this exam, in order. Learn it, do not just memorize it.
             </p>
           </div>
           <ArrowRight className="size-5 shrink-0 text-muted-foreground" />
@@ -135,49 +137,34 @@ export default async function CertDetailPage(props: { params: Promise<{ slug: st
               <h2 className="text-sm font-semibold">Domains - drill one at a time</h2>
             </div>
             <ul className="divide-y divide-border/60">
-              {cert.domains.map((d) => (
-                <li key={d.id} className="flex items-center gap-3 px-5 py-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold text-muted-foreground">
-                    {d.number}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{d.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {d.weight}% of exam - {d._count.questions} questions
-                    </p>
-                  </div>
-                  {d._count.questions > 0 ? (
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href={`/certs/${cert.slug}/exam?mode=domain&domain=${d.number}&count=20`}>
-                        Practice
-                      </Link>
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
+              {domains.map((d) => {
+                const count = questions.filter((q) => q.domain === d.number).length;
+                return (
+                  <li key={d.number} className="flex items-center gap-3 px-5 py-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold text-muted-foreground">
+                      {d.number}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{d.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {d.weight}% of exam - {count} questions
+                      </p>
+                    </div>
+                    {count > 0 ? (
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/certs/${cert.slug}/exam?mode=domain&domain=${d.number}&count=20`}>
+                          Practice
+                        </Link>
+                      </Button>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
-          {/* History */}
-          {attempts.length > 0 ? (
-            <div className="rounded-lg border bg-card">
-              <div className="border-b px-5 py-3">
-                <h2 className="text-sm font-semibold">Your attempts</h2>
-              </div>
-              <ul className="divide-y divide-border/60">
-                {attempts.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                    <span className="text-muted-foreground">
-                      {a.mode} - {a.correctCount}/{a.totalCount} - {timeAgo(a.startedAt)}
-                    </span>
-                    <span className={a.passed ? "font-medium text-success" : "font-medium text-muted-foreground"}>
-                      {a.score}%
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          {/* History (from the local store) */}
+          <CertAttempts certSlug={cert.slug} />
         </>
       )}
     </div>

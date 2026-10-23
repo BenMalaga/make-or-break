@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, CheckCircle2, Trophy, Hammer, Wrench, LayoutGrid, Plus, ArrowBigUp } from "lucide-react";
+import { Search, CheckCircle2, Trophy, Hammer, Wrench, LayoutGrid } from "lucide-react";
 import { LucideIcon } from "@/components/lucide-icon";
 import {
   type ChallengeMeta,
@@ -35,7 +35,6 @@ export function ChallengesBrowser({
   const [category, setCategory] = useState<string | "all">("all");
   const [difficulty, setDifficulty] = useState<string | "all">("all");
   const [solvedFilter, setSolvedFilter] = useState<SolvedFilter>("all");
-  const [sort, setSort] = useState<"default" | "top">("default");
   const [query, setQuery] = useState("");
 
   // When embedded, the Learn track toggle (a route param) is the source of truth.
@@ -67,14 +66,12 @@ export function ChallengesBrowser({
           c.summary.toLowerCase().includes(q) ||
           c.tags.some((t) => t.toLowerCase().includes(q)),
       )
-      .sort((a, b) =>
-        sort === "top"
-          ? (b.upvotes ?? 0) - (a.upvotes ?? 0) ||
-            DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty)
-          : DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty) ||
-            a.title.localeCompare(b.title),
+      .sort(
+        (a, b) =>
+          DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty) ||
+          a.title.localeCompare(b.title),
       );
-  }, [challenges, activeTrack, category, difficulty, solvedFilter, sort, query, solved]);
+  }, [challenges, activeTrack, category, difficulty, solvedFilter, query, solved]);
 
   const solvedCount = challenges.filter((c) => solved.has(c.slug)).length;
 
@@ -155,23 +152,6 @@ export function ChallengesBrowser({
           <option value="unsolved">Unsolved</option>
           <option value="solved">Solved</option>
         </select>
-
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as "default" | "top")}
-          className="h-8 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Sort"
-        >
-          <option value="default">Sort: default</option>
-          <option value="top">Sort: top voted</option>
-        </select>
-
-        <Link
-          href="/challenges/new"
-          className="ml-auto flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Plus className="size-3.5" /> Create
-        </Link>
       </div>
 
       {/* Category chips */}
@@ -245,27 +225,14 @@ export function ChallengesBrowser({
                 <h3 className="font-semibold leading-snug group-hover:text-primary">{c.title}</h3>
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{c.summary}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-1">
-                  {c.community ? (
-                    <>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        by {c.author ?? "community"}
-                      </span>
-                      {(c.upvotes ?? 0) > 0 ? (
-                        <span className="flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground">
-                          <ArrowBigUp className="size-3" /> {c.upvotes}
-                        </span>
-                      ) : null}
-                    </>
-                  ) : (
-                    c.tags.slice(0, 3).map((t) => (
-                      <span
-                        key={t}
-                        className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                      >
-                        {t}
-                      </span>
-                    ))
-                  )}
+                  {c.tags.slice(0, 3).map((t) => (
+                    <span
+                      key={t}
+                      className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {t}
+                    </span>
+                  ))}
                 </div>
               </Link>
             );

@@ -1,58 +1,46 @@
 # Make or Break
 
-A multi-tenant platform for learning offensive security by doing: structured
-courses (the Academy) plus hands-on vulnerable machines (the Practice platform),
-with gamification, community, and a path to hosted, VPN-reachable targets.
+A free, open-source platform for learning how technology works by doing: the
+Academy (lessons, paths, certifications, challenges), hands-on vulnerable
+machines, an in-browser IDE, and gamification. Two tracks: Make (build it) and
+Break (take it apart).
 
-**Free and open source (MIT).** No signup required to start: a guest session
-tracks your progress from the first click, and creating an account is optional
-(it just lets you keep your progress across devices). Self-host it anywhere
-Postgres runs. See [DEPLOY.md](./DEPLOY.md) to put it online, and
-[ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
+**No accounts. No signup. No database.** Content is MDX on disk and your
+progress (completed lessons, notes, solves, points, streak, badges) saves itself
+in your browser's localStorage from the first click. Self-host it anywhere Node
+runs. See [DEPLOY.md](./DEPLOY.md) to put it online, and
+[ARCHITECTURE.md](./ARCHITECTURE.md) for the design.
 
 ## Stack
 
-- **Next.js 14** (App Router) + **TypeScript** + **Tailwind** + shadcn/ui + Framer Motion
-- **PostgreSQL** via **Prisma** (typed schema + migrations)
-- **Auth.js v5** (NextAuth) - credentials (email/username + password) and optional GitHub/Google OAuth, role-based (user / creator / admin)
+- **Next.js** (App Router) + **TypeScript** + **Tailwind** + shadcn/ui + Framer Motion
 - **MDX** content pipeline for lessons and machines (with interactive React components)
+- **Zustand** + localStorage for progress (no server-side state anywhere)
 - Catppuccin theme (Mocha dark default, Latte light)
-
-Later phases layer in Redis (leaderboards/queues), Stripe (subscriptions), S3
-(uploads), an AI tutor, and a Docker + WireGuard orchestration service for
-hosted machines. All of those are feature-gated and off until their env is set,
-so the app runs end to end with only a database.
 
 ## Quickstart
 
-Prerequisites: Node 18+ and a PostgreSQL database.
+Prerequisites: Node 18+.
 
 ```bash
 # 1. Install
 npm install
 
-# 2. Configure env (only DATABASE_URL + AUTH_SECRET are required)
+# 2. Configure env (only the public app name/url are needed)
 cp .env.example .env
-#   - set DATABASE_URL to your Postgres
-#   - AUTH_SECRET: openssl rand -base64 32
 
-# 3. Create the schema + generate the client
-npm run db:migrate
-
-# 4. Seed content (reads content/**.mdx into the DB)
-npm run db:seed
-
-# 5. Run
+# 3. Run
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. There is no step 4: nothing to migrate, nothing to seed.
 
-### Accounts
+### Progress and privacy
 
-No account is required. The app runs in guest mode by default and still saves your
-progress. Registering (or signing in) just persists that progress across devices.
-Every account has the same permissions; accounts exist only to save progress.
+Everything the learner does lives in their own browser under the
+`mob.progress.v1` localStorage key. Nothing is sent to a server. The Settings
+page exports it as JSON. Clearing browser data clears progress; there is no
+other copy.
 
 ## Scripts
 
@@ -60,11 +48,8 @@ Every account has the same permissions; accounts exist only to save progress.
 |---|---|
 | `npm run dev` | Dev server |
 | `npm run build` / `npm start` | Production build / serve |
-| `npm run db:migrate` | Create/apply a Prisma migration (dev) |
-| `npm run db:seed` | Load `content/**` MDX into the DB (idempotent) |
-| `npm run db:reset` | Drop, re-migrate, re-seed |
-| `npm run db:studio` | Prisma Studio |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run check:content` | Lint the lesson corpus against the writing contract |
 | `npm run lint` | ESLint |
 
 ## Project structure
@@ -82,26 +67,25 @@ components/
   ui/                    shadcn primitives
   mdx/                   interactive MDX components (CommandCard, Quiz, Callout, ...)
   diagrams/              interactive diagrams (SubnetCalculator, OsiModel, ...)
-  layout/ machines/ gamification/ auth/ ...
+  layout/ machines/ gamification/ ...
 content/
   lessons/<module>/*.mdx MDX lessons (frontmatter is the source of truth)
   machines/*.mdx         machine defs (+ *.walkthrough.mdx, spoiler-gated)
   paths/*.mdx            ordered lesson+machine paths
 lib/
-  db.ts                  Prisma singleton
-  content/               MDX loader + RSC renderer + lesson interactivity context
-  gamification/          ranks, points, streak, achievements
-  actions/               server actions (progress, flags, auth)
+  progress/store.ts      the client-side progress store (localStorage)
+  content/               MDX loaders + on-disk catalog + RSC renderer
+  gamification/          ranks, points, streak, achievements (pure functions)
+  actions/               server actions that only read content (flags, hints,
+                         exams, daily) - answers never ship to the client
   flags.ts               SHA-256 flag hashing
-prisma/schema.prisma     the full data model (all phases)
-prisma/seed.ts           MDX -> DB
 ```
 
 ## Content is data: how to add things
 
-Content lives in `content/**.mdx`. Frontmatter is authoritative; the seed reads
-it and upserts DB rows. To add content you write MDX and run `npm run db:seed`.
-You never hand-write DB rows. Copy an existing file as a template.
+Content lives in `content/**.mdx`. Frontmatter is authoritative and is read
+directly from disk at render time: to add content you write MDX and deploy. No
+seeding step exists. Copy an existing file as a template.
 
 Note on YAML frontmatter: avoid a bare colon-space (`: `) inside an unquoted
 value, or wrap the value in quotes (js-yaml reads `foo: bar` as a nested map).

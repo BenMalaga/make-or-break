@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import matter from "gray-matter";
-import { prisma } from "@/lib/db";
 import {
   type ChallengeMeta,
   type ChallengeDifficulty,
@@ -14,7 +13,7 @@ import {
  * SERVER ONLY. Reads challenge content from content/challenges/<slug>.mdx. The
  * canonical answer lives in frontmatter and is checked here; it is never placed
  * in a ChallengeMeta (what the client receives). Adding a challenge is a content
- * deploy, no DB seed needed: solves reference the slug.
+ * edit, no database involved: solves live in the browser's progress store.
  */
 
 const DIR = path.join(process.cwd(), "content", "challenges");
@@ -131,98 +130,8 @@ export function checkAnswer(slug: string, submission: string): boolean | null {
   return expected.length > 0 && expected === got;
 }
 
-// ---------------------------------------------------------------------------
-// Community (DB) challenges. The answer is stored only as a hash of its
-// normalized form, so it never sits in the database as plaintext.
-// ---------------------------------------------------------------------------
-
-/** Hash the normalized answer for storage / comparison. */
+/** Hash the normalized answer (used when authoring wants a stored hash instead of plaintext). */
 export function hashAnswer(raw: string, answerType: AnswerType, caseSensitive: boolean): string {
   const norm = normalize(raw, answerType, caseSensitive);
   return crypto.createHash("sha256").update(norm).digest("hex");
-}
-
-/** Published community challenges as client-safe metadata. */
-export async function listCommunityChallenges(): Promise<ChallengeMeta[]> {
-  const rows = await prisma.challenge.findMany({
-    where: { status: "PUBLISHED" },
-    orderBy: { createdAt: "desc" },
-    include: { author: { select: { username: true } } },
-  });
-  return rows.map((c) => ({
-    slug: c.slug,
-    title: c.title,
-    summary: c.summary,
-    track: c.track as "make" | "break",
-    category: c.category,
-    difficulty: c.difficulty as ChallengeDifficulty,
-    points: c.points,
-    tags: [],
-    answerType: c.answerType as AnswerType,
-    starterLang: c.starterLang ?? undefined,
-    starter: c.starter ?? undefined,
-    hints: c.hints,
-    author: c.author?.username,
-    community: true,
-    upvotes: c.upvoteCount,
-  }));
-}
-
-/** Both official (file) and community (DB) challenges, merged. */
-export async function listAllChallenges(): Promise<ChallengeMeta[]> {
-  const [community] = await Promise.all([listCommunityChallenges()]);
-  return [...listChallenges(), ...community];
-}
-
-/**
- * One challenge from either source. `source` tells the caller how to render the
- * body: "file" bodies are first-party MDX, "db" bodies are user markdown and
- * must go through the safe PostBody renderer.
- */
-export async function getChallengeAnySource(
-  slug: string,
-): Promise<{ meta: ChallengeMeta; body: string; source: "file" | "db" } | null> {
-  const file = getChallenge(slug);
-  if (file) return { ...file, source: "file" };
-
-  const c = await prisma.challenge.findUnique({
-    where: { slug },
-    include: { author: { select: { username: true } } },
-  });
-  if (!c || c.status !== "PUBLISHED") return null;
-  return {
-    source: "db",
-    body: c.body,
-    meta: {
-      slug: c.slug,
-      title: c.title,
-      summary: c.summary,
-      track: c.track as "make" | "break",
-      category: c.category,
-      difficulty: c.difficulty as ChallengeDifficulty,
-      points: c.points,
-      tags: [],
-      answerType: c.answerType as AnswerType,
-      starterLang: c.starterLang ?? undefined,
-      starter: c.starter ?? undefined,
-      hints: c.hints,
-      author: c.author?.username,
-      community: true,
-      upvotes: c.upvoteCount,
-    },
-  };
-}
-
-/** Check a submission against a challenge from either source. */
-export async function checkAnswerAnySource(
-  slug: string,
-  submission: string,
-): Promise<boolean | null> {
-  const file = checkAnswer(slug, submission);
-  if (file !== null) return file;
-
-  const c = await prisma.challenge.findUnique({ where: { slug } });
-  if (!c || c.status !== "PUBLISHED") return null;
-  const got = hashAnswer(submission, c.answerType as AnswerType, c.caseSensitive);
-  return got === c.answerHash;
 }

@@ -1,35 +1,21 @@
 import Link from "next/link";
-import { ArrowRight, Users } from "lucide-react";
-import { auth } from "@/auth";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GuestButton } from "@/components/auth/guest-button";
 import { Logo } from "@/components/brand/logo";
 import { LucideIcon } from "@/components/lucide-icon";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { TRACKS } from "@/lib/tracks";
 
-export default async function LandingPage() {
-  const session = await auth();
-  const loggedIn = !!session?.user;
-
+export default function LandingPage() {
   return (
     <div className="flex min-h-svh flex-col">
       <header className="flex h-14 items-center justify-between border-b px-4 sm:px-6">
         <Logo />
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          {loggedIn ? (
-            <Button asChild size="sm">
-              <Link href="/dashboard">Dashboard</Link>
-            </Button>
-          ) : (
-            <>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/login">Sign in</Link>
-              </Button>
-              <GuestButton size="sm" label="Start free" showArrow={false} />
-            </>
-          )}
+          <Button asChild size="sm">
+            <Link href="/learn">Start learning</Link>
+          </Button>
         </div>
       </header>
 
@@ -38,7 +24,7 @@ export default async function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-background/0 via-background/40 to-background" />
         <div className="container relative flex flex-col items-center py-20 text-center sm:py-28">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground">
-            Free and open source. No account needed to start.
+            Free and open source. No account, no signup, no tracking.
           </div>
           <h1 className="max-w-3xl text-balance text-4xl font-bold tracking-tight sm:text-6xl">
             Do you want to <span className="text-make">make things</span> or{" "}
@@ -49,23 +35,17 @@ export default async function LandingPage() {
             apart. Start from zero, no experience assumed, and go as deep as you want.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            {loggedIn ? (
-              <Button asChild size="lg">
-                <Link href="/dashboard">
-                  Continue <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            ) : (
-              <>
-                <GuestButton size="lg" label="Start learning free" />
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/register">Create an account</Link>
-                </Button>
-              </>
-            )}
+            <Button asChild size="lg">
+              <Link href="/learn">
+                Start learning <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href="/dashboard">Your progress</Link>
+            </Button>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            Your progress is saved from the first click. An account is optional.
+            Your progress saves itself in your browser from the first click. No account exists.
           </p>
 
           {/* On-brand terminal motif: the make-vs-break duality as a shell session. */}
@@ -104,7 +84,7 @@ export default async function LandingPage() {
           return (
             <Link
               key={id}
-              href={loggedIn ? `/learn?track=${id}` : "/register"}
+              href={`/learn?track=${id}`}
               className="hover-lift group flex flex-col rounded-xl border bg-card p-7"
             >
               <div
@@ -170,8 +150,7 @@ export default async function LandingPage() {
             ))}
           </div>
           <p className="mx-auto mt-8 flex max-w-2xl items-center justify-center gap-2 text-center text-xs text-muted-foreground">
-            <Users className="size-4 text-make" />
-            Capture the flag, community write-ups, and team challenges are on the way.
+            Capture the flag events and team challenges are on the way.
           </p>
         </div>
       </section>

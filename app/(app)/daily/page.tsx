@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Flame, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { getTodayDrop } from "@/lib/actions/daily";
-import { DailySolver } from "@/components/daily/daily-solver";
-import { PostBody } from "@/components/community/post-body";
+import { DailySolver, DailyStreakBadge } from "@/components/daily/daily-solver";
+import { PostBody } from "@/components/mdx/post-body";
 import { LucideIcon } from "@/components/lucide-icon";
 import {
   DIFFICULTY_CLASS,
@@ -47,11 +47,8 @@ export default async function DailyPage() {
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{prettyDate}</p>
         </div>
-        {drop.streak > 0 ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-medium/30 bg-medium/10 px-3 py-1 text-sm font-medium text-medium">
-            <Flame className="size-4" /> {drop.streak}-day streak
-          </span>
-        ) : null}
+        {/* Streak lives in the local store now, so the chip is client-rendered. */}
+        <DailyStreakBadge dateKey={drop.dateKey} />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -78,12 +75,11 @@ export default async function DailyPage() {
       </div>
 
       <DailySolver
+        dateKey={drop.dateKey}
+        slug={drop.slug}
         dropNumber={drop.dropNumber}
         answerType={drop.meta.answerType}
         hints={drop.meta.hints}
-        initialSolved={drop.state.solved}
-        initialAttempts={drop.state.attempts}
-        initialStreak={drop.streak}
       />
     </div>
   );

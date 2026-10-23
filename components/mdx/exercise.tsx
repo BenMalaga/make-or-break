@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Circle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLessonInteractive } from "@/lib/content/lesson-context";
@@ -34,8 +34,22 @@ export function Exercise({
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">(
     priorDone ? "correct" : "idle",
   );
+  const touched = useRef(false);
+  const adopted = useRef(false);
+
+  // The store rehydrates after mount, so a saved "done" can arrive after the
+  // first render; adopt it once, unless the reader acted during this visit.
+  useEffect(() => {
+    if (adopted.current || !priorDone) return;
+    adopted.current = true;
+    if (!touched.current) {
+      setDone(true);
+      setStatus("correct");
+    }
+  }, [priorDone]);
 
   function mark(next: boolean) {
+    touched.current = true;
     setDone(next);
     ctx?.recordExercise(id, next);
   }
